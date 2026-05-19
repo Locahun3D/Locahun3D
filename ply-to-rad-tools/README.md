@@ -70,7 +70,12 @@ Desktop/
 >   `convert.bat` もこのパスを自動参照します。
 > - **Git**: `winget` で導入。winget が無い古い Windows では
 >   <https://git-scm.com/> から手動インストール後に再実行。
-> - **Rust**: `rustup-init` を非対話モードで導入 (stable / minimal)。
+> - **Rust**: `rustup` の **GNU ツールチェーン** (`stable-x86_64-pc-windows-gnu`)
+>   を非対話で導入。GNU 版はリンカを自己完結で同梱するため
+>   **Visual Studio C++ Build Tools は不要**です。既に MSVC 版 Rust が
+>   入っていて `link.exe` が無い PC は、自動で GNU へ切替えます。
+> - Spark の `npm install` は `--ignore-scripts` で実行します。ブラウザ用
+>   WASM ビルド (wasm-pack) は PLY→RAD 変換に不要なためスキップします。
 >
 > winget は Windows 10 1809+ / Windows 11 に標準搭載。導入後は一度
 > ターミナルを閉じて `setup.bat` を再実行すると確実です。

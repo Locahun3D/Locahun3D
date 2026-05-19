@@ -4,9 +4,10 @@ REM  PLY -> RAD 変換ツールキット 初回セットアップ (Windows)
 REM ============================================================
 REM   1. Node / Git / Rust の存在チェック
 REM      - 無ければ自動インストール (Node: winget→ポータブルzip,
-REM        Git: winget, Rust: rustup-init)
+REM        Git: winget, Rust: rustup GNU ツールチェーン)
+REM      - Rust は GNU 版を使うので Visual Studio Build Tools は不要
 REM   2. Spark リポジトリをクローン
-REM   3. 依存をインストール + Rust ツールチェーンをビルド
+REM   3. 依存をインストール (ブラウザ WASM ビルドはスキップ)
 REM
 REM   このスクリプトは初回 1 回だけ実行すれば OK です。
 REM   完了後は convert.bat だけで変換できます。
@@ -97,8 +98,14 @@ echo [INFO] Spark の依存をインストール ^+ Rust ツールチェーンをビルドします...
 echo        ^(初回は 5～15 分かかります^)
 echo.
 
+REM --ignore-scripts: Spark の "prepare" は npm run build:wasm
+REM (wasm-pack → ブラウザ用 WASM) を走らせますが、PLY->RAD 変換は
+REM ネイティブ build-lod (cargo) だけで完結し、ブラウザ WASM も
+REM wasm-pack も不要です。さらに wasm-pack 自体が C リンカを要求し
+REM ビルドが落ちるため、ライフサイクルスクリプトをスキップします。
+REM node_modules は生成されるので convert.bat の存在チェックは通ります。
 pushd spark
-call npm install
+call npm install --ignore-scripts
 set NPM_INSTALL_EXIT=!errorlevel!
 popd
 
@@ -229,12 +236,20 @@ REM ============================================================
 REM  Subroutine: Rust (cargo) を用意 (rustup-init)
 REM ============================================================
 :ensure_rust
+REM Windows の Rust は既定で MSVC ターゲット。そのリンカ link.exe は
+REM Visual Studio C++ Build Tools (数GB・管理者権限) にしか付属しません。
+REM ダブルクリックだけで完結させるため GNU ツールチェーンを使います。
+REM rustup の rust-mingw コンポーネントが自己完結リンカを同梱するので
+REM Visual Studio は一切不要。build-lod の依存
+REM (anyhow / serde_json / wgpu / spark-lib) は GNU で問題なくビルド可。
+set "RUST_GNU=stable-x86_64-pc-windows-gnu"
+
 where cargo >nul 2>&1
-if not errorlevel 1 exit /b 0
+if not errorlevel 1 goto :rust_have_cargo
 
 echo.
 echo [INFO] Rust ^(cargo^) が見つかりません。自動インストールを行います。
-echo        ^(rustup-init.exe をダウンロードしてデフォルト構成でインストール^)
+echo        ^(rustup-init.exe / GNU ツールチェーン。Visual Studio 不要^)
 echo.
 
 set "RUSTUP_TMP=%TEMP%\rustup-init.exe"
@@ -247,7 +262,7 @@ if errorlevel 1 (
 )
 
 echo [INFO] Rust をインストール中... ^(数分かかります^)
-"!RUSTUP_TMP!" -y --default-toolchain stable --profile minimal
+"!RUSTUP_TMP!" -y --default-toolchain !RUST_GNU! --profile minimal --default-host x86_64-pc-windows-gnu
 set RUSTUP_EXIT=!errorlevel!
 del /f /q "!RUSTUP_TMP!" >nul 2>&1
 if !RUSTUP_EXIT! neq 0 (
@@ -263,7 +278,32 @@ if errorlevel 1 (
   echo      一度ターミナルを閉じて setup.bat を再実行してください。
   exit /b 1
 )
-echo [OK] Rust 自動インストール完了
+echo [OK] Rust 自動インストール完了 ^(GNU toolchain^)
+exit /b 0
+
+:rust_have_cargo
+REM cargo は既にある。MSVC リンカ link.exe があれば VS 入り PC なので
+REM そのまま。無ければ GNU ツールチェーンへ切替えて VS 不要にする。
+where link >nul 2>&1
+if not errorlevel 1 (
+  echo [OK] Rust cargo: 既存 ^(MSVC link.exe 検出^)
+  exit /b 0
+)
+echo [INFO] C リンカ ^(link.exe^) が無いため Rust を GNU ツールチェーンへ切替...
+where rustup >nul 2>&1
+if errorlevel 1 set "PATH=%USERPROFILE%\.cargo\bin;!PATH!"
+rustup toolchain install !RUST_GNU! --profile minimal
+if errorlevel 1 (
+  echo [NG] GNU ツールチェーンの取得に失敗しました。
+  echo      ネットワークを確認して再実行してください。
+  exit /b 1
+)
+rustup default !RUST_GNU!
+if errorlevel 1 (
+  echo [NG] GNU ツールチェーンへの切替に失敗しました。
+  exit /b 1
+)
+echo [OK] Rust GNU ツールチェーンへ切替完了 ^(Visual Studio 不要^)
 exit /b 0
 
 :error
