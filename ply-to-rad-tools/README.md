@@ -60,11 +60,20 @@ Desktop/
 
 | ツール | 用途 | インストール |
 |---|---|---|
-| **Node.js 18+** | npm スクリプト実行 | <https://nodejs.org/ja> |
+| **Node.js LTS** | npm スクリプト実行 | **未導入なら setup が自動でインストール** |
+| **Git** | Spark リポジトリのクローン | **未導入なら setup が自動でインストール** |
 | **Rust(rustup)** | Spark の build-lod は Rust 製 | **未導入なら setup が自動でインストール** |
-| **Git** | Spark リポジトリのクローン | <https://git-scm.com/> |
 
-> Rust は `setup.bat` / `setup.sh` が `rustup-init` を自動取得して非対話モードで導入します(stable / minimal プロファイル)。手動で入れたい場合は <https://rustup.rs/> から。
+> **Windows (`setup.bat`)** は 3 つすべてを自動導入します:
+> - **Node.js**: まず `winget` で LTS を、無ければ公式ポータブル zip を
+>   `%USERPROFILE%\.locahun-tools\node` に展開（管理者権限不要）。
+>   `convert.bat` もこのパスを自動参照します。
+> - **Git**: `winget` で導入。winget が無い古い Windows では
+>   <https://git-scm.com/> から手動インストール後に再実行。
+> - **Rust**: `rustup-init` を非対話モードで導入 (stable / minimal)。
+>
+> winget は Windows 10 1809+ / Windows 11 に標準搭載。導入後は一度
+> ターミナルを閉じて `setup.bat` を再実行すると確実です。
 
 ## 変換時間とサイズの目安
 

@@ -16,10 +16,11 @@ REM ============================================================
 setlocal enabledelayedexpansion
 cd /d "%~dp0"
 
-REM cargo bin にパスが通っていないターミナルで実行されたケースの保険
-if exist "%USERPROFILE%\.cargoin\cargo.exe" (
-  set "PATH=%USERPROFILE%\.cargoin;%PATH%"
-)
+REM Node / cargo にパスが通っていないターミナルで実行されたケースの保険。
+REM setup.bat がポータブル版を入れた場合 (%USERPROFILE%\.locahun-tools\node)
+REM や rustup の既定の cargo bin を現セッションの PATH に追加します。
+if exist "%USERPROFILE%\.locahun-tools\node\node.exe" set "PATH=%USERPROFILE%\.locahun-tools\node;%PATH%"
+if exist "%USERPROFILE%\.cargo\bin\cargo.exe" set "PATH=%USERPROFILE%\.cargo\bin;%PATH%"
 
 REM ── Spark のセットアップ確認 ──
 if not exist "spark\node_modules" (
@@ -98,7 +99,7 @@ if /i "!SRC_EXT!"==".ply" (
   node "%~dp0rotate_ply.js" "!SRC_ABS!" "!TMP_ROT!"
   if errorlevel 1 (
     echo [NG] 回転処理に失敗しました
-    if exist "!TMP_ROT!" del /f /q "!TMP_ROT!" >/dev/null 2>&1
+    if exist "!TMP_ROT!" del /f /q "!TMP_ROT!" >nul 2>&1
     goto :eof
   )
   set "BUILD_SRC=!TMP_ROT!"
@@ -112,7 +113,7 @@ set CONV_EXIT=!errorlevel!
 popd
 
 REM 一時 PLY を掃除
-if defined TMP_ROT if exist "!TMP_ROT!" del /f /q "!TMP_ROT!" >/dev/null 2>&1
+if defined TMP_ROT if exist "!TMP_ROT!" del /f /q "!TMP_ROT!" >nul 2>&1
 
 if !CONV_EXIT! neq 0 (
   echo [NG] 変換に失敗しました: !SRC!
