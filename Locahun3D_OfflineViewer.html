@@ -2599,14 +2599,25 @@ body.ar-active #dz{display:none !important;}
   </div>
   <!-- Demo data download. Links to a public R2-hosted sample .rad
        (Spark 2.x streaming format, LoD-paged) so users can try the viewer
-       without supplying their own scan. -->
+       without supplying their own scan.
+       NOTE: the `download` attribute is stripped at runtime on iOS /
+       iPadOS (see the inline script below). Safari ignores `download`
+       for cross-origin URLs anyway, and the combination of
+       download + target=_blank on a 357 MB cross-origin file made
+       Safari open a blank tab that never resolved ("r2 の画面で飛ばされて
+       止まる"). Without `download`, iOS treats it as a normal new-tab
+       navigation and shows its native download / Files sheet instead. -->
   <div class="dz-demo-line">
     <a id="dz-demo-link"
        href="https://pub-6fe11fc6301a424ba739695a7c4d2dd9.r2.dev/Kousaten_ForDemo_point_cloud.rad"
        download="Kousaten_ForDemo_point_cloud.rad"
-       target="_blank" rel="noopener">
+       target="_blank" rel="noopener noreferrer">
       📥 <span id="dz-demo-text">デモデータをダウンロード</span>
     </a>
+    <div id="dz-demo-ios-hint"
+         style="display:none;font-size:.66em;color:rgba(180,180,190,.55);margin-top:3px;line-height:1.3">
+      <span id="dz-demo-ios-hint-t">※ iPhone は大容量のため新しいタブで開きます。共有 → 「"ファイル"に保存」でダウンロードできます</span>
+    </div>
   </div>
   <!-- PLY → RAD conversion toolkit download. Local Windows / mac / Linux
        batch tool that uses Spark's build-lod under the hood. -->
@@ -3113,6 +3124,23 @@ document.addEventListener('DOMContentLoaded', () => {
       const inp = document.getElementById(id);
       if(inp) inp.removeAttribute('accept');
     }
+    // ── iOS demo-download fix ──
+    // Safari ignores `download` for cross-origin URLs, and the combo of
+    // download + target=_blank on the 357 MB R2-hosted demo .rad made
+    // Safari spawn a blank tab that never resolved (user: "r2 の画面で
+    // 飛ばされて止まる"). Dropping the attribute makes iOS treat the tap
+    // as an ordinary new-tab navigation — Safari then shows its native
+    // viewer / share-sheet so the user can do 共有 → "ファイル"に保存.
+    // The viewer tab itself is never blocked because target=_blank
+    // already moves the navigation to a fresh tab.
+    const demoLink = document.getElementById('dz-demo-link');
+    if(demoLink){
+      demoLink.removeAttribute('download');
+      demoLink.setAttribute('target','_blank');
+      demoLink.setAttribute('rel','noopener noreferrer');
+    }
+    const iosHint = document.getElementById('dz-demo-ios-hint');
+    if(iosHint) iosHint.style.display = 'block';
   }
 }, { once:true });
 
@@ -15346,6 +15374,7 @@ Object.assign(I18N.ja,{
   'cl-sub':'αテスト版',
   'cl-tag-init':'初版',
   'dz-demo-text':'デモデータをダウンロード',
+  'dz-demo-ios-hint-t':'※ iPhone は大容量のため新しいタブで開きます。共有 → 「"ファイル"に保存」でダウンロードできます',
   'dz-rad-tool-text':'PLY → RAD 変換ツールをダウンロード',
   'lbl-walk':'アバター歩行',
   'lbl-walk-repos':'アバター再配置',
@@ -15590,6 +15619,7 @@ Object.assign(I18N.en,{
   'cl-sub':'Alpha',
   'cl-tag-init':'Initial',
   'dz-demo-text':'Download demo data',
+  'dz-demo-ios-hint-t':'※ On iPhone this opens in a new tab (large file). Use Share → "Save to Files" to download.',
   'dz-rad-tool-text':'Download PLY → RAD converter',
   'lbl-walk':'Avatar Walk',
   'lbl-walk-repos':'Reposition Avatar',
