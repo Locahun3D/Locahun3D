@@ -2597,18 +2597,19 @@ body.ar-active #dz{display:none !important;}
     <input type="file" id="fi" accept=".splat,.ply,.spz,.ksplat,.rad,.sog,.pcsogs,.pcsogszip,.obj,.gltf,.glb,.fbx,.zip" multiple
            style="position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0 0 0 0);clip-path:inset(50%);border:0;opacity:0;pointer-events:none">
   </div>
-  <!-- URL 入力: Dropbox 等の共有リンクを貼ると直接 fetch して読み込む -->
+  <!-- URL 入力: 共有リンクを別タブで開きブラウザに DL させる
+       (Safari / Chrome / iOS / Android で挙動統一。CORS 不問) -->
   <div class="dz-url-row">
     <input type="url" id="dz-url-input"
            placeholder="https://www.dropbox.com/scl/fi/.../scene.rad?rlkey=..."
            autocomplete="off" spellcheck="false">
     <button id="dz-url-btn" onclick="window.openFromUrl()">
-      <span id="dz-url-btn-text">📥 URLから開く</span>
+      <span id="dz-url-btn-text">📥 URLからダウンロード</span>
     </button>
   </div>
   <div class="dz-url-hint" id="dz-url-hint-text">
-    直接DL 可能なURL の .rad / .ply / .splat 等を直接読込。Dropbox は CORS 制限で
-    別タブ DL 経由になります（保存後ファイルをドロップ）。
+    .rad / .ply / .splat 等のURL を新しいタブで開いてダウンロード。
+    保存後、ファイルをビューアーにドロップして読込みます。
   </div>
   <label class="dz-portalcam" id="dz-portalcam-label" title="Portalcam で取得した 3DGS は 90° X 軸回転で書き出されるため、自動で補正します">
     <input type="checkbox" id="dz-portalcam-cb" onchange="syncPortalcamCheckboxToLayers()">
@@ -15373,8 +15374,8 @@ Object.assign(I18N.ja,{
   'dz-empty-text':'空プロジェクトを開く',
   'dz-zip-text':'プロジェクトを開く (.zip)',
   'dz-continue-text':'編集を続ける',
-  'dz-url-btn-text':'📥 URLから開く',
-  'dz-url-hint-text':'直接DL 可能なURL の .rad / .ply / .splat 等を直接読込。Dropbox は CORS 制限で別タブ DL 経由になります（保存後ファイルをドロップ）。',
+  'dz-url-btn-text':'📥 URLからダウンロード',
+  'dz-url-hint-text':'.rad / .ply / .splat 等のURL を新しいタブで開いてダウンロード。保存後、ファイルをビューアーにドロップして読込みます。',
   'mf-title':'ミニマップ',
   'mf-hint':'右クリ長押しで移動先選択',
   'mm-big-title':'ミニマップ',
@@ -15620,8 +15621,8 @@ Object.assign(I18N.en,{
   'dz-empty-text':'Open Empty Project',
   'dz-zip-text':'Open Project (.zip)',
   'dz-continue-text':'Continue Editing',
-  'dz-url-btn-text':'📥 Open from URL',
-  'dz-url-hint-text':'Any directly-downloadable URL (.rad/.ply/.splat/…) loads inline. Dropbox links open in a new tab to download (CORS) — then drag the saved file in.',
+  'dz-url-btn-text':'📥 Download from URL',
+  'dz-url-hint-text':'Opens a .rad / .ply / .splat URL in a new tab so the browser saves it. Drag the saved file onto the viewer to load.',
   'mf-title':'Minimap',
   'mf-hint':'Right-click hold to teleport',
   'mm-big-title':'Minimap',
@@ -16811,11 +16812,25 @@ function _filenameFromUrl(urlStr, fallback){
   } catch(_){}
   return fallback || 'remote.rad';
 }
-window.openFromUrl = async function(){
+// "URLからダウンロード": always open the URL in a new tab and let the
+// browser's native download pipeline take over. Uniform behaviour across
+// Safari / Chrome / iOS / Android — no fetch(), no CORS surprises. The
+// rewritten ?dl=1 form for Dropbox makes the browser save (vs preview)
+// the .rad on hosts that honour Content-Disposition: attachment. The
+// user then drags the saved file onto the viewer to load it.
+//
+// Why not fetch + dispatchFiles? Dropbox's www host returns 302 without
+// Access-Control-Allow-Origin, so cross-origin fetch fails before the
+// browser ever sees the CORS-enabled dl.dropboxusercontent.com URL.
+// `<a download>` is also ignored cross-origin on Safari. A plain
+// window.open() is a navigation, not a fetch — CORS doesn't apply and
+// the OS-level download / share-sheet works on every browser.
+window.openFromUrl = function(){
   const inp = document.getElementById('dz-url-input');
   const raw = (inp && inp.value || '').trim();
+  const _en = window._lang === 'en';
   if(!raw){
-    showUndoToast(window._lang==='en' ? '⚠ Paste a URL first' : '⚠ URL を入力してください');
+    showUndoToast(_en ? '⚠ Paste a URL first' : '⚠ URL を入力してください');
     return;
   }
   const url = _normalizeShareUrl(raw);
@@ -16823,78 +16838,15 @@ window.openFromUrl = async function(){
   const ext = (fname.split('.').pop() || '').toLowerCase();
   const supported = ['rad','ply','splat','spz','ksplat','sog','pcsogs','pcsogszip','zip','obj','gltf','glb','fbx'];
   if(!supported.includes(ext)){
-    showUndoToast(window._lang==='en'
+    showUndoToast(_en
       ? `⚠ Unsupported extension: .${ext}`
       : `⚠ 非対応の拡張子: .${ext}`);
     return;
   }
-  // Dropbox short-circuit: www.dropbox.com 302 redirects don't carry
-  // Access-Control-Allow-Origin, so a cross-origin fetch() never reaches
-  // the dl.dropboxusercontent.com final URL that DOES have CORS. Trying
-  // the fetch just produces a "Failed to fetch" after a noticeable
-  // delay. Skip it and go straight to a new-tab download so the user
-  // saves the file locally and drags it onto the viewer.
-  let isDropbox = false;
-  try { isDropbox = /(^|\.)dropbox\.com$/i.test(new URL(url).hostname); } catch(_){}
-  if(isDropbox){
-    const _en = window._lang === 'en';
-    showUndoToast(_en
-      ? '📥 Dropbox can\'t be loaded directly (CORS). Downloading in a new tab — drag the saved file onto the viewer to open.'
-      : '📥 Dropbox は CORS 制限で直接読込不可。新しいタブで DL 開始 → 保存後、ファイルをビューアーにドロップしてください。');
-    try { window.open(url, '_blank', 'noopener,noreferrer'); } catch(_){}
-    return;
-  }
-  // Disable the button while fetching so a double-click can't queue two
-  // downloads of the same scene.
-  const btn = document.getElementById('dz-url-btn');
-  const btnTxt = document.getElementById('dz-url-btn-text');
-  const origTxt = btnTxt ? btnTxt.textContent : '';
-  if(btn) btn.disabled = true;
-  if(btnTxt) btnTxt.textContent = window._lang==='en' ? '… fetching' : '取得中…';
-  showUndoToast(window._lang==='en'
-    ? `📡 Fetching ${fname} …`
-    : `📡 ${fname} を取得中…`);
-  try {
-    const res = await fetch(url, { mode:'cors', cache:'no-store' });
-    if(!res.ok){
-      throw new Error(`HTTP ${res.status} ${res.statusText}`);
-    }
-    const buf = await res.arrayBuffer();
-    const f = new File([buf], fname, { type:'application/octet-stream' });
-    await dispatchFiles([f]);
-  } catch(e){
-    console.error('[openFromUrl]', e);
-    const msg = (e && e.message) || String(e);
-    const isCors = /Failed to fetch|NetworkError/i.test(msg);
-    const _en = window._lang === 'en';
-    // Dropbox-specific actionable fallback: the www.dropbox.com 302
-    // redirect lacks an Access-Control-Allow-Origin header, so the
-    // browser blocks the fetch before reaching the file. Cross-origin
-    // <a download> isn't honoured by Safari but a plain new-tab
-    // navigation IS — the browser then downloads / previews the file
-    // through its own (non-fetch) pipeline that doesn't care about
-    // CORS. We auto-open the rewritten ?dl=1 URL so the user just has
-    // to wait for the download and drag the file in.
-    let isDropbox = false;
-    try { isDropbox = /(^|\.)dropbox\.com$/i.test(new URL(url).hostname); } catch(_){}
-    if(isCors && isDropbox){
-      showUndoToast(_en
-        ? `⚠ Dropbox can't be fetched directly (CORS). Opening download in a new tab — drag the saved file onto the viewer.`
-        : `⚠ Dropbox は CORS 制限で直接読込不可。新しいタブで DL 開始 → 保存後、ファイルをビューアーにドロップしてください。`);
-      try { window.open(url, '_blank', 'noopener,noreferrer'); } catch(_){}
-    } else {
-      const corsHint = isCors
-        ? (_en ? ' (CORS / network — try downloading and dragging the file in)'
-               : ' (CORS / ネットワーク — DL してドラッグ&ドロップを試してください)')
-        : '';
-      showUndoToast((_en
-        ? `⚠ URL load failed: ${msg}`
-        : `⚠ URL読み込み失敗: ${msg}`) + corsHint);
-    }
-  } finally {
-    if(btn) btn.disabled = false;
-    if(btnTxt) btnTxt.textContent = origTxt;
-  }
+  showUndoToast(_en
+    ? `📥 Opening ${fname} in a new tab — drag the saved file onto the viewer.`
+    : `📥 ${fname} を新しいタブで開きます。保存後、ファイルをビューアーにドロップしてください。`);
+  try { window.open(url, '_blank', 'noopener,noreferrer'); } catch(_){}
 };
 // Convenience: pressing Enter inside the URL input fires the same handler.
 (function _wireUrlEnter(){
