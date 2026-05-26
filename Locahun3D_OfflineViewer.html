@@ -3133,6 +3133,42 @@ document.addEventListener('DOMContentLoaded', () => {
     const iosHint = document.getElementById('dz-demo-ios-hint');
     if(iosHint) iosHint.style.display = 'block';
   }
+  // ── In-app browser detection (Twitter / Instagram / LINE / Facebook) ──
+  // SNS の WebView は (a) `download` 属性をほぼ無視し、(b) target=_blank で
+  // 新タブを開けず、(c) 数百MB クラスの大容量を保存できないため、ロケハン3D の
+  // デモデータ DL がほぼ確実に詰まります(ユーザー: "ツイッターのリンクから
+  // 開くとデモデータがダウンロードできない")。専用バナーで「外部ブラウザで
+  // 開いてください」と明示的に案内する方が、無言で失敗するよりマシ。
+  const isInApp =
+    / Twitter|TwitterAndroid|TwitteriOS/i.test(ua) ||
+    /Instagram/i.test(ua) ||
+    /Line\//i.test(ua) ||
+    /FBAN|FBAV/i.test(ua);
+  if(isInApp){
+    // バナーをドロップゾーン上に挿入
+    const dz = document.getElementById('dz');
+    if(dz && !document.getElementById('dz-inapp-banner')){
+      const banner = document.createElement('div');
+      banner.id = 'dz-inapp-banner';
+      banner.style.cssText = 'width:min(640px,88vw);margin:8px auto 0;padding:10px 14px;'+
+        'background:rgba(255,180,84,.10);border:1px solid rgba(255,180,84,.35);border-radius:6px;'+
+        'color:#ffe4b3;font-size:.78em;line-height:1.5;letter-spacing:.02em;'+
+        'font-family:\'Noto Sans JP\',sans-serif;position:relative;z-index:2;text-align:left';
+      banner.innerHTML =
+        '⚠ <b>アプリ内ブラウザではデモデータの DL が制限されます。</b><br>'+
+        '<span style="opacity:.85">'+
+        '右上「<b>⋯</b>」または「<b>共有</b>」メニュー →<br>'+
+        'iPhone: 「<b>Safari で開く</b>」&nbsp;/&nbsp; Android: 「<b>Chrome で開く</b>」'+
+        '</span>';
+      // 「3DGS Gaussian Splatting ビューア」の直後に差し込む
+      const sub = document.getElementById('dz-sub');
+      if(sub && sub.parentNode === dz){
+        sub.insertAdjacentElement('afterend', banner);
+      } else {
+        dz.insertBefore(banner, dz.firstChild);
+      }
+    }
+  }
 }, { once:true });
 
 // ── iOS / iPadOS pinch + double-tap zoom suppression ──
