@@ -13324,11 +13324,15 @@ requestAnimationFrame(animate);
 //  visitors can try the viewer without preparing their own PLY.
 // ══════════════════════════════════════════════════
 
-// TODO: paste the actual R2 public URL here once the sample PLY is uploaded.
-// Set to null to hide the demo button entirely.
-const DEMO_SCENE_URL = null; // e.g. 'https://pub-xxxx.r2.dev/Kousaten_ForDemo_point_cloud.ply'
-const DEMO_SCENE_LABEL = 'デモシーン(Kousaten)';
-const DEMO_SCENE_SIZE_MB = 913;
+// Demo .rad (Spark 2.x streaming RAD format, ~357 MB, ~19.8 M splats).
+// Hosted on R2 public-dev URL. NOTE: R2 must be configured to send
+// `Access-Control-Allow-Origin: *` (or echo the viewer origin) for the
+// in-page fetch / Range stream to work. Without CORS the browser blocks
+// the load and the "?demo=1" auto-start silently fails. See the README
+// section "R2 CORS for autoload" for the wrangler / dashboard recipe.
+const DEMO_SCENE_URL = 'https://pub-6fe11fc6301a424ba739695a7c4d2dd9.r2.dev/Kousaten_ForDemo_point_cloud.rad';
+const DEMO_SCENE_LABEL = 'デモシーン(交差点)';
+const DEMO_SCENE_SIZE_MB = 357;
 
 async function loadFromURL(url, displayName){
   try{
