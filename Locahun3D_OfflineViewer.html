@@ -5772,12 +5772,21 @@ function composeBurnInFrame(imgCanvas){
     ['画角',   `H ${hfov}°   V ${vfov}°`],
     ['SENSOR', `${cam.sw}×${cam.sh}mm   WB ${cam.wb}K`],
   ];
+  // HEIGHT: the camera's elevation above the world grid (y=0 plane,
+  // where the floor GridHelper is drawn). For most scans this is the
+  // metric distance from the visible grid floor to the lens centre —
+  // matches what a location-scouting cinematographer would measure
+  // with a tape from the ground.
+  const heightM = camPos.y.toFixed(2);
   const rightRows = [
-    ['RIG',   cam.rig || dash],
-    ['ENV',   cam.env || dash],
-    ['NOTE',  cam.note || dash],
-    ['POS',   `X ${camPos.x.toFixed(2)}   Y ${camPos.y.toFixed(2)}   Z ${camPos.z.toFixed(2)}`],
-    ['ANGLE', `パン ${panDeg}°   ティルト ${tiltDeg}°   ロール ${rollDeg}°`],
+    ['RIG',    cam.rig || dash],
+    ['ENV',    cam.env || dash],
+    ['NOTE',   cam.note || dash],
+    ['POS',    `X ${camPos.x.toFixed(2)}   Y ${camPos.y.toFixed(2)}   Z ${camPos.z.toFixed(2)}`],
+    ['HEIGHT', `${heightM} m  (${(window._lang === 'en' ? 'from grid' : 'グリッドから')})`],
+    ['ANGLE',  (window._lang === 'en'
+                  ? `Pan ${panDeg}°   Tilt ${tiltDeg}°   Roll ${rollDeg}°`
+                  : `パン ${panDeg}°   ティルト ${tiltDeg}°   ロール ${rollDeg}°`)],
   ];
 
   const baseY      = topH + H;
