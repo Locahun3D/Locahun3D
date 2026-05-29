@@ -3724,6 +3724,12 @@ window.toggleProjection = function(){
 };
 
 window.resetCameraToInitial = function(){
+  // Leaving for "home" should also tidy up: hide the camera-animation
+  // panel (it used to linger on the view) and release any locked-camera
+  // snap-back hold, otherwise the engaged camera would immediately yank
+  // the view back and the reset wouldn't stick.
+  if(typeof _hideCamAnimPanel === 'function') _hideCamAnimPanel();
+  if(typeof _engagedCamId !== 'undefined') _engagedCamId = null;
   camPos.copy(_initCamPos);
   setCamRotImmediate(_initYaw, _initPitch);
   requestMinimapUpdate();
@@ -4626,14 +4632,22 @@ function closeAllPanels(){
   // Camera-animation panel — behave like the env button: when any other
   // tool is launched the panel + its 3-D editing visuals get hidden so they
   // don't clutter the view. Don't stop an in-progress playback/recording.
-  if(typeof camAnim !== 'undefined' && camAnim.open && !camAnim.playing){
-    camAnim.open = false;
-    const _cap = document.getElementById('cam-anim-panel');
-    if(_cap) _cap.style.display = 'none';
-    const _cab = document.getElementById('btnCamAnim');
-    if(_cab) _cab.classList.remove('on');
-    if(typeof _camAnimSetVisualsVisible === 'function') _camAnimSetVisualsVisible(false);
-  }
+  _hideCamAnimPanel();
+}
+
+// Hide the camera-animation panel + its 3-D editing visuals. Shared by
+// closeAllPanels() (mutual-exclusion) and resetCameraToInitial() (🏠 home)
+// so the panel never lingers after the user leaves the feature. A live
+// playback / record is left alone — closing it mid-capture would corrupt
+// the export.
+function _hideCamAnimPanel(){
+  if(typeof camAnim === 'undefined' || !camAnim.open || camAnim.playing) return;
+  camAnim.open = false;
+  const _cap = document.getElementById('cam-anim-panel');
+  if(_cap) _cap.style.display = 'none';
+  const _cab = document.getElementById('btnCamAnim');
+  if(_cab) _cab.classList.remove('on');
+  if(typeof _camAnimSetVisualsVisible === 'function') _camAnimSetVisualsVisible(false);
 }
 function _closeMeasureOnly(){
   msr.active=false;
