@@ -2649,7 +2649,7 @@ body.ar-active #dz{display:none !important;}
           <li>カメラ情報バーンインに HEIGHT 行 (グリッド地面からの高さ) を追加</li>
           <li>外側余白: マスクオーバーレイから GL ビューポートを実際に縮小する方式に変更</li>
           <li>ビュー録画 (⏺) — MP4/WebM で MediaRecorder 経由、cbar の 測定 の右に配置</li>
-          <li>カメラアニメーション (🎞) — Catmull-Rom 曲線でスムーズなフライスルー、3D 上にマーカーとパス、MP4 書き出し、速度可変 (1s/m デフォルト)</li>
+          <li>カメラアニメーション (🎞) — Catmull-Rom 曲線でスムーズなフライスルー、3D 上にマーカーとパス、MP4 書き出し、速度可変 (1m/s デフォルト、値が大きいほど速い)</li>
           <li>ZIP ドロップ拡張: プロジェクト ZIP に加え、splat / メッシュ単体を圧縮した ZIP も自動展開して読込</li>
           <li>カメラアニメ / 録画 / カメラ位置保存 など新ボタンの JA/EN ラベル + ツールチップ整備</li>
         </ul>
@@ -2662,7 +2662,7 @@ body.ar-active #dz{display:none !important;}
           <li>Capture burn-in: HEIGHT row (camera elevation above the world grid)</li>
           <li>Outer margin: GL viewport is now actually scissored to the safe-frame instead of overlaid</li>
           <li>View recording (⏺) — MP4 / WebM via MediaRecorder, moved to the cbar right of 測定</li>
-          <li>Camera animation (🎞) — Catmull-Rom smooth fly-through, 3D markers + path line, MP4 export, adjustable speed (1 s/m default)</li>
+          <li>Camera animation (🎞) — Catmull-Rom smooth fly-through, 3D markers + path line, MP4 export, adjustable speed (1 m/s default, higher = faster)</li>
           <li>ZIP drop now also accepts archives containing raw splat / mesh files, not just Locahun project ZIPs</li>
           <li>JA/EN labels + tooltips for the new camera-anim / record / save-pose buttons</li>
         </ul>
@@ -5417,6 +5417,29 @@ function _ensureCameraFolder(){
   return F;
 }
 
+// Cinema-convention shot ID: `s01_c0010`, `s01_c0020`, ... The "c"
+// numbers count up in increments of 10 so the editor can later insert
+// pickup shots (e.g. c0015) between adjacent slate numbers without
+// having to re-number anything. Per-camera-layer scan only.
+function _nextCameraShotName(){
+  const SCENE = 's01';
+  let maxC = 0;
+  const rx = new RegExp('^' + SCENE + '_c(\\d+)\\s*$', 'i');
+  for(const L of layers){
+    if(!L || L.type !== 'camera') continue;
+    const m = (L.name || '').match(rx);
+    if(m){
+      const n = parseInt(m[1], 10);
+      if(isFinite(n) && n > maxC) maxC = n;
+    }
+  }
+  // First save → 0010, then 0020, 0030, ... rounding up so manual mid-
+  // sequence renames (e.g. s01_c0015) still produce the next "round"
+  // 0020 as the next default.
+  const nextC = (Math.floor(maxC / 10) + 1) * 10;
+  return `${SCENE}_c${String(nextC).padStart(4, '0')}`;
+}
+
 window.saveCameraLayer = function(){
   try {
     // Pull current camera state from live state — works whether the
@@ -5442,7 +5465,7 @@ window.saveCameraLayer = function(){
     // signals POSE direction).
     tag.rotation.set(pitch, yaw + Math.PI, 0, 'YXZ');
     const L = addLayer({
-      name: `Camera ${_nextLayerNameNumber('camera')}`,
+      name: _nextCameraShotName(),
       type: 'camera',
       mesh: tag,
     });
@@ -5784,13 +5807,17 @@ window.toggleViewRecording = function(){
 //  roll + fov / focal / aspect). A linear-time interpolation between
 //  adjacent keys produces a fly-through; the user can preview it
 //  in-viewport and export an MP4 via the existing view-recorder pipeline.
-//  Default speed is 1 second per 1 metre travelled (1 s/m), adjustable
-//  via a slider in the side panel.
+//  Default speed is 1 m/s (one metre per second along the curve), and
+//  HIGHER values play back faster — matches the intuitive "speed" UX.
+//  Adjustable via the side-panel slider + number input.
 // ══════════════════════════════════════════════════
 const camAnim = {
   open: false,
   keys: [],          // each: { pos, yaw, pitch, roll, fov, focal, aspect, sensor, sw, sh, margin }
-  speed: 1.0,        // seconds per metre travelled
+  speed: 1.0,        // metres per second along the curve — higher = faster.
+                     // (Was seconds-per-metre prior to v0.0.4, but that
+                     // inverted the user's intuition where a bigger
+                     // number ought to mean a faster shot.)
   playing: false,
   rafId: 0,
   timeoutId: 0,      // setTimeout fallback that drives the tick when rAF
@@ -5881,7 +5908,8 @@ function _camAnimRebuild(){
   // the polyline shape and bring the kink back.
   camAnim.posCurve = new THREE.CatmullRomCurve3(pts, false, 'centripetal', 0.5);
   camAnim.curveLen = camAnim.posCurve.getLength();
-  camAnim.totalSec = Math.max(0.05, camAnim.curveLen * camAnim.speed);
+  // metres / (metres/second) = seconds. Higher speed → shorter totalSec.
+  camAnim.totalSec = Math.max(0.05, camAnim.curveLen / Math.max(1e-3, camAnim.speed));
 
   // Unroll yaw so consecutive keys never differ by more than ±π — that
   // way the scalar Catmull-Rom always interpolates along the short arc
@@ -6118,7 +6146,7 @@ function _camAnimRenderPanel(){
     <div style="max-height:38vh;overflow-y:auto;margin-bottom:8px">${listHtml}</div>
     <div style="display:flex;align-items:center;gap:6px;margin-bottom:8px">
       <label style="font-size:.76em;color:#bbb;min-width:70px">
-        ${t('Speed', '速度')} (s/m)
+        ${t('Speed', '速度')} (m/s)
       </label>
       <input type="range" id="cam-anim-speed-slider" min="0.1" max="10" step="0.1"
         value="${camAnim.speed}"
