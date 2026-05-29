@@ -5591,9 +5591,14 @@ function _ensureRecTimerEl(){
   if(el) return el;
   el = document.createElement('div');
   el.id = 'view-rec-timer';
+  // The recording timer sits ABOVE the cbar (📷/🌅/📐/⏺/🗺/❓) so it
+  // never collides with the ⏺ 録画 button that now lives down there.
+  // The cbar top-edge is ≈ 50 px above the viewport bottom on desktop
+  // (cbar `bottom:14px` + ~36 px button height) and ≈ 100 px on touch
+  // (`bottom:64px` for iPad / phone). 110 px clears both comfortably.
   el.style.cssText = [
     'position:fixed','left:50%','transform:translateX(-50%)',
-    'bottom:18px','background:rgba(200,30,30,.92)','color:#fff',
+    'bottom:110px','background:rgba(200,30,30,.92)','color:#fff',
     'padding:4px 12px','border-radius:14px','font-size:.75em',
     'letter-spacing:.06em','font-family:ui-monospace,monospace',
     'z-index:5000','pointer-events:none','user-select:none',
