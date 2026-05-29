@@ -2304,6 +2304,18 @@ body{position:fixed;top:0;left:0;}
           oninput="onCamFieldChange()" style="flex:1;accent-color:#ffb454">
         <span id="cm-margin-val" style="min-width:34px;text-align:right;color:#888;font-size:.82em">0%</span>
       </div>
+      <div class="cm-row" style="margin-top:6px;align-items:center;gap:5px">
+        <label class="cm-lbl" style="min-width:54px" id="ct-roll">ロール</label>
+        <input type="range" id="cm-roll-slider" min="-180" max="180" step="0.5" value="0"
+          oninput="document.getElementById('cm-roll').value=this.value;onCamRollChange(parseFloat(this.value))"
+          style="flex:1;accent-color:#ffb454">
+        <input type="number" id="cm-roll" step="0.1" value="0"
+          class="cm-input" style="max-width:54px;flex:0 0 auto"
+          oninput="onCamRollChange(parseFloat(this.value))">
+        <span style="font-size:.78em;color:#666">°</span>
+        <button onclick="resetCamRoll()" id="ct-roll-level"
+          class="cm-aspect" style="flex:0 0 auto;padding:4px 8px">水平</button>
+      </div>
     </div>
   </div>
 
@@ -4869,6 +4881,33 @@ window.setCamWBPreset = function(k){
   });
 };
 // Quick-pick focal length: sets focal directly and refreshes inputs/highlights.
+// ── Camera roll (Z-axis tilt) live writer ─────────────────────────────
+// Mirrors the slider + number input to the global `roll` (radians) the
+// camera matrix consumes (see updateCamera: rotation.set(pitch, yaw+π,
+// roll, 'YXZ')). Clamps to [-180°, 180°] before push so wraparound
+// doesn't ever flip the horizon by more than the user dialed.
+window.onCamRollChange = function(deg){
+  if(!Number.isFinite(deg)) return;
+  const before = roll;
+  const clamped = Math.max(-180, Math.min(180, deg));
+  roll = THREE.MathUtils.degToRad(clamped);
+  // Keep the OTHER widget in sync (slider ↔ number) without re-emitting
+  // events that would recurse into this handler.
+  const rs = document.getElementById('cm-roll-slider');
+  const rn = document.getElementById('cm-roll');
+  if(rs && parseFloat(rs.value) !== clamped) rs.value = clamped;
+  if(rn && parseFloat(rn.value) !== clamped) rn.value = clamped;
+  markDirty(8);
+  pushGenericUndo('cam-roll', before, roll, v => {
+    roll = v;
+    const _deg = (roll * 180 / Math.PI);
+    const _rs = document.getElementById('cm-roll-slider'); if(_rs) _rs.value = _deg;
+    const _rn = document.getElementById('cm-roll'); if(_rn) _rn.value = _deg;
+    markDirty(8);
+  });
+};
+window.resetCamRoll = function(){ window.onCamRollChange(0); };
+
 window.setCamFocal = function(mm){
   const before = cam.focal;
   cam.focal = mm;
