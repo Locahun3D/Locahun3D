@@ -13367,6 +13367,20 @@ async function loadFromURL(url, displayName){
       opts.paged = true;
       // Honour the "ポリゴン 1/4" toggle for URL-autoloaded RAD too.
       opts.lodScale = _radEffectiveLodScale();
+      // CRITICAL: SPARK_QUALITY_OPTS (spread above) sets coneFoveate:0 +
+      // coneFov:π for normal PLY/SPLAT loads (suppresses LoD pop-in).
+      // For paged RAD scenes those exact values tell Spark's LoD walker
+      // "every direction is uniformly central, never split" — chunk 0
+      // (the root super-splat) loads and the walker never asks for any
+      // children, so the user sees a couple of gray blobs and nothing
+      // resolves. The local-file path (loadSplatFile / loadAdditional /
+      // ZIP-restore) already deletes these for RAD; the URL autoload
+      // path was missing the same strip and that's why ?demo=1 looked
+      // broken.
+      delete opts.coneFoveate;
+      delete opts.behindFoveate;
+      delete opts.coneFov;
+      delete opts.coneFov0;
       // Mirror loadSplatFile's existing main-splat-layer swap so user
       // doesn't end up with stacked meshes after multiple autoloads.
       const _prevMain = layers.find(l => l._isMain);
