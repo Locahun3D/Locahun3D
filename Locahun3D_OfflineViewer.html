@@ -13403,8 +13403,19 @@ async function loadFromURL(url, displayName){
   }
 }
 
-// Handle URL params at startup
-(async ()=>{
+// Handle URL params at startup. CRITICAL: defer with setTimeout so this
+// runs AFTER the module body finishes executing. The previous IIFE ran
+// synchronously during module load, which made `loadFromURL` enter
+// `addLayer` → `requestMinimapUpdate()` before the later module-level
+// `let _mmUserVisible = …` declaration ran, throwing a TDZ
+// ReferenceError. That blew up the autoload BETWEEN the SplatMesh
+// construction and the showHUD/hideDZ calls — the home dropzone stayed
+// visible and streaming never started for `?demo=1` visitors.
+//
+// setTimeout(…, 0) queues a macrotask; it fires after the entire module
+// body has finished initialising every top-level let/const, so addLayer
+// can safely touch _mmUserVisible.
+setTimeout(async ()=>{
   const m  = location.search.match(/[?&]autoload=([^&]+)/);
   const dm = /[?&]demo=1/.test(location.search);
   if(m){
@@ -13412,7 +13423,7 @@ async function loadFromURL(url, displayName){
   } else if(dm && DEMO_SCENE_URL){
     await loadFromURL(DEMO_SCENE_URL, DEMO_SCENE_LABEL);
   }
-})();
+}, 0);
 
 // Inject "Load demo scene" button into the dropzone. Inherits the existing
 // `.demo-btn` style and accent-colour treatment used by the other dropzone
