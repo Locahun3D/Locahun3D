@@ -5751,6 +5751,12 @@ const camAnim = {
   speed: 1.0,        // seconds per metre travelled
   playing: false,
   rafId: 0,
+  timeoutId: 0,      // setTimeout fallback that drives the tick when rAF
+                     // is throttled by Chrome's compositor under heavy
+                     // WebGL submit. Keeps wall-clock playback duration
+                     // honest even when rAF stalls.
+  deadlineId: 0,     // hard-stop setTimeout that force-ends playback at
+                     // totalSec, in case BOTH driver paths get throttled.
   startedAt: 0,
   // Catmull-Rom curve over the key positions. Built once per change in
   // _camAnimRebuild(); sampled via THREE's arc-length parameterised
@@ -6163,8 +6169,22 @@ window.camAnimSetSpeed = function(v){
   if(s2 && parseFloat(s2.value) !== camAnim.speed) s2.value = camAnim.speed;
 };
 
-function _camAnimTick(){
+// Preview tick. Driven by BOTH rAF (smooth visual updates when the page
+// is running at vsync) AND a setTimeout backup that re-fires the tick
+// even when Chrome's compositor throttles rAF under heavy WebGL submit.
+// Without the setTimeout backup a throttled tab would silently stretch
+// a 20 s preview to 1+ minute because the rAF tick never gets a chance
+// to observe tSec >= totalSec, leaving camAnim.playing stuck at true.
+//
+// Both paths converge on the same _camAnimTick body — whichever fires
+// first cancels the other so we never double-apply a sample.
+function _camAnimTickInternal(){
   if(!camAnim.playing) return;
+  // Schedule the next tick FIRST so an exception in apply-sample doesn't
+  // freeze playback. Drop any previously-scheduled fallback so we don't
+  // accumulate setTimeouts on every frame.
+  if(camAnim.rafId)     { cancelAnimationFrame(camAnim.rafId); camAnim.rafId = 0; }
+  if(camAnim.timeoutId) { clearTimeout(camAnim.timeoutId);     camAnim.timeoutId = 0; }
   const tSec = (performance.now() - camAnim.startedAt) / 1000;
   if(tSec >= camAnim.totalSec){
     _camAnimApplySample(camAnim.keys[camAnim.keys.length - 1]);
@@ -6173,14 +6193,21 @@ function _camAnimTick(){
     return;
   }
   _camAnimApplySample(_camAnimSampleAt(tSec));
-  camAnim.rafId = requestAnimationFrame(_camAnimTick);
+  // rAF when the tab is happily painting; setTimeout(33ms ≈ 30 Hz) as a
+  // throttle-resistant fallback so wall-clock duration ≈ totalSec even
+  // when the compositor is dropping rAFs.
+  camAnim.rafId     = requestAnimationFrame(_camAnimTickInternal);
+  camAnim.timeoutId = setTimeout(_camAnimTickInternal, 33);
 }
+function _camAnimTick(){ _camAnimTickInternal(); }
 
 window.camAnimPreview = function(){
   if(camAnim.keys.length < 2) return;
   if(camAnim.playing){
     camAnim.playing = false;
-    if(camAnim.rafId) cancelAnimationFrame(camAnim.rafId);
+    if(camAnim.rafId)     cancelAnimationFrame(camAnim.rafId);
+    if(camAnim.timeoutId) clearTimeout(camAnim.timeoutId);
+    camAnim.rafId = 0; camAnim.timeoutId = 0;
     _camAnimRenderPanel();
     return;
   }
@@ -6188,7 +6215,22 @@ window.camAnimPreview = function(){
   _camAnimApplySample(camAnim.keys[0]);
   camAnim.playing   = true;
   camAnim.startedAt = performance.now();
-  camAnim.rafId     = requestAnimationFrame(_camAnimTick);
+  // Hard-deadline watchdog — schedules a force-stop at totalSec + 50 ms
+  // so even if BOTH rAF and the setTimeout backup somehow stall (deep
+  // background, throttled OS timers), playback ends on time and the
+  // panel UI doesn't get stuck in "停止" mode.
+  if(camAnim.deadlineId) clearTimeout(camAnim.deadlineId);
+  camAnim.deadlineId = setTimeout(() => {
+    if(camAnim.playing){
+      camAnim.playing = false;
+      _camAnimApplySample(camAnim.keys[camAnim.keys.length - 1]);
+      if(camAnim.rafId)     cancelAnimationFrame(camAnim.rafId);
+      if(camAnim.timeoutId) clearTimeout(camAnim.timeoutId);
+      camAnim.rafId = 0; camAnim.timeoutId = 0;
+      _camAnimRenderPanel();
+    }
+  }, Math.max(50, camAnim.totalSec * 1000 + 50));
+  _camAnimTickInternal();
   _camAnimRenderPanel();
 };
 
@@ -6213,28 +6255,41 @@ window.camAnimRecordExport = function(){
   _camAnimApplySample(camAnim.keys[0]);
   camAnim.playing   = true;
   camAnim.startedAt = performance.now();
-  const tickRec = () => {
-    if(!camAnim.playing){ return; }
-    const tSec = (performance.now() - camAnim.startedAt) / 1000;
-    if(tSec >= camAnim.totalSec){
-      _camAnimApplySample(camAnim.keys[camAnim.keys.length - 1]);
-      camAnim.playing = false;
-      // small tail so the final frame lands in the recorder buffer
-      setTimeout(() => {
-        window.stopViewRecording();
-        if(p)  p.style.display  = prevDisplay;
-        if(cf) cf.style.display = prevCf;
-        // Restore marker visibility if the panel is still open after
-        // the export finishes.
-        if(camAnim.open) _camAnimSetVisualsVisible(true);
-        _camAnimRenderPanel();
-      }, 300);
-      return;
-    }
-    _camAnimApplySample(_camAnimSampleAt(tSec));
-    requestAnimationFrame(tickRec);
+  // Dual-driver (rAF + setTimeout backup + hard-deadline watchdog) so
+  // recording duration matches camAnim.totalSec even if Chrome throttles
+  // rAF during the export. Same pattern as window.camAnimPreview.
+  let recRafId = 0, recTimeoutId = 0, recDeadlineId = 0;
+  const finishRec = () => {
+    if(recRafId)     cancelAnimationFrame(recRafId);
+    if(recTimeoutId) clearTimeout(recTimeoutId);
+    if(recDeadlineId){ clearTimeout(recDeadlineId); recDeadlineId = 0; }
+    recRafId = recTimeoutId = 0;
+    _camAnimApplySample(camAnim.keys[camAnim.keys.length - 1]);
+    camAnim.playing = false;
+    setTimeout(() => {
+      window.stopViewRecording();
+      if(p)  p.style.display  = prevDisplay;
+      if(cf) cf.style.display = prevCf;
+      if(camAnim.open) _camAnimSetVisualsVisible(true);
+      _camAnimRenderPanel();
+    }, 300);
   };
-  requestAnimationFrame(tickRec);
+  const tickRec = () => {
+    if(!camAnim.playing) return;
+    if(recRafId)     { cancelAnimationFrame(recRafId); recRafId = 0; }
+    if(recTimeoutId) { clearTimeout(recTimeoutId);     recTimeoutId = 0; }
+    const tSec = (performance.now() - camAnim.startedAt) / 1000;
+    if(tSec >= camAnim.totalSec){ finishRec(); return; }
+    _camAnimApplySample(_camAnimSampleAt(tSec));
+    recRafId     = requestAnimationFrame(tickRec);
+    recTimeoutId = setTimeout(tickRec, 33);
+  };
+  // Watchdog: force-finish at totalSec + 50 ms in case both rAF and
+  // setTimeout are throttled deep enough that the tick never observes
+  // the deadline.
+  recDeadlineId = setTimeout(() => { if(camAnim.playing) finishRec(); },
+                             Math.max(50, camAnim.totalSec * 1000 + 50));
+  tickRec();
 };
 
 // Render the active grids onto a 2D canvas of the cropped image. Mirrors the SVG
