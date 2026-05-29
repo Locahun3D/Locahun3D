@@ -3458,6 +3458,8 @@ Object.defineProperty(window.__dbg, 'dispatchFiles', { get: () => (typeof dispat
 // Additional accessors used by the lock-snap-back smoke test:
 Object.defineProperty(window.__dbg, 'selectedLayerId', { get: () => selectedLayerId });
 Object.defineProperty(window.__dbg, 'findLayer', { get: () => (typeof findLayer === 'function') ? findLayer : null });
+Object.defineProperty(window.__dbg, 'engagedCamId', { get: () => (typeof _engagedCamId !== 'undefined') ? _engagedCamId : 'undef' });
+Object.defineProperty(window.__dbg, 'captureHideUI', { get: () => (typeof _captureHideUI !== 'undefined') ? _captureHideUI : 'undef' });
 // near=0.3: prevents very-close giant splats from swallowing the entire screen
 // (rainbow streak artifact during fast pans in big PortalCam scans).
 // 0.3m ≈ arm's length; below that, splats are clipped before they smear.
@@ -4075,6 +4077,11 @@ function buildLayerPivot(){
 buildLayerPivot();
 
 function updateLayerPivot(){
+  // While a recording is capturing the canvas, keep the pivot gizmo hidden
+  // so it doesn't bleed into the exported video (set by _setCaptureUIHidden).
+  if(typeof _captureHideUI !== 'undefined' && _captureHideUI){
+    lpv.group.visible=false; return;
+  }
   const L=findLayer(selectedLayerId);
   if(!L || L.type==='splat' || L.type==='folder'){
     lpv.group.visible=false; return;
@@ -4615,6 +4622,17 @@ function closeAllPanels(){
     if(_mb) _mb.classList.remove('on');
     const _ml = document.getElementById('lbl-minimap');
     if(_ml) _ml.textContent = (window._lang === 'en') ? 'Show Map' : 'マップ表示';
+  }
+  // Camera-animation panel — behave like the env button: when any other
+  // tool is launched the panel + its 3-D editing visuals get hidden so they
+  // don't clutter the view. Don't stop an in-progress playback/recording.
+  if(typeof camAnim !== 'undefined' && camAnim.open && !camAnim.playing){
+    camAnim.open = false;
+    const _cap = document.getElementById('cam-anim-panel');
+    if(_cap) _cap.style.display = 'none';
+    const _cab = document.getElementById('btnCamAnim');
+    if(_cab) _cab.classList.remove('on');
+    if(typeof _camAnimSetVisualsVisible === 'function') _camAnimSetVisualsVisible(false);
   }
 }
 function _closeMeasureOnly(){
@@ -5401,6 +5419,13 @@ window.addEventListener('resize', ()=>{ if(cam.active) layoutCamFrame(); });
 //  saved pose and enables the camera tool, so the user can flip
 //  between multiple saved framings.
 // ══════════════════════════════════════════════════
+// Which saved-camera layer the live viewport is currently "engaged" with.
+// Only set by the 🎬 button (viewCameraLayer) or by (re-)locking a camera —
+// NEVER by merely selecting a camera row. When non-null AND that camera is
+// locked, the animate() snap-back hook holds the viewport at the saved pose
+// so accidental WASD/drag is undone. Selecting any other layer clears it.
+let _engagedCamId = null;
+
 function _ensureCameraFolder(){
   // Find first non-deleted folder whose name starts with "Camera". If
   // missing, mint one via addFolder() then rename it. addFolder() places
@@ -5543,14 +5568,56 @@ function _teleportToCameraLayer(L){
 }
 window._teleportToCameraLayer = _teleportToCameraLayer;
 
+// Overwrite a camera layer's saved pose + 3-D marker with the CURRENT
+// live viewport pose. Used when (re-)locking after the user unlocked,
+// flew to a new framing, and wants that new framing to stick.
+function _updateCameraSavedPoseFromLive(L){
+  if(!L || L.type !== 'camera') return;
+  if(cam && cam.active){ try { _camPullFields(); } catch(e){} }
+  L.pos = { x: camPos.x, y: camPos.y, z: camPos.z };
+  L.savedPose = {
+    pos:   { x: camPos.x, y: camPos.y, z: camPos.z },
+    yaw,
+    pitch,
+    roll:  (typeof roll === 'number') ? roll : 0,
+    fov,
+    focal:  cam.focal,
+    aspect: cam.aspect,
+    sensor: cam.sensor,
+    sw:     cam.sw,
+    sh:     cam.sh,
+    margin: cam.margin,
+    wb:     cam.wb,
+    rig:    cam.rig,
+    shot:   cam.shot,
+    env:    cam.env,
+    note:   cam.note,
+  };
+  // Move the 3-D marker cone to the new pose so it visually tracks.
+  if(L.mesh){
+    L.mesh.position.copy(camPos);
+    L.mesh.rotation.set(pitch, yaw + Math.PI, 0, 'YXZ');
+  }
+  markDirty(8);
+}
+
 // 🔒/🔓 button: flip a camera layer's `locked` flag and re-render the
-// row so the icon + opacity update immediately. When transitioning OFF
-// → ON the saved pose isn't touched; the next frame's snap-back hook
-// just starts holding the live view at the saved values.
+// row so the icon + opacity update immediately. Transitioning OFF → ON
+// (re-locking) re-captures the CURRENT live viewport pose as the saved
+// pose, so a user who unlocked, moved, then re-locked keeps the NEW
+// framing instead of snapping back to the stale pre-unlock pose. It also
+// engages the snap-back hold so the freshly-locked shot stays put.
 window.toggleCameraLayerLock = function(id){
   const L = findLayer(id);
   if(!L || L.type !== 'camera') return;
-  L.locked = !L.locked;
+  const becomingLocked = !L.locked;
+  L.locked = becomingLocked;
+  if(becomingLocked){
+    _updateCameraSavedPoseFromLive(L);
+    _engagedCamId = L.id;       // hold the live view here from now on
+  } else if(_engagedCamId === L.id){
+    _engagedCamId = null;       // unlocked → free to wander, no snap-back
+  }
   renderLayerList();
   if(typeof showUndoToast === 'function'){
     showUndoToast(
@@ -5570,36 +5637,20 @@ window.viewCameraLayer = function(id){
   const L = findLayer(id);
   if(!L || L.type !== 'camera') return;
   _teleportToCameraLayer(L);
-  // Also make sure the row is selected so the snap-back hook engages
-  // when the camera is locked.
+  // Select the row. selectLayer's wrapper clears _engagedCamId, so we set
+  // the hold AFTER selecting. Only a locked camera holds; an unlocked one
+  // teleports once and then lets the user wander freely.
   if(selectedLayerId !== L.id) selectLayer(L.id);
+  _engagedCamId = L.locked ? L.id : null;
 };
 
-// Patch selectLayer to teleport when a camera-type layer is clicked.
-// We wrap the previously-installed window.selectLayer so we don't have
-// to inline the teleport logic into the original definition (avoids
-// merge conflicts with the figure/multi-select code already there).
-(function(){
-  const _origSelectLayer = window.selectLayer;
-  window.selectLayer = function(id, ev){
-    const wasSelected = (selectedLayerId === id);
-    const ret = _origSelectLayer.call(this, id, ev);
-    // Only teleport on a "fresh" click (not a toggle-off), and not when
-    // the user is holding Ctrl/Cmd for multi-select.
-    const additive = !!(ev && (ev.ctrlKey || ev.metaKey));
-    if(!additive){
-      const L = findLayer(id);
-      if(L && L.type === 'camera' && L.savedPose){
-        // After the orig call, selectedLayerId is either id (newly
-        // selected) or null (deselected because it was the only one).
-        // Teleport in both cases so re-clicking the camera always
-        // jumps back to its pose, even after toggle-off.
-        _teleportToCameraLayer(L);
-      }
-    }
-    return ret;
-  };
-})();
+// NOTE: the camera snap-back release on selection lives INSIDE the
+// canonical window.selectLayer (defined much later in this file). An
+// earlier attempt to wrap selectLayer here was dead code — the canonical
+// definition runs afterwards and clobbers any wrapper installed at this
+// point — so the logic was inlined into the real definition instead.
+// Selecting a camera layer NEVER reproduces its pose; only the 🎬 button
+// (viewCameraLayer) or re-locking engages the snap-back.
 
 // ══════════════════════════════════════════════════
 //  VIEW RECORDING (MediaRecorder → MP4 / WebM)
@@ -5624,6 +5675,58 @@ let _viewRec = {
   mime: '',
   ext: 'webm',
 };
+
+// While true, the per-frame editing chrome that shouldn't appear in a
+// recording (3-D pivot gizmo, saved-camera marker cones, cam-anim path
+// markers) is force-hidden. Set by _setCaptureUIHidden() around any
+// MediaRecorder capture so the exported video is clean.
+let _captureHideUI = false;
+
+// Hide / restore the in-viewport editing aids during a recording. Camera
+// markers + cam-anim visuals + the pivot gizmo are editing chrome, not
+// part of the final shot, so the user asked for them to disappear while
+// recording. The pivot gizmo's per-frame updateLayerPivot() is gated on
+// _captureHideUI so it won't re-show itself mid-capture.
+function _setCaptureUIHidden(hide){
+  _captureHideUI = !!hide;
+  // 3-D pivot gizmo group.
+  if(typeof lpv !== 'undefined' && lpv && lpv.group){
+    if(hide) lpv.group.visible = false;
+  }
+  // Pivot gizmo DOM panel (#gizmo).
+  const _g = document.getElementById('gizmo');
+  if(_g){
+    if(hide){
+      if(_g.dataset._capPrev === undefined) _g.dataset._capPrev = _g.style.display || '';
+      _g.style.display = 'none';
+    } else if(_g.dataset._capPrev !== undefined){
+      _g.style.display = _g.dataset._capPrev;
+      delete _g.dataset._capPrev;
+    }
+  }
+  // Saved-camera marker cones (type==='camera' layer meshes).
+  if(typeof layers !== 'undefined' && Array.isArray(layers)){
+    for(const L of layers){
+      if(L && L.type === 'camera' && L.mesh){
+        if(hide){
+          if(L.mesh.userData._capPrevVis === undefined){
+            L.mesh.userData._capPrevVis = L.mesh.visible;
+          }
+          L.mesh.visible = false;
+        } else if(L.mesh.userData._capPrevVis !== undefined){
+          L.mesh.visible = L.mesh.userData._capPrevVis;
+          delete L.mesh.userData._capPrevVis;
+        }
+      }
+    }
+  }
+  // Camera-animation path + key markers.
+  if(typeof _camAnimSetVisualsVisible === 'function'){
+    if(hide) _camAnimSetVisualsVisible(false);
+    else if(typeof camAnim !== 'undefined' && camAnim.open) _camAnimSetVisualsVisible(true);
+  }
+  if(typeof markDirty === 'function') markDirty(8);
+}
 
 function _pickRecorderMime(){
   const candidates = [
@@ -5772,6 +5875,9 @@ window.startViewRecording = function(){
   _viewRec.startedAt = performance.now();
   rec.start(1000);  // emit a chunk every second so we don't pile a huge tail
   _setRecButtonState(true);
+  // Hide editing chrome (pivot gizmo, saved-camera markers, cam-anim path)
+  // so it doesn't appear in the captured video.
+  _setCaptureUIHidden(true);
   const el = _ensureRecTimerEl();
   const tick = () => {
     const sec = (performance.now() - _viewRec.startedAt) / 1000;
@@ -5793,6 +5899,8 @@ window.stopViewRecording = function(){
   _viewRec.recorder = null;
   _setRecButtonState(false);
   _hideRecTimer();
+  // Restore the editing chrome hidden when recording started.
+  _setCaptureUIHidden(false);
 };
 
 window.toggleViewRecording = function(){
@@ -6194,8 +6302,15 @@ window.toggleCamAnimPanel = function(){
     ].join(';');
     document.body.appendChild(p);
   }
-  camAnim.open = !camAnim.open;
+  const _wasOpen = camAnim.open;
+  // Opening the panel acts like any other tool: shut the others first so we
+  // don't stack panels. closeAllPanels also hides this one (sets open=false),
+  // which is fine — we re-open it just below.
+  if(!_wasOpen) closeAllPanels();
+  camAnim.open = !_wasOpen;
   p.style.display = camAnim.open ? 'block' : 'none';
+  const _cab = document.getElementById('btnCamAnim');
+  if(_cab) _cab.classList.toggle('on', camAnim.open);
   if(camAnim.open){
     _camAnimRenderPanel();
     // Make the markers + path visible while the panel is open so the
@@ -10706,6 +10821,14 @@ window.selectLayer=function(id, ev){
       window.selectedLayerIds.add(id);
     }
   }
+  // Selecting any layer OTHER than the engaged camera releases the locked-
+  // camera snap-back hold so the user isn't trapped at the previewed pose.
+  // Merely selecting a camera NEVER reproduces its pose — only the 🎬 button
+  // (viewCameraLayer) or re-locking engages it, and those set _engagedCamId
+  // AFTER calling selectLayer, so they survive this clear.
+  if(typeof _engagedCamId !== 'undefined' && _engagedCamId != null && _engagedCamId !== id){
+    _engagedCamId = null;
+  }
   renderLayerList();
   renderTransformPanel();
   _syncFigureBoneVisibility();
@@ -14191,22 +14314,25 @@ function animate(now) {
 
   updateCamera();
   updateFlyCamera(dt);
-  // Camera-layer LOCK snap-back. If the currently selected layer is a
-  // camera-type with `locked === true` and we're NOT in the middle of a
-  // cam-anim preview / record (which legitimately drives camPos itself),
-  // pin the live view to the saved pose every frame. This makes the
-  // 🔒 indicator behave: WASD / drag / arrow input nudges _yawTarget /
-  // _pitchTarget normally but on the NEXT frame the live values snap
-  // back, so the camera reads as immovable. Click 🔓 to release.
-  if(selectedLayerId != null
+  // Camera-layer LOCK snap-back. Engaged ONLY via the 🎬 button or by
+  // (re-)locking a camera — NEVER by merely selecting a camera row (that
+  // used to teleport unexpectedly). When _engagedCamId points at a still-
+  // locked camera and we're NOT mid cam-anim preview / record (which
+  // legitimately drives camPos itself), pin the live view to the saved
+  // pose every frame: WASD / drag nudges _yawTarget / _pitchTarget but the
+  // next frame snaps back, so the shot reads as immovable. 🔓 releases it.
+  if(_engagedCamId != null
      && !(typeof camAnim !== 'undefined' && camAnim.playing)){
-    const _selL = findLayer(selectedLayerId);
+    const _selL = findLayer(_engagedCamId);
     if(_selL && _selL.type === 'camera' && _selL.locked && _selL.savedPose){
       const sp = _selL.savedPose;
       if(sp.pos) camPos.set(sp.pos.x, sp.pos.y, sp.pos.z);
       if(typeof sp.yaw   === 'number'){ yaw   = _yawTarget   = sp.yaw;   }
       if(typeof sp.pitch === 'number'){ pitch = _pitchTarget = sp.pitch; }
       if(typeof sp.roll  === 'number'){ roll  = sp.roll;  }
+    } else {
+      // Engaged camera was deleted or unlocked elsewhere — release.
+      _engagedCamId = null;
     }
   }
   updateCamera();
