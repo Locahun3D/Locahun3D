@@ -975,6 +975,13 @@ body{position:fixed;top:0;left:0;}
   #lp-footer-bar,
   #lp-divider,
   #layer-transform { display:none !important; }
+  /* Camera-animation panel is now available on phones too — its inline 300 px
+     width can crowd a narrow phone, so let it span the viewport (minus small
+     margins) and sit just below the shrunk topbar. */
+  #cam-anim-panel{
+    width:auto !important; left:8px !important; right:8px !important;
+    top:54px !important; max-height:68vh !important;
+  }
   /* Smartphone-only: shrink top-row UI to ~½ size. iPhone screens are too
      narrow for the desktop sizing. iPad and other touch devices with
      viewport ≥ 600 px are unaffected by this block. */
@@ -1044,6 +1051,87 @@ body{position:fixed;top:0;left:0;}
   <div class="ol-msg" id="orient-lock-msg">横画面でご利用ください</div>
   <div class="ol-sub" id="orient-lock-sub">端末を横向きに回転してください</div>
 </div>
+
+<!-- ══ In-app-browser escape (mobile only) ══
+     X / Instagram / LINE etc. open links in a limited in-app WebView where
+     WebGL / fullscreen / file APIs misbehave. Detect that via UA and offer to
+     re-open in the real browser: Android can deep-link straight into Chrome
+     via an intent:// URL; iOS can't be forced to Safari programmatically, so
+     we show the "tap … → Open in Browser" instruction (+ a best-effort Chrome
+     deep link). Dismissible so a false positive never traps the user. -->
+<style>
+#inapp-open{
+  display:none;
+  position:fixed; inset:0; z-index:2147483647;
+  background:rgba(8,8,10,.97); color:#e8e8e8;
+  align-items:center; justify-content:center; padding:24px;
+  font-family:'Helvetica Neue',Arial,'Hiragino Kaku Gothic ProN','Yu Gothic',Meiryo,sans-serif;
+}
+#inapp-open .ia-card{ max-width:340px; width:100%; text-align:center;
+  display:flex; flex-direction:column; align-items:center; gap:12px; }
+#inapp-open .ia-icon{ font-size:46px; line-height:1; }
+#inapp-open .ia-msg{ font-size:1.1em; font-weight:700; letter-spacing:.03em; }
+#inapp-open .ia-sub{ font-size:.82em; color:#a9a9b2; line-height:1.6; }
+#inapp-open .ia-btn{
+  margin-top:4px; width:100%; padding:13px 16px; border-radius:10px;
+  background:#3b82f6; border:none; color:#fff; font-size:1em; font-weight:700;
+  cursor:pointer; -webkit-tap-highlight-color:transparent; }
+#inapp-open .ia-btn:active{ background:#2f6fd6; }
+#inapp-open .ia-ios{ font-size:.8em; color:#cdd6e4; line-height:1.6;
+  background:rgba(255,255,255,.06); border-radius:8px; padding:10px 12px; }
+#inapp-open .ia-dismiss{ margin-top:2px; background:none; border:none;
+  color:#7a7a85; font-size:.82em; text-decoration:underline; cursor:pointer; }
+</style>
+<div id="inapp-open" aria-hidden="true">
+  <div class="ia-card">
+    <div class="ia-icon">🌐</div>
+    <div class="ia-msg" id="inapp-msg">Chrome / Safari で開いてください</div>
+    <div class="ia-sub" id="inapp-sub">アプリ内ブラウザでは 3D ビューアが正しく表示できません。外部ブラウザで開くと正常に動作します。</div>
+    <button id="inapp-open-btn" class="ia-btn"><span id="inapp-open-lbl">ブラウザで開く</span></button>
+    <div class="ia-ios" id="inapp-ios" style="display:none">
+      <span id="inapp-ios-hint">右上のメニュー（…）から「Safari で開く / 外部ブラウザで開く」を選んでください。</span>
+    </div>
+    <button id="inapp-dismiss" class="ia-dismiss"><span id="inapp-dismiss-lbl">このまま続ける</span></button>
+  </div>
+</div>
+<script>
+(function(){
+  var ua = navigator.userAgent || '';
+  var isAndroid = /Android/.test(ua);
+  var isIOS = /iPhone|iPad|iPod/.test(ua) && !window.MSStream;
+  if(!isAndroid && !isIOS) return;              // non-PC (mobile) only
+  if(/[?&]nobrowsercheck=1/.test(location.search)) return;  // escape hatch
+  // Known in-app WebView UA markers (X / Meta / LINE / TikTok / etc.).
+  var markers = /(FBAN|FBAV|FB_IAB|FBIOS|Instagram|Line\/|MicroMessenger|Twitter|TwitterAndroid|musical_ly|TikTok|BytedanceWebview|Snapchat|Pinterest|KAKAOTALK|YJApp|SmartNews|DaumApps)/i;
+  var inApp = markers.test(ua);
+  // iOS heuristic: an in-app WKWebView keeps "Mobile" but, unlike real Safari,
+  // drops the "Safari/" token. SFSafariViewController keeps it (and IS Safari,
+  // so we don't flag it). Exclude Chrome/Firefox/Edge for iOS (real browsers).
+  if(!inApp && isIOS && /Mobile/.test(ua) && !/Safari/.test(ua) && !/CriOS|FxiOS|EdgiOS/.test(ua)) inApp = true;
+  if(!inApp) return;
+  var ov = document.getElementById('inapp-open');
+  if(!ov) return;
+  ov.style.display = 'flex';
+  var noProto = location.href.replace(/^https?:\/\//, '');
+  var btn = document.getElementById('inapp-open-btn');
+  var iosBox = document.getElementById('inapp-ios');
+  var dismiss = document.getElementById('inapp-dismiss');
+  if(isAndroid){
+    btn.addEventListener('click', function(){
+      // Deep-link the current URL (query preserved) straight into Chrome.
+      window.location.href = 'intent://' + noProto + '#Intent;scheme=https;package=com.android.chrome;end';
+    });
+  } else {
+    // iOS: can't force Safari from a WebView. Show the manual hint, and make
+    // the button a best-effort Chrome-for-iOS deep link (https → googlechromes).
+    if(iosBox) iosBox.style.display = 'block';
+    btn.addEventListener('click', function(){
+      window.location.href = 'googlechromes://' + noProto;
+    });
+  }
+  if(dismiss) dismiss.addEventListener('click', function(){ ov.style.display = 'none'; });
+})();
+</script>
 
 
 <!-- ══ Layer Panel ══ -->
@@ -7699,18 +7787,19 @@ function showHUD() {
   if(mmBtn && _mmUserVisible) mmBtn.classList.add('on');
   const vtlb=document.getElementById('view-tl-btns');
   if(vtlb) vtlb.style.display='flex';
-  // Phone-tier (mobile short-edge < 700 px) gates: multi-camera, view-rec
-  // and camera-anim are intentionally NOT exposed on phones (per spec —
-  // "Win/Mac/iPad/タブレットに実装") because the camera tool needs a wider
-  // viewport to be usable. On phones we still expose the phone-style
-  // record button placed left of the AR button.
+  // Phone-tier (mobile short-edge < 700 px) gates: multi-camera (Save Pose)
+  // stays phone-hidden (it needs the wide camera tool), but the camera
+  // ANIMATION feature is now exposed on every device per user request — its
+  // panel is self-contained (its own "save position" key button) and fits a
+  // phone width (300 px, anchored right). On phones we still expose the
+  // phone-style record button placed left of the AR button.
   const _isPhoneTier = (typeof _splatPerfTier !== 'undefined' && _splatPerfTier === 'phone');
   const _phoneHide = (id, hide) => {
     const el = document.getElementById(id);
     if(el) el.style.display = hide ? 'none' : '';
   };
   _phoneHide('btnSaveCamera', _isPhoneTier);
-  _phoneHide('btnCamAnim',    _isPhoneTier);
+  _phoneHide('btnCamAnim',    false);   // animation available on all devices
   // #btnViewRec lives in the cbar now — the cbar's smartphone media
   // query already collapses non-{Measure,Cam} buttons on phones, so we
   // intentionally don't apply the JS-tier hide here. Phones still get
@@ -11012,6 +11101,11 @@ const I18N = {
   'demo-btn-title':'デモ用の 3DGS シーンを Cloudflare R2 から読み込みます',
   'orient-lock-msg':'横画面でご利用ください',
   'orient-lock-sub':'端末を横向きに回転してください',
+  'inapp-msg':'Chrome / Safari で開いてください',
+  'inapp-sub':'アプリ内ブラウザでは 3D ビューアが正しく表示できません。外部ブラウザで開くと正常に動作します。',
+  'inapp-open-lbl':'ブラウザで開く',
+  'inapp-ios-hint':'右上のメニュー（…）から「Safari で開く / 外部ブラウザで開く」を選んでください。',
+  'inapp-dismiss-lbl':'このまま続ける',
   'qp-perf-t':'📊 処理能力モニター',
   'qp-lbl-lowpoly-main':'ポリゴン 1/4',
   'qp-lbl-lowpoly-hint':'PLY/SPLAT のみ・自動で再読み込み',
@@ -11132,6 +11226,11 @@ const I18N = {
   'demo-btn-title':'Load the demo 3DGS scene from Cloudflare R2',
   'orient-lock-msg':'Please use in landscape',
   'orient-lock-sub':'Rotate your device to landscape',
+  'inapp-msg':'Please open in Chrome / Safari',
+  'inapp-sub':'The 3D viewer doesn\'t work correctly in an in-app browser. Open it in your real browser for full functionality.',
+  'inapp-open-lbl':'Open in browser',
+  'inapp-ios-hint':'Tap the … menu (top-right) and choose “Open in Safari / external browser”.',
+  'inapp-dismiss-lbl':'Continue anyway',
   'qp-perf-t':'📊 Performance Monitor',
   'qp-lbl-lowpoly-main':'Splats 1/4',
   'qp-lbl-lowpoly-hint':'PLY/SPLAT only — auto reload',
@@ -11213,7 +11312,7 @@ function applyI18n(){
     el.innerHTML=T(k);
   });
   // HUD labels
-  ['lbl-pos','lbl-spd','lbl-rot','lbl-measure','lbl-flip','lbl-addobj','lbl-quality','lbl-settings','lbl-file','lbl-cam-reset','lbl-minimap','lbl-camtool','lbl-env','lbl-help','orient-lock-msg','orient-lock-sub','lbl-addobj-top','lbl-addfig-top','tb-save-lbl','tb-load-lbl','tb-report-lbl','fp-btn-import-lbl','fp-btn-export-lbl','csp-shot-info','csp-cam-info','csp-meta-info','csp-shot-name','csp-rig','csp-env','csp-note','csp-capture','csp-burnin','csp-burnin-grid','csp-capture-btn','csp-salvage','csp-salvage-drop','csp-salvage-sub','ct-tool','ct-lens','ct-focal','ct-sensor','ct-sensor-ff','ct-sensor-apsc','ct-sensor-apsh','ct-sensor-mft','ct-sensor-m65','ct-sensor-s35','ct-sensor-bm','ct-sensor-cust','ct-sensor-w','ct-sensor-h','ct-cam-angle','ct-pan','ct-tilt','ct-roll','ct-roll-level','ct-wb','ct-wb-temp','ct-aspect','ct-aspect-sensor','ct-aspect-cust','ct-aspect-apply','ct-margin','ct-grid','ct-grid-multi','ct-grid-guide','ct-grid-off','ct-grid-thirds','ct-grid-golden','ct-grid-cross','ct-grid-diag','ct-grid-safe-cust','ct-grid-action','ct-grid-title','ct-grid-center','ct-grid-custom','ct-grid-cols','ct-grid-rows','ct-grid-opacity','dz-manual-text','dz-ar-label','env-h-title','env-p-off','env-p-day','env-p-morning','env-p-evening','env-p-night','env-p-cloudy','env-p-rain','env-p-overcast','env-p-twilight','env-l-rot','env-l-int','msr-active-lbl','msr-end-lbl','lp-h-scene','lp-empty','qt-title','qt-low','qt-mid','qt-high','qp-perf-t','qp-l-frame','qp-l-gpu','qp-l-head','qp-l-dc','qp-l-tris','qp-l-geos','qp-l-texs','dist-l','msr-clear','msr-undo','em-3dgs','em-3dgs-d','em-zip-save','em-zip-save-d','em-zip-load','em-zip-load-d','em-json','em-json-d','em-glb','em-glb-d','em-obj','em-obj-d','em-cancel','em-recommended','em-h-title','qp-settings-t','qp-lbl-lowpoly-main','qp-lbl-lowpoly-hint','mm-big-title','mm-big-hint','qp-lbl-grid','qp-lbl-show','qp-lbl-fov','qp-lbl-spd','cl-title','cl-sub','cl-tag-init','cl-tag-v003','lbl-walk','lbl-save-camera','lbl-view-rec','lbl-view-rec-phone','lbl-cam-anim','giz-pt-a','giz-pt-b','giz-pt-c','giz-height-lbl','height-l','csp-jpeg-q','csp-4k-lbl','obj-add-cube','obj-add-sphere','obj-add-light','obj-add-event','msr-end-lbl-init'].forEach(id=>{
+  ['lbl-pos','lbl-spd','lbl-rot','lbl-measure','lbl-flip','lbl-addobj','lbl-quality','lbl-settings','lbl-file','lbl-cam-reset','lbl-minimap','lbl-camtool','lbl-env','lbl-help','orient-lock-msg','orient-lock-sub','inapp-msg','inapp-sub','inapp-open-lbl','inapp-ios-hint','inapp-dismiss-lbl','lbl-addobj-top','lbl-addfig-top','tb-save-lbl','tb-load-lbl','tb-report-lbl','fp-btn-import-lbl','fp-btn-export-lbl','csp-shot-info','csp-cam-info','csp-meta-info','csp-shot-name','csp-rig','csp-env','csp-note','csp-capture','csp-burnin','csp-burnin-grid','csp-capture-btn','csp-salvage','csp-salvage-drop','csp-salvage-sub','ct-tool','ct-lens','ct-focal','ct-sensor','ct-sensor-ff','ct-sensor-apsc','ct-sensor-apsh','ct-sensor-mft','ct-sensor-m65','ct-sensor-s35','ct-sensor-bm','ct-sensor-cust','ct-sensor-w','ct-sensor-h','ct-cam-angle','ct-pan','ct-tilt','ct-roll','ct-roll-level','ct-wb','ct-wb-temp','ct-aspect','ct-aspect-sensor','ct-aspect-cust','ct-aspect-apply','ct-margin','ct-grid','ct-grid-multi','ct-grid-guide','ct-grid-off','ct-grid-thirds','ct-grid-golden','ct-grid-cross','ct-grid-diag','ct-grid-safe-cust','ct-grid-action','ct-grid-title','ct-grid-center','ct-grid-custom','ct-grid-cols','ct-grid-rows','ct-grid-opacity','dz-manual-text','dz-ar-label','env-h-title','env-p-off','env-p-day','env-p-morning','env-p-evening','env-p-night','env-p-cloudy','env-p-rain','env-p-overcast','env-p-twilight','env-l-rot','env-l-int','msr-active-lbl','msr-end-lbl','lp-h-scene','lp-empty','qt-title','qt-low','qt-mid','qt-high','qp-perf-t','qp-l-frame','qp-l-gpu','qp-l-head','qp-l-dc','qp-l-tris','qp-l-geos','qp-l-texs','dist-l','msr-clear','msr-undo','em-3dgs','em-3dgs-d','em-zip-save','em-zip-save-d','em-zip-load','em-zip-load-d','em-json','em-json-d','em-glb','em-glb-d','em-obj','em-obj-d','em-cancel','em-recommended','em-h-title','qp-settings-t','qp-lbl-lowpoly-main','qp-lbl-lowpoly-hint','mm-big-title','mm-big-hint','qp-lbl-grid','qp-lbl-show','qp-lbl-fov','qp-lbl-spd','cl-title','cl-sub','cl-tag-init','cl-tag-v003','lbl-walk','lbl-save-camera','lbl-view-rec','lbl-view-rec-phone','lbl-cam-anim','giz-pt-a','giz-pt-b','giz-pt-c','giz-height-lbl','height-l','csp-jpeg-q','csp-4k-lbl','obj-add-cube','obj-add-sphere','obj-add-light','obj-add-event','msr-end-lbl-init'].forEach(id=>{
     const el=document.getElementById(id); if(el) el.textContent=T(id);
   });
   // HUD info-box edit tooltip + dropzone titles
