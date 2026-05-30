@@ -1503,7 +1503,7 @@ body{position:fixed;top:0;left:0;}
             <g font-family="ui-monospace,monospace" font-size="14" fill="#ddd" text-anchor="middle">
               <rect x="50"  y="20" width="40" height="40" rx="6" fill="url(#key-grad)" stroke="#555"/>
               <text x="70" y="46">Q</text>
-              <text x="70" y="78" font-size="9" fill="#9bf">上</text>
+              <text x="70" y="78" font-size="9" fill="#9bf">下</text>
 
               <rect x="100" y="20" width="40" height="40" rx="6" fill="url(#key-grad)" stroke="#555"/>
               <text x="120" y="46">W</text>
@@ -1511,7 +1511,7 @@ body{position:fixed;top:0;left:0;}
 
               <rect x="150" y="20" width="40" height="40" rx="6" fill="url(#key-grad)" stroke="#555"/>
               <text x="170" y="46">E</text>
-              <text x="170" y="78" font-size="9" fill="#9bf">下</text>
+              <text x="170" y="78" font-size="9" fill="#9bf">上</text>
 
               <!-- A S D -->
               <rect x="100" y="90" width="40" height="40" rx="6" fill="url(#key-grad)" stroke="#555"/>
@@ -1889,11 +1889,11 @@ body{position:fixed;top:0;left:0;}
             </defs>
             <g font-family="ui-monospace,monospace" font-size="14" fill="#ddd" text-anchor="middle">
               <rect x="50"  y="20" width="40" height="40" rx="6" fill="url(#key-grad-en)" stroke="#555"/>
-              <text x="70" y="46">Q</text><text x="70" y="78" font-size="9" fill="#fff">UP</text>
+              <text x="70" y="46">Q</text><text x="70" y="78" font-size="9" fill="#fff">DOWN</text>
               <rect x="100" y="20" width="40" height="40" rx="6" fill="url(#key-grad-en)" stroke="#555"/>
               <text x="120" y="46">W</text><text x="120" y="78" font-size="9" fill="#fff">FWD</text>
               <rect x="150" y="20" width="40" height="40" rx="6" fill="url(#key-grad-en)" stroke="#555"/>
-              <text x="170" y="46">E</text><text x="170" y="78" font-size="9" fill="#fff">DOWN</text>
+              <text x="170" y="46">E</text><text x="170" y="78" font-size="9" fill="#fff">UP</text>
               <rect x="100" y="90" width="40" height="40" rx="6" fill="url(#key-grad-en)" stroke="#555"/>
               <text x="120" y="116">S</text><text x="120" y="148" font-size="9" fill="#fff">BACK</text>
               <rect x="50"  y="90" width="40" height="40" rx="6" fill="url(#key-grad-en)" stroke="#555"/>
@@ -8797,7 +8797,7 @@ function updateFlyCamera(dt){
   //   Ctrl + Arrows                  : rotate & tilt in place (yaw / pitch)
   //   Page Up / +(=)                 : zoom in  (dolly along the view)
   //   Page Down / -                  : zoom out
-  //   Q / E  &  R / F  (+ touch ▲▼)  : vertical up / down (Q,R = up · E,F = down)
+  //   Q / E  &  R / F  (+ touch ▲▼)  : vertical up / down (E,R = up · Q,F = down)
   //   Shift                          : 5× translate / 3× look sprint
   // Holding Ctrl re-routes the arrow keys from pan to rotate, so the same four
   // keys cover both — exactly like Google Earth desktop.
@@ -8806,7 +8806,7 @@ function updateFlyCamera(dt){
   const aRt = (keys.ArrowRight?1:0) - (keys.ArrowLeft?1:0);
   const fwKb=(keys.KeyW?1:0)-(keys.KeyS?1:0) + (ctrlHeld?0:aFw);
   const rtKb=(keys.KeyD?1:0)-(keys.KeyA?1:0) + (ctrlHeld?0:aRt);
-  const up  =(keys.KeyQ?1:0)-(keys.KeyE?1:0)
+  const up  =(keys.KeyE?1:0)-(keys.KeyQ?1:0)
             +(keys.KeyR?1:0)-(keys.KeyF?1:0)
             +(touchUpHeld?1:0)-(touchDnHeld?1:0);
   // Zoom = dolly along the true (pitched) view direction.
