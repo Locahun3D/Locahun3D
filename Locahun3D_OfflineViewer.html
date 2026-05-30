@@ -6757,12 +6757,13 @@ window.captureCamShot = async function(){
   // ── Optionally bake the grid / safe rectangles INTO the captured image ──
   if(cam.includeGrid) _drawGridOnCanvas(ictx, target.w, target.h);
 
-  // Trim the empty (black) void off the TOP of the frame so a near-level shot
-  // doesn't waste the image on the black region above the scanned splats
-  // (per user request: 上の空き部分をトリミングして詰める). Only fires when
-  // there actually is a black void (env "off" / no sky dome); env-on captures
-  // whose top is filled with sky are left at full frame.
-  const imgFinal = _camTrimEmptyTop(img);
+  // WYSIWYG: the captured frame is the FULL target (= exactly what the live
+  // safe-frame preview shows — same aspect, same FOV, same composition). We do
+  // NOT auto-trim here: trimming the empty top changed the output aspect/res
+  // (e.g. 16:9 1920×1080 → 1920×492), so the saved image no longer matched the
+  // frame the user composed. Any empty/black region at the top is now visible
+  // in the preview too, so it's composed out by the user (tilt / framing).
+  const imgFinal = img;
 
   // Build final canvas: image alone, OR image + metadata border frame.
   let out;
