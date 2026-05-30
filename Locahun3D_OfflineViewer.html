@@ -6726,8 +6726,15 @@ window.captureCamShot = async function(){
   // is the preview, pixel for pixel.
   const fr = _camFrameRect();                 // CSS px; aspect === cam.aspect
   const PR = renderer.getPixelRatio();        // live buffer = CSS px × PR
+  // Use the camera's CURRENT vFOV (== what the live preview is rendering right
+  // now), NOT a re-derived _camSensorVFovDeg(). captureCamShot() runs
+  // _camPullFields() first, and if the UI fields are even slightly out of sync
+  // with the live cam state (e.g. a scene loaded with a saved camera), re-deriving
+  // the FOV yields a different zoom than the preview — the capture came out wider
+  // than what was framed. oldFov is the exact value on the live camera, so the
+  // capture matches the preview's zoom 1:1.
   camera.aspect = fr.w / Math.max(1e-6, fr.h);
-  camera.fov    = _camSensorVFovDeg();
+  camera.fov    = oldFov;
   camera.updateProjectionMatrix();
   // Constrain rendering to the frame rect (GL viewport coords are bottom-up).
   const _yFromBottom = innerHeight - fr.y - fr.h;
