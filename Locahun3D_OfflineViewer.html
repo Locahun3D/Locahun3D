@@ -6740,12 +6740,6 @@ window.captureCamShot = async function(){
   const rtW  = Math.round(target.w * _ss);
   const rtH  = Math.round(target.h * _ss);
   const _capRT = new THREE.WebGLRenderTarget(rtW, rtH);
-  // Encode the RT in the SAME colour space the renderer writes to the canvas
-  // (sRGB). Without this the RT stays LINEAR, so the readback came out dark — and
-  // with a scene-tint multiply on top (e.g. the demo's 夕方 preset) it crushed to
-  // near-black. Matching outputColorSpace makes the capture match the preview's
-  // brightness/colour exactly.
-  if('outputColorSpace' in renderer) _capRT.texture.colorSpace = renderer.outputColorSpace;
   const _oldRT = renderer.getRenderTarget();
   // Re-pin pose + aspect + fov + render target + viewport before EVERY render.
   // We render twice with a settle gap for Spark's sort, and the live animate loop
