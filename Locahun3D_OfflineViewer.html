@@ -2538,7 +2538,7 @@ body{position:fixed;top:0;left:0;}
       <div class="cm-sec">▸ <span id="csp-capture">キャプチャ</span></div>
       <div class="cm-row" style="flex-direction:column;gap:6px;align-items:stretch">
         <label style="display:flex;align-items:center;gap:6px;font-size:.95em;cursor:pointer">
-          <input type="checkbox" id="cm-burnin" checked
+          <input type="checkbox" id="cm-burnin"
             style="accent-color:#ffb454;cursor:pointer"> <span id="csp-burnin">メタデータをバーンイン</span>
         </label>
         <label style="display:flex;align-items:center;gap:6px;font-size:.95em;cursor:pointer">
@@ -4730,7 +4730,13 @@ const cam = {
   gridCols: 3,
   gridRows: 3,
   jpegQ: 0.92,
-  burnin: true,
+  // Default OFF so 撮影 yields a CLEAN delivery-resolution frame that is pixel-
+  // identical to the live safe-frame preview (16:9 → exactly 1920×1080). When ON,
+  // composeBurnInFrame wraps the shot in a metadata BORDER, which necessarily makes
+  // the file larger than 1920×1080 and insets the image — i.e. capture no longer
+  // matches the preview 1:1. The user can still enable the metadata sheet via the
+  // メタデータをバーンイン checkbox when they want it.
+  burnin: false,
   includeGrid: false,   // burn the grid/safe rect into the captured JPEG
   export4K: false,      // when true, capture at 2× the standard resolution
   prevFOV: 90,
@@ -6680,6 +6686,17 @@ window.captureCamShot = async function(){
   renderer.getSize(oldSize);
   const oldAspect = camera.aspect;
   const oldFov    = camera.fov;
+  // FREEZE the camera pose at the instant 撮影 was pressed. The viewer drives the
+  // camera with a smooth lerp (yaw/pitch/pos ease toward their targets over a few
+  // hundred ms). captureCamShot renders, waits 90 ms for Spark's async sort, then
+  // renders again — and during that wait a still-settling lerp would advance the
+  // pose, so the saved JPEG framed a SLIGHTLY different shot than the live preview
+  // showed at click time ("構図がずれて出力する"). Snapshot the exact pose now and
+  // re-pin it before every capture render so the output matches the preview 1:1
+  // (and Spark sorts against a stable pose).
+  const _capPos  = camera.position.clone();
+  const _capQuat = camera.quaternion.clone();
+  const _pinPose = () => { camera.position.copy(_capPos); camera.quaternion.copy(_capQuat); camera.updateMatrixWorld(true); };
 
   // Hide HUD / left shot panel / vignette so they don't poison the source canvas
   const hud    = document.getElementById('cam-hud');
@@ -6713,9 +6730,13 @@ window.captureCamShot = async function(){
   camera.fov    = _camSensorVFovDeg();
   camera.updateProjectionMatrix();
 
-  // Render once + wait + render so Spark's async sort is settled at the new size
+  // Render once + wait + render so Spark's async sort is settled at the new size.
+  // _pinPose() before each render overrides any lerp drift that advanced during
+  // the wait, so both renders use the exact click-time pose.
+  _pinPose();
   renderer.render(scene, camera);
   await new Promise(r2=>setTimeout(r2, 90));
+  _pinPose();
   renderer.render(scene, camera);
 
   // The drawing buffer now equals the target — copy 1:1 to a 2D canvas for compositing
