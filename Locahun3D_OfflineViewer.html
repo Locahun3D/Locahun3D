@@ -6733,46 +6733,69 @@ window.captureCamShot = async function(){
   // the FOV yields a different zoom than the preview — the capture came out wider
   // than what was framed. oldFov is the exact value on the live camera, so the
   // capture matches the preview's zoom 1:1.
-  // Re-apply the ENTIRE capture frame setup (pose, aspect, fov, viewport,
-  // scissor) immediately before EVERY render. We render twice with a settle gap
-  // for Spark's sort, and during that await the live animate loop keeps running
-  // (rAF on device, the headless pump in tests) — and it resets camera.aspect to
-  // the full-viewport aspect and the GL viewport to the whole canvas every frame.
-  // If we only set this once up-front, the SECOND render inherited the loop's
-  // full-viewport / 2.0-ish aspect, so the saved JPEG was a WIDER-FOV crop than
-  // the 16:9 preview (near objects shoved toward the edge while far objects barely
-  // moved — the "構図がずれる / 電柱だけ右にずれる" report). Re-pinning everything
-  // before each render makes both renders use the exact frame settings.
-  const _yFromBottom = innerHeight - fr.y - fr.h;
-  const _applyCapFrame = () => {
+  // ── HIGH-RESOLUTION capture ──
+  // Render the shot into an OFFSCREEN render target at (super-sampled) delivery
+  // resolution, instead of cropping the low-res on-screen buffer and upscaling
+  // it (which made the JPEG soft on devices whose live buffer is < 1920 px wide).
+  // An RT render does NOT touch the canvas buffer / pixel-ratio, so Spark keeps
+  // its settled rasterisation (no black bands), and we reuse the exact pinned
+  // pose + preview aspect + fov, so the framing still matches the preview 1:1 —
+  // only the pixels are now native (and anti-aliased), not an upscale.
+  const _capAspect = fr.w / Math.max(1e-6, fr.h);   // == the live preview's aspect
+  // 1.5× super-sample for 1080p-class shots (render bigger, downscale → cleaner
+  // edges on thin features like wires) — a good sharpness/cost balance for heavy
+  // splat scenes; native for 4K-class to stay within GPU + time limits.
+  const _ss  = (target.w * target.h <= 1920 * 1080) ? 1.5 : 1;
+  const rtW  = Math.round(target.w * _ss);
+  const rtH  = Math.round(target.h * _ss);
+  const _capRT = new THREE.WebGLRenderTarget(rtW, rtH);
+  const _oldRT = renderer.getRenderTarget();
+  // Re-pin pose + aspect + fov + render target + viewport before EVERY render.
+  // We render twice with a settle gap for Spark's sort, and the live animate loop
+  // keeps running during that await (rAF on device / headless pump in tests),
+  // resetting camera.aspect to the full-viewport aspect every frame. Re-applying
+  // before each render guarantees both renders use the exact 16:9 frame settings
+  // (otherwise the 2nd render inherited a wider FOV → "構図がずれる" shift).
+  const _applyCapRT = () => {
     _pinPose();
-    camera.aspect = fr.w / Math.max(1e-6, fr.h);
+    camera.aspect = _capAspect;
     camera.fov    = oldFov;
     camera.updateProjectionMatrix();
-    renderer.setViewport(fr.x, _yFromBottom, fr.w, fr.h);
-    renderer.setScissor(fr.x, _yFromBottom, fr.w, fr.h);
-    renderer.setScissorTest(true);
+    renderer.setRenderTarget(_capRT);
+    renderer.setScissorTest(false);
+    renderer.setViewport(0, 0, rtW, rtH);
   };
-  _applyCapFrame();
+  _applyCapRT();
   renderer.render(scene, camera);
   await new Promise(r2=>setTimeout(r2, 90));
-  _applyCapFrame();   // ← critical: the animate loop ran during the await above
+  _applyCapRT();   // ← critical: the animate loop ran during the await above
   renderer.render(scene, camera);
-  renderer.setScissorTest(false);
-
-  // Crop the frame-rect region out of the live canvas (intrinsic px = CSS × PR)
-  // and scale it to the delivery resolution.
+  // Read the RT back (GL is bottom-up) and flip into a top-down canvas at the
+  // super-sampled size, then downscale into the delivery-resolution image.
+  const _buf = new Uint8Array(rtW * rtH * 4);
+  renderer.readRenderTargetPixels(_capRT, 0, 0, rtW, rtH, _buf);
+  renderer.setRenderTarget(_oldRT);
+  _capRT.dispose();
+  // Wrap the readback buffer as ImageData with ZERO copy (no per-pixel JS loop),
+  // paint it onto a full-res canvas, then downscale with a vertical FLIP baked
+  // into drawImage (GL is bottom-up) — fast even at 4K.
+  const _ssC = document.createElement('canvas');
+  _ssC.width = rtW; _ssC.height = rtH;
+  const _ssCtx = _ssC.getContext('2d');
+  _ssCtx.putImageData(new ImageData(new Uint8ClampedArray(_buf.buffer), rtW, rtH), 0, 0);
   const img = document.createElement('canvas');
   img.width  = target.w;
   img.height = target.h;
   const ictx = img.getContext('2d');
+  ictx.fillStyle = '#000';
+  ictx.fillRect(0, 0, target.w, target.h);   // opaque base (JPEG has no alpha)
   ictx.imageSmoothingEnabled = true;
   ictx.imageSmoothingQuality = 'high';
-  const _sx = Math.max(0, Math.round(fr.x * PR));
-  const _sy = Math.max(0, Math.round(fr.y * PR));
-  const _sw = Math.round(fr.w * PR);
-  const _sh = Math.round(fr.h * PR);
-  ictx.drawImage(canvas, _sx, _sy, _sw, _sh, 0, 0, target.w, target.h);
+  ictx.save();
+  ictx.translate(0, target.h);
+  ictx.scale(1, -1);                          // flip bottom-up GL → top-down image
+  ictx.drawImage(_ssC, 0, 0, rtW, rtH, 0, 0, target.w, target.h);
+  ictx.restore();
   // ── Environment scene-tint (matches live #env-tint overlay) ──
   // Applied BEFORE WB so the order is "scene lighting first, then camera correction".
   if(env.preset !== 'off' && ENV_PRESETS[env.preset] && ENV_PRESETS[env.preset].sceneTint){
