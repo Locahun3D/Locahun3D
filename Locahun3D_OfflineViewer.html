@@ -11153,7 +11153,7 @@ function applyI18n(){
     el.innerHTML=T(k);
   });
   // HUD labels
-  ['lbl-pos','lbl-spd','lbl-rot','lbl-measure','lbl-flip','lbl-addobj','lbl-quality','lbl-settings','lbl-file','lbl-cam-reset','lbl-minimap','lbl-camtool','lbl-env','lbl-help','lbl-addobj-top','lbl-addfig-top','tb-save-lbl','tb-load-lbl','tb-report-lbl','fp-btn-import-lbl','fp-btn-export-lbl','csp-shot-info','csp-cam-info','csp-meta-info','csp-shot-name','csp-rig','csp-env','csp-note','csp-capture','csp-burnin','csp-burnin-grid','csp-capture-btn','csp-salvage','csp-salvage-drop','csp-salvage-sub','ct-tool','ct-lens','ct-focal','ct-sensor','ct-sensor-ff','ct-sensor-apsc','ct-sensor-apsh','ct-sensor-mft','ct-sensor-m65','ct-sensor-s35','ct-sensor-bm','ct-sensor-cust','ct-sensor-w','ct-sensor-h','ct-cam-angle','ct-pan','ct-tilt','ct-roll','ct-roll-level','ct-wb','ct-wb-temp','ct-aspect','ct-aspect-sensor','ct-aspect-cust','ct-aspect-apply','ct-margin','ct-grid','ct-grid-multi','ct-grid-guide','ct-grid-off','ct-grid-thirds','ct-grid-golden','ct-grid-cross','ct-grid-diag','ct-grid-safe-cust','ct-grid-action','ct-grid-title','ct-grid-center','ct-grid-custom','ct-grid-cols','ct-grid-rows','ct-grid-opacity','dz-manual-text','dz-ar-label','env-h-title','env-p-off','env-p-day','env-p-morning','env-p-evening','env-p-night','env-p-cloudy','env-p-rain','env-p-overcast','env-p-twilight','env-l-rot','env-l-int','msr-active-lbl','msr-end-lbl','lp-h-scene','lp-empty','qt-title','qt-low','qt-mid','qt-high','qp-perf-t','qp-l-frame','qp-l-gpu','qp-l-head','qp-l-dc','qp-l-tris','qp-l-geos','qp-l-texs','dist-l','msr-clear','msr-undo','em-3dgs','em-3dgs-d','em-zip-save','em-zip-save-d','em-zip-load','em-zip-load-d','em-json','em-json-d','em-glb','em-glb-d','em-obj','em-obj-d','em-cancel','em-recommended','em-h-title','qp-settings-t','qp-lbl-lowpoly-main','qp-lbl-lowpoly-hint','mm-big-title','mm-big-hint','qp-lbl-grid','qp-lbl-show','qp-lbl-fov','qp-lbl-spd','cl-title','cl-sub','cl-tag-init','lbl-walk','lbl-save-camera','lbl-view-rec','lbl-view-rec-phone','lbl-cam-anim','giz-pt-a','giz-pt-b','giz-pt-c','giz-height-lbl','height-l','csp-jpeg-q','csp-4k-lbl','obj-add-cube','obj-add-sphere','obj-add-light','obj-add-event','msr-end-lbl-init'].forEach(id=>{
+  ['lbl-pos','lbl-spd','lbl-rot','lbl-measure','lbl-flip','lbl-addobj','lbl-quality','lbl-settings','lbl-file','lbl-cam-reset','lbl-minimap','lbl-camtool','lbl-env','lbl-help','lbl-addobj-top','lbl-addfig-top','tb-save-lbl','tb-load-lbl','tb-report-lbl','fp-btn-import-lbl','fp-btn-export-lbl','csp-shot-info','csp-cam-info','csp-meta-info','csp-shot-name','csp-rig','csp-env','csp-note','csp-capture','csp-burnin','csp-burnin-grid','csp-capture-btn','csp-salvage','csp-salvage-drop','csp-salvage-sub','ct-tool','ct-lens','ct-focal','ct-sensor','ct-sensor-ff','ct-sensor-apsc','ct-sensor-apsh','ct-sensor-mft','ct-sensor-m65','ct-sensor-s35','ct-sensor-bm','ct-sensor-cust','ct-sensor-w','ct-sensor-h','ct-cam-angle','ct-pan','ct-tilt','ct-roll','ct-roll-level','ct-wb','ct-wb-temp','ct-aspect','ct-aspect-sensor','ct-aspect-cust','ct-aspect-apply','ct-margin','ct-grid','ct-grid-multi','ct-grid-guide','ct-grid-off','ct-grid-thirds','ct-grid-golden','ct-grid-cross','ct-grid-diag','ct-grid-safe-cust','ct-grid-action','ct-grid-title','ct-grid-center','ct-grid-custom','ct-grid-cols','ct-grid-rows','ct-grid-opacity','dz-manual-text','dz-ar-label','env-h-title','env-p-off','env-p-day','env-p-morning','env-p-evening','env-p-night','env-p-cloudy','env-p-rain','env-p-overcast','env-p-twilight','env-l-rot','env-l-int','msr-active-lbl','msr-end-lbl','lp-h-scene','lp-empty','qt-title','qt-low','qt-mid','qt-high','qp-perf-t','qp-l-frame','qp-l-gpu','qp-l-head','qp-l-dc','qp-l-tris','qp-l-geos','qp-l-texs','dist-l','msr-clear','msr-undo','em-3dgs','em-3dgs-d','em-zip-save','em-zip-save-d','em-zip-load','em-zip-load-d','em-json','em-json-d','em-glb','em-glb-d','em-obj','em-obj-d','em-cancel','em-recommended','em-h-title','qp-settings-t','qp-lbl-lowpoly-main','qp-lbl-lowpoly-hint','mm-big-title','mm-big-hint','qp-lbl-grid','qp-lbl-show','qp-lbl-fov','qp-lbl-spd','cl-title','cl-sub','cl-tag-init','cl-tag-v003','lbl-walk','lbl-save-camera','lbl-view-rec','lbl-view-rec-phone','lbl-cam-anim','giz-pt-a','giz-pt-b','giz-pt-c','giz-height-lbl','height-l','csp-jpeg-q','csp-4k-lbl','obj-add-cube','obj-add-sphere','obj-add-light','obj-add-event','msr-end-lbl-init'].forEach(id=>{
     const el=document.getElementById(id); if(el) el.textContent=T(id);
   });
   // HUD info-box edit tooltip + dropzone titles
@@ -11186,6 +11186,12 @@ function applyI18n(){
     ['btnCamAnim',        'tt-cam-anim'],
   ];
   for(const [id, key] of _camTopBtns){
+    const el = document.getElementById(id);
+    if(el) el.title = T(key);
+  }
+  // Other JA-authored title tooltips (bug-report button, quality badge).
+  const _moreTitles = [['tb-report-btn','tt-report'],['qi-badge','tt-qibadge']];
+  for(const [id, key] of _moreTitles){
     const el = document.getElementById(id);
     if(el) el.title = T(key);
   }
@@ -11241,6 +11247,13 @@ function applyI18n(){
   const _demoLbl=document.getElementById('dz-demo-lbl');
   if(_demoLbl && typeof DEMO_SCENE_SIZE_MB!=='undefined') _demoLbl.textContent=`${T('demo-btn-lbl')} (${DEMO_SCENE_SIZE_MB}MB)`;
   const _demoBtn=document.getElementById('dz-demo-btn'); if(_demoBtn) _demoBtn.title=T('demo-btn-title');
+  // Camera burn-in metadata input placeholders (placeholder attr isn't covered
+  // by the textContent loop). Shot/Rig are neutral so only env/note localise.
+  const _phEnv=document.getElementById('cm-env'); if(_phEnv) _phEnv.placeholder=T('ph-cm-env');
+  const _phNote=document.getElementById('cm-note'); if(_phNote) _phNote.placeholder=T('ph-cm-note');
+  // The low-poly hint popover bakes its strings at show-time and doesn't watch
+  // language; rebuild it in the new language if it's currently visible.
+  if(document.getElementById('lowpoly-hint') && typeof window.showLowPolyHint==='function') window.showLowPolyHint();
   // Re-render dynamic UI
   document.getElementById('html-root').lang = L;
   // Refresh update-check button label according to current state
@@ -16850,6 +16863,7 @@ Object.assign(I18N.ja,{
   'tb-load-lbl':'読込',
   'tb-report-lbl':'エラー報告',
   'tt-report':'エラー / 不具合を開発者に報告',
+  'tt-qibadge':'画質と設定',
   'tb-update-check':'更新確認',
   'tb-update-checking':'確認中…',
   'tb-update-latest':'✓ 最新版',
@@ -16864,6 +16878,9 @@ Object.assign(I18N.ja,{
   'cl-title':'更新履歴',
   'cl-sub':'αテスト版',
   'cl-tag-init':'初版',
+  'cl-tag-v003':'プリビズ拡張',
+  'ph-cm-env':'夕方 / 晴れ / 17:30',
+  'ph-cm-note':'LD1 ティルトダウン',
   'lbl-walk':'アバター歩行',
   'lbl-walk-repos':'アバター再配置',
   'lbl-save-camera':'カメラ位置保存',
@@ -17095,6 +17112,7 @@ Object.assign(I18N.en,{
   'tb-load-lbl':'Load',
   'tb-report-lbl':'Report Bug',
   'tt-report':'Report a bug or issue to the developer',
+  'tt-qibadge':'Quality & settings',
   'tb-update-check':'Check Updates',
   'tb-update-checking':'Checking…',
   'tb-update-latest':'✓ Up to date',
@@ -17109,6 +17127,9 @@ Object.assign(I18N.en,{
   'cl-title':'Changelog',
   'cl-sub':'Alpha',
   'cl-tag-init':'Initial',
+  'cl-tag-v003':'Previz expansion',
+  'ph-cm-env':'Evening / Clear / 17:30',
+  'ph-cm-note':'LD1 Tilt-down',
   'lbl-walk':'Avatar Walk',
   'lbl-walk-repos':'Reposition Avatar',
   'lbl-save-camera':'Save Pose',
@@ -18571,37 +18592,47 @@ function _showReportFallback(to, subject, body){
               + '&to='      + encodeURIComponent(to)
               + '&su='      + encodeURIComponent(subject)
               + '&body='    + encodeURIComponent(body);
+  const _en = (window._lang === 'en');
+  const _t = {
+    title:  _en ? '🐛 Bug Report — couldn\'t open your mail app'
+                : '🐛 エラー報告 — メーラを開けませんでした',
+    intro:  _en ? 'No default mail app is configured, so <code>mailto:</code> couldn\'t launch. Send it one of these ways:'
+                : '既定のメールアプリが未設定のため <code>mailto:</code> を起動できませんでした。以下のいずれかで送信してください:',
+    gmail:  _en ? '📧 Open in Gmail (new tab)'      : '📧 Gmail で開く(新規タブ)',
+    copyTo: _en ? '📋 Copy recipient'               : '📋 宛先をコピー',
+    copyBody:_en ? '📋 Copy subject + body'         : '📋 件名+本文をコピー',
+    toLbl:  _en ? 'To:'                             : '宛先:',
+  };
   m.innerHTML = `
     <div style="background:#1a1a1c;border:1px solid #444;border-radius:10px;max-width:640px;
                 width:90%;max-height:86vh;display:flex;flex-direction:column;overflow:hidden;
                 box-shadow:0 8px 40px rgba(0,0,0,.7)">
       <div style="padding:14px 18px;border-bottom:1px solid #2c2c2e;display:flex;
                   justify-content:space-between;align-items:center;">
-        <strong>🐛 エラー報告 — メーラを開けませんでした</strong>
+        <strong>${_t.title}</strong>
         <button id="rfb-close" style="background:none;border:0;color:#aaa;font-size:1.4em;
                 cursor:pointer;line-height:1">×</button>
       </div>
       <div style="padding:14px 18px 6px;font-size:.9em;line-height:1.55;color:#bbb">
-        既定のメールアプリが未設定のため <code>mailto:</code> を起動できませんでした。
-        以下のいずれかで送信してください:
+        ${_t.intro}
       </div>
       <div style="padding:0 18px 10px;display:flex;flex-wrap:wrap;gap:8px;">
         <a id="rfb-gmail" href="${gmail}" target="_blank" rel="noopener"
            style="background:#5b4632;border:1px solid #b9883b;color:#ffd87a;
                   padding:8px 14px;border-radius:6px;text-decoration:none;font-size:.9em">
-          📧 Gmail で開く(新規タブ)
+          ${_t.gmail}
         </a>
         <button id="rfb-copy-to" style="background:#2c3c4e;border:1px solid #4a6478;color:#cfe4ff;
                   padding:8px 14px;border-radius:6px;cursor:pointer;font-size:.9em">
-          📋 宛先をコピー
+          ${_t.copyTo}
         </button>
         <button id="rfb-copy-body" style="background:#2c3c4e;border:1px solid #4a6478;color:#cfe4ff;
                   padding:8px 14px;border-radius:6px;cursor:pointer;font-size:.9em">
-          📋 件名+本文をコピー
+          ${_t.copyBody}
         </button>
       </div>
       <div style="padding:6px 18px 4px;font-size:.78em;color:#888">
-        宛先: <code id="rfb-to-text"></code></div>
+        ${_t.toLbl} <code id="rfb-to-text"></code></div>
       <textarea id="rfb-body" readonly style="margin:6px 18px 18px;flex:1;min-height:200px;
                 background:#0e0e10;color:#dadada;border:1px solid #333;border-radius:6px;
                 padding:10px 12px;font:.82em/1.5 ui-monospace,Menlo,Consolas,monospace;
@@ -18615,13 +18646,13 @@ function _showReportFallback(to, subject, body){
   m.addEventListener('click', e => { if(e.target === m) close(); });
   m.querySelector('#rfb-copy-to').onclick = async () => {
     try{ await navigator.clipboard.writeText(to);
-      if(typeof showUndoToast === 'function') showUndoToast('宛先をコピーしました'); }
+      if(typeof showUndoToast === 'function') showUndoToast(_en ? 'Recipient copied' : '宛先をコピーしました'); }
     catch(_){ m.querySelector('#rfb-to-text').focus && m.querySelector('#rfb-to-text').focus(); }
   };
   m.querySelector('#rfb-copy-body').onclick = async () => {
     const text = 'To: ' + to + '\nSubject: ' + subject + '\n\n' + body;
     try{ await navigator.clipboard.writeText(text);
-      if(typeof showUndoToast === 'function') showUndoToast('件名+本文をコピーしました'); }
+      if(typeof showUndoToast === 'function') showUndoToast(_en ? 'Subject + body copied' : '件名+本文をコピーしました'); }
     catch(_){ m.querySelector('#rfb-body').select(); }
   };
 }
@@ -18644,13 +18675,15 @@ window.reportBug = function(){
         if(ext) glRenderer = gl.getParameter(ext.UNMASKED_RENDERER_WEBGL) || '';
       }
     } catch(_){}
-    const subject = '[ロケハン3D] エラー報告 ' + ver;
+    const _en = (window._lang === 'en');
+    const subject = (_en ? '[Locahun3D] Bug Report ' : '[ロケハン3D] エラー報告 ') + ver;
     const bodyLines = [
-      '【発生内容】',
-      '（こちらに具体的な症状、再現手順、操作の流れを記入してください）',
+      _en ? '[What happened]' : '【発生内容】',
+      _en ? '(Describe the symptom, steps to reproduce, and what you were doing)'
+          : '（こちらに具体的な症状、再現手順、操作の流れを記入してください）',
       '',
       '',
-      '―――― 自動収集情報 ――――',
+      _en ? '―――― auto-collected info ――――' : '―――― 自動収集情報 ――――',
       'Version : ' + ver,
       'Time    : ' + new Date().toISOString(),
       'Viewport: ' + vp + '  DPR=' + dpr,
