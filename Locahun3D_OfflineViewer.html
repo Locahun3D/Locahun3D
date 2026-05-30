@@ -2377,6 +2377,12 @@ body{position:fixed;top:0;left:0;}
             <option value="apsh" id="ct-sensor-apsh">APS-H (28.7 × 19)</option>
             <option value="mft"  id="ct-sensor-mft">マイクロフォーサーズ (17.3 × 13)</option>
           </optgroup>
+          <optgroup label="📱 Compact / Phone" id="ct-sensor-group-compact">
+            <option value="oneinch" id="ct-sensor-1inch">1型 (13.2 × 8.8)</option>
+            <option value="phone13" id="ct-sensor-phone13">1/1.3型 スマホ大型 (9.8 × 7.3)</option>
+            <option value="phone17" id="ct-sensor-phone17">1/1.7型 (7.6 × 5.7)</option>
+            <option value="phone23" id="ct-sensor-phone23">1/2.3型 スマホ (6.17 × 4.55)</option>
+          </optgroup>
           <optgroup label="🎬 Cinema" id="ct-sensor-group-cine">
             <option value="ax35og"    id="ct-sensor-ax35og">ARRI Alexa 35 — 4.6K Open Gate (27.99 × 19.22)</option>
             <option value="ax35"      id="ct-sensor-ax35">ARRI Alexa 35 — 4K 16:9 (24.89 × 14.00)</option>
@@ -4674,10 +4680,19 @@ function _closeMeasureOnly(){
 // Photo/mirrorless dimensions are standard ISO format references.
 const SENSOR_PRESETS = {
   // ── Photo / mirrorless ────────────────────────────────────────────
-  ff:   { w:36.0,  h:24.0,  group:'photo' },  // Full-frame
-  apsc: { w:23.6,  h:15.7,  group:'photo' },  // APS-C (Sony / Nikon)
-  apsh: { w:28.7,  h:19.0,  group:'photo' },  // APS-H (Canon 1D)
-  mft:  { w:17.3,  h:13.0,  group:'photo' },  // Micro Four Thirds
+  ff:   { w:36.0,  h:24.0,  group:'photo' },  // Full-frame (3:2)
+  apsc: { w:23.6,  h:15.7,  group:'photo' },  // APS-C (Sony / Nikon, 3:2)
+  apsh: { w:28.7,  h:19.0,  group:'photo' },  // APS-H (Canon 1D, 3:2)
+  mft:  { w:17.3,  h:13.0,  group:'photo' },  // Micro Four Thirds (4:3)
+  // ── Compact / Phone ──────────────────────────────────────────────
+  // "型" (the 1/x.x "inch type") is the legacy imaging-circle diameter; the mm
+  // below are the ACTUAL photosensitive area (smaller than the nominal type).
+  // The aspect picker crops these exactly like any sensor — e.g. 1-inch
+  // 13.2×8.8 at 16:9 → 13.2×7.42, 1/2.3" 6.17×4.55 at 16:9 → 6.17×3.47.
+  oneinch: { w:13.2, h:8.8,  group:'compact' }, // 1型 (RX100 等, 3:2)
+  phone13: { w:9.8,  h:7.3,  group:'compact' }, // 1/1.3型 フラッグシップ機 (4:3)
+  phone17: { w:7.6,  h:5.7,  group:'compact' }, // 1/1.7型 (4:3)
+  phone23: { w:6.17, h:4.55, group:'compact' }, // 1/2.3型 (4:3)
   // ── Cinema ────────────────────────────────────────────────────────
   ax35og:{ w:27.99, h:19.22, group:'cine' }, // ARRI Alexa 35 — 4.6K Open Gate
   ax35:  { w:24.89, h:14.00, group:'cine' }, // ARRI Alexa 35 — 4K 16:9
@@ -11280,7 +11295,7 @@ function applyI18n(){
     el.innerHTML=T(k);
   });
   // HUD labels
-  ['lbl-pos','lbl-spd','lbl-rot','lbl-measure','lbl-flip','lbl-addobj','lbl-quality','lbl-settings','lbl-file','lbl-cam-reset','lbl-minimap','lbl-camtool','lbl-env','lbl-help','orient-lock-msg','orient-lock-sub','lbl-addobj-top','lbl-addfig-top','tb-save-lbl','tb-load-lbl','tb-report-lbl','fp-btn-import-lbl','fp-btn-export-lbl','csp-shot-info','csp-cam-info','csp-meta-info','csp-shot-name','csp-rig','csp-env','csp-note','csp-capture','csp-burnin','csp-burnin-grid','csp-capture-btn','csp-salvage','csp-salvage-drop','csp-salvage-sub','ct-tool','ct-lens','ct-focal','ct-sensor','ct-sensor-ff','ct-sensor-apsc','ct-sensor-apsh','ct-sensor-mft','ct-sensor-m65','ct-sensor-s35','ct-sensor-bm','ct-sensor-cust','ct-sensor-w','ct-sensor-h','ct-cam-angle','ct-pan','ct-tilt','ct-roll','ct-roll-level','ct-wb','ct-wb-temp','ct-aspect','ct-aspect-sensor','ct-aspect-cust','ct-aspect-apply','ct-margin','ct-grid','ct-grid-multi','ct-grid-guide','ct-grid-off','ct-grid-thirds','ct-grid-golden','ct-grid-cross','ct-grid-diag','ct-grid-safe-cust','ct-grid-action','ct-grid-title','ct-grid-center','ct-grid-custom','ct-grid-cols','ct-grid-rows','ct-grid-opacity','dz-manual-text','dz-ar-label','env-h-title','env-p-off','env-p-day','env-p-morning','env-p-evening','env-p-night','env-p-cloudy','env-p-rain','env-p-overcast','env-p-twilight','env-l-rot','env-l-int','msr-active-lbl','msr-end-lbl','lp-h-scene','lp-empty','qt-title','qt-low','qt-mid','qt-high','qp-perf-t','qp-l-frame','qp-l-gpu','qp-l-head','qp-l-dc','qp-l-tris','qp-l-geos','qp-l-texs','dist-l','msr-clear','msr-undo','em-3dgs','em-3dgs-d','em-zip-save','em-zip-save-d','em-zip-load','em-zip-load-d','em-json','em-json-d','em-glb','em-glb-d','em-obj','em-obj-d','em-cancel','em-recommended','em-h-title','qp-settings-t','qp-lbl-lowpoly-main','qp-lbl-lowpoly-hint','mm-big-title','mm-big-hint','qp-lbl-grid','qp-lbl-show','qp-lbl-fov','qp-lbl-spd','cl-title','cl-sub','cl-tag-init','cl-tag-v003','lbl-walk','lbl-save-camera','lbl-view-rec','lbl-view-rec-phone','lbl-cam-anim','giz-pt-a','giz-pt-b','giz-pt-c','giz-height-lbl','height-l','csp-jpeg-q','csp-4k-lbl','obj-add-cube','obj-add-sphere','obj-add-light','obj-add-event','msr-end-lbl-init'].forEach(id=>{
+  ['lbl-pos','lbl-spd','lbl-rot','lbl-measure','lbl-flip','lbl-addobj','lbl-quality','lbl-settings','lbl-file','lbl-cam-reset','lbl-minimap','lbl-camtool','lbl-env','lbl-help','orient-lock-msg','orient-lock-sub','lbl-addobj-top','lbl-addfig-top','tb-save-lbl','tb-load-lbl','tb-report-lbl','fp-btn-import-lbl','fp-btn-export-lbl','csp-shot-info','csp-cam-info','csp-meta-info','csp-shot-name','csp-rig','csp-env','csp-note','csp-capture','csp-burnin','csp-burnin-grid','csp-capture-btn','csp-salvage','csp-salvage-drop','csp-salvage-sub','ct-tool','ct-lens','ct-focal','ct-sensor','ct-sensor-ff','ct-sensor-apsc','ct-sensor-apsh','ct-sensor-mft','ct-sensor-1inch','ct-sensor-phone13','ct-sensor-phone17','ct-sensor-phone23','ct-sensor-m65','ct-sensor-s35','ct-sensor-bm','ct-sensor-cust','ct-sensor-w','ct-sensor-h','ct-cam-angle','ct-pan','ct-tilt','ct-roll','ct-roll-level','ct-wb','ct-wb-temp','ct-aspect','ct-aspect-sensor','ct-aspect-cust','ct-aspect-apply','ct-margin','ct-grid','ct-grid-multi','ct-grid-guide','ct-grid-off','ct-grid-thirds','ct-grid-golden','ct-grid-cross','ct-grid-diag','ct-grid-safe-cust','ct-grid-action','ct-grid-title','ct-grid-center','ct-grid-custom','ct-grid-cols','ct-grid-rows','ct-grid-opacity','dz-manual-text','dz-ar-label','env-h-title','env-p-off','env-p-day','env-p-morning','env-p-evening','env-p-night','env-p-cloudy','env-p-rain','env-p-overcast','env-p-twilight','env-l-rot','env-l-int','msr-active-lbl','msr-end-lbl','lp-h-scene','lp-empty','qt-title','qt-low','qt-mid','qt-high','qp-perf-t','qp-l-frame','qp-l-gpu','qp-l-head','qp-l-dc','qp-l-tris','qp-l-geos','qp-l-texs','dist-l','msr-clear','msr-undo','em-3dgs','em-3dgs-d','em-zip-save','em-zip-save-d','em-zip-load','em-zip-load-d','em-json','em-json-d','em-glb','em-glb-d','em-obj','em-obj-d','em-cancel','em-recommended','em-h-title','qp-settings-t','qp-lbl-lowpoly-main','qp-lbl-lowpoly-hint','mm-big-title','mm-big-hint','qp-lbl-grid','qp-lbl-show','qp-lbl-fov','qp-lbl-spd','cl-title','cl-sub','cl-tag-init','cl-tag-v003','lbl-walk','lbl-save-camera','lbl-view-rec','lbl-view-rec-phone','lbl-cam-anim','giz-pt-a','giz-pt-b','giz-pt-c','giz-height-lbl','height-l','csp-jpeg-q','csp-4k-lbl','obj-add-cube','obj-add-sphere','obj-add-light','obj-add-event','msr-end-lbl-init'].forEach(id=>{
     const el=document.getElementById(id); if(el) el.textContent=T(id);
   });
   // HUD info-box edit tooltip + dropzone titles
@@ -16952,6 +16967,10 @@ Object.assign(I18N.ja,{
   'ct-sensor-apsc':'APS-C (23.6 × 15.7)',
   'ct-sensor-apsh':'APS-H (28.7 × 19)',
   'ct-sensor-mft':'マイクロフォーサーズ (17.3 × 13)',
+  'ct-sensor-1inch':'1型 (13.2 × 8.8)',
+  'ct-sensor-phone13':'1/1.3型 スマホ大型 (9.8 × 7.3)',
+  'ct-sensor-phone17':'1/1.7型 (7.6 × 5.7)',
+  'ct-sensor-phone23':'1/2.3型 スマホ (6.17 × 4.55)',
   'ct-sensor-m65':'65mm (54.1 × 25.6)',
   'ct-sensor-s35':'Super 35 (24.9 × 14)',
   'ct-sensor-bm':'BMPCC 6K (23.1 × 12.99)',
@@ -17201,6 +17220,10 @@ Object.assign(I18N.en,{
   'ct-sensor-apsc':'APS-C (23.6 × 15.7)',
   'ct-sensor-apsh':'APS-H (28.7 × 19)',
   'ct-sensor-mft':'Micro 4/3 (17.3 × 13)',
+  'ct-sensor-1inch':'1-inch (13.2 × 8.8)',
+  'ct-sensor-phone13':'1/1.3" phone (9.8 × 7.3)',
+  'ct-sensor-phone17':'1/1.7" (7.6 × 5.7)',
+  'ct-sensor-phone23':'1/2.3" phone (6.17 × 4.55)',
   'ct-sensor-m65':'65mm (54.1 × 25.6)',
   'ct-sensor-s35':'Super 35 (24.9 × 14)',
   'ct-sensor-bm':'BMPCC 6K (23.1 × 12.99)',
