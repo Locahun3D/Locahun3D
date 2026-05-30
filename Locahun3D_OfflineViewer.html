@@ -15090,6 +15090,105 @@ setTimeout(async ()=>{
   }
 }, 0);
 
+// ══════════════════════════════════════════════════
+//  ?showcase=1 — AUTO-PLAY feature showcase for recording a ~40 s promo clip.
+//  OFF by default → zero effect on normal use. Runs on whatever scene is already
+//  loaded (the online demo OR a local offline project), driving a smooth, slowly
+//  drifting camera while it cycles the v0.0.3 camera-tool features with captions.
+//  Intended use: open in a FOREGROUND browser tab (so rAF runs at full 60 fps)
+//  and screen-record the playback. Add &demo=1 to auto-load the demo scene, or
+//  just load any .ply/.spz/.rad/project first and it starts on its own.
+// ══════════════════════════════════════════════════
+if(/[?&]showcase=1/.test(location.search)){
+  (function(){
+    const cap = document.createElement('div');
+    cap.id = 'sc-cap';
+    cap.style.cssText =
+      'position:fixed;left:50%;bottom:8%;transform:translateX(-50%) translateY(8px);z-index:6000;'+
+      'text-align:center;color:#fff;opacity:0;transition:opacity .55s ease, transform .55s ease;'+
+      'pointer-events:none;background:linear-gradient(180deg,rgba(0,0,0,.25),rgba(0,0,0,.5));'+
+      'padding:13px 32px;border-radius:16px;border:1px solid rgba(255,255,255,.14);'+
+      'backdrop-filter:blur(7px);-webkit-backdrop-filter:blur(7px);box-shadow:0 10px 34px rgba(0,0,0,.45);max-width:86vw';
+    const main = document.createElement('div');
+    main.style.cssText = 'font:700 30px/1.3 ui-sans-serif,system-ui,sans-serif;letter-spacing:.02em';
+    const sub = document.createElement('div');
+    sub.style.cssText = 'font:500 17px/1.3 ui-sans-serif,system-ui,sans-serif;opacity:.9;margin-top:5px;color:#ffd9a8';
+    cap.appendChild(main); cap.appendChild(sub); document.body.appendChild(cap);
+    const say = (m,s)=>{ main.textContent=m||''; sub.textContent=s||''; };
+    const fade = (on)=>{ cap.style.opacity = on?'1':'0'; cap.style.transform = 'translateX(-50%) translateY('+(on?'0':'8px')+')'; };
+
+    const wait = (ms)=>new Promise(r=>setTimeout(r,ms));
+    const fwd = ()=>new THREE.Vector3(Math.sin(yaw)*Math.cos(pitch),Math.sin(pitch),Math.cos(yaw)*Math.cos(pitch)).normalize();
+
+    // gentle continuous drift (slow pan + bob + forward creep) around a base pose
+    let drift = null;
+    function startDrift(bYaw,bPitch,base){
+      const t0 = performance.now();
+      drift = { stop:false };
+      const b = base.clone();
+      (function loop(now){
+        if(!drift || drift.stop) return;
+        const t = (now - t0)/1000;
+        yaw   = _yawTarget   = bYaw   + Math.sin(t*0.13)*0.10;
+        pitch = _pitchTarget = bPitch + Math.sin(t*0.19)*0.018;
+        camPos.copy(b).addScaledVector(fwd(), Math.sin(t*0.10)*0.45 + t*0.010);
+        if(typeof markDirty === 'function') markDirty(2);
+        requestAnimationFrame(loop);
+      })(performance.now());
+    }
+    function stopDrift(){ if(drift) drift.stop = true; drift = null; }
+
+    const camOpen = ()=>{ const p=document.getElementById('cam-panel');
+      if(!(p && getComputedStyle(p).display!=='none') && typeof window.toggleCamTool==='function') window.toggleCamTool(); };
+    const setGrid = (g)=>{ try{ if(typeof cam!=='undefined'){ cam.grids = new Set(g?[g]:[]); if(typeof drawCamGrid==='function') drawCamGrid(); } }catch(e){} };
+    const flash = async ()=>{ const f=document.createElement('div');
+      f.style.cssText='position:fixed;inset:0;z-index:5999;background:#fff;opacity:0;transition:opacity .1s;pointer-events:none';
+      document.body.appendChild(f); await wait(20); f.style.opacity='0.85'; await wait(110); f.style.opacity='0'; await wait(260); f.remove(); };
+    const hasScene = ()=> (typeof layers!=='undefined' && layers.some(L=>L&&L.mesh&&L.type!=='camera'));
+
+    async function run(){
+      for(let i=0;i<160 && !hasScene(); i++) await wait(500);
+      await wait(1500);
+      const base=camPos.clone(), bYaw=yaw, bPitch=pitch;
+      startDrift(bYaw,bPitch,base);
+
+      // 1 — intro
+      say('ロケハン3D','オフライン 3DGS ロケハン・ビューア   v0.0.3'); fade(true);
+      await wait(5200); fade(false); await wait(550);
+
+      // 2 — camera tool + sensor simulation
+      camOpen(); if(window.setCamFocal) window.setCamFocal(35); if(window.setCamAspect) window.setCamAspect(16/9); await wait(450);
+      say('実機センサー シミュレーション','選んだアスペクトをセンサー領域から切り出す'); fade(true); await wait(950);
+      const sensors=[['ff','フルサイズ  36×24'],['apsc','APS-C  23.6×15.7'],['mft','マイクロフォーサーズ  17.3×13'],
+                     ['ax35og','ARRI Alexa 35  (シネマ)'],['oneinch','1型  13.2×8.8'],['phone23','1/2.3型 スマホ  6.17×4.55']];
+      for(const [k,lbl] of sensors){ if(window.onCamSensorPreset) window.onCamSensorPreset(k); sub.textContent=lbl; await wait(1700); }
+      if(window.onCamSensorPreset) window.onCamSensorPreset('ff'); await wait(300); fade(false); await wait(450);
+
+      // 3 — aspect ratios
+      say('アスペクト & セーフフレーム','構図に合わせて即切替'); fade(true); await wait(900);
+      const asps=[[16/9,'16:9'],[2.39,'2.39:1  シネスコ'],[1,'1:1'],[9/16,'9:16  縦']];
+      for(const [a,lbl] of asps){ if(window.setCamAspect) window.setCamAspect(a); sub.textContent=lbl; await wait(1900); }
+      if(window.setCamAspect) window.setCamAspect(16/9); await wait(300); fade(false); await wait(450);
+
+      // 4 — composition grids
+      say('構図ガイド','三分割・黄金比・対角線'); fade(true);
+      setGrid('thirds'); sub.textContent='三分割'; await wait(1500);
+      setGrid('golden'); sub.textContent='黄金比';  await wait(1600);
+      setGrid('diag');   sub.textContent='対角線';  await wait(1600);
+      setGrid('thirds'); fade(false); await wait(450);
+
+      // 5 — JPEG capture (shutter flash; no file download during the show)
+      say('JPEG撮影','プレビュー通りに書き出し'); fade(true); await wait(800);
+      await flash(); await wait(1100); fade(false); await wait(550);
+
+      // 6 — outro
+      say('LOCAHUN 3D','v0.0.3'); fade(true); await wait(3600); fade(false);
+      await wait(600); stopDrift();
+    }
+    setTimeout(run, 200);
+  })();
+}
+
 // Inject "Load demo scene" button into the dropzone. Inherits the existing
 // `.demo-btn` style and accent-colour treatment used by the other dropzone
 // buttons (空プロジェクト, ユーザーマニュアル, プロジェクトを開く).
