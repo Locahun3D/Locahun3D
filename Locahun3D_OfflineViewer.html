@@ -476,6 +476,24 @@ body{position:fixed;top:0;left:0;}
 }
 #gizmo .step-row button.on{background:rgba(255,255,255,.08);border-color:rgba(255,255,255,.3);color:#D8D8D8;}
 #gizmo .step-row button:hover{color:#C0C0C0;}
+/* Simplified measure point rows — uniform size for A / B / C */
+#gizmo .msr-pt{
+  display:flex;align-items:center;gap:8px;
+  background:#242426;border:1px solid rgba(255,255,255,.08);
+  border-radius:6px;padding:8px 10px;margin-bottom:5px;
+}
+#gizmo .msr-pt .msr-dot{width:9px;height:9px;border-radius:50%;flex-shrink:0;}
+#gizmo .msr-pt .msr-nm{font-size:.78em;color:#C0C0C0;font-weight:600;}
+#gizmo .msr-pt .msr-stat{margin-left:auto;font-size:.74em;color:#585858;}
+#gizmo .msr-pt.placed{border-color:rgba(122,199,122,.35);}
+#gizmo .msr-pt.placed .msr-stat{color:#7ac77a;}
+#gizmo .msr-addc-btn{
+  width:100%;background:#2A2A2C;border:1px solid rgba(255,255,255,.1);
+  color:#9fd0e0;border-radius:6px;padding:7px 0;font-size:.74em;cursor:pointer;
+  transition:all .15s;margin:2px 0 4px;
+}
+#gizmo .msr-addc-btn:hover{background:rgba(102,221,255,.12);border-color:rgba(102,221,255,.4);color:#cdeefa;}
+#gizmo .msr-addc-btn.on{background:rgba(102,221,255,.15);border-color:rgba(102,221,255,.5);color:#cdeefa;}
 #gizmo .dist-row{
   margin-top:9px;padding-top:8px;border-top:1px solid rgba(255,255,255,.07);
   font-size:.88em;color:#D8D8D8;font-weight:600;
@@ -2722,88 +2740,32 @@ body.ar-active #dz{display:none !important;}
 
 <!-- Gizmo / Measure panel -->
 <div id="gizmo">
-  <div class="gt">📐 距離測定 <span class="world-badge">WORLD</span></div>
+  <div class="gt">📐 距離測定</div>
 
-  <div class="pt-label" style="color:rgba(200,200,200,.6)">● <span id="giz-pt-a">点 A</span> &nbsp;<small style="color:#404040;font-size:.85em" id="giz-world-a">ワールド座標</small></div>
-  <div class="xyz-row">
-    <span class="ax" style="color:#ff5566">X</span>
-    <input id="mAx" type="number" step="0.001" oninput="onGizmo()">
-    <button class="nudge" onclick="nudgeAxis('mAx',-1)">−</button>
-    <button class="nudge" onclick="nudgeAxis('mAx', 1)">＋</button>
+  <!-- Point list (uniform rows). The per-point world-coordinate inputs and
+       the nudge "ステップ" selector were removed to simplify the tool: it now
+       just shows which of A / B / C are placed, and the measured values live
+       in the 距離 / 高さ rows below. Point C is added on demand via the
+       button (it used to be a checkbox). Order is fixed top-to-bottom: A → B → C. -->
+  <div class="msr-pt" id="msr-row-a">
+    <span class="msr-dot" style="background:#ffd84a"></span>
+    <span class="msr-nm" id="giz-pt-a">点 A</span>
+    <span class="msr-stat" id="msr-stat-a">—</span>
   </div>
-  <div class="xyz-row">
-    <span class="ax" style="color:#55ee66">Y</span>
-    <input id="mAy" type="number" step="0.001" oninput="onGizmo()">
-    <button class="nudge" onclick="nudgeAxis('mAy',-1)">−</button>
-    <button class="nudge" onclick="nudgeAxis('mAy', 1)">＋</button>
+  <div class="msr-pt" id="msr-row-b">
+    <span class="msr-dot" style="background:#ff8833"></span>
+    <span class="msr-nm" id="giz-pt-b">点 B</span>
+    <span class="msr-stat" id="msr-stat-b">—</span>
   </div>
-  <div class="xyz-row">
-    <span class="ax" style="color:#5599ff">Z</span>
-    <input id="mAz" type="number" step="0.001" oninput="onGizmo()">
-    <button class="nudge" onclick="nudgeAxis('mAz',-1)">−</button>
-    <button class="nudge" onclick="nudgeAxis('mAz', 1)">＋</button>
-  </div>
-
-  <!-- Height-mode (Point C) toggle, placed directly under Point A inputs -->
-  <label style="display:flex;align-items:center;gap:6px;font-size:.74em;
-    color:rgba(160,200,220,.78);cursor:pointer;margin:5px 0 6px;
-    user-select:none">
-    <input type="checkbox" id="msr-height-cb" onchange="toggleHeightMode(this.checked)"
-      style="accent-color:#66ddff;cursor:pointer">
-    <span id="giz-height-lbl">高さを図る (点C追加)</span>
-  </label>
-
-  <!-- Point C inputs (hidden until height-mode enabled) -->
-  <div id="giz-pt-c-block" style="display:none">
-    <div class="pt-label" style="color:rgba(102,221,255,.6)">● <span id="giz-pt-c">点 C</span> &nbsp;<small style="color:#404040;font-size:.85em" id="giz-world-c">ワールド座標</small></div>
-    <div class="xyz-row">
-      <span class="ax" style="color:#ff5566">X</span>
-      <input id="mCx" type="number" step="0.001" oninput="onGizmo()">
-      <button class="nudge" onclick="nudgeAxis('mCx',-1)">−</button>
-      <button class="nudge" onclick="nudgeAxis('mCx', 1)">＋</button>
-    </div>
-    <div class="xyz-row">
-      <span class="ax" style="color:#55ee66">Y</span>
-      <input id="mCy" type="number" step="0.001" oninput="onGizmo()">
-      <button class="nudge" onclick="nudgeAxis('mCy',-1)">−</button>
-      <button class="nudge" onclick="nudgeAxis('mCy', 1)">＋</button>
-    </div>
-    <div class="xyz-row">
-      <span class="ax" style="color:#5599ff">Z</span>
-      <input id="mCz" type="number" step="0.001" oninput="onGizmo()">
-      <button class="nudge" onclick="nudgeAxis('mCz',-1)">−</button>
-      <button class="nudge" onclick="nudgeAxis('mCz', 1)">＋</button>
-    </div>
+  <div class="msr-pt" id="msr-row-c" style="display:none">
+    <span class="msr-dot" style="background:#66ddff"></span>
+    <span class="msr-nm" id="giz-pt-c">点 C</span>
+    <span class="msr-stat" id="msr-stat-c">—</span>
   </div>
 
-  <div class="pt-label" style="color:rgba(160,160,180,.55)">● <span id="giz-pt-b">点 B</span> &nbsp;<small style="color:#404040;font-size:.85em" id="giz-world-b">ワールド座標</small></div>
-  <div class="xyz-row">
-    <span class="ax" style="color:#ff5566">X</span>
-    <input id="mBx" type="number" step="0.001" oninput="onGizmo()">
-    <button class="nudge" onclick="nudgeAxis('mBx',-1)">−</button>
-    <button class="nudge" onclick="nudgeAxis('mBx', 1)">＋</button>
-  </div>
-  <div class="xyz-row">
-    <span class="ax" style="color:#55ee66">Y</span>
-    <input id="mBy" type="number" step="0.001" oninput="onGizmo()">
-    <button class="nudge" onclick="nudgeAxis('mBy',-1)">−</button>
-    <button class="nudge" onclick="nudgeAxis('mBy', 1)">＋</button>
-  </div>
-  <div class="xyz-row">
-    <span class="ax" style="color:#5599ff">Z</span>
-    <input id="mBz" type="number" step="0.001" oninput="onGizmo()">
-    <button class="nudge" onclick="nudgeAxis('mBz',-1)">−</button>
-    <button class="nudge" onclick="nudgeAxis('mBz', 1)">＋</button>
-  </div>
-
-  <!-- Step size selector -->
-  <div class="step-row">
-    <span class="slabel" id="giz-step">ステップ:</span>
-    <button id="step001" onclick="setNudgeStep(0.001,this)" class="on">0.001</button>
-    <button id="step01"  onclick="setNudgeStep(0.01,this)">0.01</button>
-    <button id="step1"   onclick="setNudgeStep(0.1,this)">0.1</button>
-    <button id="step10"  onclick="setNudgeStep(1.0,this)">1.0</button>
-  </div>
+  <button id="msr-add-c" class="msr-addc-btn" onclick="toggleHeightBtn()">
+    ＋ <span id="giz-height-lbl">高さを図る (点C追加)</span>
+  </button>
 
   <div class="dist-row"><span id="dist-l">距離</span>: <span id="measDist">-</span></div>
   <div class="dist-components" id="distComp" style="display:none">
@@ -4413,25 +4375,6 @@ function pickWorldPos(clientX, clientY) {
   return origin.clone().addScaledVector(dir, fb);
 }
 
-// ── Nudge step for ± buttons ──
-let nudgeStep = 0.001;
-window.nudgeAxis = function(id, sign) {
-  pushUndo();
-  const el = document.getElementById(id);
-  const v  = parseFloat(el.value) || 0;
-  el.value = parseFloat((v + sign * nudgeStep).toFixed(6));
-  window.onGizmo();
-};
-window.setNudgeStep = function(s, btn) {
-  nudgeStep = s;
-  document.querySelectorAll('.step-row button').forEach(b => b.classList.remove('on'));
-  btn.classList.add('on');
-  // sync step attribute on all inputs
-  ['mAx','mAy','mAz','mBx','mBy','mBz','mCx','mCy','mCz'].forEach(id => {
-    const el = document.getElementById(id); if(el) el.setAttribute('step', s);
-  });
-};
-
 function updateMeasureLine() {
   if (msr.step >= 2){
     const arr = msr.line.geometry.attributes.position.array;
@@ -4459,37 +4402,49 @@ function updateMeasureLine() {
   }
 }
 
+// Refresh the per-point status chips (placed / not). The simplified panel
+// no longer shows world coordinates — just which of A / B / C are placed.
+function updateMeasureStatuses() {
+  const set = (rowId, statId, placed) => {
+    const row = document.getElementById(rowId);
+    const st  = document.getElementById(statId);
+    if(row) row.classList.toggle('placed', !!placed);
+    if(st)  st.textContent = placed ? '✓' : '—';
+  };
+  set('msr-row-a','msr-stat-a', msr.step >= 1);
+  set('msr-row-b','msr-stat-b', msr.step >= 2);
+  set('msr-row-c','msr-stat-c', msr.heightOn && !!(msr.markerC && msr.markerC.visible));
+}
+
+// Show/hide the Point C row + height readout and reflect the on/off state on
+// the add-C button. Centralised so toggle / clear / undo stay consistent.
+function _applyHeightUI(on){
+  const row = document.getElementById('msr-row-c');
+  if(row) row.style.display = on ? 'flex' : 'none';
+  const heightRow = document.getElementById('heightRow');
+  if(heightRow) heightRow.style.display = on ? '' : 'none';
+  const btn = document.getElementById('msr-add-c');
+  if(btn) btn.classList.toggle('on', on);
+  const lbl = document.getElementById('giz-height-lbl');
+  if(lbl) lbl.textContent = on ? T('giz-height-rm') : T('giz-height-lbl');
+}
+
 function syncGizmoToMsr() {
-  // World-space coordinates — ptA/ptB are already in world space
-  const fmt = v => parseFloat(v.toFixed(6));
-  document.getElementById('mAx').value = fmt(msr.ptA.x);
-  document.getElementById('mAy').value = fmt(msr.ptA.y);
-  document.getElementById('mAz').value = fmt(msr.ptA.z);
-  document.getElementById('mBx').value = fmt(msr.ptB.x);
-  document.getElementById('mBy').value = fmt(msr.ptB.y);
-  document.getElementById('mBz').value = fmt(msr.ptB.z);
-  if(msr.heightOn){
-    const cx=document.getElementById('mCx'),
-          cy=document.getElementById('mCy'),
-          cz=document.getElementById('mCz');
-    if(cx) cx.value = fmt(msr.ptC.x);
-    if(cy) cy.value = fmt(msr.ptC.y);
-    if(cz) cz.value = fmt(msr.ptC.z);
-  }
+  // Per-point coordinate inputs were removed in the simplification — just
+  // keep the line, the distance/height readouts and the status chips fresh.
+  updateMeasureStatuses();
   updateMeasureLine();
 }
 
+// Defensive no-op: the per-point number inputs no longer exist, so there is
+// nothing to read. Kept (and guarded) only so any stray reference is safe.
 window.onGizmo = function() {
-  const g = id => parseFloat(document.getElementById(id).value) || 0;
-  msr.ptA.set(g('mAx'), g('mAy'), g('mAz'));
-  msr.ptB.set(g('mBx'), g('mBy'), g('mBz'));
-  if(msr.heightOn){
-    msr.ptC.set(g('mCx'), g('mCy'), g('mCz'));
-    if(msr.markerC) msr.markerC.position.copy(msr.ptC);
-  }
-  if (msr.markerA) { msr.markerA.position.copy(msr.ptA); }
-  if (msr.markerB) { msr.markerB.position.copy(msr.ptB); }
-  updateMeasureLine();
+  if(!document.getElementById('mAx')) return;
+};
+
+// Add-C button handler — toggles height mode (Point C) on/off.
+window.toggleHeightBtn = function(){
+  toggleHeightMode(!msr.heightOn);
 };
 
 // Toggle the optional height marker (Point C). When enabled, C is placed
@@ -4497,10 +4452,7 @@ window.onGizmo = function() {
 window.toggleHeightMode = function(on){
   if(typeof pushUndo === 'function') pushUndo();
   msr.heightOn = !!on;
-  const block = document.getElementById('giz-pt-c-block');
-  const heightRow = document.getElementById('heightRow');
-  if(block) block.style.display = on ? '' : 'none';
-  if(heightRow) heightRow.style.display = on ? '' : 'none';
+  _applyHeightUI(msr.heightOn);
   if(msr.markerC) msr.markerC.visible = on;
   if(msr.lineAC) msr.lineAC.visible = on && msr.step >= 1;
   if(on){
@@ -4510,7 +4462,7 @@ window.toggleHeightMode = function(on){
     } else {
       // No A yet — drop C in front of camera as a placeholder
       const fwd = new THREE.Vector3(); camera.getWorldDirection(fwd);
-      msr.ptC.copy(camPos).addScaledVector(fwd, 2.5).y += 0;
+      msr.ptC.copy(camPos).addScaledVector(fwd, 2.5);
       msr.ptC.y += 1.0;
     }
     if(msr.markerC) msr.markerC.position.copy(msr.ptC);
@@ -4525,15 +4477,11 @@ window.clearMeasure = function() {
   if(msr.markerC) msr.markerC.visible = false;
   if(msr.lineAC)  msr.lineAC.visible  = false;
   msr.ptC.set(0,0,0); msr.heightOn = false;
-  const cb = document.getElementById('msr-height-cb'); if(cb) cb.checked = false;
-  const block = document.getElementById('giz-pt-c-block'); if(block) block.style.display = 'none';
-  const heightRow = document.getElementById('heightRow'); if(heightRow) heightRow.style.display = 'none';
+  _applyHeightUI(false);
   document.getElementById('measDist').textContent = '-';
   document.getElementById('distComp').style.display = 'none';
   document.getElementById('msr-hint').textContent = T('msr-h0');
-  ['mAx','mAy','mAz','mBx','mBy','mBz','mCx','mCy','mCz'].forEach(id => {
-    const el = document.getElementById(id); if(el) el.value = '';
-  });
+  updateMeasureStatuses();
   markDirty(4);
 };
 
@@ -7286,9 +7234,7 @@ window.undoMeasure = function() {
   msr.line.visible    = s.step >= 2;
   // Restore height-mode (Point C) state
   msr.heightOn = !!s.heightOn;
-  const cb = document.getElementById('msr-height-cb'); if(cb) cb.checked = msr.heightOn;
-  const block = document.getElementById('giz-pt-c-block'); if(block) block.style.display = msr.heightOn ? '' : 'none';
-  const heightRow = document.getElementById('heightRow'); if(heightRow) heightRow.style.display = msr.heightOn ? '' : 'none';
+  _applyHeightUI(msr.heightOn);
   if(msr.markerC){
     msr.markerC.visible = !!s.markerCVisible;
     msr.markerC.position.copy(msr.ptC);
@@ -11191,7 +11137,7 @@ function applyI18n(){
     el.innerHTML=T(k);
   });
   // HUD labels
-  ['lbl-pos','lbl-spd','lbl-rot','lbl-measure','lbl-flip','lbl-addobj','lbl-quality','lbl-settings','lbl-file','lbl-cam-reset','lbl-minimap','lbl-camtool','lbl-env','lbl-addobj-top','lbl-addfig-top','tb-save-lbl','tb-load-lbl','tb-report-lbl','csp-shot-info','csp-cam-info','csp-meta-info','csp-shot-name','csp-rig','csp-env','csp-note','csp-capture','csp-burnin','csp-burnin-grid','csp-capture-btn','csp-salvage','csp-salvage-drop','csp-salvage-sub','ct-tool','ct-lens','ct-focal','ct-sensor','ct-sensor-ff','ct-sensor-apsc','ct-sensor-apsh','ct-sensor-mft','ct-sensor-m65','ct-sensor-s35','ct-sensor-bm','ct-sensor-cust','ct-sensor-w','ct-sensor-h','ct-cam-angle','ct-pan','ct-tilt','ct-roll','ct-roll-level','ct-wb','ct-wb-temp','ct-aspect','ct-aspect-sensor','ct-aspect-cust','ct-aspect-apply','ct-margin','ct-grid','ct-grid-multi','ct-grid-guide','ct-grid-off','ct-grid-thirds','ct-grid-golden','ct-grid-cross','ct-grid-diag','ct-grid-safe-cust','ct-grid-action','ct-grid-title','ct-grid-center','ct-grid-custom','ct-grid-cols','ct-grid-rows','ct-grid-opacity','dz-manual-text','dz-ar-label','env-h-title','env-p-off','env-p-day','env-p-morning','env-p-evening','env-p-night','env-p-cloudy','env-p-rain','env-p-overcast','env-p-twilight','env-l-rot','env-l-int','msr-active-lbl','msr-end-lbl','lp-h-scene','lp-empty','qt-title','qt-low','qt-mid','qt-high','qp-perf-t','qp-l-frame','qp-l-gpu','qp-l-head','qp-l-dc','qp-l-tris','qp-l-geos','qp-l-texs','dist-l','msr-clear','msr-undo','em-3dgs','em-3dgs-d','em-zip-save','em-zip-save-d','em-zip-load','em-zip-load-d','em-json','em-recommended','em-h-title','mm-big-title','mm-big-hint','qp-lbl-grid','qp-lbl-show','qp-lbl-fov','qp-lbl-spd','cl-title','cl-sub','cl-tag-init','lbl-walk','lbl-save-camera','lbl-view-rec','lbl-view-rec-phone','lbl-cam-anim','giz-pt-a','giz-pt-b','giz-pt-c','giz-world-a','giz-world-b','giz-world-c','giz-step','giz-height-lbl','height-l','csp-jpeg-q','csp-4k-lbl','obj-add-cube','obj-add-sphere','obj-add-light','obj-add-event','msr-end-lbl-init'].forEach(id=>{
+  ['lbl-pos','lbl-spd','lbl-rot','lbl-measure','lbl-flip','lbl-addobj','lbl-quality','lbl-settings','lbl-file','lbl-cam-reset','lbl-minimap','lbl-camtool','lbl-env','lbl-addobj-top','lbl-addfig-top','tb-save-lbl','tb-load-lbl','tb-report-lbl','csp-shot-info','csp-cam-info','csp-meta-info','csp-shot-name','csp-rig','csp-env','csp-note','csp-capture','csp-burnin','csp-burnin-grid','csp-capture-btn','csp-salvage','csp-salvage-drop','csp-salvage-sub','ct-tool','ct-lens','ct-focal','ct-sensor','ct-sensor-ff','ct-sensor-apsc','ct-sensor-apsh','ct-sensor-mft','ct-sensor-m65','ct-sensor-s35','ct-sensor-bm','ct-sensor-cust','ct-sensor-w','ct-sensor-h','ct-cam-angle','ct-pan','ct-tilt','ct-roll','ct-roll-level','ct-wb','ct-wb-temp','ct-aspect','ct-aspect-sensor','ct-aspect-cust','ct-aspect-apply','ct-margin','ct-grid','ct-grid-multi','ct-grid-guide','ct-grid-off','ct-grid-thirds','ct-grid-golden','ct-grid-cross','ct-grid-diag','ct-grid-safe-cust','ct-grid-action','ct-grid-title','ct-grid-center','ct-grid-custom','ct-grid-cols','ct-grid-rows','ct-grid-opacity','dz-manual-text','dz-ar-label','env-h-title','env-p-off','env-p-day','env-p-morning','env-p-evening','env-p-night','env-p-cloudy','env-p-rain','env-p-overcast','env-p-twilight','env-l-rot','env-l-int','msr-active-lbl','msr-end-lbl','lp-h-scene','lp-empty','qt-title','qt-low','qt-mid','qt-high','qp-perf-t','qp-l-frame','qp-l-gpu','qp-l-head','qp-l-dc','qp-l-tris','qp-l-geos','qp-l-texs','dist-l','msr-clear','msr-undo','em-3dgs','em-3dgs-d','em-zip-save','em-zip-save-d','em-zip-load','em-zip-load-d','em-json','em-recommended','em-h-title','mm-big-title','mm-big-hint','qp-lbl-grid','qp-lbl-show','qp-lbl-fov','qp-lbl-spd','cl-title','cl-sub','cl-tag-init','lbl-walk','lbl-save-camera','lbl-view-rec','lbl-view-rec-phone','lbl-cam-anim','giz-pt-a','giz-pt-b','giz-pt-c','giz-height-lbl','height-l','csp-jpeg-q','csp-4k-lbl','obj-add-cube','obj-add-sphere','obj-add-light','obj-add-event','msr-end-lbl-init'].forEach(id=>{
     const el=document.getElementById(id); if(el) el.textContent=T(id);
   });
   // HUD info-box edit tooltip + dropzone titles
@@ -11267,6 +11213,9 @@ function applyI18n(){
     gizmoTitle.innerHTML=T('gizmo-title')+' ';
     if(badge) gizmoTitle.appendChild(badge);
   }
+  // The bulk loop above reset #giz-height-lbl to the static "add" wording;
+  // re-apply so it reflects the live height-mode state (add vs remove).
+  if(typeof _applyHeightUI==='function' && typeof msr!=='undefined') _applyHeightUI(msr.heightOn);
   // Re-render dynamic UI
   document.getElementById('html-root').lang = L;
   // Refresh update-check button label according to current state
@@ -16917,11 +16866,8 @@ Object.assign(I18N.ja,{
   'giz-pt-a':'点 A',
   'giz-pt-b':'点 B',
   'giz-pt-c':'点 C',
-  'giz-world-a':'ワールド座標',
-  'giz-world-b':'ワールド座標',
-  'giz-world-c':'ワールド座標',
-  'giz-step':'ステップ:',
   'giz-height-lbl':'高さを図る (点C追加)',
+  'giz-height-rm':'高さ測定をやめる (点C削除)',
   'height-l':'高さ (A↔C)',
   'csp-jpeg-q':'JPEG 画質',
   'csp-4k-lbl':'4K 書き出し',
@@ -17165,11 +17111,8 @@ Object.assign(I18N.en,{
   'giz-pt-a':'Point A',
   'giz-pt-b':'Point B',
   'giz-pt-c':'Point C',
-  'giz-world-a':'World coords',
-  'giz-world-b':'World coords',
-  'giz-world-c':'World coords',
-  'giz-step':'Step:',
   'giz-height-lbl':'Measure height (add Point C)',
+  'giz-height-rm':'Stop measuring height (remove Point C)',
   'height-l':'Height (A↔C)',
   'csp-jpeg-q':'JPEG quality',
   'csp-4k-lbl':'Export at 4K',
