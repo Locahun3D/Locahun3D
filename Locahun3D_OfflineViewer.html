@@ -6698,11 +6698,20 @@ window.captureCamShot = async function(){
   const _capQuat = camera.quaternion.clone();
   const _pinPose = () => { camera.position.copy(_capPos); camera.quaternion.copy(_capQuat); camera.updateMatrixWorld(true); };
 
-  // NOTE: the capture renders into an OFFSCREEN render target (below), so the
-  // on-screen canvas, the HUD and the safe-frame/grid overlays are NEVER part of
-  // the output — and the live view keeps animating throughout the shot. So we
-  // hide nothing: that removes the brief on-screen "freeze"/black-out the old
-  // in-canvas capture caused (now a few hundred ms longer due to the hi-res RT).
+  // Hide HUD / left shot panel / vignette so they don't poison the source canvas
+  const hud    = document.getElementById('cam-hud');
+  const vig    = document.getElementById('motion-vignette');
+  const info   = document.getElementById('cam-shot-panel');
+  const canvas = renderer.domElement;
+  const hudWasShown   = hud.style.display;
+  const infoWasShown  = info ? info.style.display : 'none';
+  const vigOpacity    = vig ? vig.style.opacity : '0';
+  const canvasVisWas  = canvas.style.visibility;
+  hud.style.display = 'none';
+  if(info) info.style.display = 'none';
+  if(vig)  vig.style.opacity = '0';
+  // Hide the on-screen canvas so the user doesn't see the brief size change
+  canvas.style.visibility = 'hidden';
 
   // Render the capture from the LIVE drawing buffer — the SAME size the preview
   // uses — instead of resizing the renderer to the delivery resolution. Resizing
@@ -6834,6 +6843,10 @@ window.captureCamShot = async function(){
     out = imgFinal;
   }
 
+  // Restore live HUD / left info / vignette
+  hud.style.display = hudWasShown || 'block';
+  if(info) info.style.display = infoWasShown || 'block';
+  if(vig) vig.style.opacity = vigOpacity;
   // Restore camera intrinsics (aspect, fov) for live preview
   camera.aspect = oldAspect;
   camera.fov    = oldFov;
@@ -6848,6 +6861,8 @@ window.captureCamShot = async function(){
   renderer.setScissorTest(false);
   renderer.setViewport(0, 0, innerWidth, innerHeight);
   renderer.setScissor(0, 0, innerWidth, innerHeight);
+  // Re-show the on-screen canvas
+  canvas.style.visibility = canvasVisWas || '';
   // Re-apply live camera math so the safe-frame keeps its sensor-native vertical FOV
   if(typeof applyCamSettings === 'function'){ try{ applyCamSettings(); }catch(_){} }
   markDirty(8);
