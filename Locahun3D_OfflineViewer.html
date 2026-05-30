@@ -7832,17 +7832,26 @@ function _radLodScaleForStride(stride){
 }
 
 // Quality preset multiplier applied on top of the stride-derived lodScale.
-// Lower lodScale = splats split into children sooner = more detail in view.
+// Lower lodScale = splats split into children sooner = the LoD walker pulls
+// in finer + more distant chunks, and pulls them in EARLIER (while they're
+// still small on screen), which is what cuts the "tiles pop in late as I move"
+// streaming lag on a RAD scene.
 //   低 (idx 0): ×1.4  — coarser, fewer chunks loaded, lighter on GPU
 //   中 (idx 1): ×1.0  — Spark default
-//   高 (idx 2): ×0.7  — ~2× the splat density in view = noticeably crisper
+//   高 (idx 2): desktop ×0.5 / mobile ×0.7
+//       Desktop usually has plenty of GPU+bandwidth headroom, so at 高 we
+//       drive the walker noticeably harder (≈2× the splat density + reach of
+//       the old 0.7) to keep a wider area resolved continuously instead of
+//       streaming it in with a visible lag. Mobile stays at 0.7 to protect
+//       weaker GPUs / metered connections.
 // Combined examples (stride × quality):
-//   stride 1 × 高 (0.7)  → 0.7    (more detail than Spark default)
-//   stride 4 × 高 (0.7)  → 1.4    (still reduced vs 1/4 toggle alone)
-//   stride 1 × 低 (1.4)  → 1.4    (lighter than default)
+//   stride 1 × 高 desktop (0.5) → 0.5   (widest reach, finest in-view detail)
+//   stride 1 × 高 mobile  (0.7) → 0.7   (more detail than Spark default)
+//   stride 4 × 高 desktop (0.5) → 1.0   (still the Spark default after 1/4)
+//   stride 1 × 低 (1.4)         → 1.4   (lighter than default)
 function _radLodScaleForQuality(idx){
   if(idx === 0) return 1.4;
-  if(idx === 2) return 0.7;
+  if(idx === 2) return isMobile ? 0.7 : 0.5;
   return 1.0;
 }
 function _radEffectiveLodScale(){
