@@ -14386,10 +14386,20 @@ function bumpSplatActive(ms=3000){
 // stops interacting. Everywhere else stays at the standard 4 s.
 const _SPLAT_ACTIVE_MS = (typeof _isMac !== 'undefined' && _isMac) ? 1800 : 4000;
 
+// Headless/automated mode (?headless=1): drive the loop with setTimeout — which,
+// unlike requestAnimationFrame, keeps firing in a BACKGROUNDED tab — and ignore
+// the tab-hidden gate. This lets an automated/offscreen browser load the streamed
+// (RAD-paged) demo scene and render+capture it for WYSIWYG verification, which is
+// otherwise impossible because a background tab pauses rAF so Spark's LoD walker
+// never ticks and the splats never finish streaming. Zero effect for normal users
+// (flag is off unless explicitly present in the URL).
+const _headless = /[?&]headless=1/.test(location.search);
 function animate(now) {
-  requestAnimationFrame(animate);
-  // Hard gates: GPU context lost or tab hidden → don't render, don't compute
-  if(_ctxLost || _tabHidden) return;
+  if(_headless) setTimeout(()=>animate(performance.now()), 16);
+  else          requestAnimationFrame(animate);
+  // Hard gates: GPU context lost or tab hidden → don't render, don't compute.
+  // Headless mode bypasses the hidden gate so streaming/rendering keep running.
+  if(_ctxLost || (_tabHidden && !_headless)) return;
   // ── 60 fps soft cap on TOUCH devices only ──
   // iPad Pro (120 Hz ProMotion) and 120 Hz iPhones used to render at the
   // panel's native refresh, which on heavy splat scenes doubles GPU work
@@ -14899,7 +14909,10 @@ function animate(now) {
     }
   }
 }
-requestAnimationFrame(animate);
+// Start the loop. In headless mode the initial tick must come from setTimeout too,
+// because a backgrounded tab never fires the first rAF (so the loop would never start).
+if(_headless) setTimeout(()=>animate(performance.now()), 50);
+else          requestAnimationFrame(animate);
 
 // ══════════════════════════════════════════════════
 //  DEMO SCENE  +  AUTO-LOAD via URL param
