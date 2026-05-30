@@ -2434,9 +2434,9 @@ body{position:fixed;top:0;left:0;}
       </div>
       <div class="cm-row" style="margin-top:6px">
         <label class="cm-lbl" style="min-width:54px" id="ct-margin">外側余白</label>
-        <input type="range" id="cm-margin" min="0" max="20" step="1" value="0"
+        <input type="range" id="cm-margin" min="0" max="20" step="1" value="10"
           oninput="onCamFieldChange()" style="flex:1;accent-color:#ffb454">
-        <span id="cm-margin-val" style="min-width:34px;text-align:right;color:#888;font-size:.82em">0%</span>
+        <span id="cm-margin-val" style="min-width:34px;text-align:right;color:#888;font-size:.82em">10%</span>
       </div>
       <div class="cm-row" style="margin-top:6px;align-items:center;gap:5px">
         <label class="cm-lbl" style="min-width:54px" id="ct-roll">ロール</label>
@@ -4719,10 +4719,10 @@ const cam = {
   env:  '',         // ショット環境 (時間帯/天候 等)
   note: '',         // 備考 (動き / 演出メモ 等)
   aspect: 16/9,     // default delivery aspect (FHD 16:9). null = use sensor.
-  // Default safe-frame outer margin: 0 % everywhere (per user request
-  // 2026-05 — was 5 %). The user can still dial it 0–20 % via the
-  // アスペクト → 余白 slider; this only sets the initial value.
-  margin: 0,
+  // Default safe-frame outer margin: 10 % (per user request 2026-05). The user
+  // can still dial it 0–20 % via the アスペクト → 余白 slider; this is just the
+  // initial value.
+  margin: 10,
   // grids: SET of active grid types — multi-select. Each toggles independently.
   // Members: thirds | golden | cross | diag | safe-action | safe-title | center-mark | custom
   grids: new Set(['thirds']),
