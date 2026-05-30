@@ -1502,7 +1502,7 @@ body{position:fixed;top:0;left:0;}
             <!-- Q W E -->
             <g font-family="ui-monospace,monospace" font-size="14" fill="#ddd" text-anchor="middle">
               <rect x="50"  y="20" width="40" height="40" rx="6" fill="url(#key-grad)" stroke="#555"/>
-              <text x="70" y="46">Q</text>
+              <text x="70" y="46">F</text>
               <text x="70" y="78" font-size="9" fill="#9bf">下</text>
 
               <rect x="100" y="20" width="40" height="40" rx="6" fill="url(#key-grad)" stroke="#555"/>
@@ -1510,7 +1510,7 @@ body{position:fixed;top:0;left:0;}
               <text x="120" y="78" font-size="9" fill="#9bf">前</text>
 
               <rect x="150" y="20" width="40" height="40" rx="6" fill="url(#key-grad)" stroke="#555"/>
-              <text x="170" y="46">E</text>
+              <text x="170" y="46">R</text>
               <text x="170" y="78" font-size="9" fill="#9bf">上</text>
 
               <!-- A S D -->
@@ -1537,7 +1537,7 @@ body{position:fixed;top:0;left:0;}
         <h3>速度を変える</h3>
         <ul>
           <li><kbd>Shift</kbd> 押している間だけ 5 倍速</li>
-          <li><kbd>Shift</kbd> + <kbd>↑↓</kbd> で巡航速度自体を変更</li>
+          <li>マウスホイールで巡航速度自体を変更</li>
           <li>右下に現在の速度が表示されます (HUD)</li>
         </ul>
       </section>
@@ -1757,12 +1757,13 @@ body{position:fixed;top:0;left:0;}
         <h2>⌨ ショートカット早見表</h2>
         <table class="m-tbl">
           <tr><th>キー</th><th>動作</th></tr>
-          <tr><td><kbd>W</kbd> <kbd>A</kbd> <kbd>S</kbd> <kbd>D</kbd></td><td>前 / 左 / 後 / 右 移動</td></tr>
-          <tr><td><kbd>Q</kbd> / <kbd>E</kbd></td><td>下降 / 上昇</td></tr>
+          <tr><td><kbd>↑</kbd> <kbd>↓</kbd> <kbd>←</kbd> <kbd>→</kbd> / <kbd>W</kbd> <kbd>A</kbd> <kbd>S</kbd> <kbd>D</kbd></td><td>移動 (前 / 後 / 左 / 右パン)</td></tr>
+          <tr><td><kbd>Ctrl</kbd> + <kbd>↑↓←→</kbd></td><td>視点を回す / 上下チルト</td></tr>
+          <tr><td><kbd>Page Up</kbd> / <kbd>Page Down</kbd> ・ <kbd>+</kbd> / <kbd>-</kbd></td><td>ズームイン / アウト</td></tr>
+          <tr><td><kbd>R</kbd> / <kbd>F</kbd></td><td>上昇 / 下降</td></tr>
           <tr><td><kbd>Shift</kbd> (押しながら)</td><td>5× 高速移動</td></tr>
-          <tr><td><kbd>Shift</kbd> + <kbd>↑↓</kbd></td><td>巡航速度を変更</td></tr>
+          <tr><td>マウスホイール</td><td>巡航速度を変更</td></tr>
           <tr><td><kbd>M</kbd></td><td>測定モード ON / OFF</td></tr>
-          <tr><td><kbd>R</kbd></td><td>シーン Y軸反転 (緊急用)</td></tr>
           <tr><td><kbd>Z</kbd></td><td>取り消し (Undo, 最大 10)</td></tr>
           <tr><td><kbd>Y</kbd></td><td>やり直し (Redo)</td></tr>
           <tr><td><kbd>Ctrl</kbd> + <kbd>S</kbd></td><td>プロジェクト保存</td></tr>
@@ -1888,11 +1889,11 @@ body{position:fixed;top:0;left:0;}
             </defs>
             <g font-family="ui-monospace,monospace" font-size="14" fill="#ddd" text-anchor="middle">
               <rect x="50"  y="20" width="40" height="40" rx="6" fill="url(#key-grad-en)" stroke="#555"/>
-              <text x="70" y="46">Q</text><text x="70" y="78" font-size="9" fill="#fff">DOWN</text>
+              <text x="70" y="46">F</text><text x="70" y="78" font-size="9" fill="#fff">DOWN</text>
               <rect x="100" y="20" width="40" height="40" rx="6" fill="url(#key-grad-en)" stroke="#555"/>
               <text x="120" y="46">W</text><text x="120" y="78" font-size="9" fill="#fff">FWD</text>
               <rect x="150" y="20" width="40" height="40" rx="6" fill="url(#key-grad-en)" stroke="#555"/>
-              <text x="170" y="46">E</text><text x="170" y="78" font-size="9" fill="#fff">UP</text>
+              <text x="170" y="46">R</text><text x="170" y="78" font-size="9" fill="#fff">UP</text>
               <rect x="100" y="90" width="40" height="40" rx="6" fill="url(#key-grad-en)" stroke="#555"/>
               <text x="120" y="116">S</text><text x="120" y="148" font-size="9" fill="#fff">BACK</text>
               <rect x="50"  y="90" width="40" height="40" rx="6" fill="url(#key-grad-en)" stroke="#555"/>
@@ -1909,7 +1910,7 @@ body{position:fixed;top:0;left:0;}
         <h3>Speed</h3>
         <ul>
           <li>Hold <kbd>Shift</kbd> for 5× speed</li>
-          <li><kbd>Shift</kbd> + <kbd>↑↓</kbd> changes the cruise speed itself</li>
+          <li>Mouse wheel changes the cruise speed itself</li>
           <li>Current speed is shown in the HUD (top-left)</li>
         </ul>
       </section>
@@ -2123,12 +2124,13 @@ body{position:fixed;top:0;left:0;}
         <h2>⌨ Shortcuts cheatsheet</h2>
         <table class="m-tbl">
           <tr><th>Key</th><th>Action</th></tr>
-          <tr><td><kbd>W</kbd> <kbd>A</kbd> <kbd>S</kbd> <kbd>D</kbd></td><td>Forward / Left / Back / Right</td></tr>
-          <tr><td><kbd>Q</kbd> / <kbd>E</kbd></td><td>Down / Up</td></tr>
+          <tr><td><kbd>↑</kbd> <kbd>↓</kbd> <kbd>←</kbd> <kbd>→</kbd> / <kbd>W</kbd> <kbd>A</kbd> <kbd>S</kbd> <kbd>D</kbd></td><td>Move (forward / back / left / right pan)</td></tr>
+          <tr><td><kbd>Ctrl</kbd> + <kbd>↑↓←→</kbd></td><td>Rotate / tilt the view</td></tr>
+          <tr><td><kbd>Page Up</kbd> / <kbd>Page Down</kbd> · <kbd>+</kbd> / <kbd>-</kbd></td><td>Zoom in / out</td></tr>
+          <tr><td><kbd>R</kbd> / <kbd>F</kbd></td><td>Up / Down</td></tr>
           <tr><td><kbd>Shift</kbd> (hold)</td><td>5× speed boost</td></tr>
-          <tr><td><kbd>Shift</kbd> + <kbd>↑↓</kbd></td><td>Change cruise speed</td></tr>
+          <tr><td>Mouse wheel</td><td>Change cruise speed</td></tr>
           <tr><td><kbd>M</kbd></td><td>Measure mode ON / OFF</td></tr>
-          <tr><td><kbd>R</kbd></td><td>Flip scene Y-axis (emergency)</td></tr>
           <tr><td><kbd>Z</kbd></td><td>Undo (up to 10)</td></tr>
           <tr><td><kbd>Y</kbd></td><td>Redo</td></tr>
           <tr><td><kbd>Ctrl</kbd> + <kbd>S</kbd></td><td>Save project</td></tr>
@@ -2659,7 +2661,7 @@ body.ar-active #dz{display:none !important;}
           <span class="cl-tag" id="cl-tag-v003">プリビズ拡張</span>
         </div>
         <ul class="cl-ja">
-          <li>キーボード操作を Google Earth Studio 準拠に: ↑↓←→ / T G / R F、Shift で 3 倍速</li>
+          <li>キーボードを Google Earth デスクトップ風に一新: 矢印キー=移動(前後左右パン)、Ctrl+矢印=回転/チルト、Page Up/Down(+/-)=ズーム、R/F=上昇/下降、Shift=高速</li>
           <li>タッチ端末のジョイスティック右に上昇 / 下降 ▲▼ パッドを追加</li>
           <li>カメラ位置保存 (🎥) — Camera フォルダに複数カメラを記録、レイヤーをクリックでテレポート</li>
           <li>業界標準シネマカメラのセンサーサイズプリセット追加 (Alexa 35 / 65, RED V-Raptor, Venice 2, URSA 12K, C70, BMPCC)</li>
@@ -2672,7 +2674,7 @@ body.ar-active #dz{display:none !important;}
           <li>カメラアニメ / 録画 / カメラ位置保存 など新ボタンの JA/EN ラベル + ツールチップ整備</li>
         </ul>
         <ul class="cl-en">
-          <li>Keyboard remapped to Google Earth Studio: ↑↓←→ / T G / R F, Shift triples the rate</li>
+          <li>Keyboard revamped to Google Earth (desktop): arrows = move (pan), Ctrl+arrows = rotate/tilt, Page Up/Down (+/-) = zoom, R/F = up/down, Shift = faster</li>
           <li>Touch joystick gets an up / down ▲▼ pad to its right</li>
           <li>Save camera pose (🎥) — multi-camera placement in a Camera folder, click a layer to teleport back</li>
           <li>Industry-standard cinema sensor presets (Alexa 35 / 65, RED V-Raptor, Venice 2, URSA 12K, C70, BMPCC)</li>
@@ -2927,6 +2929,10 @@ function setCamRotImmediate(y, p){
 const camPos  = new THREE.Vector3(0, 1.7, 4);
 const _fwdVec = new THREE.Vector3();
 const _rgtVec = new THREE.Vector3();
+// Forward direction projected onto the ground plane (pitch removed) — used by
+// the Google-Earth-style arrow/WASD "pan" so the camera glides over the scene
+// horizontally regardless of how far up or down it's currently tilted.
+const _fwdHoriz = new THREE.Vector3();
 
 // ── Initial camera state (saved on file load, restored by reset button) ──
 let _initCamPos = new THREE.Vector3(0, 1.7, 4);
@@ -8771,34 +8777,42 @@ function updateFlyCamera(dt){
   const kbSpd=(keys.ShiftLeft||keys.ShiftRight)?camSpeed*5:camSpeed;
   camera.getWorldDirection(_fwdVec);
   _rgtVec.set(-Math.cos(yaw),0,Math.sin(yaw));
+  // Ground-plane heading for "pan": drop the pitch so arrow/WASD movement
+  // glides horizontally over the scene the way Google Earth's arrow keys do.
+  _fwdHoriz.set(_fwdVec.x, 0, _fwdVec.z);
+  if(_fwdHoriz.lengthSq() > 1e-6) _fwdHoriz.normalize();
+  else _fwdHoriz.set(Math.sin(yaw), 0, Math.cos(yaw)); // looking straight up/down
 
-  // Keyboard contribution — uses Shift for the 5× sprint speed.
-  //   W/A/S/D  : forward / strafe (canonical)
-  //   Q/E      : vertical move (kept for backward compatibility)
-  //   R/F      : vertical move (Google Earth Studio binding)
-  //   Touch ▲/▼: same vertical axis
-  // The vertical sources sum so a user mixing keyboard + tablet can layer
-  // them; cancellation works naturally (Q + E = 0).
-  const fwKb=(keys.KeyW?1:0)-(keys.KeyS?1:0);
-  const rtKb=(keys.KeyD?1:0)-(keys.KeyA?1:0);
-  const up  =(keys.KeyE?1:0)-(keys.KeyQ?1:0)
-            +(keys.KeyR?1:0)-(keys.KeyF?1:0)
+  // ── Google Earth (desktop) keyboard scheme ─────────────────────────────
+  //   Arrows (no modifier) / W A S D : pan position (glide over the scene)
+  //   Ctrl + Arrows                  : rotate & tilt in place (yaw / pitch)
+  //   Page Up / +(=)                 : zoom in  (dolly along the view)
+  //   Page Down / -                  : zoom out
+  //   R / F  (+ touch ▲▼)            : vertical up / down (retained)
+  //   Shift                          : 5× translate / 3× look sprint
+  // Holding Ctrl re-routes the arrow keys from pan to rotate, so the same four
+  // keys cover both — exactly like Google Earth desktop.
+  const ctrlHeld = !!(keys.ControlLeft||keys.ControlRight||keys.MetaLeft||keys.MetaRight);
+  const aFw = (keys.ArrowUp?1:0)    - (keys.ArrowDown?1:0);
+  const aRt = (keys.ArrowRight?1:0) - (keys.ArrowLeft?1:0);
+  const fwKb=(keys.KeyW?1:0)-(keys.KeyS?1:0) + (ctrlHeld?0:aFw);
+  const rtKb=(keys.KeyD?1:0)-(keys.KeyA?1:0) + (ctrlHeld?0:aRt);
+  const up  =(keys.KeyR?1:0)-(keys.KeyF?1:0)
             +(touchUpHeld?1:0)-(touchDnHeld?1:0);
-  if(fwKb!==0) camPos.addScaledVector(_fwdVec, fwKb*kbSpd*dt);
-  if(rtKb!==0) camPos.addScaledVector(_rgtVec, rtKb*kbSpd*dt);
-  if(up!==0)   camPos.y += Math.sign(up)*kbSpd*dt;
+  // Zoom = dolly along the true (pitched) view direction.
+  const zoomIn = (keys.PageUp?1:0)+(keys.Equal?1:0)+(keys.NumpadAdd?1:0)
+               - (keys.PageDown?1:0)-(keys.Minus?1:0)-(keys.NumpadSubtract?1:0);
+  if(fwKb!==0)   camPos.addScaledVector(_fwdHoriz, fwKb*kbSpd*dt);
+  if(rtKb!==0)   camPos.addScaledVector(_rgtVec,  rtKb*kbSpd*dt);
+  if(up!==0)     camPos.y += Math.sign(up)*kbSpd*dt;
+  if(zoomIn!==0) camPos.addScaledVector(_fwdVec, Math.sign(zoomIn)*kbSpd*dt);
 
-  // ── Look-around via Arrow keys + T/G (Earth Studio bindings) ────────
-  // Bumps the same _yawTarget / _pitchTarget the mouse pointer-lock
-  // pipeline drives, so motion lerps in identically to a drag look.
-  // 0.9 rad/s ≈ 52 °/s ≈ Google Earth Studio's arrow-key ramp — slow
-  // enough that a quick tap nudges a few degrees instead of crossing
-  // the whole pitch clamp in under a second. Hold Shift to triple the
-  // rate when the user does want fast look-around (mirrors the camSpeed
-  // sprint multiplier the same Shift key already drives for translate).
-  const yawIn   = (keys.ArrowLeft?1:0) - (keys.ArrowRight?1:0);
-  const pitchIn = (keys.ArrowDown?1:0) - (keys.ArrowUp?1:0)
-                + (keys.KeyG?1:0)     - (keys.KeyT?1:0);
+  // ── Rotate / tilt in place: Ctrl + Arrow keys (Google Earth) ───────────
+  // Bumps the same _yawTarget / _pitchTarget the mouse pointer-lock pipeline
+  // drives, so motion lerps in identically to a drag look. 0.9 rad/s ≈ 52 °/s
+  // is slow enough that a quick tap nudges a few degrees; Shift triples it.
+  const yawIn   = ctrlHeld ? ((keys.ArrowLeft?1:0) - (keys.ArrowRight?1:0)) : 0;
+  const pitchIn = ctrlHeld ? ((keys.ArrowDown?1:0) - (keys.ArrowUp?1:0))    : 0;
   if(yawIn !== 0 || pitchIn !== 0){
     const baseRate = 0.9;
     const sprint   = (keys.ShiftLeft || keys.ShiftRight) ? 3.0 : 1.0;
@@ -17336,19 +17350,22 @@ window.addEventListener('keydown',e=>{
   }
   keys[e.code]=true;
   // Movement / rotation keys that should drive continuous render frames.
-  // Google Earth Studio bindings now included:
-  //   R/F      — vertical move (up/down), parallel to existing Q/E
-  //   T/G      — pitch up/down (alternative to ArrowUp/ArrowDown)
-  //   Arrows   — yaw/pitch (look around without mouse drag)
-  // Existing bindings retained: W/A/S/D translate, Q/E vertical, Shift sprint.
-  if(['KeyW','KeyS','KeyA','KeyD','KeyQ','KeyE','KeyR','KeyF','KeyT','KeyG',
+  // Google Earth (desktop) scheme:
+  //   Arrows / W A S D       — pan position (Ctrl+Arrows rotates instead)
+  //   Ctrl                   — modifier: arrows rotate/tilt in place
+  //   Page Up / Down, +/-    — zoom in / out (dolly)
+  //   R/F (+ touch ▲▼)       — vertical up/down
+  //   Shift                  — sprint
+  if(['KeyW','KeyS','KeyA','KeyD','KeyR','KeyF',
       'ArrowUp','ArrowDown','ArrowLeft','ArrowRight',
+      'PageUp','PageDown','Equal','Minus','NumpadAdd','NumpadSubtract',
+      'ControlLeft','ControlRight','MetaLeft','MetaRight',
       'ShiftLeft','ShiftRight'].includes(e.code)){
     markDirty(3);
     if(layers.some(L=>L.type==='splat')) bumpSplatActive(2000);
-    // Arrow keys would otherwise scroll the page when the user hasn't
-    // focused anything — eat them so look-around stays responsive.
-    if(e.code.startsWith('Arrow')) e.preventDefault();
+    // Arrows and Page Up/Down would otherwise scroll the page when nothing is
+    // focused — eat them so camera control stays responsive.
+    if(e.code.startsWith('Arrow') || e.code==='PageUp' || e.code==='PageDown') e.preventDefault();
   }
   if(e.code === 'Space' && walkMode.active) markDirty(3);
   // (KeyR no longer triggers flipOrientation — Earth Studio uses R for
@@ -17386,8 +17403,10 @@ window.addEventListener('keydown',e=>{
 window.addEventListener('keyup',e=>{
   if(_isTypingInInput()) return;
   keys[e.code]=false;
-  if(['KeyW','KeyS','KeyA','KeyD','KeyQ','KeyE','KeyR','KeyF','KeyT','KeyG',
+  if(['KeyW','KeyS','KeyA','KeyD','KeyR','KeyF',
       'ArrowUp','ArrowDown','ArrowLeft','ArrowRight',
+      'PageUp','PageDown','Equal','Minus','NumpadAdd','NumpadSubtract',
+      'ControlLeft','ControlRight','MetaLeft','MetaRight',
       'ShiftLeft','ShiftRight'].includes(e.code)){
     markDirty(8); // extra frames after movement stops (Spark re-sort settling)
     if(layers.some(L=>L.type==='splat')) bumpSplatActive(2500);
