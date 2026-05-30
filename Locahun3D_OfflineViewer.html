@@ -5113,20 +5113,26 @@ function _camRefreshCaptureRes(){
 function applyCamSettings(){
   if(!cam.active) return;
   _camRefreshCaptureRes();
-  // Camera vertical FOV is locked to the SENSOR'S NATIVE VFov — derived
-  // from cam.sh and cam.focal directly, NOT from _camEffectiveSensorWH
-  // which folds in the user-picked aspect crop. Using the native sensor
-  // height means changing the aspect picker (16:9 / 2.39:1 / 4:3 / etc.)
-  // or the margin slider doesn't shift the projection — the live preview
-  // shows a stable angular field of view, and the safe-frame overlay is
-  // a pure crop indicator on top of that view.
-  // Capture path (cf. captureShot) still uses sensor's native VFov, so
-  // the content the user sees inside the live frame and what lands in
-  // the JPEG line up regardless of margin / aspect / panel state.
-  const sensorVFovRad = 2 * Math.atan(cam.sh / (2 * cam.focal));
-  const sensorVFovDeg = sensorVFovRad * 180 / Math.PI;
-  fov = sensorVFovDeg;
-  camera.fov = sensorVFovDeg;
+  // Simulate cropping the chosen aspect OUT OF the fixed physical sensor.
+  // A real camera can never see more than its sensor: choosing a WIDER aspect
+  // (16:9 / 2.39) crops the sensor's TOP & BOTTOM (less vertical FOV, same
+  // horizontal), and a TALLER aspect (4:5 / 9:16) crops the SIDES (less
+  // horizontal, same vertical). So the vertical FOV is derived from the
+  // EFFECTIVE (cropped) sensor height — _camSensorVFovDeg(), which folds in the
+  // aspect crop — NOT the full sensor height. The cam-active render loop sets
+  // camera.aspect to that same cropped aspect, so the resulting horizontal FOV
+  // equals the cropped sensor's horizontal FOV and NEVER exceeds the full
+  // sensor. This is exactly what the JPEG capture path uses (same
+  // _camSensorVFovDeg + crop aspect), so the live frame and the saved image are
+  // identical. Changing the aspect now correctly re-crops the field of view.
+  const vfovDeg = _camSensorVFovDeg();
+  fov = vfovDeg;
+  camera.fov = vfovDeg;
+  // Pin the cropped aspect so a render that lands before the next animate frame
+  // (e.g. the capture's pre-roll) is already framed correctly; the cam-active
+  // render loop re-applies the safe-frame-rect aspect (same value) each frame.
+  const _eff = _camEffectiveSensorWH();
+  camera.aspect = _eff.w / Math.max(1e-6, _eff.h);
   camera.updateProjectionMatrix();
   layoutCamFrame();
   drawCamGrid();
