@@ -6645,6 +6645,29 @@ window.captureCamShot = async function(){
   hud.style.display = 'none';
   if(info) info.style.display = 'none';
   if(vig)  vig.style.opacity = '0';
+  // When the env sky dome is OFF (hidden), the area above the scanned splats
+  // renders as the black clear colour — so a near-level shot bakes a harsh black
+  // band across the top of the JPEG ("上の余白"). Temporarily show a neutral
+  // overcast sky JUST for the capture so that empty region reads as a clean
+  // light sky instead of black. The live preview keeps its black background
+  // (chosen so splat-sort gaps don't flash grey while editing); we restore the
+  // hidden dome right after the capture render below.
+  let _capTempDome = false;
+  if(typeof env !== 'undefined' && env && env.mesh && !env.mesh.visible){
+    try {
+      const _ep = ENV_PRESETS.overcast;
+      const _u = env.material && env.material.uniforms;
+      if(_ep && _u){
+        _u.uZenith.value.setRGB(_ep.zenith[0],  _ep.zenith[1],  _ep.zenith[2]);
+        _u.uHorizon.value.setRGB(_ep.horizon[0], _ep.horizon[1], _ep.horizon[2]);
+        _u.uGround.value.setRGB(_ep.ground[0],   _ep.ground[1],  _ep.ground[2]);
+        _u.uIntensity.value = _ep.int || 1.0;
+      }
+      env.mesh.position.copy(camPos);
+      env.mesh.visible = true;
+      _capTempDome = true;
+    } catch(_){}
+  }
   // Hide the on-screen canvas so the user doesn't see the brief size change
   canvas.style.visibility = 'hidden';
 
@@ -6678,6 +6701,9 @@ window.captureCamShot = async function(){
   ictx.imageSmoothingEnabled = true;
   ictx.imageSmoothingQuality = 'high';
   ictx.drawImage(canvas, 0, 0, target.w, target.h, 0, 0, target.w, target.h);
+  // The capture render is now baked into `img`; hide the temporary capture-only
+  // sky dome again so the live preview returns to its black background.
+  if(_capTempDome && env && env.mesh) env.mesh.visible = false;
   // ── Environment scene-tint (matches live #env-tint overlay) ──
   // Applied BEFORE WB so the order is "scene lighting first, then camera correction".
   if(env.preset !== 'off' && ENV_PRESETS[env.preset] && ENV_PRESETS[env.preset].sceneTint){
