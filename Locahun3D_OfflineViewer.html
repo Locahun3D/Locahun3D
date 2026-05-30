@@ -13506,28 +13506,35 @@ function updatePerfStats(){
   // This restores the original meaning of the GPU-load bar: on a 5090 at
   // any fps the bar should sit at near-zero, never at 109% just because
   // the panel was conflating wall-clock latency with GPU work.
+  // Refresh the detected display Hz before computing anything against it.
+  _updateRefreshEstimate();
+
   const fpsDerived = fps > 0 ? (1000 / fps) : 0;
   const wallMs = (typeof _wallMsAvg === 'number' && _wallMsAvg > 0)
                  ? _wallMsAvg
                  : fpsDerived;
   const submitMs = Math.max(0.01, _ftAvg);
   const renderMs = Math.max(0.01, wallMs > 0 ? wallMs : submitMs);
-  const budget   = FRAME_MS;                  // 16.67ms @ 60fps
+  // Budget = one frame at the device's ACTUAL refresh (detected), not a
+  // hardcoded 60. On a 120 Hz ProMotion panel this is ~8.33 ms, so the
+  // "予算" shown next to an 8.3 ms frame is finally consistent instead of
+  // claiming a 16.7 ms budget the panel never had.
+  const budget   = (typeof _refreshBudgetMs === 'number' && _refreshBudgetMs > 0)
+                   ? _refreshBudgetMs : FRAME_MS;
 
-  // GPU 負荷 = how much of the 60fps budget the GPU command submit ate
+  // GPU 負荷 = how much of one display frame the GPU command submit ate
   // (essentially "is the GPU saturated?"). Stays low on capable hardware
   // regardless of whether rAF is throttled — that's the desired semantics.
   const util    = Math.min(200, (submitMs / budget) * 100);
-  // 余剰 (ヘッドルーム) — previously this was just (100 - GPU 負荷), so on
-  // iPad it would read "余剰 95%" even when the actual frame rate was
-  // 30 fps because Safari's compositor throttled rAF (the GPU was idle
-  // but the user couldn't tell from this bar). Switched to a frame-budget
-  // metric: how much of the 16.67 ms 60-fps budget the REAL frame
-  // interval consumes. Now on iPad at 30 fps the bar correctly shows
-  // 0 % (no headroom toward 60 fps) so the readout stops looking like
-  // "everything's fine" when fps is actually bad.
-  const frameUtil = Math.min(100, (wallMs / budget) * 100);
-  const surplus   = Math.max(0, 100 - frameUtil);
+  // 余剰 (ヘッドルーム) = true GPU spare capacity = 100 − GPU 負荷.
+  // We deliberately base this on GPU submit work, NOT on the wall-clock
+  // frame interval: under vsync the frame interval is pinned to the refresh
+  // period even when the GPU is idle, so a wall-time headroom would read
+  // ~0 % on a 120 Hz device cruising at a locked 120 fps — exactly the bogus
+  // reading reported on Apple hardware. A struggling device (e.g. iPad
+  // throttled to 30 fps) is instead surfaced by the FPS value + its colour
+  // grade below, which is the honest place for "actual frame rate is bad".
+  const surplus = Math.max(0, 100 - Math.min(100, util));
 
   // Colour grade
   const utilCol   = util < 50 ? '#2a7a2a' : util < 80 ? '#7a7a20' : util < 100 ? '#8a5a10' : '#8a2020';
@@ -13542,7 +13549,7 @@ function updatePerfStats(){
   // user can tell at a glance whether the bottleneck is GPU work or
   // somewhere else on the main thread / compositor.
   s('qp-frametime').textContent =
-    renderMs.toFixed(2) + ' ms  (submit '+submitMs.toFixed(2)+' / 予算 '+budget.toFixed(1)+'ms)';
+    renderMs.toFixed(2) + ' ms  (submit '+submitMs.toFixed(2)+' / 予算 '+budget.toFixed(1)+'ms @'+_refreshHz+'Hz)';
 
   // Mirror live FPS into the always-visible top-right quality badge.
   // The badge's quality-level label is updated in setQuality() separately,
@@ -13982,6 +13989,36 @@ let _wallMsAvg = 0;
 let _lastRenderInfo = { calls:0, triangles:0, geometries:0, textures:0 };
 let _fpsCounts = 0, _fpsElapsed = 0, _fpsDisplay = 0;
 let _lastPerfFrameTime = performance.now();
+
+// ── Display refresh-rate detection ──
+// The perf monitor must benchmark against the device's ACTUAL display
+// refresh, not a hardcoded 60. Apple ProMotion panels (iPhone Pro / iPad
+// Pro / MacBook Pro 14·16) run at 120 Hz, so a fixed 60-fps budget made a
+// perfectly healthy 120 fps frame (~8.3 ms) look like it overshot the
+// "16.7 ms budget" and left only ~50 % headroom — the numbers users on
+// Apple hardware rightly called bogus. We sample raw rAF intervals and
+// snap the estimate to the nearest standard refresh so the budget tracks
+// the real panel.
+const _STD_REFRESH = [60, 75, 90, 100, 120, 144, 165, 240];
+const _rawDeltas = [];                 // recent raw inter-frame intervals (ms)
+let _refreshHz = 60;                    // detected display Hz (default 60)
+let _refreshBudgetMs = 1000 / 60;       // one display frame in ms
+function _snapRefresh(hz){
+  let best = _STD_REFRESH[0], bd = Infinity;
+  for(const r of _STD_REFRESH){ const d = Math.abs(r - hz); if(d < bd){ bd = d; best = r; } }
+  return best;
+}
+function _updateRefreshEstimate(){
+  if(_rawDeltas.length < 24) return;    // need a meaningful sample first
+  const sorted = _rawDeltas.slice().sort((a,b)=>a-b);
+  // 10th-percentile interval ≈ the fastest the panel actually refreshes.
+  // Using a low percentile (not the mean) ignores slow/heavy frames that
+  // would otherwise underestimate Hz when the scene is briefly GPU-bound.
+  const p10 = sorted[Math.floor(sorted.length * 0.10)];
+  if(!(p10 > 0)) return;
+  _refreshHz = _snapRefresh(1000 / p10);
+  _refreshBudgetMs = 1000 / _refreshHz;
+}
 
 // Whether to cap fps at 60. True on touch hardware (iPad / iPhone /
 // Android) where ProMotion 120 Hz panels waste battery + invite thermal
@@ -14528,6 +14565,13 @@ function animate(now) {
   _wallSamples.push(_wallSample);
   if(_wallSamples.length>_FT_WINDOW) _wallSamples.shift();
   _wallMsAvg = _wallSamples.reduce((a,b)=>a+b,0)/_wallSamples.length;
+  // Feed the raw interval into the refresh-rate detector. Discard sub-1 ms
+  // (rAF coalescing artifacts) and >100 ms (idle/tab-switch gaps) so they
+  // can't skew the percentile estimate of the panel's true refresh.
+  if(wallDelta > 1 && wallDelta < 100){
+    _rawDeltas.push(wallDelta);
+    if(_rawDeltas.length > 240) _rawDeltas.shift();
+  }
   _fpsDisplay = _fpsCounts>0 ? Math.round(_fpsCounts/_fpsElapsed*1000) : 0;
 
   // ══════════════════════════════════════════════════
@@ -15023,6 +15067,10 @@ window.__diagState = {
   get ftAvg(){ return (typeof _ftAvg!=='undefined')?_ftAvg:null; },
   get wallMsAvg(){ return (typeof _wallMsAvg!=='undefined')?_wallMsAvg:null; },
   get fps(){ return _fpsDisplay; },
+  get refreshHz(){ return (typeof _refreshHz!=='undefined')?_refreshHz:null; },
+  get refreshBudgetMs(){ return (typeof _refreshBudgetMs!=='undefined')?_refreshBudgetMs:null; },
+  set rawDeltas(arr){ if(Array.isArray(arr)){ _rawDeltas.length=0; for(const d of arr) _rawDeltas.push(d); } },
+  estimateRefresh(){ if(typeof _updateRefreshEstimate==='function') _updateRefreshEstimate(); return (typeof _refreshHz!=='undefined')?_refreshHz:null; },
   get splatActiveUntil(){ return _splatActiveUntil; },
   get splatMesh(){ return splatMesh; },
   get renderer(){ return renderer; },
