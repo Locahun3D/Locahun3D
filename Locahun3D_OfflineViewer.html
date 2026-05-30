@@ -7009,9 +7009,9 @@ function composeBurnInFrame(imgCanvas){
     ctx.fillText(cam.shot, sideW + pad, topH / 2);
   }
   ctx.font = `700 ${Math.round(topFont * 0.92)}px ui-sans-serif,system-ui,sans-serif`;
-  ctx.textAlign = 'right';
+  ctx.textAlign = 'center';
   ctx.fillStyle = 'rgba(255,180,84,.9)';
-  ctx.fillText('LOCAHUN 3D', finalW - sideW - pad, topH / 2);
+  ctx.fillText('LOCAHUN 3D', finalW / 2, topH / 2);
 
   // ── Data ──
   const eq       = _camEquiv35().toFixed(0);
