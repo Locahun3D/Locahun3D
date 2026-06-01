@@ -7178,10 +7178,18 @@ function composeBurnInFrame(imgCanvas){
   const _lockW  = _logoS + _logoGp + _brandW;
   const _lockX  = Math.round((finalW - _lockW) / 2);
   _drawLocahunLogo(ctx, _lockX, Math.round((topH - _logoS) / 2), _logoS);
+  // Optically center the wordmark on the logo's vertical center. Canvas
+  // textBaseline='middle' centers the full em box (incl. the empty descender
+  // band), so an ALL-CAPS string like "LOCAHUN 3D" renders visibly high and
+  // looks unaligned next to the logo. Center the real glyph bounds instead.
   ctx.textAlign = 'left';
-  ctx.textBaseline = 'middle';
+  ctx.textBaseline = 'alphabetic';
   ctx.fillStyle = 'rgba(255,180,84,.92)';
-  ctx.fillText(_brand, _lockX + _logoS + _logoGp, topH / 2);
+  const _bm    = ctx.measureText(_brand);
+  const _asc   = _bm.actualBoundingBoxAscent  || topFont * 0.70;
+  const _dsc   = _bm.actualBoundingBoxDescent || 0;
+  const _baseY = topH / 2 + (_asc - _dsc) / 2;
+  ctx.fillText(_brand, _lockX + _logoS + _logoGp, _baseY);
 
   // ── Data ──
   const eq       = _camEquiv35().toFixed(0);
