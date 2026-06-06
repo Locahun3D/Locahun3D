@@ -9075,8 +9075,14 @@ function updateFlyCamera(dt){
     const dirFw = -joyDY / joyMag;
     const dirRt =  joyDX / joyMag;
     const speed = (joyMag <= 0.5) ? (joyMag / 0.5) * camSpeed : (camSpeed * 5);
-    camPos.addScaledVector(_fwdVec, dirFw * speed * dt);
-    camPos.addScaledVector(_rgtVec, dirRt * speed * dt);
+    // Joystick pans on the HORIZONTAL ground plane only (Google-Earth style):
+    // use _fwdHoriz (pitch dropped + normalized), NOT _fwdVec, so tilting the
+    // view down/up no longer makes the stick climb or descend. Altitude is
+    // changed exclusively by the on-screen ▲▼ pad (touchUpHeld/touchDnHeld →
+    // camPos.y, applied in the keyboard block above). Strafe already used the
+    // horizontal _rgtVec.
+    camPos.addScaledVector(_fwdHoriz, dirFw * speed * dt);
+    camPos.addScaledVector(_rgtVec,   dirRt * speed * dt);
   }
 
   // ── Gamepad contribution (Xbox / PS USB controller, PC only) ────────────
