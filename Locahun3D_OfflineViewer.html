@@ -14337,6 +14337,14 @@ let _lastRenderPitch = 0;
 function _applyCanvasReprojection(){
   if(!_reprojectionEnabled) return;
   if(typeof arMode !== 'undefined' && arMode && arMode.active) return;
+  // Camera tool: the scene is scissored into a FIXED safe-frame (black
+  // letterbox outside + a DOM border overlay drawn as composition guide).
+  // A whole-canvas translate would shift the rendered region AND the letterbox
+  // but NOT the fixed frame border, so the frame edge appears to slide and then
+  // snap back every render — the user-reported "フレームの端が移動してがくがく".
+  // While framing, keep the frame rock-steady: skip reprojection and clear any
+  // offset already applied (e.g. tool activated mid-drag).
+  if(typeof cam !== 'undefined' && cam && cam.active){ _clearCanvasReprojection(); return; }
   if(!canvas || !camera) return;
   // FOV (radians) — vertical from camera.fov, horizontal derived via aspect
   const fovV = camera.fov * Math.PI / 180;
