@@ -1130,46 +1130,142 @@ body{position:fixed;top:0;left:0;}
 <div id="light-halo-layer" style="position:fixed;inset:0;pointer-events:none;
   z-index:47;mix-blend-mode:screen;display:none;"></div>
 
-<!-- Environment / pseudo-HDRI panel (positioned above cbar, like other cbar panels) -->
-<div id="env-panel" style="position:fixed;bottom:60px;right:14px;z-index:91;
+<!-- 環境(手動プリセット)パネルは廃止。背景は「日照」モード＋天気(晴/曇/雨)で制御する。
+     ENV_PRESETS / _setEnvPresetCore / applySceneTint / 空ドーム などの env 機構は
+     日照モードが内部で利用するため JS 側にそのまま残している（UI だけ撤去）。 -->
+
+<!-- ☀ 日照 (Sun / Daylight) panel -->
+<div id="sun-panel" style="position:fixed;bottom:60px;right:14px;z-index:91;
   background:rgba(26,26,28,.97);border:1px solid rgba(255,255,255,.1);
-  border-radius:10px;padding:14px 14px;width:260px;color:#d0d0d0;font-size:.78em;
-  font-family:ui-sans-serif,system-ui,sans-serif;backdrop-filter:blur(12px);
-  display:none;">
-  <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
-    <strong>🌅 <span id="env-h-title">環境 (疑似HDRI)</span></strong>
-    <button onclick="toggleEnvPanel()" style="background:none;border:none;color:#888;font-size:1.2em;cursor:pointer">✕</button>
+  border-radius:10px;padding:14px;width:286px;max-height:80vh;overflow-y:auto;
+  color:#d0d0d0;font-size:.78em;font-family:ui-sans-serif,system-ui,sans-serif;
+  backdrop-filter:blur(12px);display:none;">
+  <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">
+    <strong>☀ <span id="sun-h-title" data-i18n="sun-h-title">日照シミュレーション</span></strong>
+    <button onclick="toggleSunMode()" style="background:none;border:none;color:#888;font-size:1.2em;cursor:pointer">✕</button>
   </div>
+
+  <!-- 場所 (47都道府県: 値=ローマ字キー, 緯度経度=県庁所在地。JIS順) -->
+  <div class="sun-sec-lbl" id="sun-l-loc" data-i18n="sun-l-loc">📍 場所（都道府県）</div>
+  <select id="sun-city" onchange="onSunCityChange(this.value)" class="sun-inp" style="width:100%;margin-bottom:4px">
+    <option value="hokkaido">北海道</option>
+    <option value="aomori">青森県</option>
+    <option value="iwate">岩手県</option>
+    <option value="miyagi">宮城県</option>
+    <option value="akita">秋田県</option>
+    <option value="yamagata">山形県</option>
+    <option value="fukushima">福島県</option>
+    <option value="ibaraki">茨城県</option>
+    <option value="tochigi">栃木県</option>
+    <option value="gunma">群馬県</option>
+    <option value="saitama">埼玉県</option>
+    <option value="chiba">千葉県</option>
+    <option value="tokyo">東京都</option>
+    <option value="kanagawa">神奈川県</option>
+    <option value="niigata">新潟県</option>
+    <option value="toyama">富山県</option>
+    <option value="ishikawa">石川県</option>
+    <option value="fukui">福井県</option>
+    <option value="yamanashi">山梨県</option>
+    <option value="nagano">長野県</option>
+    <option value="gifu">岐阜県</option>
+    <option value="shizuoka">静岡県</option>
+    <option value="aichi">愛知県</option>
+    <option value="mie">三重県</option>
+    <option value="shiga">滋賀県</option>
+    <option value="kyoto">京都府</option>
+    <option value="osaka">大阪府</option>
+    <option value="hyogo">兵庫県</option>
+    <option value="nara">奈良県</option>
+    <option value="wakayama">和歌山県</option>
+    <option value="tottori">鳥取県</option>
+    <option value="shimane">島根県</option>
+    <option value="okayama">岡山県</option>
+    <option value="hiroshima">広島県</option>
+    <option value="yamaguchi">山口県</option>
+    <option value="tokushima">徳島県</option>
+    <option value="kagawa">香川県</option>
+    <option value="ehime">愛媛県</option>
+    <option value="kochi">高知県</option>
+    <option value="fukuoka">福岡県</option>
+    <option value="saga">佐賀県</option>
+    <option value="nagasaki">長崎県</option>
+    <option value="kumamoto">熊本県</option>
+    <option value="oita">大分県</option>
+    <option value="miyazaki">宮崎県</option>
+    <option value="kagoshima">鹿児島県</option>
+    <option value="okinawa">沖縄県</option>
+  </select>
+  <div id="sun-coords" style="color:#777;font-size:.85em;margin-bottom:10px">—</div>
+
+  <!-- 天気 (疑似HDRI連動) -->
+  <div class="sun-sec-lbl" id="sun-l-weather" data-i18n="sun-l-weather">🌤 天気</div>
   <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:5px;margin-bottom:10px">
-    <button class="env-btn" onclick="setEnvPreset('off')"     data-env="off" id="env-p-off">なし</button>
-    <button class="env-btn" onclick="setEnvPreset('day')"     data-env="day" id="env-p-day">☀ 昼</button>
-    <button class="env-btn" onclick="setEnvPreset('morning')" data-env="morning" id="env-p-morning">🌅 朝</button>
-    <button class="env-btn" onclick="setEnvPreset('evening')" data-env="evening" id="env-p-evening">🌇 夕方</button>
-    <button class="env-btn" onclick="setEnvPreset('night')"   data-env="night" id="env-p-night">🌃 夜</button>
-    <button class="env-btn" onclick="setEnvPreset('cloudy')"  data-env="cloudy" id="env-p-cloudy">☁ 曇り</button>
-    <button class="env-btn" onclick="setEnvPreset('rain')"    data-env="rain" id="env-p-rain">🌧 雨</button>
-    <button class="env-btn" onclick="setEnvPreset('overcast')" data-env="overcast" id="env-p-overcast">⛅ 薄曇</button>
-    <button class="env-btn" onclick="setEnvPreset('twilight')" data-env="twilight" id="env-p-twilight">🌌 黄昏</button>
+    <button class="sun-wx-btn" data-wx="clear"  id="sun-wx-clear"  data-i18n="sun-wx-clear"  onclick="onSunWeather('clear')">☀ 晴れ</button>
+    <button class="sun-wx-btn" data-wx="cloudy" id="sun-wx-cloudy" data-i18n="sun-wx-cloudy" onclick="onSunWeather('cloudy')">☁ 曇り</button>
+    <button class="sun-wx-btn" data-wx="rain"   id="sun-wx-rain"   data-i18n="sun-wx-rain"   onclick="onSunWeather('rain')">🌧 雨</button>
   </div>
-  <!-- Environment rotation slider removed: the dome's yaw was rarely useful
-       (splat scenes set their own world orientation, and the user can rotate
-       the camera instead). onEnvRotInput / _applyEnvRot remain exported so
-       any saved project that previously stored env.rot still restores
-       cleanly via the no-op DOM-write guards. -->
-  <div style="display:flex;align-items:center;gap:6px;font-size:.92em">
-    <label style="min-width:46px;color:#888" id="env-l-int">強度</label>
-    <input type="range" id="env-int" min="0" max="200" step="5" value="100"
-      oninput="onEnvIntInput(this.value)" style="flex:1;accent-color:#ffd49a">
-    <span id="env-int-val" style="min-width:36px;text-align:right;color:#aab">100%</span>
+
+  <!-- 日付 (カスタムカレンダー) -->
+  <div class="sun-sec-lbl" id="sun-l-date" data-i18n="sun-l-date">📅 日付</div>
+  <div style="display:flex;gap:5px;margin-bottom:6px;align-items:center">
+    <button id="sun-date-btn" class="sun-inp" style="flex:1;text-align:left;cursor:pointer" onclick="sunCalToggle()">————</button>
+    <button class="sun-btn" id="sun-btn-now" data-i18n="sun-btn-now" onclick="sunSetNow()">今</button>
+  </div>
+  <div id="sun-calendar" style="display:none;background:#15151a;border:1px solid rgba(255,255,255,.1);border-radius:6px;padding:8px;margin-bottom:10px"></div>
+
+  <!-- 時刻スクラブ -->
+  <div class="sun-sec-lbl" style="display:flex;justify-content:space-between">
+    <span id="sun-l-time" data-i18n="sun-l-time">🕐 時刻</span><span id="sun-time-val" style="color:#fc8">12:00</span>
+  </div>
+  <div style="position:relative;margin:2px 0 12px">
+    <input type="range" id="sun-time" min="0" max="1439" step="1" value="720"
+      oninput="onSunTime(this.value)" style="width:100%;accent-color:#ffd49a;display:block">
+    <div id="sun-scrub-marks" style="position:relative;height:8px;margin-top:1px">
+      <div id="sun-mark-rise" style="display:none;position:absolute;top:0;width:0;height:0;
+        border-left:4px solid transparent;border-right:4px solid transparent;border-top:6px solid #ffd49a;transform:translateX(-4px)" title="日の出"></div>
+      <div id="sun-mark-set" style="display:none;position:absolute;top:0;width:0;height:0;
+        border-left:4px solid transparent;border-right:4px solid transparent;border-top:6px solid #d88" title="日の入り"></div>
+    </div>
+  </div>
+
+  <!-- 北方位スライダーは廃止。代わりに 3D シーン内にコンパス＋太陽軌道を表示 -->
+  <div style="color:#777;font-size:.82em;margin-bottom:10px;line-height:1.4" id="sun-viz-hint"
+    data-i18n="sun-viz-hint">🧭 ビュー内に方位コンパスと一日の太陽軌道を表示中。北はシーンの固定軸（−Z）です。</div>
+
+  <!-- 読み出し -->
+  <div id="sun-readout" style="background:rgba(255,255,255,.04);border-radius:6px;padding:8px 10px;
+    display:grid;grid-template-columns:1fr 1fr;gap:4px 10px;font-size:.95em">
+    <div><span class="sun-rk" id="sun-rl-rise" data-i18n="sun-rl-rise">🌅 日の出</span> <b id="sun-r-rise">—</b></div>
+    <div><span class="sun-rk" id="sun-rl-set" data-i18n="sun-rl-set">🌇 日の入り</span> <b id="sun-r-set">—</b></div>
+    <div><span class="sun-rk" id="sun-rl-noon" data-i18n="sun-rl-noon">☀ 南中</span> <b id="sun-r-noon">—</b></div>
+    <div><span class="sun-rk" id="sun-rl-len" data-i18n="sun-rl-len">⏱ 昼の長さ</span> <b id="sun-r-len">—</b></div>
+    <div><span class="sun-rk" id="sun-rl-alt" data-i18n="sun-rl-alt">↕ 高度</span> <b id="sun-r-alt">—</b></div>
+    <div><span class="sun-rk" id="sun-rl-az" data-i18n="sun-rl-az">↗ 方位</span> <b id="sun-r-az">—</b></div>
   </div>
 </div>
 
 <style>
-#env-panel .env-btn{background:#1a1a1c;border:1px solid rgba(255,255,255,.1);
-  color:#888;border-radius:3px;padding:5px 0;font-size:.78em;cursor:pointer;
-  font-family:inherit;}
-#env-panel .env-btn.on{background:rgba(255,170,80,.2);border-color:rgba(255,170,80,.55);color:#fc8;}
-#btn-env.on{background:rgba(255,170,80,.18);border-color:rgba(255,170,80,.5);color:#fc8;}
+#sun-panel .sun-sec-lbl{color:#9a9a9a;font-size:.92em;margin-bottom:4px;font-weight:600}
+#sun-panel .sun-mini{display:block;color:#777;font-size:.85em;margin-bottom:2px}
+#sun-panel .sun-inp{background:#1a1a1c;border:1px solid rgba(255,255,255,.12);color:#cfcfcf;
+  border-radius:4px;padding:4px 5px;font-size:.95em;font-family:inherit;width:100%;box-sizing:border-box}
+#sun-panel .sun-btn{background:rgba(255,170,80,.18);border:1px solid rgba(255,170,80,.4);color:#fc8;
+  border-radius:4px;padding:4px 8px;cursor:pointer;font-family:inherit;font-size:.95em;white-space:nowrap}
+#sun-panel .sun-rk{color:#888}
+#sun-panel .sun-wx-btn{background:#1a1a1c;border:1px solid rgba(255,255,255,.1);color:#999;
+  border-radius:4px;padding:6px 0;font-size:.9em;cursor:pointer;font-family:inherit}
+#sun-panel .sun-wx-btn:hover{background:#26262a}
+#sun-panel .sun-wx-btn.on{background:rgba(120,180,255,.22);border-color:rgba(120,180,255,.6);color:#bdf}
+#sun-panel #sun-date-btn{font-family:inherit}
+#sun-panel .sun-cal-nav{background:none;border:none;color:#aaa;font-size:1em;cursor:pointer;padding:0 6px}
+#sun-panel .sun-cal-nav:hover{color:#fff}
+#sun-panel .sun-cal-d{background:#1a1a1c;border:1px solid transparent;border-radius:3px;
+  padding:3px 0;font-size:.9em;cursor:pointer;font-family:inherit}
+#sun-panel .sun-cal-d:hover{background:#2a2a2e}
+#sun-panel .sun-cal-d.today{border-color:rgba(255,200,90,.5)}
+#sun-panel .sun-cal-d.sel{background:rgba(255,200,90,.28);border-color:rgba(255,200,90,.7);color:#fff!important}
+#btn-sun.on{background:rgba(255,200,90,.2);border-color:rgba(255,200,90,.55);color:#fd9;}
 </style>
 
 <div id="minimap-float">
@@ -2783,7 +2879,7 @@ body.ar-active #dz{display:none !important;}
 
   <div class="cbar">
     <button id="btnCamTool" onclick="toggleCamTool()">📷 <span id="lbl-camtool">カメラ</span></button>
-    <button id="btn-env"    onclick="toggleEnvPanel()">🌅 <span id="lbl-env">環境</span></button>
+    <button id="btn-sun"    onclick="toggleSunMode()">☀ <span id="lbl-sun" data-i18n="lbl-sun">日照</span></button>
     <button id="btnMeasure" onclick="toggleMeasure()">📐 <span id="lbl-measure">測定</span></button>
     <button id="btnViewRec" onclick="toggleViewRecording()" title="ビューを MP4 で録画 / 停止">⏺ <span id="lbl-view-rec">録画</span></button>
     <button id="btnMinimap" onclick="toggleMinimapVisible()">🗺 <span id="lbl-minimap">マップ</span></button>
@@ -3536,6 +3632,11 @@ const ENV_PRESETS = {
               sceneTint:[0.85, 0.87, 0.90] },
   rain:     { zenith:[0.28,0.30,0.34], horizon:[0.46,0.48,0.50], ground:[0.25,0.27,0.30], int:1.0,
               sceneTint:[0.55, 0.62, 0.70] },
+  // 日照モード専用の動的プリセット。太陽高度に応じて updateSunMode() が
+  // 毎フレーム書き換える。手動プリセットと同じ機構（ドーム / sceneTint /
+  // 写真焼き込み）にそのまま乗るので、追加の特別扱いは不要。
+  __sun:    { zenith:[0.36,0.62,0.95], horizon:[0.85,0.92,1.00], ground:[0.55,0.55,0.55], int:1.0,
+              sceneTint:[1.00, 1.00, 1.00] },
 };
 const env = {
   preset: 'day',     // default to ☀ 昼 (was 'off') — applied at startup below
@@ -3556,6 +3657,11 @@ function _envBuildMesh(){
       uGround:    { value: new THREE.Color(0.55,0.55,0.55) },
       uYaw:       { value: 0.0 },
       uIntensity: { value: 1.0 },
+      // ── Sun disc (日照 mode) ──
+      uShowSun:   { value: 0.0 },                              // 0 = no sun (manual env), 1 = draw
+      uSunDir:    { value: new THREE.Vector3(0, 1, 0) },       // WORLD direction toward the sun
+      uSunColor:  { value: new THREE.Color(1.0, 0.95, 0.85) }, // disc + glow tint
+      uSunGlow:   { value: 1.0 },                              // glow strength (fades near/below horizon)
     },
     vertexShader: `
       varying vec3 vDir;
@@ -3574,6 +3680,10 @@ function _envBuildMesh(){
       uniform vec3 uHorizon;
       uniform vec3 uGround;
       uniform float uIntensity;
+      uniform float uShowSun;
+      uniform vec3  uSunDir;
+      uniform vec3  uSunColor;
+      uniform float uSunGlow;
       void main(){
         float y = vDir.y;
         vec3 col;
@@ -3583,6 +3693,21 @@ function _envBuildMesh(){
         } else {
           float t = pow(clamp(-y, 0.0, 1.0), 0.7);
           col = mix(uHorizon, uGround, t);
+        }
+        // ── 日照モード: 太陽方向への暖色グロー＋ディスク ──
+        // uShowSun=0（手動環境 or 太陽が地平線下）のとき完全に無効。
+        if(uShowSun > 0.5){
+          vec3  sd = normalize(uSunDir);
+          float md = max(dot(normalize(vDir), sd), 0.0);
+          // 太陽ディスク（角半径 ~0.5°相当）
+          float disc = smoothstep(0.99965, 0.99992, md);
+          // 周辺グロー: 鋭い芯 + 広いにじみ
+          float glow = pow(md, 230.0) * 0.85 + pow(md, 11.0) * 0.22;
+          // 低い太陽（地平線近く）ほどにじみを強める
+          float lowSun = smoothstep(0.35, -0.08, sd.y);
+          glow *= (0.55 + 0.85 * lowSun);
+          float sun = clamp((disc + glow * uSunGlow), 0.0, 1.0);
+          col = mix(col, uSunColor, sun);
         }
         gl_FragColor = vec4(col * uIntensity, 1.0);
       }
@@ -3602,7 +3727,10 @@ function _envBuildMesh(){
 }
 
 window.setEnvPreset = function(key){
+  // 手動でプリセットを選んだときだけ、日照の凍結表示を解除して key に置き換える。
+  // （日照ボタンOFFだけでは __sun が凍結保持され続け、ここで初めて上書きされる）
   const before = env.preset;
+  if(typeof sun !== 'undefined' && sun && sun.active) _setSunActive(false);
   _setEnvPresetCore(key);
   pushGenericUndo('env-preset', before, key, v=>{
     _setEnvPresetCore(v);
@@ -3610,6 +3738,8 @@ window.setEnvPreset = function(key){
 };
 function _setEnvPresetCore(key){
   env.preset = key;
+  // 手動プリセット/なし は太陽ディスクを持たない（日照モードは updateSunMode で再点灯）。
+  if(env.material) env.material.uniforms.uShowSun.value = 0;
   document.querySelectorAll('#env-panel .env-btn').forEach(b=>{
     b.classList.toggle('on', b.dataset.env === key);
   });
@@ -3712,6 +3842,505 @@ window.toggleEnvPanel = function(){
 // otherwise only take effect after the user clicked a button).
 try { _setEnvPresetCore('day'); } catch(_){}
 camera.position.copy(camPos);
+
+// ══════════════════════════════════════════════════
+//  日照 (SUN / DAYLIGHT) MODE
+// ══════════════════════════════════════════════════
+// サン・サーベイヤー的な「年月日時＋場所 → 太陽位置・日照時間」。
+// おおよその光のムード再現が目的（厳密な日影解析ではない）。
+// 既存の環境(env)ステートマシンに合流させ、太陽高度から動的プリセット
+// ENV_PRESETS.__sun を毎更新で書き換える。これにより sceneTint /
+// ドームシェーダー / 写真焼き込み がすべて無改造で機能する。
+// 太陽ディスク/グローは uShowSun/uSunDir/uSunColor/uSunGlow で描画。
+
+// ── インライン SunCalc (MIT, mourner/suncalc を圧縮) ──
+const SunCalc = (function(){
+  const PI=Math.PI, rad=PI/180, dayMs=86400000, J1970=2440588, J2000=2451545;
+  const e=rad*23.4397;
+  const toDays = d => (d.valueOf()/dayMs - 0.5 + J1970) - J2000;
+  const rightAscension = (l,b)=>Math.atan2(Math.sin(l)*Math.cos(e)-Math.tan(b)*Math.sin(e), Math.cos(l));
+  const declination    = (l,b)=>Math.asin(Math.sin(b)*Math.cos(e)+Math.cos(b)*Math.sin(e)*Math.sin(l));
+  const azimuth  = (H,phi,dec)=>Math.atan2(Math.sin(H), Math.cos(H)*Math.sin(phi)-Math.tan(dec)*Math.cos(phi));
+  const altitude = (H,phi,dec)=>Math.asin(Math.sin(phi)*Math.sin(dec)+Math.cos(phi)*Math.cos(dec)*Math.cos(H));
+  const siderealTime = (d,lw)=>rad*(280.16+360.9856235*d)-lw;
+  const solarMeanAnomaly = d=>rad*(357.5291+0.98560028*d);
+  const eclipticLongitude = M=>{const C=rad*(1.9148*Math.sin(M)+0.02*Math.sin(2*M)+0.0003*Math.sin(3*M)); return M+C+rad*102.9372+PI;};
+  const sunCoords = d=>{const M=solarMeanAnomaly(d), L=eclipticLongitude(M); return {dec:declination(L,0), ra:rightAscension(L,0), M, L};};
+  const J0=0.0009;
+  const julianCycle  = (d,lw)=>Math.round(d-J0-lw/(2*PI));
+  const approxTransit= (Ht,lw,n)=>J0+(Ht+lw)/(2*PI)+n;
+  const solarTransitJ= (ds,M,L)=>J2000+ds+0.0053*Math.sin(M)-0.0069*Math.sin(2*L);
+  const hourAngle    = (h,phi,d)=>Math.acos((Math.sin(h)-Math.sin(phi)*Math.sin(d))/(Math.cos(phi)*Math.cos(d)));
+  const fromJulian   = j=>new Date((j+0.5-J1970)*dayMs);
+  const TIMES=[[-0.833,'sunrise','sunset'],[-6,'dawn','dusk'],[-12,'nauticalDawn','nauticalDusk'],[-18,'nightEnd','night'],[6,'goldenHourEnd','goldenHour']];
+  return {
+    getPosition(date,lat,lng){
+      const lw=rad*-lng, phi=rad*lat, d=toDays(date), c=sunCoords(d), H=siderealTime(d,lw)-c.ra;
+      return {azimuth:azimuth(H,phi,c.dec), altitude:altitude(H,phi,c.dec)};
+    },
+    getTimes(date,lat,lng){
+      const lw=rad*-lng, phi=rad*lat, d=toDays(date), n=julianCycle(d,lw), ds=approxTransit(0,lw,n),
+            M=solarMeanAnomaly(ds), L=eclipticLongitude(M), dec=declination(L,0), Jnoon=solarTransitJ(ds,M,L),
+            res={solarNoon:fromJulian(Jnoon), nadir:fromJulian(Jnoon-0.5)};
+      for(const t of TIMES){
+        const w=hourAngle(t[0]*rad,phi,dec), Jset=solarTransitJ(approxTransit(w,lw,n),M,L);
+        res[t[2]]=fromJulian(Jset); res[t[1]]=fromJulian(Jnoon-(Jset-Jnoon));
+      }
+      return res;
+    }
+  };
+})();
+
+// ── 都市プリセット (lat, lng, tz=UTCオフセット時間) ──
+// 47都道府県（緯度経度=県庁所在地）。日本標準時=UTC+9固定。JIS順(北→南)。
+const SUN_CITIES = {
+  hokkaido:  { ja:'北海道',   en:'Hokkaido',   lat:43.06, lng:141.35, tz:9 },
+  aomori:    { ja:'青森県',   en:'Aomori',     lat:40.82, lng:140.74, tz:9 },
+  iwate:     { ja:'岩手県',   en:'Iwate',      lat:39.70, lng:141.15, tz:9 },
+  miyagi:    { ja:'宮城県',   en:'Miyagi',     lat:38.27, lng:140.87, tz:9 },
+  akita:     { ja:'秋田県',   en:'Akita',      lat:39.72, lng:140.10, tz:9 },
+  yamagata:  { ja:'山形県',   en:'Yamagata',   lat:38.24, lng:140.36, tz:9 },
+  fukushima: { ja:'福島県',   en:'Fukushima',  lat:37.75, lng:140.47, tz:9 },
+  ibaraki:   { ja:'茨城県',   en:'Ibaraki',    lat:36.34, lng:140.45, tz:9 },
+  tochigi:   { ja:'栃木県',   en:'Tochigi',    lat:36.57, lng:139.88, tz:9 },
+  gunma:     { ja:'群馬県',   en:'Gunma',      lat:36.39, lng:139.06, tz:9 },
+  saitama:   { ja:'埼玉県',   en:'Saitama',    lat:35.86, lng:139.65, tz:9 },
+  chiba:     { ja:'千葉県',   en:'Chiba',      lat:35.61, lng:140.12, tz:9 },
+  tokyo:     { ja:'東京都',   en:'Tokyo',      lat:35.69, lng:139.69, tz:9 },
+  kanagawa:  { ja:'神奈川県', en:'Kanagawa',   lat:35.45, lng:139.64, tz:9 },
+  niigata:   { ja:'新潟県',   en:'Niigata',    lat:37.90, lng:139.02, tz:9 },
+  toyama:    { ja:'富山県',   en:'Toyama',     lat:36.70, lng:137.21, tz:9 },
+  ishikawa:  { ja:'石川県',   en:'Ishikawa',   lat:36.59, lng:136.63, tz:9 },
+  fukui:     { ja:'福井県',   en:'Fukui',      lat:36.07, lng:136.22, tz:9 },
+  yamanashi: { ja:'山梨県',   en:'Yamanashi',  lat:35.66, lng:138.57, tz:9 },
+  nagano:    { ja:'長野県',   en:'Nagano',     lat:36.65, lng:138.18, tz:9 },
+  gifu:      { ja:'岐阜県',   en:'Gifu',       lat:35.42, lng:136.76, tz:9 },
+  shizuoka:  { ja:'静岡県',   en:'Shizuoka',   lat:34.98, lng:138.38, tz:9 },
+  aichi:     { ja:'愛知県',   en:'Aichi',      lat:35.18, lng:136.91, tz:9 },
+  mie:       { ja:'三重県',   en:'Mie',        lat:34.73, lng:136.51, tz:9 },
+  shiga:     { ja:'滋賀県',   en:'Shiga',      lat:35.00, lng:135.87, tz:9 },
+  kyoto:     { ja:'京都府',   en:'Kyoto',      lat:35.02, lng:135.76, tz:9 },
+  osaka:     { ja:'大阪府',   en:'Osaka',      lat:34.69, lng:135.52, tz:9 },
+  hyogo:     { ja:'兵庫県',   en:'Hyogo',      lat:34.69, lng:135.18, tz:9 },
+  nara:      { ja:'奈良県',   en:'Nara',       lat:34.69, lng:135.83, tz:9 },
+  wakayama:  { ja:'和歌山県', en:'Wakayama',   lat:34.23, lng:135.17, tz:9 },
+  tottori:   { ja:'鳥取県',   en:'Tottori',    lat:35.50, lng:134.24, tz:9 },
+  shimane:   { ja:'島根県',   en:'Shimane',    lat:35.47, lng:133.05, tz:9 },
+  okayama:   { ja:'岡山県',   en:'Okayama',    lat:34.66, lng:133.93, tz:9 },
+  hiroshima: { ja:'広島県',   en:'Hiroshima',  lat:34.40, lng:132.46, tz:9 },
+  yamaguchi: { ja:'山口県',   en:'Yamaguchi',  lat:34.19, lng:131.47, tz:9 },
+  tokushima: { ja:'徳島県',   en:'Tokushima',  lat:34.07, lng:134.56, tz:9 },
+  kagawa:    { ja:'香川県',   en:'Kagawa',     lat:34.34, lng:134.04, tz:9 },
+  ehime:     { ja:'愛媛県',   en:'Ehime',      lat:33.84, lng:132.77, tz:9 },
+  kochi:     { ja:'高知県',   en:'Kochi',      lat:33.56, lng:133.53, tz:9 },
+  fukuoka:   { ja:'福岡県',   en:'Fukuoka',    lat:33.61, lng:130.42, tz:9 },
+  saga:      { ja:'佐賀県',   en:'Saga',       lat:33.25, lng:130.30, tz:9 },
+  nagasaki:  { ja:'長崎県',   en:'Nagasaki',   lat:32.74, lng:129.87, tz:9 },
+  kumamoto:  { ja:'熊本県',   en:'Kumamoto',   lat:32.79, lng:130.74, tz:9 },
+  oita:      { ja:'大分県',   en:'Oita',       lat:33.24, lng:131.61, tz:9 },
+  miyazaki:  { ja:'宮崎県',   en:'Miyazaki',   lat:31.91, lng:131.42, tz:9 },
+  kagoshima: { ja:'鹿児島県', en:'Kagoshima',  lat:31.56, lng:130.56, tz:9 },
+  okinawa:   { ja:'沖縄県',   en:'Okinawa',    lat:26.21, lng:127.68, tz:9 },
+};
+
+// ── 高度→ムードのキーフレーム (alt は度) ──
+// z=zenith, h=horizon, g=ground, t=sceneTint。日の出/日の入りで朝(rise)/夕(set)を切替。
+const _SUN_KF = {
+  base: [
+    { a:-90, z:[0.02,0.02,0.08], h:[0.06,0.08,0.18], g:[0.04,0.04,0.06], t:[0.20,0.25,0.42] },
+    { a:-8 , z:[0.02,0.02,0.08], h:[0.06,0.08,0.18], g:[0.04,0.04,0.06], t:[0.20,0.25,0.42] },
+    { a:-4 , z:[0.10,0.10,0.30], h:[0.55,0.42,0.55], g:[0.12,0.12,0.18], t:[0.45,0.42,0.60] },
+  ],
+  rise: [
+    { a:0  , z:[0.30,0.30,0.52], h:[1.00,0.62,0.42], g:[0.22,0.18,0.20], t:[0.85,0.70,0.55] },
+    { a:6  , z:[0.45,0.58,0.82], h:[1.00,0.80,0.58], g:[0.42,0.40,0.38], t:[1.00,0.92,0.80] },
+  ],
+  set: [
+    { a:0  , z:[0.30,0.25,0.50], h:[1.00,0.48,0.30], g:[0.24,0.16,0.16], t:[0.92,0.60,0.42] },
+    { a:6  , z:[0.40,0.50,0.78], h:[1.00,0.62,0.40], g:[0.40,0.34,0.30], t:[1.00,0.78,0.58] },
+  ],
+  day: [
+    { a:20 , z:[0.40,0.62,0.92], h:[0.92,0.90,0.92], g:[0.52,0.52,0.50], t:[1.00,0.96,0.90] },
+    { a:50 , z:[0.36,0.62,0.95], h:[0.85,0.92,1.00], g:[0.55,0.55,0.55], t:[1.00,1.00,1.00] },
+  ],
+};
+function _sunLerp3(a,b,t){ return [ a[0]+(b[0]-a[0])*t, a[1]+(b[1]-a[1])*t, a[2]+(b[2]-a[2])*t ]; }
+function _sunPalette(altDeg, isEvening){
+  // キーフレーム列を組み立て (base → rise/set → day)
+  const kf = _SUN_KF.base.concat(isEvening ? _SUN_KF.set : _SUN_KF.rise, _SUN_KF.day);
+  let lo = kf[0], hi = kf[kf.length-1];
+  if(altDeg <= lo.a) hi = lo;
+  else if(altDeg >= hi.a) lo = hi;
+  else { for(let i=0;i<kf.length-1;i++){ if(altDeg>=kf[i].a && altDeg<=kf[i+1].a){ lo=kf[i]; hi=kf[i+1]; break; } } }
+  const span = (hi.a - lo.a) || 1;
+  const f = Math.max(0, Math.min(1, (altDeg - lo.a) / span));
+  return {
+    zenith:  _sunLerp3(lo.z, hi.z, f),
+    horizon: _sunLerp3(lo.h, hi.h, f),
+    ground:  _sunLerp3(lo.g, hi.g, f),
+    tint:    _sunLerp3(lo.t, hi.t, f),
+  };
+}
+// 太陽ディスク色 (低い太陽=濃いオレンジ → 高い太陽=ほぼ白) と グロー強度
+function _sunDiscColor(altDeg){
+  const kf=[ {a:-2,c:[1.00,0.42,0.18]},{a:6,c:[1.00,0.72,0.42]},{a:20,c:[1.00,0.92,0.78]},{a:45,c:[1.00,0.98,0.92]} ];
+  if(altDeg<=kf[0].a) return kf[0].c.slice();
+  if(altDeg>=kf[kf.length-1].a) return kf[kf.length-1].c.slice();
+  for(let i=0;i<kf.length-1;i++){ if(altDeg>=kf[i].a&&altDeg<=kf[i+1].a){ const f=(altDeg-kf[i].a)/((kf[i+1].a-kf[i].a)||1); return _sunLerp3(kf[i].c,kf[i+1].c,f);} }
+  return [1,1,1];
+}
+function _sunGlowStrength(altDeg){
+  if(altDeg<=0) return 1.45;
+  if(altDeg>=45) return 0.40;
+  if(altDeg<10) return 1.45 + (1.00-1.45)*(altDeg/10);
+  return 1.00 + (0.40-1.00)*((altDeg-10)/35);
+}
+
+// ── 日照状態 ──
+const sun = {
+  active: false,                // 操作モード(パネル/3D可視化が有効)。OFFでも空は凍結保持。
+  panelOpen: false,
+  city: 'tokyo',
+  lat: 35.69, lng: 139.69, tz: 9,   // デフォルト=東京（県庁所在地）
+  y: null, mo: null, d: null,   // 日付 (未設定なら今日)
+  timeMin: 12*60,               // 0..1439
+  weather: 'clear',             // 'clear' | 'cloudy' | 'rain' — 疑似HDRIに連動
+  _vizKey: '',                  // 太陽軌道の再構築判定 (日付/場所が変わったら作り直す)
+};
+(function _sunInitDate(){ const n=new Date(); sun.y=n.getFullYear(); sun.mo=n.getMonth()+1; sun.d=n.getDate(); sun.timeMin=n.getHours()*60+n.getMinutes(); })();
+
+// 選択中の現地壁時計時刻 → 絶対 Date(UTC基準) を構築
+function _sunDate(){
+  const hh=Math.floor(sun.timeMin/60), mm=sun.timeMin%60;
+  return new Date(Date.UTC(sun.y, sun.mo-1, sun.d, hh, mm) - sun.tz*3600000);
+}
+// 絶対Date → 現地壁時計の "HH:MM"
+function _sunFmtHM(dt){
+  if(!dt || isNaN(dt.getTime())) return '—';
+  const loc = new Date(dt.getTime() + sun.tz*3600000);
+  const h=loc.getUTCHours(), m=loc.getUTCMinutes();
+  return String(h).padStart(2,'0')+':'+String(m).padStart(2,'0');
+}
+
+// 日照モードの ON/OFF。
+// ON  : 空を日照シミュレーションにし、3D可視化(コンパス/軌道)を表示。
+// OFF : 操作モードを抜けるだけ。空(__sun)は「凍結表示」として継続し、3D可視化のみ隠す。
+//       手動で環境プリセットを選ぶ(setEnvPreset)までこの表示は維持される。
+function _setSunActive(on){
+  if(on === sun.active){ if(on) updateSunMode(); return; }
+  sun.active = on;
+  const btn = document.getElementById('btn-sun');
+  if(on){
+    env.preset = '__sun';
+    const mesh = _envBuildMesh();
+    mesh.visible = true; mesh.position.copy(camPos);
+    if(env.material) env.material.uniforms.uYaw.value = 0;   // 方位は uSunDir に内包
+    document.querySelectorAll('#env-panel .env-btn').forEach(b=>b.classList.remove('on'));
+    _sunVizBuild(); _sunVizSetVisible(true);
+    updateSunMode();
+    if(btn) btn.classList.add('on');
+    _sunLockEnvPanel(true);
+  } else {
+    // 空は凍結保持（uShowSun も env.preset='__sun' もそのまま）。3D可視化だけ隠す。
+    _sunVizSetVisible(false);
+    if(btn) btn.classList.remove('on');
+    _sunLockEnvPanel(false);
+    markDirty(6);
+  }
+}
+
+// 環境パネルに「日照モード中」の案内を表示（プリセット押下で手動復帰）
+function _sunLockEnvPanel(locked){
+  const note = document.getElementById('env-sun-lock');
+  if(note) note.style.display = locked ? 'block' : 'none';
+}
+
+// 指定時刻の太陽ワールド方向。北はシーン固定軸(−Z)。コンパス方位 az+π。
+function _sunWorldDir(date){
+  const pos = SunCalc.getPosition(date, sun.lat, sun.lng);
+  const worldAz = pos.azimuth + Math.PI;
+  const ca = Math.cos(pos.altitude);
+  return { dir:new THREE.Vector3(Math.sin(worldAz)*ca, Math.sin(pos.altitude), -Math.cos(worldAz)*ca),
+           alt:pos.altitude, az:pos.azimuth };
+}
+
+// 天気(疑似HDRI)変換: 晴天パレットを曇り/雨向けに変換。
+// 日照の高度駆動(昼夜の明暗)は pal に既に乗っているので維持される。
+function _applyWeather(pal, weather){
+  if(weather === 'clear') return pal;
+  const desat=(c,amt)=>{ const l=0.30*c[0]+0.59*c[1]+0.11*c[2];
+    return [c[0]+(l-c[0])*amt, c[1]+(l-c[1])*amt, c[2]+(l-c[2])*amt]; };
+  const mul=(c,m)=>[c[0]*m[0], c[1]*m[1], c[2]*m[2]];
+  if(weather === 'cloudy'){
+    // 灰色でフラット、わずかに寒色寄りに減光（一様な曇天）
+    const z=desat(pal.zenith,0.85), h=desat(pal.horizon,0.85), g=desat(pal.ground,0.80), t=desat(pal.tint,0.80);
+    const dim=[0.84,0.85,0.88];
+    return { zenith:mul(z,dim), horizon:mul(h,dim), ground:mul(g,dim), tint:mul(t,[0.90,0.92,0.95]) };
+  }
+  // rain: さらに暗く青灰色
+  const z=desat(pal.zenith,0.92), h=desat(pal.horizon,0.92), g=desat(pal.ground,0.88), t=desat(pal.tint,0.88);
+  const dim=[0.55,0.60,0.70];
+  return { zenith:mul(z,dim), horizon:mul(h,dim), ground:mul(g,dim), tint:mul(t,[0.62,0.68,0.78]) };
+}
+
+// 現在の sun.state から太陽位置/日照時間を計算し、ドーム・ティント・読み出し・3D可視化を更新
+function updateSunMode(){
+  if(!sun.active) return;
+  const date = _sunDate();
+  const w = _sunWorldDir(date);
+  const altDeg = w.alt * 180/Math.PI;
+  const dir = w.dir;
+
+  // 朝/夕の判定（南中前後）でパレットを切替
+  let times = null;
+  try { times = SunCalc.getTimes(date, sun.lat, sun.lng); } catch(_){}
+  const isEvening = times && !isNaN(times.solarNoon.getTime()) ? (date.getTime() > times.solarNoon.getTime()) : (sun.timeMin >= 12*60);
+
+  // 晴天パレット → 天気変換 → __sun プリセット書き換え → ドーム uniform + sceneTint
+  const pal = _applyWeather(_sunPalette(altDeg, isEvening), sun.weather);
+  const clear = (sun.weather === 'clear');
+  const P = ENV_PRESETS.__sun;
+  P.zenith=pal.zenith; P.horizon=pal.horizon; P.ground=pal.ground; P.sceneTint=pal.tint; P.int=1.0;
+  if(env.material){
+    const u=env.material.uniforms;
+    u.uZenith.value.setRGB(...pal.zenith);
+    u.uHorizon.value.setRGB(...pal.horizon);
+    u.uGround.value.setRGB(...pal.ground);
+    u.uIntensity.value = env.intensity;
+    // 太陽ディスク/グローは「晴れ」かつ地平線上のときだけ。曇り/雨は雲に隠れる想定で無効。
+    u.uShowSun.value = (clear && altDeg > -0.5) ? 1.0 : 0.0;
+    u.uSunDir.value.copy(dir);
+    u.uSunColor.value.setRGB(..._sunDiscColor(altDeg));
+    u.uSunGlow.value = _sunGlowStrength(altDeg);
+  }
+  applySceneTint();
+  _sunUpdateReadout(altDeg, w.az, times);
+  _sunVizUpdate(dir, times);   // 3D コンパス＋太陽軌道を更新
+  markDirty(6);
+}
+
+// 読み出しUI（日の出/南中/日の入り/昼の長さ/高度・方位）
+function _sunUpdateReadout(altDeg, azRad, times){
+  const set=(id,v)=>{ const el=document.getElementById(id); if(el) el.textContent=v; };
+  // コンパス方位（北=0、東回り、度）
+  let compass = ((azRad*180/Math.PI) + 180) % 360; if(compass<0) compass+=360;
+  set('sun-r-alt', altDeg.toFixed(1)+'°');
+  set('sun-r-az',  compass.toFixed(0)+'°');
+  if(times && !isNaN(times.sunrise.getTime()) && !isNaN(times.sunset.getTime())){
+    set('sun-r-rise', _sunFmtHM(times.sunrise));
+    set('sun-r-noon', _sunFmtHM(times.solarNoon));
+    set('sun-r-set',  _sunFmtHM(times.sunset));
+    const lenMs = times.sunset.getTime() - times.sunrise.getTime();
+    if(lenMs>0){ const h=Math.floor(lenMs/3600000), m=Math.round((lenMs%3600000)/60000); set('sun-r-len', h+'h'+String(m).padStart(2,'0')+'m'); }
+    else set('sun-r-len','—');
+  } else {
+    // 白夜/極夜: 高度が正なら終日昼、負なら終日夜
+    const polar = (window._lang==='en') ? (altDeg>0?'Polar day':'Polar night') : (altDeg>0?'終日昼（白夜）':'終日夜（極夜）');
+    set('sun-r-rise','—'); set('sun-r-noon', times?_sunFmtHM(times.solarNoon):'—'); set('sun-r-set','—'); set('sun-r-len', polar);
+  }
+  // 時刻ラベル
+  const hh=Math.floor(sun.timeMin/60), mm=sun.timeMin%60;
+  set('sun-time-val', String(hh).padStart(2,'0')+':'+String(mm).padStart(2,'0'));
+  // 日の出/日の入りスライダーマーカー
+  _sunUpdateScrubMarks(times);
+}
+function _sunUpdateScrubMarks(times){
+  const wrap=document.getElementById('sun-scrub-marks'); if(!wrap) return;
+  const place=(id,dt)=>{ const el=document.getElementById(id); if(!el) return;
+    if(!dt||isNaN(dt.getTime())){ el.style.display='none'; return; }
+    const loc=new Date(dt.getTime()+sun.tz*3600000); const min=loc.getUTCHours()*60+loc.getUTCMinutes();
+    el.style.display='block'; el.style.left=(min/1439*100)+'%';
+  };
+  place('sun-mark-rise', times&&times.sunrise);
+  place('sun-mark-set',  times&&times.sunset);
+}
+
+// ── DOM ハンドラ ──
+function _sunShowPanel(show){
+  sun.panelOpen = show;
+  const pan = document.getElementById('sun-panel');
+  if(pan) pan.style.display = show ? 'block' : 'none';
+  if(show) _sunSyncForm();
+}
+window.toggleSunMode = function(){
+  // 日照は「モード」。点灯中は他ツールを使っても照明は維持され、
+  // パネルは単なる操作面（隠れていても点灯は続く）。
+  if(!sun.active){
+    closeAllPanels();          // 他パネルを閉じてから
+    _setSunActive(true);       // 点灯
+    _sunShowPanel(true);       // 操作パネルを開く
+  } else if(!sun.panelOpen){
+    closeAllPanels();          // 点灯済みだがパネルが隠れている → 再表示
+    _sunShowPanel(true);
+  } else {
+    _sunShowPanel(false);      // 消灯
+    _setSunActive(false);
+  }
+};
+// ── フォーム/ハンドラ ──
+function _sunCoordsText(){
+  const c=SUN_CITIES[sun.city]; if(!c) return '—';
+  const en=window._lang==='en';
+  return en ? `Lat ${c.lat.toFixed(2)}° / Lng ${c.lng.toFixed(2)}°`
+            : `緯度 ${c.lat.toFixed(2)}° / 経度 ${c.lng.toFixed(2)}°`;
+}
+function _sunUpdateCoords(){ const el=document.getElementById('sun-coords'); if(el) el.textContent=_sunCoordsText(); }
+
+window.onSunCityChange = function(key){
+  const c=SUN_CITIES[key]; if(!c) return;
+  sun.city=key; sun.lat=c.lat; sun.lng=c.lng; sun.tz=c.tz;
+  _sunUpdateCoords();
+  updateSunMode();
+};
+window.onSunDate = function(val){
+  const m=/^(\d{4})-(\d{2})-(\d{2})$/.exec(val||''); if(!m) return;
+  sun.y=+m[1]; sun.mo=+m[2]; sun.d=+m[3]; _sunSyncForm(); updateSunMode();
+};
+window.onSunTime = function(val){ sun.timeMin=Math.max(0,Math.min(1439,+val)); updateSunMode(); };
+window.onSunWeather = function(wx){
+  if(wx!=='clear' && wx!=='cloudy' && wx!=='rain') return;
+  sun.weather = wx;
+  document.querySelectorAll('#sun-panel .sun-wx-btn').forEach(b=>b.classList.toggle('on', b.dataset.wx===wx));
+  updateSunMode();
+};
+window.sunSetNow = function(){
+  const n=new Date(); sun.y=n.getFullYear(); sun.mo=n.getMonth()+1; sun.d=n.getDate();
+  sun.timeMin=n.getHours()*60+n.getMinutes();
+  _sunSyncForm(); updateSunMode();
+};
+
+// ── カスタムカレンダー ──
+const _sunCalView = { y:null, mo:null };
+window.sunCalToggle = function(){
+  const cal=document.getElementById('sun-calendar'); if(!cal) return;
+  const open = cal.style.display==='none';
+  cal.style.display = open ? 'block' : 'none';
+  if(open){ _sunCalView.y=sun.y; _sunCalView.mo=sun.mo; _sunRenderCalendar(); }
+};
+window.sunCalNav = function(delta){
+  let m=_sunCalView.mo+delta, y=_sunCalView.y;
+  while(m<1){ m+=12; y--; } while(m>12){ m-=12; y++; }
+  _sunCalView.y=y; _sunCalView.mo=m; _sunRenderCalendar();
+};
+window.sunCalSelect = function(y,mo,d){
+  sun.y=y; sun.mo=mo; sun.d=d;
+  const cal=document.getElementById('sun-calendar'); if(cal) cal.style.display='none';
+  _sunSyncForm(); updateSunMode();
+};
+function _sunRenderCalendar(){
+  const cal=document.getElementById('sun-calendar'); if(!cal) return;
+  const y=_sunCalView.y, mo=_sunCalView.mo, en=window._lang==='en';
+  const MON = en ? ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec']
+                 : ['1月','2月','3月','4月','5月','6月','7月','8月','9月','10月','11月','12月'];
+  const WD  = en ? ['Su','Mo','Tu','We','Th','Fr','Sa'] : ['日','月','火','水','木','金','土'];
+  const first=new Date(y,mo-1,1).getDay(), days=new Date(y,mo,0).getDate(), t=new Date();
+  let h=`<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">
+    <button class="sun-cal-nav" onclick="sunCalNav(-1)">◀</button>
+    <strong style="color:#cfcfcf">${en?MON[mo-1]+' '+y:y+'年 '+MON[mo-1]}</strong>
+    <button class="sun-cal-nav" onclick="sunCalNav(1)">▶</button></div>
+    <div style="display:grid;grid-template-columns:repeat(7,1fr);gap:2px;text-align:center">`;
+  for(let i=0;i<7;i++) h+=`<div style="color:${i===0?'#e88':i===6?'#8ae':'#777'};font-size:.85em;padding:2px 0">${WD[i]}</div>`;
+  for(let i=0;i<first;i++) h+='<div></div>';
+  for(let d=1;d<=days;d++){
+    const sel=(y===sun.y&&mo===sun.mo&&d===sun.d), today=(y===t.getFullYear()&&mo===t.getMonth()+1&&d===t.getDate());
+    const dow=(first+d-1)%7, col=dow===0?'#e88':dow===6?'#8ae':'#cfcfcf';
+    h+=`<button class="sun-cal-d${sel?' sel':''}${today?' today':''}" style="color:${col}" onclick="sunCalSelect(${y},${mo},${d})">${d}</button>`;
+  }
+  cal.innerHTML=h+'</div>';
+}
+
+// sun.state → フォーム表示を同期
+function _sunSyncForm(){
+  const cs=document.getElementById('sun-city'); if(cs) cs.value=sun.city;
+  _sunUpdateCoords();
+  document.querySelectorAll('#sun-panel .sun-wx-btn').forEach(b=>b.classList.toggle('on', b.dataset.wx===sun.weather));
+  const db=document.getElementById('sun-date-btn');
+  if(db) db.textContent = sun.y+'-'+String(sun.mo).padStart(2,'0')+'-'+String(sun.d).padStart(2,'0');
+  const ts=document.getElementById('sun-time'); if(ts) ts.value=sun.timeMin;
+  const cal=document.getElementById('sun-calendar');
+  if(cal && cal.style.display!=='none'){ _sunCalView.y=sun.y; _sunCalView.mo=sun.mo; _sunRenderCalendar(); }
+}
+// 都市ドロップダウンを現在言語で翻訳（SUN_CITIES とDRY）。applyI18n から呼ぶ。
+function _sunApplyCityI18n(){
+  const lang = (window._lang==='en') ? 'en' : 'ja';
+  const sel = document.getElementById('sun-city');
+  if(sel){ for(const opt of sel.options){ const c=SUN_CITIES[opt.value]; if(c) opt.textContent=c[lang]; } }
+  _sunUpdateCoords();
+  const cal=document.getElementById('sun-calendar');
+  if(cal && cal.style.display!=='none') _sunRenderCalendar();
+}
+
+// ══════════════════════════════════════════════════
+//  日照 3D 可視化: 方位コンパス＋一日の太陽軌道（サン・サーベイヤー風）
+// ══════════════════════════════════════════════════
+// camPos 中心の半径 R 球面上に、地平コンパス円・N/E/S/W ラベル・太陽軌道
+// （全周=薄/地平線上=明）・日の出/南中/日の入り/現在のマーカーを配置。
+// depthTest 無効でビュー上に常に重畳。group は render loop で camPos 追従。
+const sunViz = { group:null, ring:null, path:null, arc:null, cur:null, mRise:null, mNoon:null, mSet:null, labels:[], built:false, R:400 };
+function _sunMakeLabel(text,color){
+  const cv=document.createElement('canvas'); cv.width=cv.height=64; const x=cv.getContext('2d');
+  x.fillStyle=color; x.font='bold 46px sans-serif'; x.textAlign='center'; x.textBaseline='middle';
+  x.fillText(text,32,34);
+  const sp=new THREE.Sprite(new THREE.SpriteMaterial({map:new THREE.CanvasTexture(cv),depthTest:false,depthWrite:false,transparent:true}));
+  sp.renderOrder=9002; sp.scale.setScalar(sunViz.R*0.085); return sp;
+}
+function _sunMakeDot(color,mul=1){
+  const cv=document.createElement('canvas'); cv.width=cv.height=64; const x=cv.getContext('2d');
+  const g=x.createRadialGradient(32,32,0,32,32,30); g.addColorStop(0,'#ffffff'); g.addColorStop(0.35,color); g.addColorStop(1,'rgba(0,0,0,0)');
+  x.fillStyle=g; x.fillRect(0,0,64,64);
+  const sp=new THREE.Sprite(new THREE.SpriteMaterial({map:new THREE.CanvasTexture(cv),depthTest:false,depthWrite:false,transparent:true}));
+  sp.renderOrder=9003; sp.scale.setScalar(sunViz.R*0.05*mul); return sp;
+}
+function _sunVizBuild(){
+  if(sunViz.built) return;
+  const R=sunViz.R, g=new THREE.Group(); g.frustumCulled=false;
+  // 地平コンパス円 (y=0)
+  const rp=[]; for(let i=0;i<=128;i++){ const a=i/128*Math.PI*2; rp.push(new THREE.Vector3(Math.sin(a)*R,0,-Math.cos(a)*R)); }
+  sunViz.ring=new THREE.Line(new THREE.BufferGeometry().setFromPoints(rp),
+    new THREE.LineBasicMaterial({color:0x66ccff,transparent:true,opacity:0.35,depthTest:false,depthWrite:false}));
+  sunViz.ring.renderOrder=9000; sunViz.ring.frustumCulled=false; g.add(sunViz.ring);
+  // 方位ラベル (北=-Z, 東=+X, 南=+Z, 西=-X)
+  for(const [t,A,c] of [['N',0,'#ff6a6a'],['E',90,'#cfe6ff'],['S',180,'#cfe6ff'],['W',270,'#cfe6ff']]){
+    const sp=_sunMakeLabel(t,c), ar=A*Math.PI/180;
+    sp.position.set(Math.sin(ar)*R,0,-Math.cos(ar)*R); g.add(sp); sunViz.labels.push(sp);
+  }
+  // 太陽軌道: 全周(薄) ＋ 地平線上(明)
+  sunViz.path=new THREE.Line(new THREE.BufferGeometry(),
+    new THREE.LineBasicMaterial({color:0x8899aa,transparent:true,opacity:0.40,depthTest:false,depthWrite:false}));
+  sunViz.path.renderOrder=9001; sunViz.path.frustumCulled=false; g.add(sunViz.path);
+  sunViz.arc=new THREE.Line(new THREE.BufferGeometry(),
+    new THREE.LineBasicMaterial({color:0xffd24a,transparent:true,opacity:0.95,depthTest:false,depthWrite:false}));
+  sunViz.arc.renderOrder=9001; sunViz.arc.frustumCulled=false; g.add(sunViz.arc);
+  // マーカー
+  sunViz.mRise=_sunMakeDot('#ffd49a'); sunViz.mNoon=_sunMakeDot('#fff0b0');
+  sunViz.mSet=_sunMakeDot('#ff9a6a'); sunViz.cur=_sunMakeDot('#ffffff',1.7);
+  g.add(sunViz.mRise); g.add(sunViz.mNoon); g.add(sunViz.mSet); g.add(sunViz.cur);
+  g.visible=false; scene.add(g); sunViz.group=g; sunViz.built=true;
+}
+function _sunVizSetVisible(v){ if(sunViz.group){ sunViz.group.visible=v; markDirty(6); } }
+function _sunVizUpdate(curDir, times){
+  if(!sunViz.built) return;
+  const R=sunViz.R;
+  // 軌道は日付/場所が変わったときだけ作り直す
+  const key=`${sun.y}-${sun.mo}-${sun.d}-${sun.lat}-${sun.lng}`;
+  if(key!==sun._vizKey){
+    sun._vizKey=key;
+    const full=[], above=[];
+    for(let m=0;m<=1440;m+=8){
+      const d=new Date(Date.UTC(sun.y,sun.mo-1,sun.d,0,0)+m*60000 - sun.tz*3600000);
+      const w=_sunWorldDir(d), p=w.dir.clone().multiplyScalar(R);
+      full.push(p); if(w.alt>=0) above.push(p);
+    }
+    sunViz.path.geometry.dispose(); sunViz.path.geometry=new THREE.BufferGeometry().setFromPoints(full);
+    sunViz.arc.geometry.dispose();  sunViz.arc.geometry =new THREE.BufferGeometry().setFromPoints(above);
+  }
+  const place=(sp,dt)=>{ if(!sp) return; if(!dt||isNaN(dt.getTime())){ sp.visible=false; return; }
+    sp.visible=true; sp.position.copy(_sunWorldDir(dt).dir.multiplyScalar(R)); };
+  place(sunViz.mRise, times&&times.sunrise);
+  place(sunViz.mNoon, times&&times.solarNoon);
+  place(sunViz.mSet,  times&&times.sunset);
+  if(sunViz.cur && curDir){ sunViz.cur.visible=true; sunViz.cur.position.copy(curDir.clone().multiplyScalar(R)); }
+}
 
 // ── Orthographic camera ──
 let _useOrtho = false;
@@ -4689,6 +5318,12 @@ function closeAllPanels(){
     env.panelOpen = false;
     const _ep = document.getElementById('env-panel'); if(_ep) _ep.style.display = 'none';
     const _eb = document.getElementById('btn-env');   if(_eb) _eb.classList.remove('on');
+  }
+  // 日照(Sun)パネル: 他ツールを開いたら隠すだけ（モード=照明は維持）。
+  // 環境プリセットがパネルを閉じても適用され続けるのと同じ挙動。
+  if(typeof sun !== 'undefined' && sun && sun.panelOpen){
+    sun.panelOpen = false;
+    const _sp = document.getElementById('sun-panel'); if(_sp) _sp.style.display = 'none';
   }
   // Minimap big-view
   if(typeof _mmUserVisible !== 'undefined' && _mmUserVisible){
@@ -11494,6 +12129,8 @@ function applyI18n(){
     const k=el.getAttribute('data-i18n');
     el.innerHTML=T(k);
   });
+  // 日照パネルの都市ドロップダウンを言語に合わせて翻訳
+  if(typeof _sunApplyCityI18n==='function') _sunApplyCityI18n();
   // HUD labels
   ['lbl-pos','lbl-spd','lbl-rot','lbl-measure','lbl-flip','lbl-addobj','lbl-quality','lbl-settings','lbl-file','lbl-cam-reset','lbl-minimap','lbl-camtool','lbl-env','lbl-help','orient-lock-msg','orient-lock-sub','lbl-addobj-top','lbl-addfig-top','tb-save-lbl','tb-load-lbl','tb-report-lbl','fp-btn-import-lbl','fp-btn-export-lbl','csp-shot-info','csp-cam-info','csp-meta-info','csp-shot-name','csp-rig','csp-env','csp-note','csp-capture','csp-burnin','csp-burnin-grid','csp-capture-btn','csp-salvage','csp-salvage-drop','csp-salvage-sub','ct-tool','ct-lens','ct-focal','ct-sensor','ct-sensor-ff','ct-sensor-apsc','ct-sensor-apsh','ct-sensor-mft','ct-sensor-1inch','ct-sensor-phone13','ct-sensor-phone17','ct-sensor-phone23','ct-sensor-m65','ct-sensor-s35','ct-sensor-bm','ct-sensor-cust','ct-sensor-w','ct-sensor-h','ct-cam-angle','ct-pan','ct-tilt','ct-roll','ct-roll-level','ct-wb','ct-wb-temp','ct-aspect','ct-aspect-sensor','ct-aspect-cust','ct-aspect-apply','ct-margin','ct-grid','ct-grid-multi','ct-grid-guide','ct-grid-off','ct-grid-thirds','ct-grid-golden','ct-grid-cross','ct-grid-diag','ct-grid-safe-cust','ct-grid-action','ct-grid-title','ct-grid-center','ct-grid-custom','ct-grid-cols','ct-grid-rows','ct-grid-opacity','dz-manual-text','dz-ar-label','env-h-title','env-p-off','env-p-day','env-p-morning','env-p-evening','env-p-night','env-p-cloudy','env-p-rain','env-p-overcast','env-p-twilight','env-l-rot','env-l-int','msr-active-lbl','msr-end-lbl','lp-h-scene','lp-empty','qt-title','qt-low','qt-mid','qt-high','qp-perf-t','qp-l-frame','qp-l-gpu','qp-l-head','qp-l-dc','qp-l-tris','qp-l-geos','qp-l-texs','dist-l','msr-clear','msr-undo','em-3dgs','em-3dgs-d','em-zip-save','em-zip-save-d','em-zip-load','em-zip-load-d','em-json','em-json-d','em-glb','em-glb-d','em-obj','em-obj-d','em-cancel','em-recommended','em-h-title','qp-settings-t','qp-lbl-lowpoly-main','qp-lbl-lowpoly-hint','mm-big-title','mm-big-hint','qp-lbl-grid','qp-lbl-show','qp-lbl-fov','qp-lbl-spd','cl-title','cl-sub','cl-tag-init','cl-tag-v003','lbl-walk','lbl-save-camera','lbl-view-rec','lbl-view-rec-phone','lbl-cam-anim','giz-pt-a','giz-pt-b','giz-pt-c','giz-height-lbl','height-l','csp-jpeg-q','csp-4k-lbl','obj-add-cube','obj-add-sphere','obj-add-light','obj-add-event','msr-end-lbl-init'].forEach(id=>{
     const el=document.getElementById(id); if(el) el.textContent=T(id);
@@ -14796,6 +15433,8 @@ function animate(now) {
   if(cam.active) updateCamHud();
   // Keep the env dome centered on the camera so it never reveals its boundary
   if(env.mesh && env.mesh.visible) env.mesh.position.copy(camPos);
+  // 日照3D可視化(コンパス/太陽軌道)も camPos 追従させ、常にビュー中心の球面に保つ
+  if(typeof sunViz !== 'undefined' && sunViz.group && sunViz.group.visible) sunViz.group.position.copy(camPos);
 
   // -- Billboard (event objects face camera) --
   // Gated on a counter that's only > 0 when an event-layer with isBillboard
@@ -15219,12 +15858,14 @@ async function loadFromURL(url, displayName){
       mainL._streamUrl = url;
       // Demo scene (交差点) ships slightly below the grid floor and a touch
       // off-axis, so when we autoload it apply the curated transform the
-      // gizmo panel shows (Pos Y 1.5, Rot Y 12°). Gate strictly on the demo
-      // URL/label so user-supplied .rad URLs keep their identity transform.
+      // gizmo panel shows (Pos Y 1.5, Rot Y -168°). The -168° yaw aligns the
+      // scene's real-world bearing with the 日照(Sun) compass north. Gate
+      // strictly on the demo URL/label so user-supplied .rad URLs keep their
+      // identity transform.
       if(typeof DEMO_SCENE_URL !== 'undefined' && (url === DEMO_SCENE_URL || displayName === DEMO_SCENE_LABEL)){
-        mainL.pos   = { x:0, y:1.5, z:0 };
-        mainL.rot   = { x:0, y:12,  z:0 };
-        mainL.scale = { x:1, y:1,   z:1 };
+        mainL.pos   = { x:0, y:1.5,   z:0 };
+        mainL.rot   = { x:0, y:-168,  z:0 };
+        mainL.scale = { x:1, y:1,     z:1 };
         if(typeof applyLayerTransform === 'function') applyLayerTransform(mainL.id);
         if(typeof renderTransformPanel === 'function') renderTransformPanel();
       }
@@ -17309,6 +17950,16 @@ Object.assign(I18N.ja,{
   'lbl-minimap':'マップ',
   'lbl-camtool':'カメラ',
   'lbl-env':'環境',
+  'lbl-sun':'日照',
+  'sun-h-title':'日照シミュレーション',
+  'sun-l-loc':'📍 場所（都道府県）',
+  'sun-l-weather':'🌤 天気','sun-wx-clear':'☀ 晴れ','sun-wx-cloudy':'☁ 曇り','sun-wx-rain':'🌧 雨',
+  'sun-l-date':'📅 日付','sun-btn-now':'今',
+  'sun-l-time':'🕐 時刻',
+  'sun-viz-hint':'🧭 ビュー内に方位コンパスと一日の太陽軌道を表示中。北はシーンの固定軸（−Z）です。',
+  'sun-rl-rise':'🌅 日の出','sun-rl-set':'🌇 日の入り','sun-rl-noon':'☀ 南中',
+  'sun-rl-len':'⏱ 昼の長さ','sun-rl-alt':'↕ 高度','sun-rl-az':'↗ 方位',
+  'sun-city-custom':'カスタム','env-sun-lock-txt':'日照モード中 — プリセットを押すと手動に戻ります',
   'lbl-addobj-top':'オブジェクト追加',
   'lbl-addfig-top':'フィギュア追加',
   'csp-shot-info':'ショット情報',
@@ -17562,6 +18213,16 @@ Object.assign(I18N.en,{
   'lbl-minimap':'Map',
   'lbl-camtool':'Camera',
   'lbl-env':'Env',
+  'lbl-sun':'Sun',
+  'sun-h-title':'Sun / Daylight',
+  'sun-l-loc':'📍 Location (Prefecture)',
+  'sun-l-weather':'🌤 Weather','sun-wx-clear':'☀ Clear','sun-wx-cloudy':'☁ Cloudy','sun-wx-rain':'🌧 Rain',
+  'sun-l-date':'📅 Date','sun-btn-now':'Now',
+  'sun-l-time':'🕐 Time',
+  'sun-viz-hint':'🧭 Compass and the day\'s sun path are shown in the view. North is the scene\'s fixed axis (−Z).',
+  'sun-rl-rise':'🌅 Sunrise','sun-rl-set':'🌇 Sunset','sun-rl-noon':'☀ Solar noon',
+  'sun-rl-len':'⏱ Day length','sun-rl-alt':'↕ Altitude','sun-rl-az':'↗ Azimuth',
+  'sun-city-custom':'Custom','env-sun-lock-txt':'Sun mode active — pick a preset to return to manual',
   'lbl-addobj-top':'Add Object',
   'lbl-addfig-top':'Add Figure',
   'csp-shot-info':'Shot Info',
