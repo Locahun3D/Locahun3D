@@ -4181,17 +4181,19 @@ function _sunUpdateScrubMarks(times){
 }
 
 // ── DOM ハンドラ ──
-// 日照パネルの位置: カメラツール起動中だけ画面左下、それ以外は右下。
-// （カメラパネルは右サイドバーなので、起動中は左下にして重なりを避ける。
-//   通常時は右下。）
+// 日照パネルの位置: 常に左サイドバー(シーンレイヤー)の右隣に寄せて配置
+// （リサイズ/折りたたみに追従）。カメラパネルは右サイドバーなので左側に置く。
+// ミニマップ(#mm-expanded)も同じ場所なので、両者は排他表示にしている。
 function _sunUpdatePanelPos(){
   const pan = document.getElementById('sun-panel'); if(!pan) return;
-  const camActive = (typeof cam !== 'undefined' && cam && cam.active);
-  if(camActive){
-    pan.style.left = '14px'; pan.style.right = 'auto'; pan.style.transform = 'none';
-  } else {
-    pan.style.left = 'auto'; pan.style.right = '14px'; pan.style.transform = 'none';
+  // 左サイドバーの右端 + 余白。サイドバーが無い/隠れているときは左端14px。
+  let leftPx = 14;
+  const lp = document.getElementById('layer-panel');
+  if(lp && getComputedStyle(lp).display !== 'none'){
+    const r = lp.getBoundingClientRect();
+    if(r.width > 4) leftPx = Math.round(r.right + 12);
   }
+  pan.style.left = leftPx + 'px'; pan.style.right = 'auto'; pan.style.transform = 'none';
 }
 function _sunShowPanel(show){
   sun.panelOpen = show;
@@ -4200,8 +4202,12 @@ function _sunShowPanel(show){
   if(show){ _sunUpdatePanelPos(); _sunSyncForm(); }
 }
 window.toggleSunMode = function(){
-  // 日照は独立トグル。他パネル(カメラ等)を閉じずに開閉でき、同時操作できる。
+  // 日照は独立トグル（カメラ等とは同時操作OK）。ただしミニマップ(マップ表示)とは
+  // 同じ場所に出るので排他: 日照を開くならマップを閉じる。
   if(!sun.active){
+    if(typeof _mmUserVisible !== 'undefined' && _mmUserVisible && typeof window.toggleMinimapVisible === 'function'){
+      window.toggleMinimapVisible();   // マップを閉じる
+    }
     _setSunActive(true);   // 点灯
     _sunShowPanel(true);   // 操作パネルを開く
   } else {
@@ -17635,6 +17641,12 @@ window.toggleMinimapVisible=function(){
   const wasVisible = _mmUserVisible;
   // Mutual-exclusion: opening マップ closes 測定 / カメラ / 環境 / 画質.
   if(!wasVisible) closeAllPanels();
+  // 日照UI(#sun-panel)はミニマップ(#mm-expanded)と同じ場所に出るので排他:
+  // マップを開くなら日照を閉じる（空は凍結保持される）。
+  if(!wasVisible && typeof sun !== 'undefined' && sun && sun.active){
+    if(typeof _sunShowPanel === 'function') _sunShowPanel(false);
+    if(typeof _setSunActive === 'function') _setSunActive(false);
+  }
   _mmUserVisible = !wasVisible;
   const ex=document.getElementById('mm-expanded');
   const btn=document.getElementById('btnMinimap');
