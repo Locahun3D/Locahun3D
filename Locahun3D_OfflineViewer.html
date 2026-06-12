@@ -1135,7 +1135,7 @@ body{position:fixed;top:0;left:0;}
      日照モードが内部で利用するため JS 側にそのまま残している（UI だけ撤去）。 -->
 
 <!-- ☀ 日照 (Sun / Daylight) panel -->
-<div id="sun-panel" style="position:fixed;bottom:64px;left:50%;transform:translateX(-50%);z-index:91;
+<div id="sun-panel" style="position:fixed;bottom:64px;right:14px;z-index:91;
   background:rgba(26,26,28,.97);border:1px solid rgba(255,255,255,.1);
   border-radius:10px;padding:14px;width:286px;max-height:72vh;overflow-y:auto;
   color:#d0d0d0;font-size:.78em;font-family:ui-sans-serif,system-ui,sans-serif;
@@ -4181,11 +4181,23 @@ function _sunUpdateScrubMarks(times){
 }
 
 // ── DOM ハンドラ ──
+// 日照パネルの位置: カメラツール起動中だけ画面左下、それ以外は右下。
+// （カメラパネルは右サイドバーなので、起動中は左下にして重なりを避ける。
+//   通常時は右下。）
+function _sunUpdatePanelPos(){
+  const pan = document.getElementById('sun-panel'); if(!pan) return;
+  const camActive = (typeof cam !== 'undefined' && cam && cam.active);
+  if(camActive){
+    pan.style.left = '14px'; pan.style.right = 'auto'; pan.style.transform = 'none';
+  } else {
+    pan.style.left = 'auto'; pan.style.right = '14px'; pan.style.transform = 'none';
+  }
+}
 function _sunShowPanel(show){
   sun.panelOpen = show;
   const pan = document.getElementById('sun-panel');
   if(pan) pan.style.display = show ? 'block' : 'none';
-  if(show) _sunSyncForm();
+  if(show){ _sunUpdatePanelPos(); _sunSyncForm(); }
 }
 window.toggleSunMode = function(){
   // 日照は独立トグル。他パネル(カメラ等)を閉じずに開閉でき、同時操作できる。
@@ -5331,6 +5343,8 @@ function closeAllPanels(){
       camera.aspect = innerWidth / Math.max(1, innerHeight);
       camera.updateProjectionMatrix();
     }
+    // カメラを閉じたので、開いている日照パネルは右下へ戻す
+    if(typeof _sunUpdatePanelPos === 'function') _sunUpdatePanelPos();
     markDirty(4);
   }
   // Env panel (note: env preset stays applied — we only hide the panel)
@@ -6159,6 +6173,8 @@ window.toggleCamTool = function(){
     camera.updateProjectionMatrix();
     markDirty(4);
   }
+  // 日照パネルの位置をカメラ状態に追従（起動中=中央下 / それ以外=右下）
+  if(typeof _sunUpdatePanelPos === 'function') _sunUpdatePanelPos();
 };
 
 window.addEventListener('resize', ()=>{ if(cam.active) layoutCamFrame(); });
