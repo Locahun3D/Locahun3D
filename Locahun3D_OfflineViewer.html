@@ -3506,7 +3506,13 @@ scene = new THREE.Scene();
 // inside SplatMesh itself. Without this, SplatMesh instances are present in
 // the scene graph but never get drawn (renderer.info.render.calls stays 0
 // because Spark's accumulator never executes).
-const sparkRenderer = new SparkRenderer({ renderer });
+// numLodFetchers: RAD(paged)チャンクの並列フェッチ数。Spark既定は 3 で、
+// R2 等の高遅延配信では「視点を向けた先の高LOD化が遅い(>1秒)」の主因だった
+// （実測: 120ms/chunk 模擬でフル解像 fetchers3=5.6s → 12=3.0s、本番R2の
+//  HTTP/2 多重化では更に効く）。共有 SplatPager に渡り全RADに適用される。
+// モバイルは従量/帯域に配慮して控えめ。
+const _numLodFetchers = isMobile ? 6 : 12;
+const sparkRenderer = new SparkRenderer({ renderer, numLodFetchers: _numLodFetchers });
 scene.add(sparkRenderer);
 
 // ── Spark file-type lookup (extension → SplatFileType enum) ──
@@ -6719,6 +6725,15 @@ const camAnim = {
                      // inverted the user's intuition where a bigger
                      // number ought to mean a faster shot.)
   playing: false,
+  // Warm-up before RECORDING starts. A fresh jump to key 0 leaves Spark at a
+  // coarse LOD/SH level; recording immediately bakes those low-detail frames
+  // into the MP4. We snap to key 0, keep the splat sort / LoD walker running
+  // for this many ms, and only THEN start the recorder + animation so the very
+  // first recorded frame is already full-detail. Tunable; 1000 ms per request.
+  warmupMs: 1000,
+  warming: false,    // true while the pre-record warm-up countdown is running
+  warmTimer: 0,      // setTimeout id for the warm-up → start-recording handoff
+  warmNudgeId: 0,    // setInterval id that keeps the LoD walker paging in detail
   rafId: 0,
   timeoutId: 0,      // setTimeout fallback that drives the tick when rAF
                      // is throttled by Chrome's compositor under heavy
@@ -6743,11 +6758,13 @@ const camAnim = {
   visualGroup:  null,
 };
 
-// 1-D Catmull-Rom (centripetal-uniform, tension 0.5) over a scalar
-// array. u is a global 0..1 across all keys, NOT a per-segment param —
-// matches how we sample arc-length-parameterised position curves so
-// scalar fields stay phase-aligned with position even when keys are
-// spaced unevenly.
+// 1-D Catmull-Rom (uniform, tension 0.5) over a scalar array. The param is
+// a global 0..1 across all keys parameterised UNIFORMLY in key index
+// (f = param*(n-1)), i.e. the same convention as THREE's getPoint(t) — NOT
+// the arc-length getPointAt(u). Callers that also sample an arc-length
+// position curve MUST first convert u→t via posCurve.getUtoTmapping(u) and
+// pass that t here, otherwise orientation phase-shifts away from position
+// on unevenly-spaced keys (see _camAnimSampleAt).
 function _catRom1D(arr, u){
   const n = arr.length;
   if(n === 0) return 0;
@@ -6854,22 +6871,33 @@ function _camAnimSampleAt(t){
   // along the curve even though Catmull-Rom's native parameterisation is
   // not arc-length linear.
   const u   = t / camAnim.totalSec;
-  const p   = camAnim.posCurve.getPointAt(u);
+  // CRITICAL: getPointAt(u) is ARC-LENGTH parameterised, but _catRom1D()
+  // below is parameterised UNIFORMLY in key index (f = param*(n-1)). Passing
+  // the arc-length u straight into _catRom1D phase-shifts the ORIENTATION
+  // relative to the POSITION whenever keys are unevenly spaced: the camera
+  // sits in segment B while still looking with segment A's yaw/pitch, so the
+  // fly-through "looks the wrong way" mid-flight even though the positional
+  // path is correct. Convert u to the curve's native (uniform-segment)
+  // parameter `tc` so position and every scalar field sample in lockstep.
+  // getPoint(tc) === getPointAt(u) by definition, so the position the user
+  // already likes is unchanged.
+  const tc  = camAnim.posCurve.getUtoTmapping(u);
+  const p   = camAnim.posCurve.getPoint(tc);
   const sa  = camAnim._scalarArr;
   // sensor key is discrete (a string id), nearest-key wins.
-  const nearestIdx = Math.max(0, Math.min(n - 1, Math.round(u * (n - 1))));
+  const nearestIdx = Math.max(0, Math.min(n - 1, Math.round(tc * (n - 1))));
   return {
     pos:    { x: p.x, y: p.y, z: p.z },
-    yaw:    _catRom1D(camAnim._yawUnrolled, u),
-    pitch:  _catRom1D(sa.pitch,  u),
-    roll:   _catRom1D(sa.roll,   u),
-    fov:    _catRom1D(sa.fov,    u),
-    focal:  _catRom1D(sa.focal,  u),
-    aspect: _catRom1D(sa.aspect, u),
+    yaw:    _catRom1D(camAnim._yawUnrolled, tc),
+    pitch:  _catRom1D(sa.pitch,  tc),
+    roll:   _catRom1D(sa.roll,   tc),
+    fov:    _catRom1D(sa.fov,    tc),
+    focal:  _catRom1D(sa.focal,  tc),
+    aspect: _catRom1D(sa.aspect, tc),
     sensor: camAnim.keys[nearestIdx].sensor,
-    sw:     _catRom1D(sa.sw,     u),
-    sh:     _catRom1D(sa.sh,     u),
-    margin: _catRom1D(sa.margin, u),
+    sw:     _catRom1D(sa.sw,     tc),
+    sh:     _catRom1D(sa.sh,     tc),
+    margin: _catRom1D(sa.margin, tc),
   };
 }
 
@@ -7227,46 +7255,80 @@ window.camAnimRecordExport = function(){
   // Hide the 3D path/marker visuals so they don't appear in the
   // captured MP4 — they're an editing aid, not part of the final shot.
   _camAnimSetVisualsVisible(false);
-  // Start the existing canvas recorder; it writes a file on stop().
-  window.startViewRecording();
+
+  // ── WARM-UP ────────────────────────────────────────────────────────────
+  // Snap to key 0 and let Spark settle to full LOD/SH BEFORE the recorder
+  // turns on, so the first recorded frame isn't the coarse just-jumped state.
+  // The recorder + animation start only after camAnim.warmupMs has elapsed.
   _camAnimApplySample(camAnim.keys[0]);
-  camAnim.playing   = true;
-  camAnim.startedAt = performance.now();
-  // Dual-driver (rAF + setTimeout backup + hard-deadline watchdog) so
-  // recording duration matches camAnim.totalSec even if Chrome throttles
-  // rAF during the export. Same pattern as window.camAnimPreview.
-  let recRafId = 0, recTimeoutId = 0, recDeadlineId = 0;
-  const finishRec = () => {
-    if(recRafId)     cancelAnimationFrame(recRafId);
-    if(recTimeoutId) clearTimeout(recTimeoutId);
-    if(recDeadlineId){ clearTimeout(recDeadlineId); recDeadlineId = 0; }
-    recRafId = recTimeoutId = 0;
-    _camAnimApplySample(camAnim.keys[camAnim.keys.length - 1]);
-    camAnim.playing = false;
-    setTimeout(() => {
-      window.stopViewRecording();
-      if(p)  p.style.display  = prevDisplay;
-      if(cf) cf.style.display = prevCf;
-      if(camAnim.open) _camAnimSetVisualsVisible(true);
-      _camAnimRenderPanel();
-    }, 300);
+  camAnim.warming = true;
+  const _warmMs = Math.max(0, camAnim.warmupMs || 0);
+  // Keep the splat sort / LoD walker running across the whole warm-up so it
+  // actually pages in higher detail (a single markDirty would only paint a
+  // few frames, not drive continuous refinement).
+  bumpSplatActive(_warmMs + 500);
+  markDirty(240);
+  if(camAnim.warmNudgeId){ clearInterval(camAnim.warmNudgeId); camAnim.warmNudgeId = 0; }
+  if(_warmMs > 0){
+    camAnim.warmNudgeId = setInterval(() => {
+      bumpSplatActive(400);
+      markDirty(8);
+    }, 150);
+    try { if(typeof showUndoToast === 'function') showUndoToast('ウォームアップ中… LOD 読込'); } catch(_){}
+  }
+
+  // Everything that actually starts the recording + drives the fly-through,
+  // deferred until the warm-up window closes.
+  const _beginRecording = () => {
+    camAnim.warming = false;
+    if(camAnim.warmNudgeId){ clearInterval(camAnim.warmNudgeId); camAnim.warmNudgeId = 0; }
+    // Start the existing canvas recorder; it writes a file on stop().
+    window.startViewRecording();
+    // Re-pin key 0 so frame 0 is exactly the start pose (warm-up nudges only
+    // touched the splat sort, not the camera, but be explicit).
+    _camAnimApplySample(camAnim.keys[0]);
+    camAnim.playing   = true;
+    camAnim.startedAt = performance.now();
+    // Dual-driver (rAF + setTimeout backup + hard-deadline watchdog) so
+    // recording duration matches camAnim.totalSec even if Chrome throttles
+    // rAF during the export. Same pattern as window.camAnimPreview.
+    let recRafId = 0, recTimeoutId = 0, recDeadlineId = 0;
+    const finishRec = () => {
+      if(recRafId)     cancelAnimationFrame(recRafId);
+      if(recTimeoutId) clearTimeout(recTimeoutId);
+      if(recDeadlineId){ clearTimeout(recDeadlineId); recDeadlineId = 0; }
+      recRafId = recTimeoutId = 0;
+      _camAnimApplySample(camAnim.keys[camAnim.keys.length - 1]);
+      camAnim.playing = false;
+      setTimeout(() => {
+        window.stopViewRecording();
+        if(p)  p.style.display  = prevDisplay;
+        if(cf) cf.style.display = prevCf;
+        if(camAnim.open) _camAnimSetVisualsVisible(true);
+        _camAnimRenderPanel();
+      }, 300);
+    };
+    const tickRec = () => {
+      if(!camAnim.playing) return;
+      if(recRafId)     { cancelAnimationFrame(recRafId); recRafId = 0; }
+      if(recTimeoutId) { clearTimeout(recTimeoutId);     recTimeoutId = 0; }
+      const tSec = (performance.now() - camAnim.startedAt) / 1000;
+      if(tSec >= camAnim.totalSec){ finishRec(); return; }
+      _camAnimApplySample(_camAnimSampleAt(tSec));
+      recRafId     = requestAnimationFrame(tickRec);
+      recTimeoutId = setTimeout(tickRec, 33);
+    };
+    // Watchdog: force-finish at totalSec + 50 ms in case both rAF and
+    // setTimeout are throttled deep enough that the tick never observes
+    // the deadline.
+    recDeadlineId = setTimeout(() => { if(camAnim.playing) finishRec(); },
+                               Math.max(50, camAnim.totalSec * 1000 + 50));
+    tickRec();
   };
-  const tickRec = () => {
-    if(!camAnim.playing) return;
-    if(recRafId)     { cancelAnimationFrame(recRafId); recRafId = 0; }
-    if(recTimeoutId) { clearTimeout(recTimeoutId);     recTimeoutId = 0; }
-    const tSec = (performance.now() - camAnim.startedAt) / 1000;
-    if(tSec >= camAnim.totalSec){ finishRec(); return; }
-    _camAnimApplySample(_camAnimSampleAt(tSec));
-    recRafId     = requestAnimationFrame(tickRec);
-    recTimeoutId = setTimeout(tickRec, 33);
-  };
-  // Watchdog: force-finish at totalSec + 50 ms in case both rAF and
-  // setTimeout are throttled deep enough that the tick never observes
-  // the deadline.
-  recDeadlineId = setTimeout(() => { if(camAnim.playing) finishRec(); },
-                             Math.max(50, camAnim.totalSec * 1000 + 50));
-  tickRec();
+
+  if(camAnim.warmTimer){ clearTimeout(camAnim.warmTimer); camAnim.warmTimer = 0; }
+  if(_warmMs > 0) camAnim.warmTimer = setTimeout(_beginRecording, _warmMs);
+  else            _beginRecording();
 };
 
 // Render the active grids onto a 2D canvas of the cropped image. Mirrors the SVG
@@ -8855,6 +8917,23 @@ function _radEffectiveLodScale(){
   return _radLodScaleForStride(_splatStride())
        * _radLodScaleForQuality(typeof qualIdx === 'number' ? qualIdx : 1);
 }
+// ── [DIAG3] LOD予算(lodSplatCount)最適化（完了後撤去） ──
+window.__loadRad = (url)=>{ try{ return loadFromURL(url,'RADtest'); }catch(e){ return 'err:'+e.message; } };
+window.__nSplat = ()=> (typeof splatMesh!=='undefined'&&splatMesh&&splatMesh.paged)?splatMesh.paged.numSplats:-1;
+window.__keepAlive = (ms)=>{ _splatActiveUntil=performance.now()+(ms||6000); markDirty(240); };
+window.__setCam = (y,p)=>{ if(typeof yaw!=='undefined'){yaw=_yawTarget=y;} if(typeof pitch!=='undefined'){pitch=_pitchTarget=(p||0);} _splatActiveUntil=performance.now()+8000; markDirty(240); };
+// sparkRenderer のLOD関連プロパティをライブ設定（lodSplatCount/lodSplatScale/coneFov等）
+window.__setRenderer = (p)=>{ if(typeof sparkRenderer==='undefined') return 'no sr'; const out={}; for(const k in p){ sparkRenderer[k]=p[k]; out[k]=sparkRenderer[k]; } if(typeof markDirty==='function') markDirty(240); return out; };
+window.__srDump = ()=>{ if(typeof sparkRenderer==='undefined') return 'no sr'; const o={}; for(const k of ['lodSplatCount','lodSplatScale','lodRenderScale','coneFov','coneFov0','coneFoveate','behindFoveate','maxPagedSplats','numLodFetchers','enableLod','enableDriveLod']){ o[k]=sparkRenderer[k]; } return o; };
+// 予算設定→再ウォーク→収束numSplats と FPS を返す
+window.__probeBudget = async function(lodSplatCount, settleMs){
+  if(typeof sparkRenderer!=='undefined') sparkRenderer.lodSplatCount = lodSplatCount;
+  window.__setCam((typeof yaw!=='undefined'?yaw:0)+0.05, 0); await new Promise(r=>setTimeout(r,300));
+  window.__keepAlive((settleMs||2500)+1500); await new Promise(r=>setTimeout(r, settleMs||2500));
+  let frames=0; const ft0=performance.now(); function fl(){ frames++; if(performance.now()-ft0<1000){requestAnimationFrame(fl);} } requestAnimationFrame(fl);
+  await new Promise(r=>setTimeout(r,1050));
+  return { lodSplatCount, numSplats: window.__nSplat(), fps: Math.round(frames/((performance.now()-ft0)/1000)) };
+};
 function subsamplePLY(rawBuf, stride){
   if(stride <= 1) return rawBuf;
   try {
