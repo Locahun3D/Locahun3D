@@ -8815,44 +8815,41 @@ function _splatStride(){
   return 1;
 }
 
-// .rad equivalent of the PLY/SPLAT subsample stride. RAD bytes can't be
-// resampled (chunks are WASM-encoded and inter-dependent for LoD walking),
-// so instead we tell Spark's LoD walker to stop one octree level earlier.
-// `lodScale` multiplies the screen-space "split me" threshold:
-//   lodScale = 1  →  full detail (default)
-//   lodScale = 2  →  each splat needs to be 2× bigger on screen before
-//                    splitting → in 2D that means ~4× fewer splats live
-//                    in the same view = the "1/4" target the toggle
-//                    advertises for PLY/SPLAT.
-// Stride 2 → lodScale sqrt(2) ≈ 1.41 (half splats);
-// Stride 4 → lodScale 2.0 (quarter splats).
+// ── RAD の LoD は `lodScale` で制御する。意味は 2026-06 にライブ計測で確定 ──
+// （!!旧コメントの想定は完全に逆だった!! Kousaten RAD / Spark 2.0.0 で実測）:
+//   高い lodScale ほど LoD ウォーカーが多くのチャンクを解像する
+//     = 高精細・遠距離まで密・シーンの大部分を先読み（→回転後の高LOD化も速い）。
+//   低い lodScale ほど粗い（解像数が減る＝軽量）。
+//   実測カーブ(単一ビュー): 0.5→0.65M / 0.7→1.04M / 1.0→1.64M / 1.4→2.39M /
+//   2.0以上→~2.5M(Spark の per-view 上限に飽和)。
+//   ※ foveation(coneFov/coneFoveate) は Spark デフォルトが最も多く解像する。
+//     上書きすると減る／coneFoveate:0 は degenerate(1 splat) なので触らない。
+
+// 間引き要求（「ポリゴン1/4」等）は RAD ではチャンクを間引けないので、
+// lodScale を下げて軽量化する。stride1→1.0 / 2→0.71 / 4→0.5。
 function _radLodScaleForStride(stride){
   if(!Number.isFinite(stride) || stride <= 1) return 1;
-  return Math.sqrt(stride);
+  return 1 / Math.sqrt(stride);
 }
 
-// Quality preset multiplier applied on top of the stride-derived lodScale.
-// Lower lodScale = splats split into children sooner = the LoD walker pulls
-// in finer + more distant chunks, and pulls them in EARLIER (while they're
-// still small on screen), which is what cuts the "tiles pop in late as I move"
-// streaming lag on a RAD scene.
-//   低 (idx 0): ×1.4  — coarser, fewer chunks loaded, lighter on GPU
-//   中 (idx 1): ×1.0  — Spark default
-//   高 (idx 2): desktop ×0.5 / mobile ×0.7
-//       Desktop usually has plenty of GPU+bandwidth headroom, so at 高 we
-//       drive the walker noticeably harder (≈2× the splat density + reach of
-//       the old 0.7) to keep a wider area resolved continuously instead of
-//       streaming it in with a visible lag. Mobile stays at 0.7 to protect
-//       weaker GPUs / metered connections.
-// Combined examples (stride × quality):
-//   stride 1 × 高 desktop (0.5) → 0.5   (widest reach, finest in-view detail)
-//   stride 1 × 高 mobile  (0.7) → 0.7   (more detail than Spark default)
-//   stride 4 × 高 desktop (0.5) → 1.0   (still the Spark default after 1/4)
-//   stride 1 × 低 (1.4)         → 1.4   (lighter than default)
+// 画質プリセット → lodScale。中/高 ほど大きい値（=高精細＋遠距離＋先読み）。
+// splat 数は GPU 負荷に直結し、qualScale/PR は解像度しか下げず splat 数を減らせ
+// ないため、弱い端末で数百万 splat を出すと FPS を守れない。よって端末ティアで
+// 上限を調整する（desktop=5090級はほぼ全精細まで引き上げる）。
+//   desktop:     低0.8 / 中1.5 / 高2.2  (中≈2.4M, 高=cap~2.5M)
+//   laptop_ok:   低0.7 / 中1.1 / 高1.6
+//   laptop_weak: 低0.6 / 中0.9 / 高1.3
+//   tablet:      低0.5 / 中0.8 / 高1.2
+//   phone:       低0.45/ 中0.7 / 高1.0
 function _radLodScaleForQuality(idx){
-  if(idx === 0) return 1.4;
-  if(idx === 2) return isMobile ? 0.7 : 0.5;
-  return 1.0;
+  const tier = (typeof _splatPerfTier !== 'undefined') ? _splatPerfTier : 'laptop_ok';
+  let lo, mid, hi;
+  if(tier === 'desktop')          { lo=0.8;  mid=1.5; hi=2.2; }
+  else if(tier === 'laptop_ok')   { lo=0.7;  mid=1.1; hi=1.6; }
+  else if(tier === 'laptop_weak') { lo=0.6;  mid=0.9; hi=1.3; }
+  else if(tier === 'tablet')      { lo=0.5;  mid=0.8; hi=1.2; }
+  else /* phone */                { lo=0.45; mid=0.7; hi=1.0; }
+  return (idx === 0) ? lo : (idx === 2) ? hi : mid;
 }
 function _radEffectiveLodScale(){
   return _radLodScaleForStride(_splatStride())
