@@ -1,6 +1,6 @@
 {
-  "version": "0.0.5-alpha",
+  "version": "0.0.6-alpha",
   "url": "https://locahun3d.nakamurakou1108.workers.dev",
   "sha256": null,
-  "notes": "Mobile / tablet UI overhaul (2026-06). Phone PORTRAIT is now supported (was force-landscape only). Bottom tool bar fixes: the cbar (📷カメラ / ☀日照 / 📐測定 / ⏺録画) no longer overlaps the joystick or the ▲▼ elevation arrows — it now sits clear above them — and 日照 + 録画 are available on phones again. Touch tap targets enlarged for easier pressing; the squished \"U…\" project-name label is hidden on phones. iPad portrait: the camera action row no longer collides with the シーンレイヤー panel, and the centred cbar no longer lands on the ▼ arrow. Verified clean (zero overlap / overflow) across phone & iPad in both portrait and landscape, plus desktop."
+  "notes": "iPad deep-state fix (2026-06). On iPad the シーンレイヤー panel sits full-height on the left edge, which (when expanded with a Figure selected, exposing the bone sliders at the panel's bottom) collided with the joystick and the bottom tool bar. Now: the cbar is centred in the canvas area to the RIGHT of the panel (clearing both the panel edge and the ▼ arrow without needing to be lifted), and the on-screen joystick + ▲▼ arrows hide while the panel is expanded (you're editing, not flying — they return when it's collapsed). Verified zero overlap on iPad portrait & landscape in both collapsed and expanded states, with objects/figure added; phones and desktop unaffected. Builds on v0.0.5-alpha's mobile/tablet UI overhaul (phone portrait support, cbar/joystick fixes, larger tap targets)."
 }

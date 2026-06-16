@@ -1064,11 +1064,20 @@ body{position:fixed;top:0;left:0;}
      earlier touch rule sets `left:50% !important`, so we must outrank both. */
   #view-tl-btns{ left: calc((100% + var(--lp-width, 0px)) / 2) !important; }
 }
-@media (pointer:coarse) and (any-hover:none) and (orientation:portrait) and (min-width:600px){
-  /* iPad / tablet PORTRAIT: lift the cbar above the joystick+arrow group (whose
-     top sits ≈200px from the bottom), exactly as the phone block does. Landscape
-     iPad is wide enough for the centred cbar to clear the arrows, so portrait-only. */
-  #hud .cbar{ bottom:212px; }
+@media (pointer:coarse) and (any-hover:none) and (min-width:600px){
+  /* iPad / tablet: the シーンレイヤー panel occupies the LEFT edge full-height, so
+     centre the cbar in the canvas area to the RIGHT of it. That single shift
+     clears BOTH the panel's right edge AND the ▼ elevation arrow, so no vertical
+     lift is needed (phones, where the joystick reaches centre, still lift it via
+     the smartphone block above). */
+  #hud .cbar{ left: calc((100% + var(--lp-width, 0px)) / 2) !important; }
+  /* When the layer panel is EXPANDED, hide the joystick + ▲▼ arrows: the user is
+     editing layers (incl. the figure bone sliders that sit at the panel's bottom,
+     which the joystick would otherwise cover) rather than flying the camera. The
+     controls return the moment the panel is collapsed. (#joy / #joy-vert follow
+     #layer-panel in the DOM, so the general-sibling combinator reaches them.) */
+  #layer-panel:not(.collapsed) ~ #joy,
+  #layer-panel:not(.collapsed) ~ #joy-vert{ display:none !important; }
 }
 
 </style>
@@ -19810,7 +19819,7 @@ window.toggleChangelog = function(){
 //  Manifest format:
 //    { "version":"0.0.2", "url":"...", "sha256":"<hex>", "notes":"..." }
 // ══════════════════════════════════════════════════
-const CURRENT_VERSION    = '0.0.5-alpha';
+const CURRENT_VERSION    = '0.0.6-alpha';
 const UPDATE_MANIFEST_URL =
   'https://raw.githubusercontent.com/nakamurakou1108/Locahun3D/main/version.json';
 
