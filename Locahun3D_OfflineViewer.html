@@ -974,14 +974,26 @@ body{position:fixed;top:0;left:0;}
    keeps full layer-editing functionality. */
 @media (pointer:coarse) and (any-hover:none) and (max-width: 600px),
        (pointer:coarse) and (any-hover:none) and (max-height: 500px){
-  /* Smartphone bottom bar: keep 📐 測定 and 📷 カメラ visible (per user
-     requests 2026-05 — both tools must be available on every device).
-     Other cbar buttons (🌅 環境 / 🗺 マップ / ❓ 使い方) stay hidden because
-     there is not enough horizontal room next to the joystick. */
-  #hud .cbar > button:not(#btnMeasure):not(#btnCamTool){display:none !important;}
+  /* Smartphone bottom bar: show 📷カメラ / ☀日照 / 📐測定 / ⏺録画.
+     Originally only カメラ/測定 survived because the cbar sat next to the
+     joystick with no horizontal room. Now the cbar is lifted ABOVE the
+     joystick group (bottom:212px, below), so the daylight + view-recording
+     tools the user works with on phone fit too — they wrap to a tidy 2nd row.
+     🗺マップ / 使い方 stay hidden to keep the bar to ≤2 rows (user choice). */
+  #hud .cbar > button:not(#btnMeasure):not(#btnCamTool):not(#btn-sun):not(#btnViewRec){display:none !important;}
   /* Center the surviving buttons so they don't anchor to the cbar's
      original (off-center) origin. */
   #hud .cbar{justify-content:center !important;}
+  /* Phone fix (2026-06): on a ≤600px phone the 176px joystick (anchored
+     bottom-left, reaching the horizontal centre at x≈200) plus the elevation
+     arrows immediately to its right (x≈208–278) fill the ENTIRE bottom band.
+     The horizontally-centred cbar at bottom:64px therefore landed ON TOP of
+     both — 📷カメラ over the joystick base, 📐測定 over the ▼ down button.
+     (The earlier comment "joystick is on the left … so they don't overlap"
+     only held on wide iPad screens.) Lift the cbar clear above the joystick/
+     arrow group, whose top sits ≈200px from the bottom edge. iPad (≥600px)
+     keeps its bottom-anchored cbar via the wider media query above. */
+  #hud .cbar{bottom:212px !important;}
   :root{ --lp-width: 0px !important; }
   #layer-panel,
   #lp-footer-bar,
@@ -994,32 +1006,39 @@ body{position:fixed;top:0;left:0;}
     height:30px;
     padding:0 6px;gap:4px;
   }
-  #topbar .tb-home{padding:1px 6px;font-size:.62em;}
+  /* Phone fix (2026-06): bump the top-bar tap targets up a notch (taller hit
+     area + a hair more font) so they are easier to press, while staying within
+     the 30px bar and not overflowing the row at 360px. */
+  #topbar .tb-home{padding:4px 8px;font-size:.64em;}
   #topbar .tb-save-btn,
-  #topbar #tb-save-btn{padding:1px 6px;font-size:.6em;}
-  #topbar #tb-project-name{font-size:.62em;padding:1px 5px;max-width:120px;}
-  #topbar .tb-update{padding:1px 5px;font-size:.55em;}
-  #topbar .tb-lang{padding:1px 5px;font-size:.55em;}
-  #topbar .tb-bug{padding:1px 5px;font-size:.62em;}
+  #topbar #tb-save-btn{padding:4px 8px;font-size:.62em;}
+  /* Phone fix (2026-06): in the full ≤600px top bar this editable project-name
+     label flex-shrinks to ~20px and renders as a broken-looking "U…". Renaming
+     it (dbl-tap) is impractical at that size anyway, so hide it on phones — the
+     name is still editable on tablet/desktop where the bar has room. */
+  #topbar #tb-project-name{display:none !important;}
+  #topbar .tb-update{padding:4px 6px;font-size:.58em;}
+  #topbar .tb-lang{padding:4px 8px;font-size:.60em;}
+  #topbar .tb-bug{padding:4px 6px;font-size:.64em;}
   /* Action row (カメラリセット / アバター歩行 / AR). Smartphone gets a
      special override below (in the iPhone-only block) that lifts the
      row INSIDE the topbar; here we keep the generic "flush against
      topbar bottom" placement so other small-screen devices still get
      a sane fallback layout. */
-  #view-tl-btns{top:30px;gap:3px;padding-top:1px;}
+  #view-tl-btns{top:30px;gap:5px;padding-top:2px;}
   #view-tl-btns > button,
   #view-tl-btns button{
-    padding:2px 6px !important;font-size:.55em !important;line-height:1.2 !important;
+    padding:6px 8px !important;font-size:.57em !important;line-height:1.2 !important;
   }
-  /* Bottom cbar (カメラ / 測定) gets EXACTLY the same metrics as the top
-     action row above, so the two visible button groups on a phone read as
-     one consistent control set (user request: 上のボタンサイズに合わせる). */
-  #hud .cbar{gap:4px;}
+  /* Bottom cbar (📷カメラ / ☀日照 / 📐測定 / ⏺録画) — now lifted above the
+     joystick (bottom:212px) so it has room for larger, easier-to-tap buttons;
+     wraps to a 2nd row above the joystick if all four don't fit on one line. */
+  #hud .cbar{gap:6px;}
   #hud .cbar > button{
-    padding:2px 6px !important;font-size:.55em !important;line-height:1.2 !important;
+    padding:7px 11px !important;font-size:.64em !important;line-height:1.2 !important;
   }
   #qi-badge{
-    top:30px;right:6px;padding:2px 6px;font-size:.55em;gap:3px;line-height:1.2;
+    top:30px;right:6px;padding:4px 7px;font-size:.59em;gap:3px;line-height:1.2;
   }
 }
 /* (Previous iPhone-only "hoist action row into topbar" override removed
@@ -1027,6 +1046,30 @@ body{position:fixed;top:0;left:0;}
    user couldn't see them clearly. The action row now sits flush below
    the 30 px topbar on iPhone via the smartphone-media-query rule above
    — same placement as iPad / other touch devices.) */
+
+/* ══ iPad / medium-touch overlap fixes (2026-06) ══
+   The smartphone block above only matches phones (≤600px wide, or ≤500px tall).
+   iPad PORTRAIT (768–834px) is wider than a phone yet still narrow enough that
+   the full-viewport-centred controls collide with the LEFT-anchored chrome:
+     • the centred camera action row (#view-tl-btns) lands on the シーンレイヤー
+       panel title (the panel occupies the left var(--lp-width) px), and
+     • the centred 4-button cbar's left edge lands on the ▼ elevation arrow.
+   Desktop is unaffected (it has no coarse pointer). */
+@media (pointer:coarse) and (any-hover:none){
+  /* Centre the camera action row in the space to the RIGHT of the layer panel
+     instead of the whole viewport. On phones --lp-width is 0 so this stays a
+     plain centre (no change); on iPad it shifts right just enough to clear the
+     panel and still fits the row on screen. */
+  /* !important: the row is JS-positioned with an inline `left:50%` AND an
+     earlier touch rule sets `left:50% !important`, so we must outrank both. */
+  #view-tl-btns{ left: calc((100% + var(--lp-width, 0px)) / 2) !important; }
+}
+@media (pointer:coarse) and (any-hover:none) and (orientation:portrait) and (min-width:600px){
+  /* iPad / tablet PORTRAIT: lift the cbar above the joystick+arrow group (whose
+     top sits ≈200px from the bottom), exactly as the phone block does. Landscape
+     iPad is wide enough for the centred cbar to clear the arrows, so portrait-only. */
+  #hud .cbar{ bottom:212px; }
+}
 
 </style>
 </head>
@@ -1053,9 +1096,13 @@ body{position:fixed;top:0;left:0;}
 #orient-lock .ol-msg{ font-size:1.12em; font-weight:700; letter-spacing:.04em; }
 #orient-lock .ol-sub{ font-size:.82em; color:#9a9aa2; line-height:1.5; }
 @keyframes ol-rotate{ 0%,38%{transform:rotate(0)} 58%,100%{transform:rotate(-90deg)} }
-/* Touch devices in portrait only. */
+/* Portrait is now SUPPORTED on phones (user request 2026-06): the portrait
+   layout is functional (toolbar / camera row / cbar-above-joystick all fit and
+   were verified clean), so we no longer force-rotate to landscape. The
+   #orient-lock element is kept in the DOM for possible future use but is never
+   auto-shown — both orientations are usable. */
 @media (orientation: portrait) and (pointer:coarse) and (any-hover:none){
-  #orient-lock{ display:flex; }
+  /* #orient-lock{ display:flex; }   ← disabled: portrait is allowed now */
 }
 </style>
 <div id="orient-lock" aria-hidden="true">
@@ -19763,7 +19810,7 @@ window.toggleChangelog = function(){
 //  Manifest format:
 //    { "version":"0.0.2", "url":"...", "sha256":"<hex>", "notes":"..." }
 // ══════════════════════════════════════════════════
-const CURRENT_VERSION    = '0.0.4-alpha';
+const CURRENT_VERSION    = '0.0.5-alpha';
 const UPDATE_MANIFEST_URL =
   'https://raw.githubusercontent.com/nakamurakou1108/Locahun3D/main/version.json';
 
