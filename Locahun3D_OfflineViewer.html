@@ -751,17 +751,29 @@ body{position:fixed;top:0;left:0;}
 #qi-badge .qib-icon{opacity:.65;}
 #qi-badge .qib-lvl{color:#ffe4b3;font-weight:600;}
 #qi-badge .qib-fps{color:rgba(180,180,180,.65);
-  font-variant-numeric:tabular-nums;min-width:42px;text-align:right;}
+  font-variant-numeric:tabular-nums;min-width:33px;text-align:right;font-size:.82em;
+  /* Never let the FPS read-out wrap to a 2nd line (that fattened the chip): keep
+     it on one line at its content width, and floor the width so it doesn't jitter
+     as the number changes. */
+  white-space:nowrap;flex-shrink:0;}
 /* Touch-device badge sizing: keep visible on iPad / iPhone (FPS readout
    was requested back). Slightly larger tap target so users can comfortably
    tap to open the quality panel. */
 @media (pointer:coarse) and (any-hover:none){
-  #qi-badge{ padding:5px 11px; font-size:.74em; }
+  /* Touch: keep the chip tappable but a touch tighter (.74→.7em) so it reads as
+     compact on iPad too, matching the phone (user 2026-06 "もっとコンパクト"). The
+     horizontal padding is set compactly by the in-row rule below. */
+  #qi-badge{ padding:4px 6px; font-size:.7em; }
 }
 /* When JS moves the badge into the camera action row (see _qiBadgeIntoActionRow)
    it flows inline at the row's RIGHT END rather than being pinned to the corner.
    This applies on every device. */
-#view-tl-btns > #qi-badge{ position:static; top:auto; right:auto; align-self:center; }
+#view-tl-btns > #qi-badge{ position:static; top:auto; right:auto; align-self:center;
+  /* Compact 画質 chip on EVERY device (user 2026-06 "左右に大きすぎる"): tight gap +
+     small horizontal padding so it doesn't sprawl across the top row. !important
+     because, now that the chip is a <button>, the generic #view-tl-btns button
+     padding rule (also !important) would otherwise fatten it on phones. */
+  gap:3px !important; padding:4px 6px !important; }
 @media (pointer:coarse) and (any-hover:none) and (max-width:600px) and (orientation:portrait){
   /* Phone PORTRAIT: keep the whole top group on ONE line (user request 2026-06
      "縦画面の上UIを一列に"). On phones only 3 buttons survive (🏠リセット / ⏺録画 /
@@ -20201,7 +20213,7 @@ window.toggleChangelog = function(){
 //  Manifest format:
 //    { "version":"0.0.2", "url":"...", "sha256":"<hex>", "notes":"..." }
 // ══════════════════════════════════════════════════
-const CURRENT_VERSION    = '0.0.18-alpha';
+const CURRENT_VERSION    = '0.0.19-alpha';
 const UPDATE_MANIFEST_URL =
   'https://raw.githubusercontent.com/nakamurakou1108/Locahun3D/main/version.json';
 

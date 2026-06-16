@@ -1,6 +1,6 @@
 {
-  "version": "0.0.18-alpha",
+  "version": "0.0.19-alpha",
   "url": "https://locahun3d.nakamurakou1108.workers.dev",
   "sha256": null,
-  "notes": "iPad 画質-chip zoom bug — real root cause + fix (2026-06). The 画質/FPS chip was the ONLY top control built as a <div onclick> (every other one is a <button>). On iOS a generic <div> is a double-tap-zoom target and touch-action doesn't reach its child <span>s, so tapping the chip (the tap lands on the 🖥/高/fps span) double-tap-zoomed the whole top button row — which is why the earlier <div>-level touch-action:manipulation didn't help and why this control 'reacted differently' from the others. Fix: the chip is now a real <button type=button> (appearance:none to keep the identical look) with touch-action:manipulation on it AND its spans. Native buttons don't double-tap-zoom and give a clean immediate tap, so the chip now behaves exactly like the neighbouring buttons. Verified: renders identically (97×23, same padding/border/radius), top row still one line on phone (297px). Builds on v0.0.17."
+  "notes": "Compact 画質 chip on every device (2026-06, user 'left-right too wide'). Tightened the chip: gap 6→3px, horizontal padding 9→6px (and an in-row !important override so the <button> isn't re-fattened by the generic toolbar padding on phones), touch font .74→.7em, FPS read-out font .82em. Width: iPad ~97→80px, phone ~85→72px (still shows 🖥 + quality level + live FPS, on one line). Also fixed an FPS wrap that could make the chip double-height (white-space:nowrap + flex-shrink:0, min-width floors it so it doesn't jitter). Top phone row still one line. Builds on v0.0.18."
 }
