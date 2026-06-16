@@ -39,13 +39,22 @@ html,body{
 }
 body{position:fixed;top:0;left:0;}
 /* iPad/iPhone fix (2026-06): touch-action:manipulation on the document root does
-   NOT reliably propagate the "no double-tap-zoom" behaviour to individual buttons
-   in iOS Safari — a touch that STARTS on a button uses the button's own (auto)
-   touch-action, so repeatedly tapping a top toolbar button could trigger a
-   double-tap zoom (the button row appeared to enlarge and shift up). Set it on
-   the interactive UI buttons themselves so taps never zoom. */
+   NOT reliably propagate the "no double-tap-zoom" behaviour to individual elements
+   in iOS Safari — a touch that STARTS on an element uses that element's own (auto)
+   touch-action, so tapping a top toolbar control could trigger a double-tap zoom
+   (the whole top button block appeared to enlarge / shift up). Set it on the
+   interactive UI elements themselves so taps never zoom.
+   NOTE (2026-06): #qi-badge (the 画質/FPS chip) and the 📦オブジェクト追加 wrapper are
+   <div>s, not <button>s, so the earlier button-only list MISSED them — which is why
+   "tapping 画質 still made the other top buttons enlarge" (iOS double-tap-zoomed the
+   row off the un-guarded badge). Cover the containers + those divs explicitly. */
+#view-tl-btns,
 #view-tl-btns button,
+#view-tl-btns div,
+#qi-badge,
+#hud .cbar,
 #hud .cbar button,
+#topbar,
 #topbar button,
 #immersive-exit{ touch-action:manipulation; }
 #c{
@@ -1111,13 +1120,16 @@ body{position:fixed;top:0;left:0;}
      Figure) that the generic touch block hides. Phones (<600px) stay without
      it — the top row is already tight there. */
   #view-tl-btns > div:not(#qi-badge){ display:inline-block !important; }
-  /* When the layer panel is EXPANDED, hide the joystick + ▲▼ arrows: the user is
-     editing layers (incl. the figure bone sliders that sit at the panel's bottom,
-     which the joystick would otherwise cover) rather than flying the camera. The
-     controls return the moment the panel is collapsed. (#joy / #joy-vert follow
-     #layer-panel in the DOM, so the general-sibling combinator reaches them.) */
-  #layer-panel:not(.collapsed) ~ #joy,
-  #layer-panel:not(.collapsed) ~ #joy-vert{ display:none !important; }
+  /* When the layer panel is EXPANDED, keep the joystick + ▲▼ arrows USABLE (user
+     report 2026-06: "シーンレイヤーを出すとジョイスティックが触れなくなる" — the old rule
+     hid them with display:none, so they were gone/untouchable). Instead, STOP the
+     panel above the joystick zone so the panel and the joystick no longer fight for
+     the same bottom-left corner: the panel ends at bottom:208px and the joystick
+     (bottom:24, 176px tall → reaches ~200px up) + arrows now sit in the freed strip
+     BELOW it, fully touchable, while the panel content (incl. the figure bone
+     sliders that used to sit under the joystick) stays clear above. The collapsed
+     panel is height:auto so it's unaffected. */
+  #layer-panel:not(.collapsed){ bottom: 208px !important; }
 }
 @media (pointer:coarse) and (any-hover:none) and (orientation:portrait) and (min-width:600px) and (max-width:900px){
   /* iPad PORTRAIT (≤834px): the camera action row now carries 5 buttons
@@ -17269,6 +17281,16 @@ window.saveProjectZip = async function(){
             entry.rawExt=ext;
             entry.isMain=L._isMain||false;
           }
+        } else if(L._streamUrl){
+          // Streaming RAD (?demo=1 / ?autoload=URL): the bytes were never
+          // pulled into memory — Spark fetches chunks lazily over HTTP Range.
+          // There's nothing local to embed in the ZIP, so persist the source
+          // URL and let restore re-stream it. NOT a fully-offline archive, but
+          // the scene is reconstructable as long as the URL stays reachable.
+          entry.streamUrl=L._streamUrl;
+          entry.rawExt=L._rawExt||'rad';
+          entry.isMain=L._isMain||false;
+          console.warn('saveProjectZip: splat is URL-streamed, persisting streamUrl for',L.name,'→',L._streamUrl);
         } else {
           entry.missing=true;
           console.warn('saveProjectZip: splat buffer not cached for',L.name);
@@ -17345,6 +17367,10 @@ window.saveProjectZip = async function(){
     URL.revokeObjectURL(a.href);
 
     const missing=serialized.filter(e=>e.missing).length;
+    // streamed = splat layers saved as a URL reference (URL-streamed RAD) with
+    // no embedded bytes. They restore by re-streaming, so they are NOT counted
+    // as "missing", but the ZIP is not fully offline — tell the user.
+    const streamed=serialized.filter(e=>e.streamUrl).length;
     // fileCount = everything except project.json (and the bundled HTML
     // when present — we mention it separately so the user knows their
     // ZIP is offline-playable).
@@ -17353,6 +17379,9 @@ window.saveProjectZip = async function(){
     const _en=window._lang==='en';
     const _offlineNote = _bundledHtml
       ? (_en ? ' · offline-playable' : ' · オフライン再生対応')
+      : '';
+    const _streamNote = streamed>0
+      ? (_en ? ` · ${streamed} streamed via URL (online required)` : ` · ${streamed}件はURLストリーミング参照（再生にネット必要）`)
       : '';
     if(_skipSplatData){
       const mb = Math.round(_totalSplatBytes / 1024 / 1024);
@@ -17363,8 +17392,8 @@ window.saveProjectZip = async function(){
       showUndoToast(missing>0
         ?(_en?`⚠ ZIP save: ${missing} file(s) uncached (reload then save)`
              :`⚠ ZIP保存: ${missing}件はファイル未キャッシュ（再読込後に保存してください）`)
-        :(_en?`✅ ZIP saved (${fileCount} file${fileCount===1?'':'s'} + project.json${_offlineNote})`
-             :`✅ ZIP保存完了 (${fileCount}ファイル + project.json${_offlineNote})`));
+        :(_en?`✅ ZIP saved (${fileCount} file${fileCount===1?'':'s'} + project.json${_offlineNote}${_streamNote})`
+             :`✅ ZIP保存完了 (${fileCount}ファイル + project.json${_offlineNote}${_streamNote})`));
     }
   } catch(e){ console.error(e); showUndoToast(T('zip-fail')+e.message); }
 };
@@ -17557,6 +17586,11 @@ window.saveProject = async function() {
         if(L._rawBuffer){
           entry.rawData=bufToBase64(L._rawBuffer);
           entry.rawExt=L._rawExt||'splat';
+        } else if(L._streamUrl){
+          // URL-streamed RAD — no local bytes to embed; persist the source
+          // URL so restore can re-stream (see saveProjectZip for rationale).
+          entry.streamUrl=L._streamUrl;
+          entry.rawExt=L._rawExt||'rad';
         } else {
           entry.missing=true;
         }
@@ -17786,6 +17820,37 @@ async function restoreProject(project) {
           console.error(`[restore] splat fail: ${entry.name}`, e);
           mesh=new THREE.Group();
         }
+      } else if(entry.streamUrl){
+        // No embedded bytes, but the project recorded a streaming source URL
+        // (URL-streamed RAD saved via Option-A). Re-stream from that URL,
+        // mirroring loadFromURL's RAD path. Requires the URL to be reachable
+        // (i.e. online) — if it 404s/CORS-fails Spark just renders nothing.
+        try{
+          const surl=entry.streamUrl;
+          const sext=(surl.split('?')[0].split('#')[0].split('.').pop()||'rad').toLowerCase();
+          const sft=_splatFileTypeFor(sext);
+          if(sext==='rad'){
+            const opts={url:surl, fileType:sft, ...SPARK_QUALITY_OPTS};
+            opts.lod=true; opts.enableLod=true; opts.paged=true;
+            opts.lodScale=_radEffectiveLodScale();
+            // Same foveation strip as loadFromURL — otherwise the LoD walker
+            // never splits and only the root chunk ever loads.
+            delete opts.coneFoveate; delete opts.behindFoveate;
+            delete opts.coneFov; delete opts.coneFov0;
+            mesh=new SplatMesh(opts);
+          } else {
+            // Non-RAD stream URL: hand the url straight to SplatMesh.
+            const opts={url:surl, ...SPARK_QUALITY_OPTS};
+            if(sft!==undefined) opts.fileType=sft;
+            mesh=new SplatMesh(opts);
+          }
+          tuneSplatMesh(mesh);
+          entry._loadFlipped=(sext==='ply'||sext==='spz');
+          console.log(`[restore] splat re-streaming: ${entry.name} ← ${surl}`);
+        }catch(e){
+          console.error(`[restore] splat stream-restore fail: ${entry.name}`, e);
+          mesh=new THREE.Group();
+        }
       } else {
         console.warn(`[restore] splat no data: ${entry.name}`);
         mesh=new THREE.Group();
@@ -17831,6 +17896,9 @@ async function restoreProject(project) {
       || (entry.rawData  ? base64ToBuf(entry.rawData)  : null)
       || (entry.meshData ? base64ToBuf(entry.meshData) : null);
     if(rb){ L._rawBuffer=rb; L._rawExt=storedExt; }
+    // Carry the streaming source URL (URL-streamed RAD) onto the restored
+    // layer so a subsequent re-save persists it again instead of dropping it.
+    if(entry.streamUrl){ L._streamUrl=entry.streamUrl; L._rawExt=entry.rawExt||L._rawExt||'rad'; }
     if(entry.type==='splat'){
       L._isMain=entry.isMain||false;
       if(L._isMain) splatMesh=mesh; // update global splatMesh ref
@@ -19987,7 +20055,7 @@ window.toggleChangelog = function(){
 //  Manifest format:
 //    { "version":"0.0.2", "url":"...", "sha256":"<hex>", "notes":"..." }
 // ══════════════════════════════════════════════════
-const CURRENT_VERSION    = '0.0.15-alpha';
+const CURRENT_VERSION    = '0.0.16-alpha';
 const UPDATE_MANIFEST_URL =
   'https://raw.githubusercontent.com/nakamurakou1108/Locahun3D/main/version.json';
 
