@@ -699,7 +699,11 @@ body{position:fixed;top:0;left:0;}
      gizmo (all 60), so on phones the 録画・AR buttons rendered THROUGH the
      open panel (later-DOM wins a tie). A dropdown must cover the controls
      beneath it — only true modals (z 6000+) stay above. */
-  padding:12px 16px;z-index:95;min-width:200px;display:none;
+  /* Compact, fixed width on every device (user 2026-06 "左右に大きすぎる"): the
+     shrink-to-fit width was ~358px (the widest non-wrapping row). The content
+     reflows fine when constrained, so cap it to a tidy 220px (never wider than
+     the viewport on tiny phones). */
+  padding:10px 13px;z-index:95;width:min(220px, calc(100vw - 28px));display:none;
   /* The full menu (画質プリセット + 設定 rows + 移動速度 + 処理能力
      モニター + 解像度) is ~480 px tall — taller than phone-landscape's
      usable height. Cap it just under the viewport and scroll internally
@@ -718,14 +722,18 @@ body{position:fixed;top:0;left:0;}
   position:fixed;top:54px;right:14px;z-index:60;
   display:flex;align-items:center;gap:6px;
   background:rgba(20,20,22,.88);
-  border:1px solid rgba(255,255,255,.12);
+  border:1px solid rgba(255,255,255,.18);
   color:rgba(220,220,220,.85);
   border-radius:6px;
-  padding:4px 9px;font-size:.7em;
+  /* Match the neighbouring action buttons (user 2026-06 "ほかのボタンと同じ大きさ"):
+     same .72em font + .18 border; the in-row rule below sets the matching padding. */
+  padding:4px 9px;font-size:.72em;
   font-family:ui-monospace,Consolas,monospace;
   cursor:pointer;pointer-events:all;
   transition:background .15s,border-color .15s;
-  letter-spacing:.02em;line-height:1.2;
+  /* line-height:normal (was 1.2) so the 🖥 emoji's line box matches the other
+     action buttons — otherwise the chip rendered ~3px shorter than them. */
+  letter-spacing:.02em;line-height:normal;
   user-select:none;
   /* It's a <button> now — strip the native control chrome so it looks exactly
      like the old <div>, and make sure no tap on it (or its child spans) can
@@ -751,7 +759,7 @@ body{position:fixed;top:0;left:0;}
 #qi-badge .qib-icon{opacity:.65;}
 #qi-badge .qib-lvl{color:#ffe4b3;font-weight:600;}
 #qi-badge .qib-fps{color:rgba(180,180,180,.65);
-  font-variant-numeric:tabular-nums;min-width:33px;text-align:right;font-size:.82em;
+  font-variant-numeric:tabular-nums;min-width:33px;text-align:right;
   /* Never let the FPS read-out wrap to a 2nd line (that fattened the chip): keep
      it on one line at its content width, and floor the width so it doesn't jitter
      as the number changes. */
@@ -760,20 +768,21 @@ body{position:fixed;top:0;left:0;}
    was requested back). Slightly larger tap target so users can comfortably
    tap to open the quality panel. */
 @media (pointer:coarse) and (any-hover:none){
-  /* Touch: keep the chip tappable but a touch tighter (.74→.7em) so it reads as
-     compact on iPad too, matching the phone (user 2026-06 "もっとコンパクト"). The
-     horizontal padding is set compactly by the in-row rule below. */
-  #qi-badge{ padding:4px 6px; font-size:.7em; }
+  /* Touch: match the other action buttons' font (.72em) — padding comes from the
+     in-row rule below. (Phones drop to .57em via the #view-tl-btns button rule,
+     same as the neighbouring buttons.) */
+  #qi-badge{ font-size:.72em; }
 }
 /* When JS moves the badge into the camera action row (see _qiBadgeIntoActionRow)
    it flows inline at the row's RIGHT END rather than being pinned to the corner.
    This applies on every device. */
 #view-tl-btns > #qi-badge{ position:static; top:auto; right:auto; align-self:center;
-  /* Compact 画質 chip on EVERY device (user 2026-06 "左右に大きすぎる"): tight gap +
-     small horizontal padding so it doesn't sprawl across the top row. !important
-     because, now that the chip is a <button>, the generic #view-tl-btns button
-     padding rule (also !important) would otherwise fatten it on phones. */
-  gap:3px !important; padding:4px 6px !important; }
+  /* Same HEIGHT as the neighbouring action buttons (user 2026-06 "ほかのボタンと
+     同じ大きさ"): 5px vertical padding matches them, so the chip lines up in the row
+     AND the dropdown (anchored just under the row) no longer overlaps the taller
+     buttons. !important so it outranks the generic #view-tl-btns button padding
+     rule (also !important) on phones. */
+  gap:4px !important; padding:6px 10px !important; }
 @media (pointer:coarse) and (any-hover:none) and (max-width:600px) and (orientation:portrait){
   /* Phone PORTRAIT: keep the whole top group on ONE line (user request 2026-06
      "縦画面の上UIを一列に"). On phones only 3 buttons survive (🏠リセット / ⏺録画 /
@@ -3035,39 +3044,6 @@ body.ar-active #dz{display:none !important;}
           <li>🕐 Time slider now steps in <b>10-minute</b> increments</li>
           <li>🗑 Removed the manual “Environment” button; the background is now driven <b>solely by Sun + Weather</b> (persists when Sun is off until a manual change; prior settings are recalled on re-enable)</li>
           <li>🚗 Crossroads demo scene now opens aligned to its real bearing (Y −168° yaw)</li>
-        </ul>
-      </div>
-      <div class="cl-entry">
-        <div class="cl-entry-head">
-          <span class="cl-ver">v 0.0.3-alpha</span>
-          <span class="cl-date">2026-05-30</span>
-          <span class="cl-tag" id="cl-tag-v003">プリビズ拡張</span>
-        </div>
-        <ul class="cl-ja">
-          <li>キーボードを Google Earth デスクトップ風に一新: 矢印キー=移動(前後左右パン)、Ctrl+矢印=回転/チルト、Page Up/Down(+/-)=ズーム、Q/E・R/F=上昇/下降、Shift=高速</li>
-          <li>タッチ端末のジョイスティック右に上昇 / 下降 ▲▼ パッドを追加</li>
-          <li>カメラ位置保存 (🎥) — Camera フォルダに複数カメラを記録、レイヤーをクリックでテレポート</li>
-          <li>業界標準シネマカメラのセンサーサイズプリセット追加 (Alexa 35 / 65, RED V-Raptor, Venice 2, URSA 12K, C70, BMPCC)</li>
-          <li>カメラツールにロール (Z 軸) スライダ + 水平リセットを追加</li>
-          <li>カメラ情報バーンインに HEIGHT 行 (グリッド地面からの高さ) を追加</li>
-          <li>外側余白: マスクオーバーレイから GL ビューポートを実際に縮小する方式に変更</li>
-          <li>ビュー録画 (⏺) — MP4/WebM で MediaRecorder 経由、cbar の 測定 の右に配置</li>
-          <li>カメラアニメーション (🎞) — Catmull-Rom 曲線でスムーズなフライスルー、3D 上にマーカーとパス、MP4 書き出し、速度可変 (1m/s デフォルト、値が大きいほど速い)</li>
-          <li>ZIP ドロップ拡張: プロジェクト ZIP に加え、splat / メッシュ単体を圧縮した ZIP も自動展開して読込</li>
-          <li>カメラアニメ / 録画 / カメラ位置保存 など新ボタンの JA/EN ラベル + ツールチップ整備</li>
-        </ul>
-        <ul class="cl-en">
-          <li>Keyboard revamped to Google Earth (desktop): arrows = move (pan), Ctrl+arrows = rotate/tilt, Page Up/Down (+/-) = zoom, Q/E · R/F = up/down, Shift = faster</li>
-          <li>Touch joystick gets an up / down ▲▼ pad to its right</li>
-          <li>Save camera pose (🎥) — multi-camera placement in a Camera folder, click a layer to teleport back</li>
-          <li>Industry-standard cinema sensor presets (Alexa 35 / 65, RED V-Raptor, Venice 2, URSA 12K, C70, BMPCC)</li>
-          <li>Camera tool: roll (Z-axis) slider + level reset</li>
-          <li>Capture burn-in: HEIGHT row (camera elevation above the world grid)</li>
-          <li>Outer margin: GL viewport is now actually scissored to the safe-frame instead of overlaid</li>
-          <li>View recording (⏺) — MP4 / WebM via MediaRecorder, moved to the cbar right of 測定</li>
-          <li>Camera animation (🎞) — Catmull-Rom smooth fly-through, 3D markers + path line, MP4 export, adjustable speed (1 m/s default, higher = faster)</li>
-          <li>ZIP drop now also accepts archives containing raw splat / mesh files, not just Locahun project ZIPs</li>
-          <li>JA/EN labels + tooltips for the new camera-anim / record / save-pose buttons</li>
         </ul>
       </div>
     </div>
@@ -14987,15 +14963,23 @@ window.toggleQualityPanel=function(){
     // control instead of two floating cards.
     if(badge){
       const br = badge.getBoundingClientRect();
-      panel.style.top    = Math.round(br.bottom + 2) + 'px';
+      // Drop DOWN from the bottom of the whole action ROW, not just the chip.
+      // The chip can be shorter than the neighbouring buttons, so anchoring on
+      // br.bottom let the panel's top edge sit ABOVE the taller buttons and overlap
+      // them (user 2026-06 "開かれたUIが上部ボタンの一部と重なっている"). Using the
+      // row's bottom keeps the panel clear of every button on every device. The
+      // RIGHT edge still lines up with the chip so it reads as its dropdown.
+      const row = badge.closest('#view-tl-btns');
+      const anchorBottom = Math.max(br.bottom, row ? row.getBoundingClientRect().bottom : br.bottom);
+      panel.style.top    = Math.round(anchorBottom + 2) + 'px';
       panel.style.right  = Math.round(window.innerWidth - br.right) + 'px';
       panel.style.bottom = 'auto';
       panel.style.borderTopRightRadius = '4px';
-      // Cap to the REAL remaining viewport below the live badge position
+      // Cap to the REAL remaining viewport below the live anchor position
       // (the static CSS cap assumes the desktop badge offset; on phones the
       // badge sits higher and the 100dvh-based cap let the panel run past
       // the bottom edge, clipping the 移動速度 slider).
-      panel.style.maxHeight = Math.max(160, window.innerHeight - Math.round(br.bottom + 2) - 12) + 'px';
+      panel.style.maxHeight = Math.max(160, window.innerHeight - Math.round(anchorBottom + 2) - 12) + 'px';
       badge.classList.add('qib-open');
     }
     panel.style.display='block';
@@ -20237,7 +20221,7 @@ window.toggleChangelog = function(){
 //  Manifest format:
 //    { "version":"0.0.2", "url":"...", "sha256":"<hex>", "notes":"..." }
 // ══════════════════════════════════════════════════
-const CURRENT_VERSION    = '0.0.20-alpha';
+const CURRENT_VERSION    = '0.0.21-alpha';
 const UPDATE_MANIFEST_URL =
   'https://raw.githubusercontent.com/nakamurakou1108/Locahun3D/main/version.json';
 
