@@ -17172,6 +17172,87 @@ async function getFflate(){
   return mod;
 }
 
+// ── Full-offline embed of a URL-streamed scene ────────────────────────────
+// A scene loaded via ?demo=1 / ?autoload=URL never pulls its bytes into
+// memory — Spark streams .RAD chunks lazily over HTTP Range, so L._rawBuffer
+// is empty and only L._streamUrl exists. To produce a TRULY offline ZIP we
+// must fetch the entire file here and embed it (the restore path already
+// rebuilds a RAD SplatMesh straight from embedded bytes via
+// `new PagedSplats({fileBytes})` — see restoreProject ≈17796).
+//
+// Returns a Uint8Array on success, or null on failure (caller falls back to
+// the Option-A streamUrl reference). Streams the body so we can show a
+// running MB-downloaded toast for the (often 300+ MB) download.
+//
+// MAX_EMBED_BYTES guard: a capable device (iPad/PC) still has finite tab
+// memory. Peak during save = downloaded bytes + ZIP output buffer (~same
+// size, store-level 0) + Blob copy ≈ 3× the file. iPadOS Safari caps a tab
+// near ~3 GB, desktop Chrome much higher but the user's RAM is the real
+// ceiling. 1 GB of RAD → ~3 GB peak is the comfortable iPad limit, so we
+// refuse to embed beyond that and fall back to URL reference. Desktop could
+// go higher but we keep one conservative threshold rather than guess the
+// platform's true ceiling.
+const MAX_EMBED_BYTES = 1024 * 1024 * 1024; // 1 GB
+async function _fetchStreamUrlToBytes(url, label){
+  try{
+    const _en = window._lang === 'en';
+    const resp = await fetch(url, { cache: 'no-store' });
+    if(!resp.ok) throw new Error('HTTP ' + resp.status);
+    // Content-Length lets us (a) pre-flight the size guard before downloading
+    // the whole thing and (b) show a percentage. It may be absent on some
+    // servers/CORS configs — then we stream blind and enforce the cap as we go.
+    const clHeader = resp.headers.get('content-length');
+    const total = clHeader ? parseInt(clHeader, 10) : 0;
+    if(total > 0 && total > MAX_EMBED_BYTES){
+      console.warn(`[saveZIP] streamUrl ${Math.round(total/1048576)}MB exceeds embed cap ${Math.round(MAX_EMBED_BYTES/1048576)}MB — keeping URL reference`);
+      return { tooBig: true };
+    }
+    if(!resp.body || typeof resp.body.getReader !== 'function'){
+      // No streaming reader (very old browser / opaque response): fall back to
+      // a single arrayBuffer() read, still honouring the post-hoc size cap.
+      const buf = await resp.arrayBuffer();
+      if(buf.byteLength > MAX_EMBED_BYTES) return { tooBig: true };
+      return { bytes: new Uint8Array(buf) };
+    }
+    const reader = resp.body.getReader();
+    const chunks = [];
+    let received = 0;
+    let _lastToast = 0;
+    for(;;){
+      const { done, value } = await reader.read();
+      if(done) break;
+      received += value.length;
+      // Enforce the cap even without Content-Length: abort once we blow past
+      // it so a mislabelled huge file can't OOM the tab mid-download.
+      if(received > MAX_EMBED_BYTES){
+        try{ await reader.cancel(); }catch(_){}
+        console.warn('[saveZIP] streamUrl exceeded embed cap mid-download — keeping URL reference');
+        return { tooBig: true };
+      }
+      chunks.push(value);
+      // Throttle toast updates to ~4/s. Re-calling showUndoToast resets its
+      // 1.6 s auto-hide timer, so periodic calls keep the progress visible.
+      const now = (typeof performance !== 'undefined' ? performance.now() : Date.now());
+      if(now - _lastToast > 250){
+        _lastToast = now;
+        const mb = (received / 1048576).toFixed(0);
+        const pct = total > 0 ? ` (${Math.round(received / total * 100)}%)` : '';
+        showUndoToast(_en
+          ? `⬇ Embedding "${label}": ${mb} MB${pct}…`
+          : `⬇ "${label}" を埋め込み中: ${mb} MB${pct}…`);
+      }
+    }
+    // Coalesce chunks into one contiguous buffer.
+    const out = new Uint8Array(received);
+    let off = 0;
+    for(const c of chunks){ out.set(c, off); off += c.length; }
+    return { bytes: out };
+  }catch(e){
+    console.warn('[saveZIP] _fetchStreamUrlToBytes failed for', url, e);
+    return { error: e };
+  }
+}
+
 window.saveProjectZip = async function(){
   showUndoToast(T('zip-saving'));
   try {
@@ -17284,13 +17365,57 @@ window.saveProjectZip = async function(){
         } else if(L._streamUrl){
           // Streaming RAD (?demo=1 / ?autoload=URL): the bytes were never
           // pulled into memory — Spark fetches chunks lazily over HTTP Range.
-          // There's nothing local to embed in the ZIP, so persist the source
-          // URL and let restore re-stream it. NOT a fully-offline archive, but
-          // the scene is reconstructable as long as the URL stays reachable.
-          entry.streamUrl=L._streamUrl;
-          entry.rawExt=L._rawExt||'rad';
-          entry.isMain=L._isMain||false;
-          console.warn('saveProjectZip: splat is URL-streamed, persisting streamUrl for',L.name,'→',L._streamUrl);
+          //
+          // TRUE-OFFLINE embed (capable devices only): fetch the whole file
+          // from the source URL and embed it just like a locally-loaded splat.
+          // The restore path already rebuilds RAD straight from these embedded
+          // bytes (restoreProject ≈17796: new PagedSplats({fileBytes})), so no
+          // restore-side change is needed — the round-trip is symmetric with a
+          // drag-and-dropped .rad.
+          //
+          // Gate: only on NON-phone-class devices (same _isPhoneClass test as
+          // _skipSplatData). On phones the 300 MB+ download + ZIP buffers OOM
+          // the tab, so we keep the lightweight Option-A URL reference there.
+          // _fetchStreamUrlToBytes additionally enforces MAX_EMBED_BYTES (1 GB)
+          // so an extreme iPad scene still falls back to URL reference.
+          const ext=L._rawExt||'rad';
+          const fname=`splat/${fileIdx++}_${L.name.replace(/[^a-zA-Z0-9_-]/g,'_')}.${ext}`;
+          let _embedded=false;
+          if(!_isPhoneClass){
+            console.warn('saveProjectZip: URL-streamed splat — fetching for full-offline embed:',L.name,'←',L._streamUrl);
+            const r=await _fetchStreamUrlToBytes(L._streamUrl, L.name);
+            if(r && r.bytes && r.bytes.length>0){
+              files[fname]=r.bytes;
+              entry.file=fname;
+              entry.rawExt=ext;
+              entry.isMain=L._isMain||false;
+              // Keep the source URL alongside the embedded bytes as a recovery
+              // fallback (restore prefers embedded bytes; streamUrl is only used
+              // when entry._buf is absent). Also lets a future re-save re-fetch
+              // if the bytes were somehow dropped.
+              entry.streamUrl=L._streamUrl;
+              _embedded=true;
+              console.log(`[saveZIP] splat "${L.name}" embedded from URL → ${fname} (${(r.bytes.length/1048576).toFixed(1)}MB)`);
+            } else if(r && r.tooBig){
+              showUndoToast(window._lang==='en'
+                ? `⚠ "${L.name}" too large to embed — saved as URL reference (online required)`
+                : `⚠ "${L.name}" は大きすぎて埋め込み不可 — URL参照で保存（再生にネット必要）`);
+            } else {
+              // Network/CORS error: fall through to Option-A below.
+              showUndoToast(window._lang==='en'
+                ? `⚠ Couldn't fetch "${L.name}" — saved as URL reference (online required)`
+                : `⚠ "${L.name}" 取得失敗 — URL参照で保存（再生にネット必要）`);
+            }
+          }
+          if(!_embedded){
+            // Option-A fallback: phone-class device, oversized file, or fetch
+            // failure. Persist the source URL and let restore re-stream it. NOT
+            // a fully-offline archive, but reconstructable while the URL is up.
+            entry.streamUrl=L._streamUrl;
+            entry.rawExt=ext;
+            entry.isMain=L._isMain||false;
+            console.warn('saveProjectZip: persisting streamUrl (Option-A) for',L.name,'→',L._streamUrl);
+          }
         } else {
           entry.missing=true;
           console.warn('saveProjectZip: splat buffer not cached for',L.name);
@@ -17369,8 +17494,11 @@ window.saveProjectZip = async function(){
     const missing=serialized.filter(e=>e.missing).length;
     // streamed = splat layers saved as a URL reference (URL-streamed RAD) with
     // no embedded bytes. They restore by re-streaming, so they are NOT counted
-    // as "missing", but the ZIP is not fully offline — tell the user.
-    const streamed=serialized.filter(e=>e.streamUrl).length;
+    // as "missing", but the ZIP is not fully offline — tell the user. NOTE: a
+    // successfully embedded streamed scene also keeps entry.streamUrl as a
+    // recovery fallback, so we must additionally require NO embedded file
+    // (entry.file) to avoid mis-labelling a full-offline embed as URL-only.
+    const streamed=serialized.filter(e=>e.streamUrl && !e.file).length;
     // fileCount = everything except project.json (and the bundled HTML
     // when present — we mention it separately so the user knows their
     // ZIP is offline-playable).
@@ -19411,8 +19539,15 @@ canvas.addEventListener('touchstart',e=>{
       markDirty(6);
     }, _MSR_LONG_PRESS_MS);
   }
+  // Camera look-around (touch-drag rotate) activates on the RIGHT part of the
+  // screen; the left strip is a dead zone so a look-drag doesn't fight the
+  // joystick / ▲▼ arrows in the bottom-left. Widened the active zone leftward
+  // (0.4 → 0.3 of the width) per user request 2026-06 so rotation responds across
+  // more of the view. Safe vs the joystick/arrows: those are separate elements
+  // (z-index 60, pointer-events) that capture their own touches before the canvas
+  // sees them, so the only thing the wider zone claims is empty canvas left-of-centre.
   for(const t of e.changedTouches)
-    if(t.clientX>innerWidth*0.4){tlId=t.identifier;tlX=t.clientX;tlY=t.clientY;}
+    if(t.clientX>innerWidth*0.3){tlId=t.identifier;tlX=t.clientX;tlY=t.clientY;}
 },{passive:true});
 canvas.addEventListener('touchmove',e=>{
   // ── Measure-mode placement preview update (active long-press) ──
@@ -20055,7 +20190,7 @@ window.toggleChangelog = function(){
 //  Manifest format:
 //    { "version":"0.0.2", "url":"...", "sha256":"<hex>", "notes":"..." }
 // ══════════════════════════════════════════════════
-const CURRENT_VERSION    = '0.0.16-alpha';
+const CURRENT_VERSION    = '0.0.17-alpha';
 const UPDATE_MANIFEST_URL =
   'https://raw.githubusercontent.com/nakamurakou1108/Locahun3D/main/version.json';
 
