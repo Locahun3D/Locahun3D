@@ -1,6 +1,6 @@
 {
-  "version": "0.0.23-alpha",
+  "version": "0.0.24-alpha",
   "url": "https://locahun3d.nakamurakou1108.workers.dev",
   "sha256": null,
-  "notes": "(1) Object gizmo rotation axes fixed (user: 'Z inverted / Y doesn't rotate around the vertical axis'). The transform gizmo used a Blender Z-up convention (green handle/ring → world Z, blue → world Y) while the numeric inputs + applyLayerTransform are Three.js Y-up. The whole gizmo (rotation rings, scale handles, move arrows) is now Y-up to match: green = Y (vertical/up), blue = Z (depth), red = X. Drag-direction signs preserved from the existing geometry (worldX→+, worldY→−, worldZ→+). NOTE: gizmo dragging can't be tested headlessly — please confirm on a device that the green ring rotates around the vertical axis and directions feel right; any inverted axis is a one-line sign flip. (2) 画質 panel now opens directly UNDER the 画質 chip, horizontally centred on it (user: '画質ボタンの真下中央'), clamped to stay on-screen near the edge — instead of screen-centred. Builds on v0.0.22."
+  "notes": "Gizmo: flip the Y (green, vertical) rotation direction. After the v0.0.23 Y-up gizmo fix, the user confirmed on-device that the green ring rotated the wrong way; the world-Y rotation delta is now +delta (was -delta) so dragging the green ring spins the object the intuitive direction around the vertical axis. X (red) and Z (blue) were already correct. Builds on v0.0.23."
 }

@@ -5237,11 +5237,11 @@ function updateLpvDrag(clientX,clientY){
     } else {
       // ── ワールド回転: Eulerで直接適用 (Y-up 規約 / 数値入力と一致) ──
       // rx(赤)→World X軸, ry(緑)→World Y軸(上), rz(青)→World Z軸(奥行き)
-      // 符号は「worldAxisごとの delta 関係」を保存:
-      //   worldX→+delta, worldY→-delta, worldZ→+delta
-      // (tanA/tanB/startAngle の幾何から決まる固定関係。リング入替時も維持)
+      // 符号: worldX→+delta, worldZ→+delta は幾何どおり。worldY は幾何上は
+      // -delta だが、実機で緑リングの回転方向が反転して見えた(ユーザー報告
+      // 2026-06)ため +delta に反転して合わせる。
       if     (ax==='rx') L.rot={...sr, x:sr.x+delta}; // World X軸
-      else if(ax==='ry') L.rot={...sr, y:sr.y-delta}; // World Y軸(上)
+      else if(ax==='ry') L.rot={...sr, y:sr.y+delta}; // World Y軸(上) ※実機で反転確認→符号反転
       else if(ax==='rz') L.rot={...sr, z:sr.z+delta}; // World Z軸(奥行き)
     }
 
@@ -20264,7 +20264,7 @@ window.toggleChangelog = function(){
 //  Manifest format:
 //    { "version":"0.0.2", "url":"...", "sha256":"<hex>", "notes":"..." }
 // ══════════════════════════════════════════════════
-const CURRENT_VERSION    = '0.0.23-alpha';
+const CURRENT_VERSION    = '0.0.24-alpha';
 const UPDATE_MANIFEST_URL =
   'https://raw.githubusercontent.com/nakamurakou1108/Locahun3D/main/version.json';
 
