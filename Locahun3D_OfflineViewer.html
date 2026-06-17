@@ -660,32 +660,6 @@ body{position:fixed;top:0;left:0;}
 }
 .lp-footer button:hover{background:rgba(255,255,255,.08);color:#D8D8D8;}
 
-/* ══════ MINIMAP ══════ */
-#minimap-wrap{
-  background:rgba(26,26,28,.96);border-top:1px solid rgba(255,255,255,.07);
-  border-right:1px solid rgba(255,255,255,.05);flex-shrink:0;
-}
-#minimap-wrap .mm-head{
-  display:flex;align-items:center;justify-content:space-between;
-  padding:4px 8px;font-size:.68em;color:rgba(255,255,255,.25);
-}
-#mm-canvas{
-  display:block;margin:0 auto 4px;border-radius:4px;cursor:crosshair;
-  border:1px solid rgba(255,255,255,.07);
-}
-#mm-expanded{
-  position:fixed;left:301px;bottom:60px;
-  background:rgba(22,22,24,.96);border:1px solid rgba(255,255,255,.14);border-radius:10px;
-  padding:10px;z-index:55;display:none;pointer-events:all;
-  user-select:none;
-}
-#mm-expanded canvas{display:block;border-radius:6px;cursor:crosshair;border:1px solid rgba(255,255,255,.1);}
-#mm-expanded .mm-close{
-  position:absolute;top:6px;right:10px;cursor:pointer;
-  color:rgba(255,255,255,.3);font-size:1.2em;
-}
-#mm-expanded .mm-hint{font-size:.7em;color:#404040;text-align:center;margin-top:4px;}
-
 /* ══════ QUALITY PANEL ══════ */
 #quality-panel{
   /* Anchored directly UNDER the #qi-badge (the FPS/画質 chip at
@@ -840,34 +814,6 @@ body{position:fixed;top:0;left:0;}
   font-size:.65em;color:#B8B8B8;font-variant-numeric:tabular-nums;
 }
 
-#mm-expanded .mm-range-btn{
-  background:#2A2A2C;border:1px solid rgba(255,255,255,.1);color:#484848;
-  border-radius:4px;padding:2px 7px;font-size:.68em;cursor:pointer;transition:all .15s;
-}
-#mm-expanded .mm-range-btn:hover,#mm-expanded .mm-range-btn.on{
-  background:rgba(255,255,255,.08);border-color:rgba(255,255,255,.28);color:#D8D8D8;
-}
-
-/* ── Floating minimap (deprecated; expanded map is the primary minimap now) ── */
-#minimap-float{ display:none !important; }
-#minimap-float-old{
-  position:fixed;left:301px;bottom:70px;
-  background:rgba(26,26,28,.96);border:1px solid rgba(255,255,255,.1);
-  border-radius:8px;z-index:55;pointer-events:all;
-  transition:opacity .5s;opacity:0;
-  user-select:none;min-width:120px;min-height:80px;
-}
-#minimap-float.visible{opacity:1;}
-#minimap-float .mf-head{
-  display:flex;align-items:center;justify-content:space-between;
-  padding:4px 8px;font-size:.68em;color:rgba(255,255,255,.25);
-  cursor:move;
-}
-#minimap-float .mf-collapse{
-  background:none;border:none;color:rgba(255,255,255,.3);
-  cursor:pointer;font-size:.85em;padding:0 2px;line-height:1;
-}
-/* Minimap resize: removed */
 /* ── Layer panel resize handle ── */
 #layer-panel .lp-resize{
   position:absolute;right:-4px;top:0;bottom:0;
@@ -1039,7 +985,6 @@ body{position:fixed;top:0;left:0;}
      the minimap is a desktop editing aid that doesn't fit a phone's
      thumb-driven UX, and the full keyboard-shortcut manual is meant
      for desktop. カメラ / 環境 / 画質 / 設定 stay visible. */
-  #btnMinimap,
   #btnHelp { display:none !important; }
 }
 
@@ -1476,41 +1421,6 @@ body.immersive #immersive-exit{ display:inline-block; }
 #sun-panel .sun-cal-d.sel{background:rgba(255,200,90,.28);border-color:rgba(255,200,90,.7);color:#fff!important}
 #btn-sun.on{background:rgba(255,200,90,.2);border-color:rgba(255,200,90,.55);color:#fd9;}
 </style>
-
-<div id="minimap-float">
-  <div class="mf-head">
-    🗺 <span id="mf-title">ミニマップ</span>
-    <div style="display:flex;align-items:center;gap:4px">
-      <select id="mm-range" onchange="setMinimapRange(+this.value)" style="background:#2A2A2C;border:1px solid rgba(255,255,255,.12);color:#888;border-radius:3px;padding:1px 3px;font-size:.8em;cursor:pointer">
-        <option value="10">10m</option>
-        <option value="50">50m</option>
-        <option value="100" selected>100m</option>
-        <option value="500">500m</option>
-      </select>
-      <button class="mf-collapse" onclick="toggleMinimapCollapse()" id="mf-collapse-btn" title="折りたたむ">▾</button>
-    </div>
-  </div>
-  <div id="mf-body">
-    <canvas id="mm-canvas" width="186" height="140" style="display:block;margin:0 auto 3px;border-radius:4px;cursor:crosshair;border:1px solid rgba(255,255,255,.07)"></canvas>
-    <div id="mf-hint" style="font-size:.62em;color:#404040;text-align:center;padding-bottom:3px">右クリ長押しで移動先選択</div>
-  </div>
-</div>
-
-<!-- ══ Minimap Expanded ══ -->
-<div id="mm-expanded">
-  <span class="mm-close" onclick="closeExpandedMinimap()">✕</span>
-  <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px">
-    <span style="font-size:.75em;color:rgba(200,200,200,.35)">🗺 <span id="mm-big-title">ミニマップ</span></span>
-    <div style="display:flex;gap:4px">
-      <button onclick="setBigMapRange(10)"  class="mm-range-btn" id="mmb-10">10m</button>
-      <button onclick="setBigMapRange(50)"  class="mm-range-btn" id="mmb-50">50m</button>
-      <button onclick="setBigMapRange(100)" class="mm-range-btn on" id="mmb-100">100m</button>
-      <button onclick="setBigMapRange(500)" class="mm-range-btn" id="mmb-500">500m</button>
-    </div>
-  </div>
-  <canvas id="mm-big-canvas" width="560" height="560"></canvas>
-  <div class="mm-hint" id="mm-big-hint">右クリック長押し → 離すとその位置に移動 &nbsp;｜&nbsp; スクロール: 5mステップ拡縮</div>
-</div>
 
 <!-- ══ Quality Panel ══ -->
 <div id="quality-panel">
@@ -3088,7 +2998,6 @@ body.ar-active #dz{display:none !important;}
     <button id="btn-sun"    onclick="toggleSunMode()">☀ <span id="lbl-sun" data-i18n="lbl-sun">日照</span></button>
     <button id="btnMeasure" onclick="toggleMeasure()">📐 <span id="lbl-measure">測定</span></button>
     <button id="btnViewRec" onclick="toggleViewRecording()" title="ビューを MP4 で録画 / 停止">⏺ <span id="lbl-view-rec">録画</span></button>
-    <button id="btnMinimap" onclick="toggleMinimapVisible()">🗺 <span id="lbl-minimap">マップ</span></button>
 
     <!-- 画質 / 設定 buttons removed: quality is now an always-visible
          indicator at the top-right of the view (#qi-badge); grid / FOV /
@@ -4375,7 +4284,6 @@ function _sunUpdateScrubMarks(times){
 // ── DOM ハンドラ ──
 // 日照パネルの位置: 常に左サイドバー(シーンレイヤー)の右隣に寄せて配置
 // （リサイズ/折りたたみに追従）。カメラパネルは右サイドバーなので左側に置く。
-// ミニマップ(#mm-expanded)も同じ場所なので、両者は排他表示にしている。
 function _sunUpdatePanelPos(){
   const pan = document.getElementById('sun-panel'); if(!pan) return;
   // 左サイドバーの右端 + 余白。サイドバーが無い/隠れているときは左端14px。
@@ -4394,12 +4302,8 @@ function _sunShowPanel(show){
   if(show){ _sunUpdatePanelPos(); _sunSyncForm(); }
 }
 window.toggleSunMode = function(){
-  // 日照は独立トグル（カメラ等とは同時操作OK）。ただしミニマップ(マップ表示)とは
-  // 同じ場所に出るので排他: 日照を開くならマップを閉じる。
+  // 日照は独立トグル（カメラ等とは同時操作OK）。
   if(!sun.active){
-    if(typeof _mmUserVisible !== 'undefined' && _mmUserVisible && typeof window.toggleMinimapVisible === 'function'){
-      window.toggleMinimapVisible();   // マップを閉じる
-    }
     _setSunActive(true);   // 点灯
     _sunShowPanel(true);   // 操作パネルを開く
   } else {
@@ -4631,7 +4535,6 @@ window.resetCameraToInitial = function(){
   if(typeof _engagedCamId !== 'undefined') _engagedCamId = null;
   camPos.copy(_initCamPos);
   setCamRotImmediate(_initYaw, _initPitch);
-  requestMinimapUpdate();
   showUndoToast(T('cam-reset-msg'));
   markDirty(10);
 };
@@ -5632,17 +5535,6 @@ function closeAllPanels(opts){
   }
   // 日照(Sun)パネルは独立。他ツール(特にカメラ)と同時表示・同時操作できるよう、
   // closeAllPanels では閉じない。日照の開閉は btn-sun トグルのみで制御する。
-  // Minimap big-view
-  if(typeof _mmUserVisible !== 'undefined' && _mmUserVisible){
-    _mmUserVisible = false;
-    const _mx = document.getElementById('mm-expanded');
-    if(_mx) _mx.style.display = 'none';
-    if(typeof mmExpanded !== 'undefined') mmExpanded = false;
-    const _mb = document.getElementById('btnMinimap');
-    if(_mb) _mb.classList.remove('on');
-    const _ml = document.getElementById('lbl-minimap');
-    if(_ml) _ml.textContent = (window._lang === 'en') ? 'Show Map' : 'マップ表示';
-  }
   // Camera-animation panel — behave like the env button: when any other
   // tool is launched the panel + its 3-D editing visuals get hidden so they
   // don't clutter the view. Don't stop an in-progress playback/recording.
@@ -9009,12 +8901,6 @@ function showHUD() {
   const _bac=document.getElementById('btnAddCube'); if(_bac) _bac.style.display='';
   const bsph=document.getElementById('btnAddSphere');
   if(bsph) bsph.style.display='';
-  // The expanded minimap is the primary minimap now — show it from the start
-  // when the user enters a scene (subject to the cbar Map toggle).
-  const ex=document.getElementById('mm-expanded');
-  if(ex && _mmUserVisible){ ex.style.display='block'; mmExpanded=true; }
-  const mmBtn=document.getElementById('btnMinimap');
-  if(mmBtn && _mmUserVisible) mmBtn.classList.add('on');
   const vtlb=document.getElementById('view-tl-btns');
   if(vtlb) vtlb.style.display='flex';
   // Phone-tier (mobile short-edge < 700 px) gates: multi-camera (Save Pose)
@@ -9038,7 +8924,6 @@ function showHUD() {
   // recording-state label loop / tooltip refs don't need touching.)
   const _btnViewRecPhone = document.getElementById('btnViewRecPhone');
   if(_btnViewRecPhone) _btnViewRecPhone.style.display = 'none';
-  requestMinimapUpdate();
 }
 let _hideDzTimer=null;
 function hideDZ()  {
@@ -10004,7 +9889,6 @@ async function loadSplatFile(file){
     // to ~45 even while the user is idle. After 4 s the on-demand render path
     // takes over and rAF returns to full vsync rate until next interaction.
     _splatActiveUntil = performance.now() + _SPLAT_ACTIVE_MS;
-    requestMinimapUpdate();
     // (orientation "シーンが逆さまですか？" toast removed — no longer pops up after load.)
     // Schedule the one-shot quality auto-probe. The probe itself waits
     // an additional ~3.5 s inside _scheduleQualityProbe so Spark's
@@ -10062,7 +9946,6 @@ function loadEmptyProject(){
   showHUD();
   hideDZ();
   history.pushState({view:'app'}, '', location.href);
-  requestMinimapUpdate();
   renderLayerList();
 }
 
@@ -11675,7 +11558,6 @@ function globalRedo(){
       if(selectedLayerId===e.id) selectedLayerId=null;
     }
     renderLayerList(); renderTransformPanel();
-    requestMinimapUpdate();
     showUndoToast(T('redo-del-toast'));
     markDirty(8);
     globalUndoStack.push(s);
@@ -11687,7 +11569,6 @@ function globalRedo(){
     if(idx>=0) layers.splice(idx,1);
     if(selectedLayerId===s.id) selectedLayerId=null;
     renderLayerList(); renderTransformPanel();
-    requestMinimapUpdate();
     showUndoToast(T('redo-del'));
     markDirty(8);
     // push back to undo so it can be undone again
@@ -11783,7 +11664,6 @@ function globalUndo(){
       layers.push(e.layer);
     }
     renderLayerList();
-    requestMinimapUpdate();
     showUndoToast(T('undo-del-toast'));
     markDirty(8);
   } else if(s.type==='layer-delete'){
@@ -11795,7 +11675,6 @@ function globalUndo(){
     if(s.wireMesh){ scene.add(s.wireMesh); s.layer.wireMesh=s.wireMesh; }
     layers.push(s.layer);
     renderLayerList();
-    requestMinimapUpdate();
     showUndoToast(T('undo-del'));
     markDirty(8);
   } else if(s.type==='figure-pose'){
@@ -11898,7 +11777,6 @@ function addLayer(opts){
     scale: opts.scale||{x:1,y:1,z:1},
     wireframe: false,
     wireMesh: null,
-    mmProxy: null,
   };
   scene.add(L.mesh);
   layers.push(L);
@@ -11908,7 +11786,6 @@ function addLayer(opts){
   // (which would drift on bulk imports / project restore).
   _recountLayerActivity();
   renderLayerList();
-  requestMinimapUpdate();
   markDirty(8);
   if(typeof _haloMarkDirty === 'function') _haloMarkDirty();
   return L;
@@ -12264,7 +12141,6 @@ function applyLayerTransform(id){
     L.wireMesh.rotation.copy(L.mesh.rotation);
     L.wireMesh.scale.copy(L.mesh.scale);
   }
-  requestMinimapUpdate();
   markDirty(8);
 }
 
@@ -12582,7 +12458,7 @@ function applyI18n(){
   // 日照パネルの都市ドロップダウンを言語に合わせて翻訳
   if(typeof _sunApplyCityI18n==='function') _sunApplyCityI18n();
   // HUD labels
-  ['lbl-pos','lbl-spd','lbl-rot','lbl-measure','lbl-flip','lbl-addobj','lbl-quality','lbl-settings','lbl-file','lbl-cam-reset','lbl-minimap','lbl-camtool','lbl-env','lbl-help','orient-lock-msg','orient-lock-sub','lbl-addobj-top','lbl-addfig-top','tb-save-lbl','tb-load-lbl','tb-report-lbl','fp-btn-import-lbl','fp-btn-export-lbl','csp-shot-info','csp-cam-info','csp-meta-info','csp-shot-name','csp-rig','csp-env','csp-note','csp-capture','csp-burnin','csp-burnin-grid','csp-capture-btn','csp-salvage','csp-salvage-drop','csp-salvage-sub','ct-tool','ct-lens','ct-focal','ct-sensor','ct-sensor-ff','ct-sensor-apsc','ct-sensor-apsh','ct-sensor-mft','ct-sensor-1inch','ct-sensor-phone13','ct-sensor-phone17','ct-sensor-phone23','ct-sensor-m65','ct-sensor-s35','ct-sensor-bm','ct-sensor-cust','ct-sensor-w','ct-sensor-h','ct-cam-angle','ct-pan','ct-tilt','ct-roll','ct-roll-level','ct-wb','ct-wb-temp','ct-aspect','ct-aspect-sensor','ct-aspect-cust','ct-aspect-apply','ct-margin','ct-grid','ct-grid-multi','ct-grid-guide','ct-grid-off','ct-grid-thirds','ct-grid-golden','ct-grid-cross','ct-grid-diag','ct-grid-safe-cust','ct-grid-action','ct-grid-title','ct-grid-center','ct-grid-custom','ct-grid-cols','ct-grid-rows','ct-grid-opacity','dz-manual-text','dz-ar-label','env-h-title','env-p-off','env-p-day','env-p-morning','env-p-evening','env-p-night','env-p-cloudy','env-p-rain','env-p-overcast','env-p-twilight','env-l-rot','env-l-int','msr-active-lbl','msr-end-lbl','lp-h-scene','lp-empty','qt-title','qt-low','qt-mid','qt-high','qp-perf-t','qp-l-frame','qp-l-gpu','qp-l-head','qp-l-dc','qp-l-tris','qp-l-geos','qp-l-texs','dist-l','msr-clear','msr-undo','em-3dgs','em-3dgs-d','em-zip-save','em-zip-save-d','em-zip-load','em-zip-load-d','em-json','em-json-d','em-glb','em-glb-d','em-obj','em-obj-d','em-cancel','em-recommended','em-h-title','qp-settings-t','qp-lbl-lowpoly-main','qp-lbl-lowpoly-hint','mm-big-title','mm-big-hint','qp-lbl-grid','qp-lbl-show','qp-lbl-fov','qp-lbl-spd','cl-title','cl-sub','cl-tag-init','cl-tag-v003','lbl-walk','lbl-save-camera','lbl-view-rec','lbl-view-rec-phone','lbl-cam-anim','giz-pt-a','giz-pt-b','giz-pt-c','giz-height-lbl','height-l','csp-jpeg-q','csp-4k-lbl','obj-add-cube','obj-add-sphere','obj-add-light','obj-add-event','msr-end-lbl-init'].forEach(id=>{
+  ['lbl-pos','lbl-spd','lbl-rot','lbl-measure','lbl-flip','lbl-addobj','lbl-quality','lbl-settings','lbl-file','lbl-cam-reset','lbl-camtool','lbl-env','lbl-help','orient-lock-msg','orient-lock-sub','lbl-addobj-top','lbl-addfig-top','tb-save-lbl','tb-load-lbl','tb-report-lbl','fp-btn-import-lbl','fp-btn-export-lbl','csp-shot-info','csp-cam-info','csp-meta-info','csp-shot-name','csp-rig','csp-env','csp-note','csp-capture','csp-burnin','csp-burnin-grid','csp-capture-btn','csp-salvage','csp-salvage-drop','csp-salvage-sub','ct-tool','ct-lens','ct-focal','ct-sensor','ct-sensor-ff','ct-sensor-apsc','ct-sensor-apsh','ct-sensor-mft','ct-sensor-1inch','ct-sensor-phone13','ct-sensor-phone17','ct-sensor-phone23','ct-sensor-m65','ct-sensor-s35','ct-sensor-bm','ct-sensor-cust','ct-sensor-w','ct-sensor-h','ct-cam-angle','ct-pan','ct-tilt','ct-roll','ct-roll-level','ct-wb','ct-wb-temp','ct-aspect','ct-aspect-sensor','ct-aspect-cust','ct-aspect-apply','ct-margin','ct-grid','ct-grid-multi','ct-grid-guide','ct-grid-off','ct-grid-thirds','ct-grid-golden','ct-grid-cross','ct-grid-diag','ct-grid-safe-cust','ct-grid-action','ct-grid-title','ct-grid-center','ct-grid-custom','ct-grid-cols','ct-grid-rows','ct-grid-opacity','dz-manual-text','dz-ar-label','env-h-title','env-p-off','env-p-day','env-p-morning','env-p-evening','env-p-night','env-p-cloudy','env-p-rain','env-p-overcast','env-p-twilight','env-l-rot','env-l-int','msr-active-lbl','msr-end-lbl','lp-h-scene','lp-empty','qt-title','qt-low','qt-mid','qt-high','qp-perf-t','qp-l-frame','qp-l-gpu','qp-l-head','qp-l-dc','qp-l-tris','qp-l-geos','qp-l-texs','dist-l','msr-clear','msr-undo','em-3dgs','em-3dgs-d','em-zip-save','em-zip-save-d','em-zip-load','em-zip-load-d','em-json','em-json-d','em-glb','em-glb-d','em-obj','em-obj-d','em-cancel','em-recommended','em-h-title','qp-settings-t','qp-lbl-lowpoly-main','qp-lbl-lowpoly-hint','qp-lbl-grid','qp-lbl-show','qp-lbl-fov','qp-lbl-spd','cl-title','cl-sub','cl-tag-init','cl-tag-v003','lbl-walk','lbl-save-camera','lbl-view-rec','lbl-view-rec-phone','lbl-cam-anim','giz-pt-a','giz-pt-b','giz-pt-c','giz-height-lbl','height-l','csp-jpeg-q','csp-4k-lbl','obj-add-cube','obj-add-sphere','obj-add-light','obj-add-event','msr-end-lbl-init'].forEach(id=>{
     const el=document.getElementById(id); if(el) el.textContent=T(id);
   });
   // HUD info-box edit tooltip + dropzone titles
@@ -12847,7 +12723,7 @@ window.addFolder = function() {
     id, name:`Folder ${_nextLayerNameNumber('folder')}`, type:'folder',
     mesh:null, visible:true, expanded:true, parentId:null,
     pos:{x:0,y:0,z:0}, rot:{x:0,y:0,z:0}, size:{x:1,y:1,z:1},
-    wireframe:false, wireMesh:null, mmProxy:null,
+    wireframe:false, wireMesh:null,
   };
   layers.push(L);
   renderLayerList();
@@ -13047,7 +12923,7 @@ window.setCubeColor=function(id,hex){
   L.cubeColor=hex;
   const mesh=L.mesh.children[0];
   if(mesh&&mesh.material) mesh.material.color.set(hex);
-  requestMinimapUpdate(); markDirty(4);
+  markDirty(4);
 };
 window.setCubeOpacity=function(id,v){
   const L=findLayer(id); if(!L||(L.type!=='cube'&&L.type!=='sphere')) return;
@@ -15067,353 +14943,11 @@ window.toggleQualityPanel=function(){
 
 
 // ══════════════════════════════════════════════════
-//  MINIMAP  (WebGL top-down + 2D overlay)
-// ══════════════════════════════════════════════════
-let minimapRange=100;
-let mmRightHold=false, mmPreviewScrX=0, mmPreviewScrY=0;
-let _mmAnimId=null, mmExpanded=true;
-
-function _applyMinimapRange(v){
-  minimapRange = v;
-  document.querySelectorAll('.mm-range-btn').forEach(b=>b.classList.remove('on'));
-  const btn = document.getElementById('mmb-'+v);
-  if(btn) btn.classList.add('on');
-  const sel = document.getElementById('mm-range');
-  if(sel) sel.value = v;
-  requestMinimapUpdate();
-}
-window.setMinimapRange=function(v){
-  const before = minimapRange;
-  _applyMinimapRange(v);
-  pushGenericUndo('mm-range', before, v, val=>_applyMinimapRange(val));
-};
-window.setBigMapRange = function(v){
-  const before = minimapRange;
-  _applyMinimapRange(v);
-  pushGenericUndo('mm-range', before, v, val=>_applyMinimapRange(val));
-};
-
-function minimapToWorld(mx,my,canvas){ const W=canvas.width,H=canvas.height; return { x:(mx-W/2)/W*minimapRange+camPos.x+_mmPanX, z:(my-H/2)/H*minimapRange+camPos.z+_mmPanZ }; }
-
-// ── Top-down camera + RenderTarget (shares main renderer) ──
-const mmCamera = new THREE.OrthographicCamera(-1,1,1,-1,0.1,2000);
-// up = -Z so north is up on the minimap
-mmCamera.up.set(0,0,-1);
-let mmRT = new THREE.WebGLRenderTarget(196, 150);
-let mmBigRT = new THREE.WebGLRenderTarget(480, 480);
-
-function updateMmCamera(){
-  const hr = minimapRange / 2;
-  mmCamera.left   = -hr; mmCamera.right  =  hr;
-  mmCamera.top    =  hr; mmCamera.bottom = -hr;
-  mmCamera.near   = 0.1;
-  mmCamera.far    = Math.max(minimapRange * 4, 200);
-  mmCamera.updateProjectionMatrix();
-  const mmCX=camPos.x+_mmPanX, mmCZ=camPos.z+_mmPanZ;
-  mmCamera.position.set(mmCX, camPos.y + Math.max(minimapRange * 2, 30), mmCZ);
-  mmCamera.lookAt(new THREE.Vector3(mmCX, camPos.y, mmCZ));
-}
-
-function renderMinimapToCanvas(targetCanvas){
-  const W=targetCanvas.width, H=targetCanvas.height;
-
-  // ── Pick the right RenderTarget (resize if needed) ──
-  const isBig = (W > 200);
-  const rt = isBig ? mmBigRT : mmRT;
-  if(rt.width !== W || rt.height !== H) rt.setSize(W, H);
-
-  updateMmCamera();
-
-  // Temporarily hide screen-space pivot/preview objects
-  const _wasVisA  = msr.markerA?.visible;
-  const _wasVisB  = msr.markerB?.visible;
-  const _wasVisPv = msr.previewMarker?.visible;
-  if(msr.markerA)       msr.markerA.visible       = false;
-  if(msr.markerB)       msr.markerB.visible       = false;
-  if(msr.previewMarker) msr.previewMarker.visible  = false;
-  if(lpv.group)         lpv.group.visible          = false;
-  const _wasGrid = grid.visible; grid.visible = false;
-
-  // Render scene into RenderTarget using the MAIN renderer
-  renderer.setRenderTarget(rt);
-  renderer.setClearColor(0x080808, 1);
-  renderer.clear();
-  renderer.render(scene, mmCamera);
-  renderer.setRenderTarget(null);
-  renderer.setClearColor(0x000000, 1); // restore main scene clear color (black)
-
-  // Restore visibility
-  if(msr.markerA)       msr.markerA.visible       = _wasVisA;
-  if(msr.markerB)       msr.markerB.visible       = _wasVisB;
-  if(msr.previewMarker) msr.previewMarker.visible  = _wasVisPv;
-  if(lpv.group)         updateLayerPivot();
-  grid.visible = _wasGrid;
-
-  // Read pixels from RenderTarget → ImageData → 2D canvas
-  const buf = new Uint8Array(W * H * 4);
-  renderer.readRenderTargetPixels(rt, 0, 0, W, H, buf);
-  // WebGL Y is flipped — flip vertically
-  const flipped = new Uint8ClampedArray(W * H * 4);
-  for(let y=0;y<H;y++){
-    const src=(H-1-y)*W*4, dst=y*W*4;
-    flipped.set(buf.subarray(src, src+W*4), dst);
-  }
-  const ctx = targetCanvas.getContext('2d');
-  ctx.putImageData(new ImageData(flipped, W, H), 0, 0);
-
-  // ── 2D overlay: grid, markers, camera arrow ──
-  function worldToMinimap(wx,wz){
-    return {
-      x:(wx-(camPos.x+_mmPanX))/minimapRange*W + W/2,
-      y:(wz-(camPos.z+_mmPanZ))/minimapRange*H + H/2
-    };
-  }
-
-  // Grid lines (subtle)
-  const divs=5;
-  ctx.strokeStyle='rgba(255,221,0,0.07)';
-  ctx.lineWidth=0.5;
-  for(let i=0;i<=divs;i++){
-    const x=i/divs*W; ctx.beginPath();ctx.moveTo(x,0);ctx.lineTo(x,H);ctx.stroke();
-    const y=i/divs*H; ctx.beginPath();ctx.moveTo(0,y);ctx.lineTo(W,y);ctx.stroke();
-  }
-
-  // Measurement markers A/B
-  if(msr.step>=1 && msr.markerA.visible){
-    const m=worldToMinimap(msr.ptA.x,msr.ptA.z);
-    ctx.fillStyle='#ffff44';
-    ctx.beginPath();ctx.arc(m.x,m.y,5,0,Math.PI*2);ctx.fill();
-    ctx.fillStyle='#000';ctx.font='bold 8px sans-serif';
-    ctx.textAlign='center';ctx.textBaseline='middle';ctx.fillText('A',m.x,m.y);
-  }
-  if(msr.step>=2 && msr.markerB.visible){
-    const m=worldToMinimap(msr.ptB.x,msr.ptB.z);
-    ctx.fillStyle='#ff8822';
-    ctx.beginPath();ctx.arc(m.x,m.y,5,0,Math.PI*2);ctx.fill();
-    ctx.fillStyle='#000';ctx.font='bold 8px sans-serif';
-    ctx.textAlign='center';ctx.textBaseline='middle';ctx.fillText('B',m.x,m.y);
-  }
-
-  // Camera arrow (yellow triangle pointing camera-forward on XZ)
-  const cx=W/2, cy=H/2;
-  const sz=Math.max(7,W/18);
-  ctx.save();
-  ctx.translate(cx,cy);
-  ctx.rotate(-yaw);
-  ctx.fillStyle='#ffdd00ee';
-  ctx.strokeStyle='#000';ctx.lineWidth=1;
-  ctx.beginPath();
-  ctx.moveTo(0,-sz);ctx.lineTo(-sz*0.55,sz*0.65);ctx.lineTo(sz*0.55,sz*0.65);
-  ctx.closePath();ctx.fill();ctx.stroke();
-  ctx.restore();
-
-  // Range label
-  ctx.fillStyle='rgba(216,216,216,.47)';
-  ctx.font=`${Math.max(9,W/22)}px monospace`;
-  ctx.textAlign='right';ctx.textBaseline='bottom';
-  ctx.fillText(minimapRange+'m', W-3, H-3);
-
-  // Preview target (right hold)
-  if(mmRightHold){
-    ctx.strokeStyle='rgba(216,216,216,.8)';
-    ctx.lineWidth=2;
-    ctx.setLineDash([4,3]);
-    ctx.beginPath();ctx.arc(mmPreviewScrX,mmPreviewScrY,7,0,Math.PI*2);ctx.stroke();
-    ctx.setLineDash([]);
-    // crosshair
-    ctx.strokeStyle='#ffdd0088';ctx.lineWidth=1;
-    ctx.beginPath();ctx.moveTo(mmPreviewScrX-12,mmPreviewScrY);ctx.lineTo(mmPreviewScrX+12,mmPreviewScrY);ctx.stroke();
-    ctx.beginPath();ctx.moveTo(mmPreviewScrX,mmPreviewScrY-12);ctx.lineTo(mmPreviewScrX,mmPreviewScrY+12);ctx.stroke();
-  }
-}
-
-let _mmDirty=false;
-let _mmTimer=null;
-
-// Call this whenever the minimap content might have changed
-function requestMinimapUpdate(){
-  // Skip entirely when the user has the minimap hidden — there are ~17 call
-  // sites scattered through scene-mutation paths (layer add/remove, file
-  // load, transform change, etc.) that all unconditionally request a
-  // minimap repaint. Each repaint = one full scene render to a RenderTarget
-  // + a synchronous readRenderTargetPixels readback that blocks the main
-  // thread. With the minimap closed the user can't see any of that work, so
-  // it's pure waste. Just mark dirty so the next open repopulates instantly.
-  if(!_mmUserVisible){ _mmDirty = true; return; }
-  _mmDirty=true;
-  // When expanded: render big canvas immediately (no debounce) via next RAF
-  if(mmExpanded){
-    clearTimeout(_mmTimer);
-    _mmTimer=null;
-    requestAnimationFrame(()=>{
-      _mmDirty=false;
-      const bg=document.getElementById('mm-big-canvas');
-      if(bg) renderMinimapToCanvas(bg);
-    });
-    return;
-  }
-  // Small view: short debounce to coalesce rapid calls
-  clearTimeout(_mmTimer);
-  _mmTimer=setTimeout(()=>{
-    _mmDirty=false;
-    requestAnimationFrame(()=>{
-      const sm=document.getElementById('mm-canvas');
-      if(sm) renderMinimapToCanvas(sm);
-    });
-  }, 50);
-}
-
-// Minimap click = expand
-document.getElementById('mm-canvas').addEventListener('click',()=>{
-  mmExpanded=true;
-  document.getElementById('mm-expanded').style.display='block';
-  // Render big canvas immediately (no debounce delay)
-  requestAnimationFrame(()=>{
-    const bg=document.getElementById('mm-big-canvas');
-    if(bg) renderMinimapToCanvas(bg);
-  });
-});
-window.closeExpandedMinimap=function(){
-  // The expanded map IS the only minimap now — hide it and toggle the cbar
-  // Map button state to match.
-  mmExpanded=false;
-  _mmUserVisible=false;
-  document.getElementById('mm-expanded').style.display='none';
-  const mmBtn=document.getElementById('btnMinimap');
-  if(mmBtn) mmBtn.classList.remove('on');
-  const lbl=document.getElementById('lbl-minimap');
-  if(lbl) lbl.textContent = (window._lang==='en'?'Show Map':'マップ表示');
-};
-
-function minimapRightStart(clientX,clientY,canvas){
-  mmRightHold=true;
-  const rect=canvas.getBoundingClientRect();
-  mmPreviewScrX=clientX-rect.left;
-  mmPreviewScrY=clientY-rect.top;
-  // Scale screen coords to canvas coords
-  mmPreviewScrX *= canvas.width/rect.width;
-  mmPreviewScrY *= canvas.height/rect.height;
-  renderMinimapToCanvas(canvas);
-}
-function minimapRightMove(clientX,clientY,canvas){
-  if(!mmRightHold) return;
-  const rect=canvas.getBoundingClientRect();
-  mmPreviewScrX=(clientX-rect.left)*canvas.width/rect.width;
-  mmPreviewScrY=(clientY-rect.top)*canvas.height/rect.height;
-  renderMinimapToCanvas(canvas);
-}
-function minimapRightCommit(clientX,clientY,canvas){
-  if(!mmRightHold) return;
-  mmRightHold=false;
-  const rect=canvas.getBoundingClientRect();
-  const mx=(clientX-rect.left)*canvas.width/rect.width;
-  const my=(clientY-rect.top)*canvas.height/rect.height;
-  const wp=minimapToWorld(mx,my,canvas);
-  if(walkMode.active && walkMode.avatar){
-    // In walk mode, the camera tails the avatar — moving camPos directly is
-    // overwritten next frame. Teleport the AVATAR instead, snap to ground,
-    // and let updateAvatarWalk reposition the camera behind it.
-    walkMode.avatar.position.x = wp.x;
-    walkMode.avatar.position.z = wp.z;
-    const sy = _avatarGroundY(wp.x, wp.z);
-    walkMode.avatar.position.y = sy - walkMode.groundOffset;
-    walkMode.velocity.set(0,0,0);
-    walkMode.airborne = false;
-  } else {
-    camPos.x=wp.x; camPos.z=wp.z;
-  }
-  _mmPanX=0; _mmPanZ=0; // reset pan on teleport
-  renderMinimapToCanvas(canvas);
-  markDirty(8);
-}
-
-
-// ── Minimap middle-button pan ──
-let _mmMidOn=false, _mmMidSX=0, _mmMidSY=0, _mmMidOffX=0, _mmMidOffZ=0, _mmPanX=0, _mmPanZ=0;
-function mmMidStart(clientX,clientY,canvas){
-  _mmMidOn=true;
-  const rect=canvas.getBoundingClientRect();
-  _mmMidSX=clientX; _mmMidSY=clientY;
-  _mmMidOffX=_mmPanX; _mmMidOffZ=_mmPanZ;
-}
-function mmMidMove(clientX,clientY,canvas){
-  if(!_mmMidOn) return;
-  const rect=canvas.getBoundingClientRect();
-  const dx=(clientX-_mmMidSX)/rect.width*minimapRange;
-  const dy=(clientY-_mmMidSY)/rect.height*minimapRange;
-  _mmPanX=_mmMidOffX - dx;
-  _mmPanZ=_mmMidOffZ - dy;
-  // Trigger re-render
-  const sm=document.getElementById('mm-canvas');
-  if(sm && !mmExpanded) renderMinimapToCanvas(sm);
-  if(mmExpanded){
-    const bg=document.getElementById('mm-big-canvas');
-    if(bg) renderMinimapToCanvas(bg);
-  }
-}
-function mmMidEnd(){ _mmMidOn=false; }
-
-// Small minimap
-(()=>{
-  const mm=document.getElementById('mm-canvas');
-  mm.addEventListener('mousedown',e=>{
-    if(e.button===2){e.preventDefault();minimapRightStart(e.clientX,e.clientY,mm);}
-    if(e.button===1){e.preventDefault();mmMidStart(e.clientX,e.clientY,mm);}
-  });
-  mm.addEventListener('mousemove',e=>{minimapRightMove(e.clientX,e.clientY,mm);mmMidMove(e.clientX,e.clientY,mm);});
-  mm.addEventListener('mouseup',e=>{
-    if(e.button===2)minimapRightCommit(e.clientX,e.clientY,mm);
-    if(e.button===1)mmMidEnd();
-  });
-  mm.addEventListener('contextmenu',e=>e.preventDefault());
-})();
-
-// Big minimap
-(()=>{
-  const bg=document.getElementById('mm-big-canvas');
-  bg.addEventListener('mousedown',e=>{
-    if(e.button===2){e.preventDefault();minimapRightStart(e.clientX,e.clientY,bg);}
-    if(e.button===1){e.preventDefault();mmMidStart(e.clientX,e.clientY,bg);}
-  });
-  bg.addEventListener('mousemove',e=>{
-    if(mmRightHold)minimapRightMove(e.clientX,e.clientY,bg);
-    mmMidMove(e.clientX,e.clientY,bg);
-  });
-  bg.addEventListener('mouseup',e=>{
-    if(e.button===2)minimapRightCommit(e.clientX,e.clientY,bg);
-    if(e.button===1)mmMidEnd();
-  });
-  bg.addEventListener('contextmenu',e=>e.preventDefault());
-
-  // Scroll wheel: zoom in/out in 5m steps
-  bg.addEventListener('wheel', e=>{
-    e.preventDefault();
-    e.stopPropagation();
-    const step = 5;
-    if(e.deltaY > 0){
-      minimapRange = Math.min(500, minimapRange + step);
-    } else {
-      minimapRange = Math.max(5, minimapRange - step);
-    }
-    // Sync small map select if value matches an option
-    const sel = document.getElementById('mm-range');
-    if(sel) sel.value = minimapRange;
-    // Sync range buttons if exact match
-    document.querySelectorAll('.mm-range-btn').forEach(b=>b.classList.remove('on'));
-    const btn = document.getElementById('mmb-'+minimapRange);
-    if(btn) btn.classList.add('on');
-    renderMinimapToCanvas(bg);
-  }, {passive:false});
-})();
-
-
-// ══════════════════════════════════════════════════
 //  MAIN LOOP  (60fps cap)
 // ══════════════════════════════════════════════════
 const TARGET_FPS = 60;
 const FRAME_MS   = 1000 / TARGET_FPS;
 let _lastFrameTime = 0;
-let _mmLastUpdateTime = 0; // throttle for minimap per-frame update
 
 // ── Frame time tracking for performance monitor ──
 const _FT_WINDOW = 60;
@@ -16194,43 +15728,6 @@ function animate(now) {
   _applyDeferredPixelRatio(now);
 
   updateOverlay();
-
-  // ── Minimap update ──
-  // CRITICAL: renderMinimapToCanvas() ends with a synchronous
-  // readRenderTargetPixels() that BLOCKS the main thread until the GPU
-  // command queue drains. Chrome traces of this viewer showed this single
-  // call accounting for the 87-94 ms main-thread stalls the user reported
-  // as "the area outside the camera goes pitch-black for ~4 fps worth"
-  // — when Spark's worker had a large sort buffer queued for upload, the
-  // readback waited for the entire upload before returning.
-  //
-  // Fix: defer the GPU readback while the camera is in motion or Spark is
-  // streaming, so the readback only ever lands on a quiet GPU queue. The
-  // user's perceived position barely changes during a single mouse flick,
-  // so a 1.2 s minimap refresh during pans is imperceptible compared to
-  // the freeze it eliminates.
-  // Hard gate on user visibility — when the minimap panel is hidden, NEITHER
-  // canvas needs updating. Previously the `else if(mmExpanded)` branch fired
-  // unconditionally because `mmExpanded` defaults to true, causing a full
-  // scene render to mm-big-canvas + a readRenderTargetPixels readback every
-  // ~250 ms even with the minimap panel completely closed — pure wasted GPU
-  // + main-thread stall. Now both branches require `_mmUserVisible` first.
-  if(_mmUserVisible){
-    const _mmBusy   = motion || hasDrag || hasMsrInteract || (now < _splatActiveUntil);
-    const _mmInterval = _mmBusy ? 1200 : (mmExpanded ? 100 : 250);
-    if(now - _mmLastUpdateTime > _mmInterval){
-      const mfEl = document.getElementById('minimap-float');
-      const isVisible = mfEl && mfEl.classList.contains('visible');
-      if(isVisible && !_mmCollapsed && !mmExpanded){
-        const sm = document.getElementById('mm-canvas');
-        if(sm) renderMinimapToCanvas(sm);
-      } else if(isVisible && mmExpanded){
-        const bg = document.getElementById('mm-big-canvas');
-        if(bg) renderMinimapToCanvas(bg);
-      }
-      _mmLastUpdateTime = now;
-    }
-  }
 }
 // Start the loop. In headless mode the initial tick must come from setTimeout too,
 // because a backgrounded tab never fires the first rAF (so the loop would never start).
@@ -16364,15 +15861,15 @@ async function loadFromURL(url, displayName){
 // Handle URL params at startup. CRITICAL: defer with setTimeout so this
 // runs AFTER the module body finishes executing. The previous IIFE ran
 // synchronously during module load, which made `loadFromURL` enter
-// `addLayer` → `requestMinimapUpdate()` before the later module-level
-// `let _mmUserVisible = …` declaration ran, throwing a TDZ
-// ReferenceError. That blew up the autoload BETWEEN the SplatMesh
-// construction and the showHUD/hideDZ calls — the home dropzone stayed
-// visible and streaming never started for `?demo=1` visitors.
+// `addLayer` before later module-level `let`/`const` declarations had
+// run, throwing a TDZ ReferenceError. That blew up the autoload BETWEEN
+// the SplatMesh construction and the showHUD/hideDZ calls — the home
+// dropzone stayed visible and streaming never started for `?demo=1`
+// visitors.
 //
 // setTimeout(…, 0) queues a macrotask; it fires after the entire module
 // body has finished initialising every top-level let/const, so addLayer
-// can safely touch _mmUserVisible.
+// runs safely.
 setTimeout(async ()=>{
   const m  = location.search.match(/[?&]autoload=([^&]+)/);
   const dm = /[?&]demo=1/.test(location.search);
@@ -18115,7 +17612,7 @@ async function restoreProject(project) {
       size:entry.size||{x:1,y:1,z:1},
       scale:entry.scale||{x:1,y:1,z:1},
       wireframe:entry.wireframe||false, wireMesh:wireMesh||null,
-      mmProxy:null, pivotSpace:entry.pivotSpace||'world',
+      pivotSpace:entry.pivotSpace||'world',
     };
     // Determine actual stored extension from file path in ZIP or entry fields
     const storedExt = entry._ext
@@ -18189,13 +17686,12 @@ async function restoreProject(project) {
   // skips real work). Recompute from the freshly restored `layers` array.
   if(typeof _recountLayerActivity === 'function') _recountLayerActivity();
 
-  renderLayerList(); renderTransformPanel(); requestMinimapUpdate();
+  renderLayerList(); renderTransformPanel();
 
   // Show HUD / hide drop zone (same as normal file load)
   if(layers.filter(L=>L.type!=='folder').length>0){
     showHUD(); hideDZ();
     if(layers.some(L=>L.type==='splat')) _splatActiveUntil = performance.now() + _SPLAT_ACTIVE_MS;
-    requestMinimapUpdate();
     // btnFlip removed (Y-flip is in layer panel)
   }
 }
@@ -18235,87 +17731,6 @@ window.addLightLayer = function(){
 // Update light apply in applyLayerTransform
 const _origApplyLayerTransform=applyLayerTransform;
 // (light transform is handled in the existing applyLayerTransform via mesh.position)
-
-// ══════════════════════════════════════════════════
-//  FLOATING MINIMAP
-// ══════════════════════════════════════════════════
-let _mmCollapsed=false;
-let _mmUserVisible=false; // user-controlled minimap on/off (default OFF)
-
-window.toggleMinimapVisible=function(){
-  const wasVisible = _mmUserVisible;
-  // Mutual-exclusion: opening マップ closes 測定 / カメラ / 環境 / 画質.
-  if(!wasVisible) closeAllPanels();
-  // 日照UI(#sun-panel)はミニマップ(#mm-expanded)と同じ場所に出るので排他:
-  // マップを開くなら日照を閉じる（空は凍結保持される）。
-  if(!wasVisible && typeof sun !== 'undefined' && sun && sun.active){
-    if(typeof _sunShowPanel === 'function') _sunShowPanel(false);
-    if(typeof _setSunActive === 'function') _setSunActive(false);
-  }
-  _mmUserVisible = !wasVisible;
-  const ex=document.getElementById('mm-expanded');
-  const btn=document.getElementById('btnMinimap');
-  if(_mmUserVisible){
-    // Only show if HUD is active (scene loaded)
-    const hud=document.getElementById('hud');
-    if(ex && hud && hud.style.opacity==='1'){
-      ex.style.display='block';
-      mmExpanded=true;
-      // Render immediately so the canvas isn't blank
-      requestAnimationFrame(()=>{
-        const bg=document.getElementById('mm-big-canvas');
-        if(bg) renderMinimapToCanvas(bg);
-      });
-    }
-    if(btn){ btn.classList.add('on'); }
-  } else {
-    if(ex){ ex.style.display='none'; mmExpanded=false; }
-    if(btn){ btn.classList.remove('on'); }
-  }
-  const lbl=document.getElementById('lbl-minimap');
-  if(lbl) lbl.textContent=_mmUserVisible?(window._lang==='en'?'Map':'マップ'):(window._lang==='en'?'Show Map':'マップ表示');
-};
-
-window.toggleMinimapCollapse=function(){
-  _mmCollapsed=!_mmCollapsed;
-  const body=document.getElementById('mf-body');
-  const btn=document.getElementById('mf-collapse-btn');
-  if(body){ body.style.display=_mmCollapsed?'none':''; }
-  if(btn) btn.textContent=_mmCollapsed?'▸':'▾';
-  // Re-render when expanding so the canvas is up-to-date
-  if(!_mmCollapsed){
-    requestAnimationFrame(()=>{
-      const sm=document.getElementById('mm-canvas');
-      if(sm) renderMinimapToCanvas(sm);
-    });
-  }
-};
-
-// Make minimap draggable
-(()=>{
-  const mf=document.getElementById('minimap-float');
-  if(!mf) return;
-  let dragging=false, startX=0, startY=0, origLeft=0, origBottom=0;
-  const head=mf.querySelector('.mf-head');
-  if(head){
-    head.style.cursor='move';
-    head.addEventListener('mousedown',e=>{
-      if(e.target.tagName==='SELECT'||e.target.tagName==='BUTTON') return;
-      dragging=true; startX=e.clientX; startY=e.clientY;
-      const style=window.getComputedStyle(mf);
-      origLeft=parseInt(style.left)||14;
-      origBottom=parseInt(style.bottom)||70;
-      e.preventDefault();
-    });
-  }
-  document.addEventListener('mousemove',e=>{
-    if(!dragging) return;
-    const dx=e.clientX-startX, dy=e.clientY-startY;
-    mf.style.left=Math.max(0,origLeft+dx)+'px';
-    mf.style.bottom=Math.max(0,origBottom-dy)+'px';
-  });
-  document.addEventListener('mouseup',()=>{ dragging=false; });
-})();
 
 // ══════════════════════════════════════════════════
 //  FOLDER COLOR PICKER
@@ -18566,14 +17981,12 @@ window.toggleTypeVis = function(type){
     panel.style.width=newW+'px';
     const ftBar=document.getElementById('lp-footer-bar');
     if(ftBar) ftBar.style.width=newW+'px';
-    // Update ibox + minimap offsets (these still hug the panel right edge).
+    // Update ibox offset (hugs the panel right edge).
     // view-tl-btns is intentionally NOT updated here — per user request the
     // top-row buttons (カメラリセット / オブジェクト追加 / アバター歩行 /
     // AR) stay centered on the viewport regardless of layer-panel width.
     const ibox=document.querySelector('#hud .ibox');
     if(ibox) ibox.style.left=(newW+10)+'px';
-    const mmf=document.getElementById('minimap-float');
-    if(mmf) mmf.style.left=(newW+16)+'px';
     // Keep the bottom cbar centred within the (viewport - panel) area.
     if(typeof _updateLpWidthVar === 'function') _updateLpWidthVar();
   });
@@ -18595,8 +18008,6 @@ Object.assign(I18N.ja,{
   'dz-continue-text':'編集を続ける',
   'mf-title':'ミニマップ',
   'mf-hint':'右クリ長押しで移動先選択',
-  'mm-big-title':'ミニマップ',
-  'mm-big-hint':'右クリック長押し → 離すとその位置に移動 ｜ スクロール: 5mステップ拡縮',
   'qp-lbl-grid':'グリッド',
   'qp-lbl-show':'表示',
   'qp-lbl-fov':'FOV',
@@ -18615,7 +18026,6 @@ Object.assign(I18N.ja,{
   'lt-flip-y':'Y軸反転',
   'lt-flip-z':'Z軸反転',
   'lbl-cam-reset':'カメラリセット',
-  'lbl-minimap':'マップ',
   'lbl-camtool':'カメラ',
   'lbl-env':'環境',
   'lbl-sun':'日照',
@@ -18860,8 +18270,6 @@ Object.assign(I18N.en,{
   'dz-continue-text':'Continue Editing',
   'mf-title':'Minimap',
   'mf-hint':'Right-click hold to teleport',
-  'mm-big-title':'Minimap',
-  'mm-big-hint':'Right-click hold → release to teleport ｜ Scroll: 5m step zoom',
   'qp-lbl-grid':'Grid',
   'qp-lbl-show':'Show',
   'qp-lbl-fov':'FOV',
@@ -18880,7 +18288,6 @@ Object.assign(I18N.en,{
   'lt-flip-y':'Flip Y-Axis',
   'lt-flip-z':'Flip Z-Axis',
   'lbl-cam-reset':'Cam Reset',
-  'lbl-minimap':'Map',
   'lbl-camtool':'Camera',
   'lbl-env':'Env',
   'lbl-sun':'Sun',
@@ -19389,7 +18796,7 @@ window.addEventListener('mouseup',e=>{
       }
     }
   }
-  if(lpv.dragging){ lpv.dragging=null; requestMinimapUpdate(); markDirty(6); }
+  if(lpv.dragging){ lpv.dragging=null; markDirty(6); }
   if(_ikDrag.active) _endIKHandleDrag();
   if(_boneRotDrag.active) _endBoneRotateDrag();
   msr.dragging=null; msr.axisDragging=null; markDirty(6);
@@ -20303,7 +19710,7 @@ window.toggleChangelog = function(){
 //  Manifest format:
 //    { "version":"0.0.2", "url":"...", "sha256":"<hex>", "notes":"..." }
 // ══════════════════════════════════════════════════
-const CURRENT_VERSION    = '0.0.26-alpha';
+const CURRENT_VERSION    = '0.0.27-alpha';
 const UPDATE_MANIFEST_URL =
   'https://raw.githubusercontent.com/nakamurakou1108/Locahun3D/main/version.json';
 

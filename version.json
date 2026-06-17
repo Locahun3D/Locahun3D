@@ -1,6 +1,6 @@
 {
-  "version": "0.0.26-alpha",
+  "version": "0.0.27-alpha",
   "url": "https://locahun3d.nakamurakou1108.workers.dev",
   "sha256": null,
-  "notes": "Project restore: recompute the per-frame layer-activity counters (_recountLayerActivity) after a project ZIP is restored — they were left at the previous scene's values, so animate() could keep running splat-sort work for a splat that no longer exists (or skip it). NOTE on the reported ZIP-save issues (two splat files / lost object transform): these could NOT be reproduced in the current code — save emits exactly ONE splat file (the _rawBuffer / _streamUrl branches are mutually exclusive; streaming RAD fetches one full-res file) and object pos/rot/scale + figure pose round-trip correctly through save→restore (restore applies the root transform last via applyLayerTransform). If you still see them, you are most likely on a cached older build — hard-reload to 0.0.26 and retry. Builds on v0.0.25."
+  "notes": "Removed the minimap feature entirely (user request). Deleted: the floating minimap panel + expanded map panel markup, all minimap CSS, the 🗺 マップ cbar button, the WebGL top-down render-to-target pipeline (renderMinimapToCanvas / mmCamera / mmRT / mmBigRT), per-frame minimap updates in the animate loop, requestMinimapUpdate() and its ~14 call sites, the minimap range controls, drag/pan/teleport handlers, and the sun/closeAllPanels/showHUD mutual-exclusion hooks. ~24 KB smaller. Verified on a real 355 MB RAD scene: viewer boots clean (no ReferenceErrors), scene renders, HUD shows, sun toggle + add-cube/figure + camera tool all work, and no minimap DOM/functions remain. Builds on v0.0.26."
 }
