@@ -5579,7 +5579,13 @@ function commitPreview() {
 }
 
 // ── Panel exclusivity helper ──
-function closeAllPanels(){
+function closeAllPanels(opts){
+  // opts.keepCamTool / opts.keepCamAnim let the カメラ tool and カメラアニメ panel
+  // COEXIST (user request 2026-06: build a camera path while the camera tool is
+  // framing each shot). Same idea as the 日照 panel exemption below — those two
+  // are the only panels allowed open together; every other caller passes no opts
+  // and still closes everything.
+  opts = opts || {};
   // Quality panel + FPS readout
   _qualPanelOpen=false;
   document.getElementById('quality-panel').style.display='none';
@@ -5594,7 +5600,8 @@ function closeAllPanels(){
   // Camera tool — calling toggleCamTool() while cam.active is true closes
   // the panel + HUD + restores fov; we replicate the minimum without
   // re-entering toggleCamTool to avoid an infinite mutual-close loop.
-  if(typeof cam !== 'undefined' && cam && cam.active){
+  // (Skipped when opening カメラアニメ so the two coexist — opts.keepCamTool.)
+  if(!opts.keepCamTool && typeof cam !== 'undefined' && cam && cam.active){
     cam.active = false;
     const _cbtn = document.getElementById('btnCamTool');
     if(_cbtn) _cbtn.classList.remove('on');
@@ -5639,7 +5646,8 @@ function closeAllPanels(){
   // Camera-animation panel — behave like the env button: when any other
   // tool is launched the panel + its 3-D editing visuals get hidden so they
   // don't clutter the view. Don't stop an in-progress playback/recording.
-  _hideCamAnimPanel();
+  // (Skipped when opening the カメラ tool so the two coexist — opts.keepCamAnim.)
+  if(!opts.keepCamAnim) _hideCamAnimPanel();
 }
 
 // Hide the camera-animation panel + its 3-D editing visuals. Shared by
@@ -6403,10 +6411,11 @@ window.addEventListener('keydown', e=>{
 
 window.toggleCamTool = function(){
   const wasActive = cam.active;
-  // Mutual-exclusion: opening カメラ closes 測定 / 環境 / マップ / 画質.
-  // closeAllPanels also closes the camera panel itself, so we read the
-  // pre-close state and then flip from there.
-  if(!wasActive) closeAllPanels();
+  // Mutual-exclusion: opening カメラ closes 測定 / 環境 / マップ / 画質, but KEEPS
+  // the カメラアニメ panel open so the user can add path keys that capture this
+  // camera's framing (user request 2026-06). closeAllPanels also closes the
+  // camera panel itself, so we read the pre-close state and then flip from there.
+  if(!wasActive) closeAllPanels({ keepCamAnim: true });
   cam.active = !wasActive;
   const btn  = document.getElementById('btnCamTool');
   const hud  = document.getElementById('cam-hud');
@@ -6445,6 +6454,9 @@ window.toggleCamTool = function(){
   }
   // 日照パネルの位置をカメラ状態に追従（起動中=中央下 / それ以外=右下）
   if(typeof _sunUpdatePanelPos === 'function') _sunUpdatePanelPos();
+  // If the カメラアニメ panel is open alongside, re-tuck it left of / back from
+  // the camera panel as the tool opens/closes.
+  if(typeof _camAnimReposition === 'function') _camAnimReposition();
 };
 
 window.addEventListener('resize', ()=>{ if(cam.active) layoutCamFrame(); });
@@ -7365,6 +7377,21 @@ function _camAnimRenderPanel(){
     </div>`;
 }
 
+// Keep the カメラアニメ panel clear of the カメラ tool panel when both are open
+// (they coexist now). Sit just to the LEFT of the camera panel (which hugs the
+// right edge, full-height); otherwise return to the default right:14 corner.
+function _camAnimReposition(){
+  const p = document.getElementById('cam-anim-panel');
+  if(!p) return;
+  const camPan = document.getElementById('cam-panel');
+  if(typeof cam !== 'undefined' && cam && cam.active &&
+     camPan && getComputedStyle(camPan).display !== 'none'){
+    const cpr = camPan.getBoundingClientRect();
+    p.style.right = Math.max(14, Math.round(window.innerWidth - cpr.left + 12)) + 'px';
+  } else {
+    p.style.right = '14px';
+  }
+}
 window.toggleCamAnimPanel = function(){
   let p = document.getElementById('cam-anim-panel');
   if(!p){
@@ -7381,15 +7408,17 @@ window.toggleCamAnimPanel = function(){
     document.body.appendChild(p);
   }
   const _wasOpen = camAnim.open;
-  // Opening the panel acts like any other tool: shut the others first so we
-  // don't stack panels. closeAllPanels also hides this one (sets open=false),
-  // which is fine — we re-open it just below.
-  if(!_wasOpen) closeAllPanels();
+  // Opening the panel shuts the OTHER tools, but KEEPS the カメラ tool active so
+  // the user can frame each shot with the camera tool and capture its FOV / focal
+  // into the keys (user request 2026-06). closeAllPanels also hides this panel
+  // (sets open=false), which is fine — we re-open it just below.
+  if(!_wasOpen) closeAllPanels({ keepCamTool: true });
   camAnim.open = !_wasOpen;
   p.style.display = camAnim.open ? 'block' : 'none';
   const _cab = document.getElementById('btnCamAnim');
   if(_cab) _cab.classList.toggle('on', camAnim.open);
   if(camAnim.open){
+    _camAnimReposition();   // sit left of the camera-tool panel if it's open
     _camAnimRenderPanel();
     // Make the markers + path visible while the panel is open so the
     // user can place / inspect keys in 3-D.
@@ -20264,7 +20293,7 @@ window.toggleChangelog = function(){
 //  Manifest format:
 //    { "version":"0.0.2", "url":"...", "sha256":"<hex>", "notes":"..." }
 // ══════════════════════════════════════════════════
-const CURRENT_VERSION    = '0.0.24-alpha';
+const CURRENT_VERSION    = '0.0.25-alpha';
 const UPDATE_MANIFEST_URL =
   'https://raw.githubusercontent.com/nakamurakou1108/Locahun3D/main/version.json';
 

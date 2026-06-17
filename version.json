@@ -1,6 +1,6 @@
 {
-  "version": "0.0.24-alpha",
+  "version": "0.0.25-alpha",
   "url": "https://locahun3d.nakamurakou1108.workers.dev",
   "sha256": null,
-  "notes": "Gizmo: flip the Y (green, vertical) rotation direction. After the v0.0.23 Y-up gizmo fix, the user confirmed on-device that the green ring rotated the wrong way; the world-Y rotation delta is now +delta (was -delta) so dragging the green ring spins the object the intuitive direction around the vertical axis. X (red) and Z (blue) were already correct. Builds on v0.0.23."
+  "notes": "Camera animation now works WITH the camera tool (user request 2026-06). The カメラ tool and カメラアニメ panel used to close each other (mutual exclusion via closeAllPanels). They now COEXIST — like the 日照 panel — so you can frame each shot with the camera tool (sensor / focal / FOV) and then add a path key that CAPTURES that framing: each key already stores pos + yaw/pitch/roll + fov + focal + aspect + sensor + margin, and playback interpolates & applies the FOV, so the fly-through zooms/frames exactly as you set each point. Keep moving + reframing + adding keys to build the path. The anim panel auto-tucks to the left of the camera panel so they don't overlap. Verified: both stay active together, no overlap, a key added with the tool open captured focal 35 / fov 32 / aspect 16:9 / sensor ff. Builds on v0.0.24."
 }
