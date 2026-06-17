@@ -751,10 +751,10 @@ body{position:fixed;top:0;left:0;}
    panel hanging directly beneath it (the panel drops its top-right
    radius to match). Makes the pair read as one dropdown control. */
 #qi-badge.qib-open{
+  /* Just a "lit" highlight while the (now centred) panel is open — no corner
+     squaring, since the panel no longer fuses to the chip's bottom edge. */
   background:rgba(255,255,255,.10);
   border-color:rgba(255,255,255,.28);
-  border-bottom-right-radius:0;
-  border-bottom-left-radius:0;
 }
 #qi-badge .qib-icon{opacity:.65;}
 #qi-badge .qib-lvl{color:#ffe4b3;font-weight:600;}
@@ -789,8 +789,23 @@ body{position:fixed;top:0;left:0;}
      📱AR — 位置保存・アニメ・歩行・オブジェクト追加 are hidden), so the 🖥 badge now
      fits INLINE at the row's right end instead of being pinned on a 2nd line.
      Tighten the row gap a touch so reset/record/AR + badge clear ~360px widths. */
+  /* 🎞 camera-anim is now shown on phones too (user 2026-06), so the row carries
+     🏠 / 🎞 / ⏺ / 📱 + 🖥badge (~384px) — one line on ~390px phones. (flex-wrap is
+     NOT used here: the row is left:50%-anchored, so wrapping would clamp it to
+     half the viewport and stack 3 lines; the ≤384px breakpoint below handles
+     genuinely-narrow phones instead.) */
   #view-tl-btns{ gap:4px !important; }
   #view-tl-btns > #qi-badge{ position:static !important; top:auto; right:auto; align-self:center !important; }
+}
+@media (pointer:coarse) and (any-hover:none) and (orientation:portrait) and (max-width:384px){
+  /* Narrow phones (iPhone SE / mini, ≤375px): 5 top buttons can't fit one line,
+     so span the row full-width (drop the left:50% anchor) and let it wrap to a
+     tidy 2 lines centred, instead of clipping the edge buttons off-screen.
+     `body #view-tl-btns` (specificity 1-0-1) is needed to outrank the later
+     generic touch rule `#view-tl-btns{ left:calc(...) !important }` which would
+     otherwise keep the left:50% anchor and clamp the wrap to half the screen. */
+  body #view-tl-btns{ left:8px !important; right:8px !important; transform:none !important;
+    width:auto !important; justify-content:center; flex-wrap:wrap !important; row-gap:4px !important; }
 }
 #quality-panel .qt{color:#C0C0C0;font-size:.85em;font-weight:600;margin-bottom:10px;}
 #quality-panel .qp-divider{
@@ -8966,7 +8981,8 @@ function showHUD() {
     if(el) el.style.display = hide ? 'none' : '';
   };
   _phoneHide('btnSaveCamera', _isPhoneTier);
-  _phoneHide('btnCamAnim',    _isPhoneTier);
+  // Camera animation (🎞) IS now exposed on phones too (user request 2026-06).
+  _phoneHide('btnCamAnim',    false);
   // #btnViewRec lives in the cbar now and the cbar's smartphone media query
   // KEEPS it (📷カメラ / ☀日照 / 📐測定 / ⏺録画) on phones, so phones already have
   // a 録画 button down there. The old top-row #btnViewRecPhone mirror therefore
@@ -14972,9 +14988,14 @@ window.toggleQualityPanel=function(){
       const row = badge.closest('#view-tl-btns');
       const anchorBottom = Math.max(br.bottom, row ? row.getBoundingClientRect().bottom : br.bottom);
       panel.style.top    = Math.round(anchorBottom + 2) + 'px';
-      panel.style.right  = Math.round(window.innerWidth - br.right) + 'px';
+      // Centre the panel horizontally (user 2026-06: it was anchored to the chip
+      // at the right end and read as "biased to the right"). Drop the chip-fused
+      // right-anchor + squared corner; it's a centred card under the row now.
+      panel.style.left   = '50%';
+      panel.style.right  = 'auto';
+      panel.style.transform = 'translateX(-50%)';
       panel.style.bottom = 'auto';
-      panel.style.borderTopRightRadius = '4px';
+      panel.style.borderTopRightRadius = '';
       // Cap to the REAL remaining viewport below the live anchor position
       // (the static CSS cap assumes the desktop badge offset; on phones the
       // badge sits higher and the 100dvh-based cap let the panel run past
@@ -20221,7 +20242,7 @@ window.toggleChangelog = function(){
 //  Manifest format:
 //    { "version":"0.0.2", "url":"...", "sha256":"<hex>", "notes":"..." }
 // ══════════════════════════════════════════════════
-const CURRENT_VERSION    = '0.0.21-alpha';
+const CURRENT_VERSION    = '0.0.22-alpha';
 const UPDATE_MANIFEST_URL =
   'https://raw.githubusercontent.com/nakamurakou1108/Locahun3D/main/version.json';
 
