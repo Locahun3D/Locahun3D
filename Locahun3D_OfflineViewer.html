@@ -648,7 +648,7 @@ body{position:fixed;top:0;left:0;}
 }
 #layer-transform .lt-wire input{cursor:pointer;}
 .lp-footer{
-  display:grid;grid-template-columns:1fr 1fr;gap:6px;padding:6px;
+  display:grid;grid-template-columns:1fr 1fr 1fr;gap:6px;padding:6px;
   background:rgba(26,26,28,.97);border-top:1px solid rgba(255,255,255,.12);
   pointer-events:all;flex-shrink:0;
 }
@@ -1240,6 +1240,7 @@ body.immersive #immersive-exit{ display:inline-block; }
   <div class="lp-footer" id="lp-footer-bar">
     <button onclick="triggerImportAny()" id="fp-btn-import">📁 <span id="fp-btn-import-lbl">読み込み</span></button>
     <button onclick="openExportModal()" id="fp-btn-export" style="color:#ffd49a">📤 <span id="fp-btn-export-lbl">書き出し</span></button>
+    <button onclick="saveCameraLayer()" id="btnSaveCamera" style="color:#9fd0ff" title="現在のカメラ位置・アングル・画角・アスペクト比を保存">🎥 <span id="lbl-save-camera">カメラ保存</span></button>
   </div>
   <!-- Layer list — always visible when the panel itself is expanded.
        (The earlier "sub-header chevron" second-level collapse was removed
@@ -1556,19 +1557,11 @@ body.immersive #immersive-exit{ display:inline-block; }
   </div>
   <!-- Standalone #btnAddFigureTop merged into the オブジェクト追加 dropdown
        above so all "add new layer" entries live in one menu. -->
-  <!-- Multi-camera placement: save the current view (position / angle /
-       focal length / aspect / sensor) as a Camera layer inside an
-       automatically-created "Camera" folder. Hidden on phones via the
-       same media query that hides desktop-only widgets (#view-tl-btns
-       already toggled there). -->
-  <button id="btnSaveCamera" onclick="saveCameraLayer()"
-    style="background:rgba(20,20,22,.88);border:1px solid rgba(255,255,255,.18);
-           color:rgba(200,200,200,.85);border-radius:6px;padding:5px 12px;
-           font-size:.72em;cursor:pointer;transition:all .2s;letter-spacing:.02em;
-           white-space:nowrap;"
-    onmouseover="this.style.background='rgba(255,180,80,.18)';this.style.borderColor='rgba(255,200,120,.45)'"
-    onmouseout="this.style.background='rgba(20,20,22,.88)';this.style.borderColor='rgba(255,255,255,.18)'"
-    title="現在のカメラ位置・アングル・画角・アスペクト比を保存">🎥 <span id="lbl-save-camera">カメラ位置保存</span></button>
+  <!-- Multi-camera placement (🎥 カメラ保存) relocated to the layer-panel
+       footer (right of 読み込み / 書き出し) per user request 2026-06. The
+       button keeps id="btnSaveCamera" / saveCameraLayer() so all JS refs
+       (phone-hide, tooltip map, i18n) are unchanged. -->
+
   <!-- View recording (#btnViewRec) lives in the cbar (bottom-centre) to
        the right of #btnMeasure — see the markup further down. On phones
        there's still a sibling phone-only mirror button just left of the
@@ -18124,7 +18117,7 @@ Object.assign(I18N.ja,{
   'ph-cm-note':'LD1 ティルトダウン',
   'lbl-walk':'アバター歩行',
   'lbl-walk-repos':'アバター再配置',
-  'lbl-save-camera':'カメラ位置保存',
+  'lbl-save-camera':'カメラ保存',
   'lbl-view-rec':'録画',
   'lbl-view-rec-phone':'録画',
   'lbl-cam-anim':'アニメーション',
@@ -18386,7 +18379,7 @@ Object.assign(I18N.en,{
   'ph-cm-note':'LD1 Tilt-down',
   'lbl-walk':'Avatar Walk',
   'lbl-walk-repos':'Reposition Avatar',
-  'lbl-save-camera':'Save Pose',
+  'lbl-save-camera':'Save Cam',
   'lbl-view-rec':'Rec',
   'lbl-view-rec-phone':'Rec',
   'lbl-cam-anim':'Animation',
@@ -19710,7 +19703,7 @@ window.toggleChangelog = function(){
 //  Manifest format:
 //    { "version":"0.0.2", "url":"...", "sha256":"<hex>", "notes":"..." }
 // ══════════════════════════════════════════════════
-const CURRENT_VERSION    = '0.0.27-alpha';
+const CURRENT_VERSION    = '0.0.28-alpha';
 const UPDATE_MANIFEST_URL =
   'https://raw.githubusercontent.com/nakamurakou1108/Locahun3D/main/version.json';
 

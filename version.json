@@ -1,6 +1,6 @@
 {
-  "version": "0.0.27-alpha",
+  "version": "0.0.28-alpha",
   "url": "https://locahun3d.nakamurakou1108.workers.dev",
   "sha256": null,
-  "notes": "Removed the minimap feature entirely (user request). Deleted: the floating minimap panel + expanded map panel markup, all minimap CSS, the 🗺 マップ cbar button, the WebGL top-down render-to-target pipeline (renderMinimapToCanvas / mmCamera / mmRT / mmBigRT), per-frame minimap updates in the animate loop, requestMinimapUpdate() and its ~14 call sites, the minimap range controls, drag/pan/teleport handlers, and the sun/closeAllPanels/showHUD mutual-exclusion hooks. ~24 KB smaller. Verified on a real 355 MB RAD scene: viewer boots clean (no ReferenceErrors), scene renders, HUD shows, sun toggle + add-cube/figure + camera tool all work, and no minimap DOM/functions remain. Builds on v0.0.26."
+  "notes": "Relocated the 🎥 camera-save button. It used to sit in the top-right view toolbar (next to カメラリセット / アニメーション); it now lives in the scene-layer panel footer, immediately to the right of 読み込み / 書き出し. The footer is now a 3-column grid and the label was shortened to カメラ保存 / Save Cam so all three fit (verified: 87px cells, no overflow on a 285px panel). The button keeps id=btnSaveCamera and saveCameraLayer(), so phone-hide, tooltip mapping and i18n are unchanged; clicking it still creates a Camera folder + camera layer. Builds on v0.0.27."
 }
