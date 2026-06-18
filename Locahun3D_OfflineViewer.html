@@ -1529,11 +1529,11 @@ body.immersive #immersive-exit{ display:inline-block; }
   <div style="position:relative;display:inline-block;">
     <button id="btnAddCubeTop" onclick="toggleObjTypeMenuTop(this)" style="background:rgba(20,20,22,.88);border:1px solid rgba(255,255,255,.18);color:rgba(200,200,200,.85);border-radius:6px;padding:5px 12px;font-size:.72em;cursor:pointer;transition:all .2s;letter-spacing:.02em;white-space:nowrap;" onmouseover="this.style.background='rgba(255,200,80,.18)';this.style.borderColor='rgba(255,220,100,.45)'" onmouseout="this.style.background='rgba(20,20,22,.88)';this.style.borderColor='rgba(255,255,255,.18)'" title="オブジェクト追加">📦 <span id="lbl-addobj-top">オブジェクト追加</span> ▾</button>
     <div id="obj-type-menu-top" style="display:none;position:absolute;top:calc(100% + 6px);left:0;background:rgba(20,20,22,.97);border:1px solid rgba(255,255,255,.15);border-radius:8px;padding:5px;z-index:400;flex-direction:column;gap:4px;min-width:178px;box-shadow:0 4px 16px rgba(0,0,0,.5);">
-      <button onclick="addCubeLayer();window.closeObjTypeMenuTop()" style="background:rgba(255,221,68,.06);border:1px solid rgba(255,221,68,.15);color:#C0C0C0;border-radius:5px;padding:7px 14px;cursor:pointer;font-size:.8em;text-align:left;width:100%;white-space:nowrap;transition:background .15s;" onmouseover="this.style.background='rgba(255,221,68,.15)'" onmouseout="this.style.background='rgba(255,221,68,.06)'">📦 <span id="obj-add-cube">Cube (立方体)</span></button>
+      <button onclick="_beginPlace('cube');window.closeObjTypeMenuTop()" style="background:rgba(255,221,68,.06);border:1px solid rgba(255,221,68,.15);color:#C0C0C0;border-radius:5px;padding:7px 14px;cursor:pointer;font-size:.8em;text-align:left;width:100%;white-space:nowrap;transition:background .15s;" onmouseover="this.style.background='rgba(255,221,68,.15)'" onmouseout="this.style.background='rgba(255,221,68,.06)'">📦 <span id="obj-add-cube">Cube (立方体)</span></button>
       <div style="border-top:1px solid rgba(255,255,255,.07);margin:2px 0"></div>
-      <button onclick="addEventLayer();window.closeObjTypeMenuTop()" style="background:rgba(255,170,68,.06);border:1px solid rgba(255,170,68,.15);color:#C0C0C0;border-radius:5px;padding:7px 14px;cursor:pointer;font-size:.8em;text-align:left;width:100%;white-space:nowrap;transition:background .15s;" onmouseover="this.style.background='rgba(255,170,68,.18)'" onmouseout="this.style.background='rgba(255,170,68,.06)'">🟠 <span id="obj-add-event">Event (イベント)</span></button>
+      <button onclick="_beginPlace('event');window.closeObjTypeMenuTop()" style="background:rgba(255,170,68,.06);border:1px solid rgba(255,170,68,.15);color:#C0C0C0;border-radius:5px;padding:7px 14px;cursor:pointer;font-size:.8em;text-align:left;width:100%;white-space:nowrap;transition:background .15s;" onmouseover="this.style.background='rgba(255,170,68,.18)'" onmouseout="this.style.background='rgba(255,170,68,.06)'">🟠 <span id="obj-add-event">Event (イベント)</span></button>
       <div style="border-top:1px solid rgba(255,255,255,.07);margin:2px 0"></div>
-      <button onclick="addFigureLayer();window.closeObjTypeMenuTop()" style="background:rgba(255,140,200,.06);border:1px solid rgba(255,140,200,.18);color:#C0C0C0;border-radius:5px;padding:7px 14px;cursor:pointer;font-size:.8em;text-align:left;width:100%;white-space:nowrap;transition:background .15s;" onmouseover="this.style.background='rgba(255,140,200,.20)'" onmouseout="this.style.background='rgba(255,140,200,.06)'" title="フィギュア追加（リグ付き人型モデル）">👤 <span id="lbl-addfig-top">フィギュア (人型リグ)</span></button>
+      <button onclick="_beginPlace('figure');window.closeObjTypeMenuTop()" style="background:rgba(255,140,200,.06);border:1px solid rgba(255,140,200,.18);color:#C0C0C0;border-radius:5px;padding:7px 14px;cursor:pointer;font-size:.8em;text-align:left;width:100%;white-space:nowrap;transition:background .15s;" onmouseover="this.style.background='rgba(255,140,200,.20)'" onmouseout="this.style.background='rgba(255,140,200,.06)'" title="フィギュア追加（リグ付き人型モデル・配置場所を左クリック）">👤 <span id="lbl-addfig-top">フィギュア (人型リグ)</span></button>
       <div style="border-top:1px solid rgba(255,255,255,.07);margin:2px 0"></div>
       <button onclick="addPathLayer();window.closeObjTypeMenuTop()" style="background:rgba(100,200,255,.06);border:1px solid rgba(100,200,255,.16);color:#C0C0C0;border-radius:5px;padding:7px 14px;cursor:pointer;font-size:.8em;text-align:left;width:100%;white-space:nowrap;transition:background .15s;" onmouseover="this.style.background='rgba(100,200,255,.18)'" onmouseout="this.style.background='rgba(100,200,255,.06)'" title="4点を左クリックで囲んで区画を作成（駐車スペース等）。中央にテキストを表示できます">🛣 <span id="obj-add-path">パス (区画＋ラベル)</span></button>
       <!-- Sphere (球体) and Light (ライト) entries removed per user request.
@@ -18328,6 +18328,69 @@ window.addPathLayer=function(){
   showUndoToast('🛣 4点を左クリック長押しで配置（押している間プレビュー、離して確定 / Escで中止）');
 };
 
+// ─────────────────────────────────────────────────────────────
+//  GENERIC CLICK-PLACEMENT MODE (v0.0.42)
+//  Cube / Event / Figure are placed AT the clicked world location, mirroring
+//  the path tool: a left-click long-press shows a preview marker that snaps to
+//  the splat surface (pickWorldPos); releasing confirms and spawns the object
+//  there. Right-drag still rotates the view; Esc cancels. All three add
+//  functions already accept a posHint, so we just feed them the probed point.
+// ─────────────────────────────────────────────────────────────
+let _placeMode=null;          // null | 'cube' | 'event' | 'figure'
+let _placeProbing=false, _placeProbeMarker=null;
+function _placeUpdateProbe(clientX, clientY){
+  const p=pickWorldPos(clientX, clientY); if(!p) return;
+  if(!_placeProbeMarker){
+    _placeProbeMarker=new THREE.Mesh(new THREE.SphereGeometry(0.12,16,16),
+      new THREE.MeshBasicMaterial({color:0xffd400, transparent:true, opacity:.9, depthTest:false}));
+    _placeProbeMarker.renderOrder=9009; scene.add(_placeProbeMarker);
+  }
+  _placeProbeMarker.position.copy(p);
+  if(typeof markDirty==='function') markDirty(6);
+}
+function _placeHideProbe(){
+  if(_placeProbeMarker){ scene.remove(_placeProbeMarker); _placeProbeMarker.geometry.dispose(); _placeProbeMarker.material.dispose(); _placeProbeMarker=null; }
+  _placeProbing=false;
+}
+function _placeHint(on){
+  let el=document.getElementById('place-hint');
+  if(on){
+    if(!el){ el=document.createElement('div'); el.id='place-hint';
+      el.style.cssText='position:fixed;top:64px;left:50%;transform:translateX(-50%);background:rgba(200,150,0,.95);color:#fff;padding:6px 16px;border-radius:20px;font-size:.78em;z-index:6000;pointer-events:none;box-shadow:0 2px 12px rgba(0,0,0,.45);white-space:nowrap';
+      document.body.appendChild(el); }
+    el.textContent=(window._lang==='en')
+      ? '📍 Long-press to place (hold to aim, release to confirm) | Esc to cancel'
+      : '📍 配置する場所を左クリック長押し（押して探り、離して確定） ｜ Esc で中止';
+    el.style.display='block';
+  } else if(el){ el.style.display='none'; }
+}
+function _onPlaceKey(e){ if(e.key==='Escape'){ e.preventDefault(); _cancelPlace(); } }
+function _cancelPlace(){
+  _placeMode=null; _placeHideProbe(); _placeHint(false);
+  document.removeEventListener('keydown', _onPlaceKey, true);
+  if(typeof markDirty==='function') markDirty(6);
+}
+window._beginPlace=function(kind){
+  if(_placeMode===kind){ _cancelPlace(); return; }   // re-select toggles off
+  if(_pathMode && typeof _cancelPath==='function') _cancelPath();
+  if(typeof closeAllPanels==='function') closeAllPanels();
+  _placeMode=kind; _placeHideProbe();
+  document.addEventListener('keydown', _onPlaceKey, true);
+  _placeHint(true);
+  const labels={cube:'Cube',event:'Event',figure:'Figure'};
+  showUndoToast((window._lang==='en'?'📍 Click in the scene to place ':'📍 シーン内を左クリック長押しで配置 ')+(labels[kind]||''));
+};
+function _commitPlace(clientX, clientY){
+  const p=pickWorldPos(clientX, clientY);
+  const kind=_placeMode;
+  _cancelPlace();
+  if(!p || !kind) return;
+  const hint=p.clone();
+  if(kind==='cube'   && window.addCubeLayer)   window.addCubeLayer(hint);
+  else if(kind==='event'  && window.addEventLayer)  window.addEventLayer(hint);
+  else if(kind==='figure' && window.addFigureLayer) window.addFigureLayer(hint);
+}
+
 window.setPathLabel=function(id, text){
   const L=findLayer(id); if(!L||L.type!=='path') return;
   L.pathLabel=text;
@@ -19190,6 +19253,12 @@ canvas.addEventListener('mousedown',e=>{
     e.preventDefault();
     return;
   }
+  // 配置モード（Cube/Event/Figure）: 左クリック長押しで配置位置を探る
+  if(_placeMode && e.button===0){
+    _placeProbing=true; _placeUpdateProbe(e.clientX,e.clientY);
+    e.preventDefault();
+    return;
+  }
   // パス編集: 選択中パスの4点ハンドルを左ドラッグで移動
   if(e.button===0 && _pathEditId!=null && !(typeof msr!=='undefined' && msr.active)){
     const h=_pathHandleAt(e.clientX,e.clientY);
@@ -19289,6 +19358,11 @@ window.addEventListener('mouseup',e=>{
     if(_pathProbing){ _placePathPoint(e.clientX,e.clientY); _pathHideProbe(); }
     return;
   }
+  // 配置モード: 左クリックを離したら探っていた位置にオブジェクトを生成
+  if(_placeMode && e.button===0){
+    if(_placeProbing){ _commitPlace(e.clientX,e.clientY); }
+    return;
+  }
   if(e.button===2){
     // End right-drag view rotation
     if(dragOn) dragOn = false;
@@ -19328,6 +19402,7 @@ window.addEventListener('mousemove',e=>{
   if(lpv.dragging){ updateLpvDrag(e.clientX,e.clientY); return; }
   // ── パス: 配置プレビュー追従 / 編集ハンドルのドラッグ ──
   if(_pathMode && _pathProbing){ _pathUpdateProbe(e.clientX,e.clientY); return; }
+  if(_placeMode && _placeProbing){ _placeUpdateProbe(e.clientX,e.clientY); return; }
   if(_pathDragH>=0){ _pathUpdateHandleDrag(e.clientX,e.clientY); return; }
   // ── Right-hold placement preview ──
   if(msr.rightHold && msr.active){
@@ -20227,7 +20302,7 @@ window.toggleChangelog = function(){
 //  Manifest format:
 //    { "version":"0.0.2", "url":"...", "sha256":"<hex>", "notes":"..." }
 // ══════════════════════════════════════════════════
-const CURRENT_VERSION    = '0.0.41-alpha';
+const CURRENT_VERSION    = '0.0.42-alpha';
 const UPDATE_MANIFEST_URL =
   'https://raw.githubusercontent.com/nakamurakou1108/Locahun3D/main/version.json';
 
