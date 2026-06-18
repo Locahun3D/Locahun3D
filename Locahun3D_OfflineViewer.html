@@ -18279,7 +18279,9 @@ window.setPathLabel=function(id, text){
 window.setPathColor=function(id, hex){
   const L=findLayer(id); if(!L||L.type!=='path') return;
   L.pathColor=hex;
-  if(L.mesh) L.mesh.traverse(o=>{ if(o.material && (o.userData.pathFill||o.userData.pathOutline)) o.material.color.set(hex); });
+  if(L.mesh) L.mesh.traverse(o=>{ if(o.material && o.userData.pathOutline) o.material.color.set(hex); });
+  // 中央ラベルの枠色も新しい色で描き直す（テクスチャに焼き込んでいるため再生成）
+  if(typeof window.setPathLabel==='function') window.setPathLabel(id, L.pathLabel||'');
   if(typeof markDirty==='function') markDirty(6);
 };
 
@@ -20161,7 +20163,7 @@ window.toggleChangelog = function(){
 //  Manifest format:
 //    { "version":"0.0.2", "url":"...", "sha256":"<hex>", "notes":"..." }
 // ══════════════════════════════════════════════════
-const CURRENT_VERSION    = '0.0.37-alpha';
+const CURRENT_VERSION    = '0.0.38-alpha';
 const UPDATE_MANIFEST_URL =
   'https://raw.githubusercontent.com/nakamurakou1108/Locahun3D/main/version.json';
 
