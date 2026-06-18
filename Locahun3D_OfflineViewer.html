@@ -18074,34 +18074,28 @@ function _pathPopulateGroup(g, local, color, opacity, labelText){
   const verts=(local||[]).map(p=>new THREE.Vector3(p.x,p.y,p.z));
   const col=new THREE.Color(color||'#00d0ff');
   const op=(opacity!=null?opacity:0.95);
-  // 塗りつぶしは無し。輪郭を「20cm幅の帯」として描く（駐車区画の白線のように）。
-  const HALF=0.1; // 線幅20cm → 半幅0.1m
+  // 塗りつぶし無し。輪郭は「太さ20cmの3Dチューブ（各辺＝円柱、角＝球）」で描く。
+  // 平らな帯だと地面に伏せて浅い角度から見えないため、立体にして常に見えるようにする。
+  // depthTest:false で手前に重畳（地面に埋もれても確実に視認）。
+  const R=0.1; // 直径20cm → 半径0.1m
   if(verts.length>=2){
-    // ポリゴン法線（最初の3点から推定。地面区画なら≈Y+）
-    let nrm=new THREE.Vector3(0,1,0);
-    if(verts.length>=3){
-      const a=new THREE.Vector3().subVectors(verts[1],verts[0]);
-      const b=new THREE.Vector3().subVectors(verts[2],verts[0]);
-      const c=new THREE.Vector3().crossVectors(a,b);
-      if(c.lengthSq()>1e-9) nrm=c.normalize();
-    }
-    const up=nrm.clone().multiplyScalar(0.02); // 地面とのZ-fight回避に法線方向へ微小オフセット
-    const pos=[]; const n=verts.length;
+    const mat=new THREE.MeshBasicMaterial({color:col, transparent:op<1, opacity:op, depthTest:false, depthWrite:false});
+    const yUp=new THREE.Vector3(0,1,0);
+    const n=verts.length;
     for(let i=0;i<n;i++){
       const A=verts[i], B=verts[(i+1)%n]; // 閉ループ（最後→最初も結ぶ）
-      const dir=new THREE.Vector3().subVectors(B,A);
-      if(dir.lengthSq()<1e-9) continue;
-      dir.normalize();
-      const perp=new THREE.Vector3().crossVectors(dir,nrm).normalize().multiplyScalar(HALF);
-      const a1=A.clone().add(perp).add(up), a2=A.clone().sub(perp).add(up);
-      const b1=B.clone().add(perp).add(up), b2=B.clone().sub(perp).add(up);
-      pos.push(a1.x,a1.y,a1.z, a2.x,a2.y,a2.z, b1.x,b1.y,b1.z);
-      pos.push(b1.x,b1.y,b1.z, a2.x,a2.y,a2.z, b2.x,b2.y,b2.z);
+      const dir=new THREE.Vector3().subVectors(B,A); const len=dir.length();
+      if(len>1e-6){
+        const cg=new THREE.CylinderGeometry(R,R,len,8,1,true);
+        const cm=new THREE.Mesh(cg,mat);
+        cm.position.copy(A).addScaledVector(dir,0.5);
+        cm.quaternion.setFromUnitVectors(yUp, dir.clone().normalize());
+        cm.userData.pathOutline=true; cm.renderOrder=9004; g.add(cm);
+      }
+      const sg=new THREE.SphereGeometry(R,10,10); // 角の継ぎ目を埋める球
+      const sm=new THREE.Mesh(sg,mat);
+      sm.position.copy(A); sm.userData.pathOutline=true; sm.renderOrder=9004; g.add(sm);
     }
-    const og=new THREE.BufferGeometry();
-    og.setAttribute('position', new THREE.Float32BufferAttribute(pos,3));
-    const om=new THREE.MeshBasicMaterial({color:col, transparent:op<1, opacity:op, side:THREE.DoubleSide, depthWrite:false});
-    const band=new THREE.Mesh(og,om); band.userData.pathOutline=true; g.add(band);
   }
   // ラベルは local 重心に配置（点を動かすと中央に追従）
   let cx=0,cy=0,cz=0; const n=(local&&local.length)||1;
@@ -20161,7 +20155,7 @@ window.toggleChangelog = function(){
 //  Manifest format:
 //    { "version":"0.0.2", "url":"...", "sha256":"<hex>", "notes":"..." }
 // ══════════════════════════════════════════════════
-const CURRENT_VERSION    = '0.0.35-alpha';
+const CURRENT_VERSION    = '0.0.36-alpha';
 const UPDATE_MANIFEST_URL =
   'https://raw.githubusercontent.com/nakamurakou1108/Locahun3D/main/version.json';
 
