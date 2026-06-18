@@ -1360,7 +1360,7 @@ body.immersive #immersive-exit{ display:inline-block; }
     <button class="sun-wx-btn" data-wx="rain"   id="sun-wx-rain"   data-i18n="sun-wx-rain"   onclick="onSunWeather('rain')">🌧 雨</button>
   </div>
   <!-- 実際の天気予報 (Open-Meteo, オンライン時のみ) -->
-  <button id="sun-fetch-wx" onclick="fetchSunForecast()" title="選択中の場所・日付・時刻の実際の天気予報を読み込み、上の天気を自動設定します（インターネット接続が必要）" style="width:100%;margin-bottom:6px;background:rgba(120,180,255,.16);border:1px solid rgba(120,180,255,.4);color:#bdf;border-radius:6px;padding:5px 8px;font-size:.85em;cursor:pointer">🌐 実際の天気予報を取得（オンライン時）</button>
+  <button id="sun-fetch-wx" data-i18n="sun-fetch-wx" onclick="fetchSunForecast()" title="選択中の場所・日付・時刻の実際の天気予報を読み込み、上の天気を自動設定します（インターネット接続が必要）" style="width:100%;margin-bottom:6px;background:rgba(120,180,255,.16);border:1px solid rgba(120,180,255,.4);color:#bdf;border-radius:6px;padding:5px 8px;font-size:.85em;cursor:pointer">🌐 実際の天気予報を取得（オンライン時）</button>
   <div id="sun-forecast" style="display:none;background:rgba(120,180,255,.08);border:1px solid rgba(120,180,255,.22);border-radius:6px;padding:6px 9px;font-size:.88em;margin-bottom:10px;line-height:1.4"></div>
 
   <!-- 日付 (カスタムカレンダー) -->
@@ -1587,7 +1587,16 @@ body.immersive #immersive-exit{ display:inline-block; }
          .zip → _loadProjectZipFromFile automatically) or via drag-and-drop. -->
     <span id="tb-project-name" style="font-size:.78em;color:rgba(200,200,200,.85);cursor:default;white-space:nowrap;max-width:280px;overflow:hidden;text-overflow:ellipsis;padding:2px 8px;border-radius:4px;border:1px solid transparent;user-select:none;letter-spacing:.02em;" ondblclick="startEditProjectName()" title="ダブルクリックで編集">Untitled Project</span>
   </div>
-  <button class="tb-home" onclick="resetToHome()" id="tb-home-btn">LOCAHUN 3D</button>
+  <button class="tb-home" onclick="resetToHome()" id="tb-home-btn" title="ホームに戻る — LOCAHUN 3D" aria-label="LOCAHUN 3D — Home" style="display:inline-flex;align-items:center;justify-content:center;padding:2px 7px">
+    <svg width="20" height="20" viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg" style="display:block">
+      <rect x="6" y="6" width="88" height="88" rx="22" fill="#141417" stroke="rgba(216,176,97,.9)" stroke-width="3"/>
+      <g stroke="#f3efe6" stroke-width="6" stroke-linecap="round" stroke-linejoin="round" fill="none">
+        <path d="M25 36 V25 H36"/><path d="M75 36 V25 H64"/>
+        <path d="M25 64 V75 H36"/><path d="M75 64 V75 H64"/>
+      </g>
+      <circle cx="50" cy="50" r="11" fill="#f3a02a"/>
+      <circle cx="50" cy="50" r="4.4" fill="#0c0c0d"/>
+    </svg></button>
   <div style="display:flex;align-items:center;gap:8px;flex:1;min-width:0;justify-content:flex-end">
     <button class="tb-bug" id="tb-report-btn" onclick="reportBug()"
       title="エラー / 不具合を開発者に報告">🐛</button>
@@ -1607,7 +1616,7 @@ body.immersive #immersive-exit{ display:inline-block; }
 <!-- Floating "leave simple-fullscreen" button. Hidden unless body.immersive
      (phone-only mode); sits at the top-right where the topbar used to be so the
      user can always get the UI back. See toggleAppFullscreen(). -->
-<button id="immersive-exit" onclick="toggleAppFullscreen()" title="全画面表示を終了">⤢ 表示</button>
+<button id="immersive-exit" data-i18n="immersive-exit" onclick="toggleAppFullscreen()" title="全画面表示を終了">⤢ 表示</button>
 
 <canvas id="overlay"></canvas>
 <canvas id="c"></canvas>
@@ -4343,19 +4352,20 @@ window.sunSetNow = function(){
 // 天気/気温/雲量/降水/風を参照表示。さらに既存の天気トグル(clear/cloudy/rain)を
 // 実際の予報に自動セットして光のムードも実天気に追従させる。キャッシュは sun._fc。
 const _WMO_WX={
-  0:{l:'快晴',e:'☀',wx:'clear'},1:{l:'晴れ',e:'🌤',wx:'clear'},
-  2:{l:'晴れ時々曇り',e:'⛅',wx:'cloudy'},3:{l:'曇り',e:'☁',wx:'cloudy'},
-  45:{l:'霧',e:'🌫',wx:'cloudy'},48:{l:'霧氷',e:'🌫',wx:'cloudy'},
-  51:{l:'霧雨(弱)',e:'🌦',wx:'rain'},53:{l:'霧雨',e:'🌦',wx:'rain'},55:{l:'霧雨(強)',e:'🌧',wx:'rain'},
-  56:{l:'着氷性霧雨',e:'🌧',wx:'rain'},57:{l:'着氷性霧雨(強)',e:'🌧',wx:'rain'},
-  61:{l:'雨(弱)',e:'🌦',wx:'rain'},63:{l:'雨',e:'🌧',wx:'rain'},65:{l:'雨(強)',e:'🌧',wx:'rain'},
-  66:{l:'着氷性の雨',e:'🌧',wx:'rain'},67:{l:'着氷性の雨(強)',e:'🌧',wx:'rain'},
-  71:{l:'雪(弱)',e:'🌨',wx:'cloudy'},73:{l:'雪',e:'🌨',wx:'cloudy'},75:{l:'雪(強)',e:'❄',wx:'cloudy'},77:{l:'霧雪',e:'🌨',wx:'cloudy'},
-  80:{l:'にわか雨(弱)',e:'🌦',wx:'rain'},81:{l:'にわか雨',e:'🌧',wx:'rain'},82:{l:'にわか雨(激)',e:'⛈',wx:'rain'},
-  85:{l:'にわか雪',e:'🌨',wx:'cloudy'},86:{l:'にわか雪(強)',e:'🌨',wx:'cloudy'},
-  95:{l:'雷雨',e:'⛈',wx:'rain'},96:{l:'雷雨(雹)',e:'⛈',wx:'rain'},99:{l:'雷雨(雹/激)',e:'⛈',wx:'rain'},
+  0:{l:'快晴',le:'Clear',e:'☀',wx:'clear'},1:{l:'晴れ',le:'Mainly clear',e:'🌤',wx:'clear'},
+  2:{l:'晴れ時々曇り',le:'Partly cloudy',e:'⛅',wx:'cloudy'},3:{l:'曇り',le:'Overcast',e:'☁',wx:'cloudy'},
+  45:{l:'霧',le:'Fog',e:'🌫',wx:'cloudy'},48:{l:'霧氷',le:'Rime fog',e:'🌫',wx:'cloudy'},
+  51:{l:'霧雨(弱)',le:'Light drizzle',e:'🌦',wx:'rain'},53:{l:'霧雨',le:'Drizzle',e:'🌦',wx:'rain'},55:{l:'霧雨(強)',le:'Heavy drizzle',e:'🌧',wx:'rain'},
+  56:{l:'着氷性霧雨',le:'Freezing drizzle',e:'🌧',wx:'rain'},57:{l:'着氷性霧雨(強)',le:'Heavy freezing drizzle',e:'🌧',wx:'rain'},
+  61:{l:'雨(弱)',le:'Light rain',e:'🌦',wx:'rain'},63:{l:'雨',le:'Rain',e:'🌧',wx:'rain'},65:{l:'雨(強)',le:'Heavy rain',e:'🌧',wx:'rain'},
+  66:{l:'着氷性の雨',le:'Freezing rain',e:'🌧',wx:'rain'},67:{l:'着氷性の雨(強)',le:'Heavy freezing rain',e:'🌧',wx:'rain'},
+  71:{l:'雪(弱)',le:'Light snow',e:'🌨',wx:'cloudy'},73:{l:'雪',le:'Snow',e:'🌨',wx:'cloudy'},75:{l:'雪(強)',le:'Heavy snow',e:'❄',wx:'cloudy'},77:{l:'霧雪',le:'Snow grains',e:'🌨',wx:'cloudy'},
+  80:{l:'にわか雨(弱)',le:'Light showers',e:'🌦',wx:'rain'},81:{l:'にわか雨',le:'Showers',e:'🌧',wx:'rain'},82:{l:'にわか雨(激)',le:'Violent showers',e:'⛈',wx:'rain'},
+  85:{l:'にわか雪',le:'Snow showers',e:'🌨',wx:'cloudy'},86:{l:'にわか雪(強)',le:'Heavy snow showers',e:'🌨',wx:'cloudy'},
+  95:{l:'雷雨',le:'Thunderstorm',e:'⛈',wx:'rain'},96:{l:'雷雨(雹)',le:'Thunderstorm w/ hail',e:'⛈',wx:'rain'},99:{l:'雷雨(雹/激)',le:'Severe thunderstorm w/ hail',e:'⛈',wx:'rain'},
 };
-function _wmoWx(code){ return _WMO_WX[code] || {l:'天気不明('+code+')',e:'🌡',wx:'cloudy'}; }
+function _wmoWx(code){ return _WMO_WX[code] || {l:'天気不明('+code+')',le:'Unknown ('+code+')',e:'🌡',wx:'cloudy'}; }
+function _wmoLabel(w){ return (window._lang==='en' && w.le) ? w.le : w.l; }
 function _sunDateStr(){ return sun.y+'-'+String(sun.mo).padStart(2,'0')+'-'+String(sun.d).padStart(2,'0'); }
 function _sunFcKey(){ return _sunDateStr()+'@'+sun.lat.toFixed(2)+','+sun.lng.toFixed(2); }
 function _sunFcShow(html, on){ const el=document.getElementById('sun-forecast'); if(!el) return; el.innerHTML=html; el.style.display=on?'block':'none'; }
@@ -4392,7 +4402,9 @@ function _sunFcReadout(){
   if(fc.keyLoc!==loc){ _sunFcShow('', false); return; }   // 別の場所のキャッシュ → 隠す
   const dstr=_sunDateStr();
   if(dstr<fc.start || dstr>fc.end){
-    _sunFcShow('📅 取得した期間（取得日の前後1週間）の範囲外です。もう一度「取得」してください。', true);
+    _sunFcShow((window._lang==='en')
+      ? '📅 Outside the fetched range (±1 week of the fetch date). Tap “Get forecast” again.'
+      : '📅 取得した期間（取得日の前後1週間）の範囲外です。もう一度「取得」してください。', true);
     return;
   }
   const h=Math.max(0,Math.min(23, Math.round(sun.timeMin/60)));
@@ -4408,10 +4420,14 @@ function _sunFcReadout(){
   const pr=(hh.precipitation&&hh.precipitation[idx]!=null)?hh.precipitation[idx]:null;
   const ws=(hh.wind_speed_10m&&hh.wind_speed_10m[idx]!=null)?Math.round(hh.wind_speed_10m[idx]):null;
   const place=SUN_CITIES[sun.city]?(window._lang==='en'?SUN_CITIES[sun.city].en:SUN_CITIES[sun.city].ja):'';
+  const en=(window._lang==='en');
   _sunFcShow(
-    '<div style="font-weight:600;color:#cfe;font-size:1.05em">'+w.e+' '+w.l+(t!=null?'　'+t+'°C':'')+'</div>'+
-    '<div style="color:#9bd;margin-top:1px">'+(cc!=null?'雲量 '+cc+'%　':'')+(pr!=null?'降水 '+pr+'mm　':'')+(ws!=null?'風 '+ws+'km/h':'')+'</div>'+
-    '<div style="color:#7a8aa0;font-size:.9em;margin-top:2px">'+place+' '+dstr+' '+String(h).padStart(2,'0')+':00 ｜ Open-Meteo（前後1週間を保持中）</div>',
+    '<div style="font-weight:600;color:#cfe;font-size:1.05em">'+w.e+' '+_wmoLabel(w)+(t!=null?'　'+t+'°C':'')+'</div>'+
+    '<div style="color:#9bd;margin-top:1px">'+
+      (cc!=null?(en?'Cloud ':'雲量 ')+cc+'%　':'')+
+      (pr!=null?(en?'Precip ':'降水 ')+pr+'mm　':'')+
+      (ws!=null?(en?'Wind ':'風 ')+ws+'km/h':'')+'</div>'+
+    '<div style="color:#7a8aa0;font-size:.9em;margin-top:2px">'+place+' '+dstr+' '+String(h).padStart(2,'0')+':00 ｜ '+(en?'Open-Meteo (caching ±1 week)':'Open-Meteo（前後1週間を保持中）')+'</div>',
     true);
 }
 
@@ -8335,7 +8351,7 @@ function composeBurnInFrame(imgCanvas){
   // looks unaligned next to the logo. Center the real glyph bounds instead.
   ctx.textAlign = 'left';
   ctx.textBaseline = 'alphabetic';
-  ctx.fillStyle = 'rgba(255,180,84,.92)';
+  ctx.fillStyle = 'rgba(255,255,255,.95)';   // brand wordmark in white (user request v0.0.44)
   const _bm    = ctx.measureText(_brand);
   const _asc   = _bm.actualBoundingBoxAscent  || topFont * 0.70;
   const _dsc   = _bm.actualBoundingBoxDescent || 0;
@@ -12624,7 +12640,7 @@ function applyI18n(){
   // 日照パネルの都市ドロップダウンを言語に合わせて翻訳
   if(typeof _sunApplyCityI18n==='function') _sunApplyCityI18n();
   // HUD labels
-  ['lbl-pos','lbl-spd','lbl-rot','lbl-measure','lbl-flip','lbl-addobj','lbl-quality','lbl-settings','lbl-file','lbl-cam-reset','lbl-camtool','lbl-env','lbl-help','orient-lock-msg','orient-lock-sub','lbl-addobj-top','lbl-addfig-top','tb-save-lbl','tb-load-lbl','tb-report-lbl','fp-btn-import-lbl','fp-btn-export-lbl','csp-shot-info','csp-cam-info','csp-meta-info','csp-shot-name','csp-rig','csp-env','csp-note','csp-capture','csp-burnin','csp-burnin-grid','csp-capture-btn','csp-salvage','csp-salvage-drop','csp-salvage-sub','ct-tool','ct-lens','ct-focal','ct-sensor','ct-sensor-ff','ct-sensor-apsc','ct-sensor-apsh','ct-sensor-mft','ct-sensor-1inch','ct-sensor-phone13','ct-sensor-phone17','ct-sensor-phone23','ct-sensor-m65','ct-sensor-s35','ct-sensor-bm','ct-sensor-cust','ct-sensor-w','ct-sensor-h','ct-cam-angle','ct-pan','ct-tilt','ct-roll','ct-roll-level','ct-wb','ct-wb-temp','ct-aspect','ct-aspect-sensor','ct-aspect-cust','ct-aspect-apply','ct-margin','ct-grid','ct-grid-multi','ct-grid-guide','ct-grid-off','ct-grid-thirds','ct-grid-golden','ct-grid-cross','ct-grid-diag','ct-grid-safe-cust','ct-grid-action','ct-grid-title','ct-grid-center','ct-grid-custom','ct-grid-cols','ct-grid-rows','ct-grid-opacity','dz-manual-text','dz-ar-label','env-h-title','env-p-off','env-p-day','env-p-morning','env-p-evening','env-p-night','env-p-cloudy','env-p-rain','env-p-overcast','env-p-twilight','env-l-rot','env-l-int','msr-active-lbl','msr-end-lbl','lp-h-scene','lp-empty','qt-title','qt-low','qt-mid','qt-high','qp-perf-t','qp-l-frame','qp-l-gpu','qp-l-head','qp-l-dc','qp-l-tris','qp-l-geos','qp-l-texs','dist-l','msr-clear','msr-undo','em-3dgs','em-3dgs-d','em-zip-save','em-zip-save-d','em-zip-load','em-zip-load-d','em-json','em-json-d','em-glb','em-glb-d','em-obj','em-obj-d','em-cancel','em-recommended','em-h-title','qp-settings-t','qp-lbl-lowpoly-main','qp-lbl-lowpoly-hint','qp-lbl-grid','qp-lbl-show','qp-lbl-fov','qp-lbl-spd','cl-title','cl-sub','cl-tag-init','cl-tag-v003','lbl-walk','lbl-save-camera','lbl-view-rec','lbl-view-rec-phone','lbl-cam-anim','giz-pt-a','giz-pt-b','giz-pt-c','giz-height-lbl','height-l','csp-jpeg-q','csp-4k-lbl','obj-add-cube','obj-add-sphere','obj-add-light','obj-add-event','msr-end-lbl-init'].forEach(id=>{
+  ['lbl-pos','lbl-spd','lbl-rot','lbl-measure','lbl-flip','lbl-addobj','lbl-quality','lbl-settings','lbl-file','lbl-cam-reset','lbl-camtool','lbl-env','lbl-help','orient-lock-msg','orient-lock-sub','lbl-addobj-top','lbl-addfig-top','tb-save-lbl','tb-load-lbl','tb-report-lbl','fp-btn-import-lbl','fp-btn-export-lbl','csp-shot-info','csp-cam-info','csp-meta-info','csp-shot-name','csp-rig','csp-env','csp-note','csp-capture','csp-burnin','csp-burnin-grid','csp-capture-btn','csp-salvage','csp-salvage-drop','csp-salvage-sub','ct-tool','ct-lens','ct-focal','ct-sensor','ct-sensor-ff','ct-sensor-apsc','ct-sensor-apsh','ct-sensor-mft','ct-sensor-1inch','ct-sensor-phone13','ct-sensor-phone17','ct-sensor-phone23','ct-sensor-m65','ct-sensor-s35','ct-sensor-bm','ct-sensor-cust','ct-sensor-w','ct-sensor-h','ct-cam-angle','ct-pan','ct-tilt','ct-roll','ct-roll-level','ct-wb','ct-wb-temp','ct-aspect','ct-aspect-sensor','ct-aspect-cust','ct-aspect-apply','ct-margin','ct-grid','ct-grid-multi','ct-grid-guide','ct-grid-off','ct-grid-thirds','ct-grid-golden','ct-grid-cross','ct-grid-diag','ct-grid-safe-cust','ct-grid-action','ct-grid-title','ct-grid-center','ct-grid-custom','ct-grid-cols','ct-grid-rows','ct-grid-opacity','dz-manual-text','dz-ar-label','env-h-title','env-p-off','env-p-day','env-p-morning','env-p-evening','env-p-night','env-p-cloudy','env-p-rain','env-p-overcast','env-p-twilight','env-l-rot','env-l-int','msr-active-lbl','msr-end-lbl','lp-h-scene','lp-empty','qt-title','qt-low','qt-mid','qt-high','qp-perf-t','qp-l-frame','qp-l-gpu','qp-l-head','qp-l-dc','qp-l-tris','qp-l-geos','qp-l-texs','dist-l','msr-clear','msr-undo','em-3dgs','em-3dgs-d','em-zip-save','em-zip-save-d','em-zip-load','em-zip-load-d','em-json','em-json-d','em-glb','em-glb-d','em-obj','em-obj-d','em-cancel','em-recommended','em-h-title','qp-settings-t','qp-lbl-lowpoly-main','qp-lbl-lowpoly-hint','qp-lbl-grid','qp-lbl-show','qp-lbl-fov','qp-lbl-spd','cl-title','cl-sub','cl-tag-init','cl-tag-v003','lbl-walk','lbl-save-camera','lbl-view-rec','lbl-view-rec-phone','lbl-cam-anim','giz-pt-a','giz-pt-b','giz-pt-c','giz-height-lbl','height-l','csp-jpeg-q','csp-4k-lbl','obj-add-cube','obj-add-sphere','obj-add-light','obj-add-event','obj-add-path','msr-end-lbl-init'].forEach(id=>{
     const el=document.getElementById(id); if(el) el.textContent=T(id);
   });
   // HUD info-box edit tooltip + dropzone titles
@@ -16078,7 +16094,7 @@ setTimeout(async ()=>{
   if(m){
     await loadFromURL(decodeURIComponent(m[1]));
   } else if(dm && DEMO_SCENE_URL){
-    await loadFromURL(DEMO_SCENE_URL, DEMO_SCENE_LABEL);
+    await loadFromURL(DEMO_SCENE_URL, (typeof T==='function'?T('demo-btn-lbl'):DEMO_SCENE_LABEL));
   }
 }, 0);
 
@@ -16197,7 +16213,7 @@ document.addEventListener('DOMContentLoaded', () => {
   btn.innerHTML = `📥 <span id="dz-demo-lbl">${T('demo-btn-lbl')} (${DEMO_SCENE_SIZE_MB}MB)</span>`;
   btn.title = T('demo-btn-title');
   btn.addEventListener('click', () => {
-    loadFromURL(DEMO_SCENE_URL, DEMO_SCENE_LABEL);
+    loadFromURL(DEMO_SCENE_URL, (typeof T==='function'?T('demo-btn-lbl'):DEMO_SCENE_LABEL));
   });
   // Insert as the FIRST option (above 空プロジェクト) so it's the most
   // discoverable entry point for new visitors.
@@ -18596,6 +18612,7 @@ Object.assign(I18N.ja,{
   'sun-h-title':'日照シミュレーション',
   'sun-l-loc':'📍 場所（都道府県）',
   'sun-l-weather':'🌤 天気','sun-wx-clear':'☀ 晴れ','sun-wx-cloudy':'☁ 曇り','sun-wx-rain':'🌧 雨',
+  'sun-fetch-wx':'🌐 実際の天気予報を取得（オンライン時）','immersive-exit':'⤢ 表示',
   'sun-l-date':'📅 日付','sun-btn-now':'今',
   'sun-l-time':'🕐 時刻',
   'sun-viz-hint':'🧭 ビュー内に方位コンパスと一日の太陽軌道を表示中。北はシーンの固定軸（−Z）です。',
@@ -18724,6 +18741,7 @@ Object.assign(I18N.ja,{
   'obj-add-sphere':'Sphere (球体)',
   'obj-add-light':'Light (ライト)',
   'obj-add-event':'Event (イベント)',
+  'obj-add-path':'パス (区画＋ラベル)',
   'cam-info-pan':'パン',
   'cam-info-tilt':'ティルト',
   'cam-info-roll':'ロール',
@@ -18858,6 +18876,7 @@ Object.assign(I18N.en,{
   'sun-h-title':'Sun / Daylight',
   'sun-l-loc':'📍 Location (Prefecture)',
   'sun-l-weather':'🌤 Weather','sun-wx-clear':'☀ Clear','sun-wx-cloudy':'☁ Cloudy','sun-wx-rain':'🌧 Rain',
+  'sun-fetch-wx':'🌐 Get live weather forecast (online)','immersive-exit':'⤢ View',
   'sun-l-date':'📅 Date','sun-btn-now':'Now',
   'sun-l-time':'🕐 Time',
   'sun-viz-hint':'🧭 Compass and the day\'s sun path are shown in the view. North is the scene\'s fixed axis (−Z).',
@@ -18986,6 +19005,7 @@ Object.assign(I18N.en,{
   'obj-add-sphere':'Sphere',
   'obj-add-light':'Light',
   'obj-add-event':'Event',
+  'obj-add-path':'Path (Area + Label)',
   'cam-info-pan':'Pan',
   'cam-info-tilt':'Tilt',
   'cam-info-roll':'Roll',
@@ -20348,7 +20368,7 @@ window.toggleChangelog = function(){
 //  Manifest format:
 //    { "version":"0.0.2", "url":"...", "sha256":"<hex>", "notes":"..." }
 // ══════════════════════════════════════════════════
-const CURRENT_VERSION    = '0.0.43-alpha';
+const CURRENT_VERSION    = '0.0.44-alpha';
 const UPDATE_MANIFEST_URL =
   'https://raw.githubusercontent.com/nakamurakou1108/Locahun3D/main/version.json';
 
