@@ -15385,6 +15385,12 @@ function animate(now) {
   // Hard gates: GPU context lost or tab hidden → don't render, don't compute.
   // Headless mode bypasses the hidden gate so streaming/rendering keep running.
   if(_ctxLost || (_tabHidden && !_headless)) return;
+  // パス編集ハンドルは「選択中のパス」だけに表示。選択が外れた/削除されたら消す。
+  if(_pathEditId!=null){
+    const _pl=findLayer(_pathEditId);
+    const _sel=_pl && ((selectedLayerId===_pathEditId) || (window.selectedLayerIds && window.selectedLayerIds.has(_pathEditId)));
+    if(!_sel) _pathClearHandles();
+  }
   // ── 60 fps soft cap on TOUCH devices only ──
   // iPad Pro (120 Hz ProMotion) and 120 Hz iPhones used to render at the
   // panel's native refresh, which on heavy splat scenes doubles GPU work
@@ -20155,7 +20161,7 @@ window.toggleChangelog = function(){
 //  Manifest format:
 //    { "version":"0.0.2", "url":"...", "sha256":"<hex>", "notes":"..." }
 // ══════════════════════════════════════════════════
-const CURRENT_VERSION    = '0.0.34-alpha';
+const CURRENT_VERSION    = '0.0.35-alpha';
 const UPDATE_MANIFEST_URL =
   'https://raw.githubusercontent.com/nakamurakou1108/Locahun3D/main/version.json';
 
