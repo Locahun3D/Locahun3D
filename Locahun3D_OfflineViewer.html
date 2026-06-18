@@ -545,10 +545,11 @@ body{position:fixed;top:0;left:0;}
 
 /* ── Measure hint ── */
 #msr-hint{
-  position:fixed;right:14px;font-size:.72em;color:#484848;
-  background:rgba(26,26,28,.93);border:1px solid rgba(255,255,255,.08);border-radius:7px;
-  padding:7px 12px;z-index:59;display:none;pointer-events:none;
-  text-align:center;line-height:1.7;
+  /* Positioned by .guide-banner (bottom-centre band). Here we only override the
+     appearance to the measure-tool's dark pill. */
+  font-size:.72em;color:#cfcfcf;
+  background:rgba(26,26,28,.93)!important;border:1px solid rgba(255,255,255,.12);border-radius:9px;
+  z-index:59;display:none;line-height:1.6;
 }
 
 /* ══════ LAYER PANEL ══════ */
@@ -850,6 +851,22 @@ body{position:fixed;top:0;left:0;}
   border-radius:8px;padding:6px 18px;color:rgba(200,200,200,.6);font-size:.78em;
   z-index:80;pointer-events:none;opacity:0;transition:opacity .3s;
   white-space:nowrap;
+}
+/* Unified "guidance / instruction" banner position (user 2026-06: the various
+   hint banners were scattered at top:64px and overlapped the top button row).
+   All instruction banners (object placement, path, measure step) now sit in one
+   bottom-centre band ABOVE the cbar + undo-toast, and never collide with the
+   top UI. Background colour stays per-banner (set inline / by id). */
+.guide-banner{
+  position:fixed;left:50%;transform:translateX(-50%);
+  bottom:112px;color:#fff;padding:6px 16px;border-radius:20px;font-size:.78em;
+  z-index:6000;pointer-events:none;box-shadow:0 2px 12px rgba(0,0,0,.45);
+  white-space:nowrap;max-width:92vw;text-align:center;
+}
+@media (pointer:coarse){ .guide-banner{ bottom:124px; } }       /* iPad/tablet: cbar sits higher */
+@media (pointer:coarse) and (any-hover:none) and (max-width:600px),
+       (pointer:coarse) and (any-hover:none) and (max-height:500px){
+  .guide-banner{ bottom:270px; }                                /* phone: cbar lifted above joystick */
 }
 
 /* ── Axis pivot highlight ── */
@@ -1355,7 +1372,7 @@ body.immersive #immersive-exit{ display:inline-block; }
     <option value="kagoshima">鹿児島県</option>
     <option value="okinawa">沖縄県</option>
   </select>
-  <div id="sun-coords" style="color:#777;font-size:.85em;margin-bottom:10px">—</div>
+  <div id="sun-coords" style="display:none;color:#777;font-size:.85em;margin-bottom:10px">—</div>
 
   <!-- 天気 (疑似HDRI連動) -->
   <div class="sun-sec-lbl" id="sun-l-weather" data-i18n="sun-l-weather">🌤 天気</div>
@@ -1392,7 +1409,7 @@ body.immersive #immersive-exit{ display:inline-block; }
   </div>
 
   <!-- 北方位スライダーは廃止。代わりに 3D シーン内にコンパス＋太陽軌道を表示 -->
-  <div style="color:#777;font-size:.82em;margin-bottom:10px;line-height:1.4" id="sun-viz-hint"
+  <div style="display:none;color:#777;font-size:.82em;margin-bottom:10px;line-height:1.4" id="sun-viz-hint"
     data-i18n="sun-viz-hint">🧭 ビュー内に方位コンパスと一日の太陽軌道を表示中。北はシーンの固定軸（−Z）です。</div>
 
   <!-- 読み出し -->
@@ -1400,10 +1417,10 @@ body.immersive #immersive-exit{ display:inline-block; }
     display:grid;grid-template-columns:1fr 1fr;gap:4px 10px;font-size:.95em">
     <div><span class="sun-rk" id="sun-rl-rise" data-i18n="sun-rl-rise">🌅 日の出</span> <b id="sun-r-rise">—</b></div>
     <div><span class="sun-rk" id="sun-rl-set" data-i18n="sun-rl-set">🌇 日の入り</span> <b id="sun-r-set">—</b></div>
-    <div><span class="sun-rk" id="sun-rl-noon" data-i18n="sun-rl-noon">☀ 南中</span> <b id="sun-r-noon">—</b></div>
+    <div style="display:none"><span class="sun-rk" id="sun-rl-noon" data-i18n="sun-rl-noon">☀ 南中</span> <b id="sun-r-noon">—</b></div>
     <div><span class="sun-rk" id="sun-rl-len" data-i18n="sun-rl-len">⏱ 昼の長さ</span> <b id="sun-r-len">—</b></div>
-    <div><span class="sun-rk" id="sun-rl-alt" data-i18n="sun-rl-alt">↕ 高度</span> <b id="sun-r-alt">—</b></div>
-    <div><span class="sun-rk" id="sun-rl-az" data-i18n="sun-rl-az">↗ 方位</span> <b id="sun-r-az">—</b></div>
+    <div style="display:none"><span class="sun-rk" id="sun-rl-alt" data-i18n="sun-rl-alt">↕ 高度</span> <b id="sun-r-alt">—</b></div>
+    <div style="display:none"><span class="sun-rk" id="sun-rl-az" data-i18n="sun-rl-az">↗ 方位</span> <b id="sun-r-az">—</b></div>
   </div>
 </div>
 
@@ -3095,11 +3112,10 @@ body.ar-active #dz{display:none !important;}
     <button onclick="undoMeasure()" id="btnUndo" style="color:#686868">↩ <span id="msr-undo">戻る</span></button>
     <button onclick="toggleMeasure()" id="btnMeasureEnd"><span id="msr-end-lbl-init">終了</span></button>
   </div>
-  <div style="text-align:right;font-size:.7em;color:rgba(200,200,210,.75);margin-top:3px" id="undoInfo">Z: 戻る ―</div>
 </div>
 
 <!-- Measurement step hint (below gizmo) -->
-<div id="msr-hint" data-i18n="msr-h0">左クリックで点 A を配置</div>
+<div id="msr-hint" class="guide-banner" data-i18n="msr-h0">左クリックで点 A を配置</div>
 
 <!-- ══ Export / Save Modal ══ -->
 <div id="export-modal">
@@ -4480,13 +4496,14 @@ function _sunFcReadout(){
   const ws=(hh.wind_speed_10m&&hh.wind_speed_10m[idx]!=null)?Math.round(hh.wind_speed_10m[idx]):null;
   const place=SUN_CITIES[sun.city]?(window._lang==='en'?SUN_CITIES[sun.city].en:SUN_CITIES[sun.city].ja):'';
   const en=(window._lang==='en');
+  // Source / timestamp line removed per user request (panel de-clutter).
+  void place;
   _sunFcShow(
     '<div style="font-weight:600;color:#cfe;font-size:1.05em">'+w.e+' '+_wmoLabel(w)+(t!=null?'　'+t+'°C':'')+'</div>'+
     '<div style="color:#9bd;margin-top:1px">'+
       (cc!=null?(en?'Cloud ':'雲量 ')+cc+'%　':'')+
       (pr!=null?(en?'Precip ':'降水 ')+pr+'mm　':'')+
-      (ws!=null?(en?'Wind ':'風 ')+ws+'km/h':'')+'</div>'+
-    '<div style="color:#7a8aa0;font-size:.9em;margin-top:2px">'+place+' '+dstr+' '+String(h).padStart(2,'0')+':00 ｜ '+(en?'Open-Meteo (caching ±1 week)':'Open-Meteo（前後1週間を保持中）')+'</div>',
+      (ws!=null?(en?'Wind ':'風 ')+ws+'km/h':'')+'</div>',
     true);
 }
 
@@ -5204,6 +5221,10 @@ function updateLayerPivot(){
   if(!L || L.type==='splat' || L.type==='folder'){
     lpv.group.visible=false; return;
   }
+  // Locked (inside a locked folder): no transform gizmo — editing disabled.
+  if(typeof _isLayerLocked==='function' && _isLayerLocked(selectedLayerId)){
+    lpv.group.visible=false; return;
+  }
   lpv.group.visible=true;
   // ── Event: hide rotation and scale gizmos ──
   const _isEvt = L.type==='event';
@@ -5243,6 +5264,7 @@ function checkLpvHandle(clientX,clientY){
 
 function startLpvDrag(hit,clientX,clientY){
   const L=findLayer(selectedLayerId); if(!L) return;
+  if(typeof _isLayerLocked==='function' && _isLayerLocked(selectedLayerId)) return; // locked: no editing
   const markerPos=lpv.group.position.clone();
   const dp=new THREE.Plane();
   const rect=canvas.getBoundingClientRect();
@@ -7234,7 +7256,9 @@ function _camAnimSampleAt(t){
   // Ease in/out (user-selectable). Smoothstep on the normalised progress so the
   // shot accelerates from rest and decelerates to a stop; position AND every
   // scalar field derive from the same eased u, so they stay in lockstep.
-  if(camAnim.easing){ u = u*u*(3 - 2*u); }
+  // Strength dialed to ~1/3 (user: "イージングが強すぎる") by blending the
+  // smoothstep result back toward linear: eased = lerp(u, smoothstep, 1/3).
+  if(camAnim.easing){ const _sm = u*u*(3 - 2*u); u = u + (_sm - u) * (1/3); }
   // CRITICAL: getPointAt(u) is ARC-LENGTH parameterised, but _catRom1D()
   // below is parameterised UNIFORMLY in key index (f = param*(n-1)). Passing
   // the arc-length u straight into _catRom1D phase-shifts the ORIENTATION
@@ -8677,8 +8701,11 @@ function pushUndo() {
 }
 function updateUndoInfo() {
   const n = msr.undoStack.length;
-  document.getElementById('undoInfo').textContent = `${T('undo-info')} ${n}/${MAX_UNDO}`;
-  document.getElementById('btnUndo').style.color = n > 0 ? '#ffdd0099' : '#443300';
+  // #undoInfo ("Z: 戻る — n/20") was removed per user request; guard the lookup.
+  const _ui = document.getElementById('undoInfo');
+  if(_ui) _ui.textContent = `${T('undo-info')} ${n}/${MAX_UNDO}`;
+  const _bu = document.getElementById('btnUndo');
+  if(_bu) _bu.style.color = n > 0 ? '#ffdd0099' : '#443300';
 }
 let _undoToastTimer = null;
 function showUndoToast(msg) {
@@ -12251,8 +12278,40 @@ function _reattachLayerSceneAttachments(L){
   }
 }
 
+// ── Folder edit-lock ──────────────────────────────────────────────
+// A locked folder disables editing of itself and ALL its descendants
+// (gizmo move/rotate/scale, transform-panel inputs, delete). Toggle via the
+// 🔒/🔓 button on the folder row. Persisted in project ZIP.
+function _isLayerLocked(id){
+  let L=findLayer(id); let guard=0;
+  while(L && guard++<128){
+    if(L.type==='folder' && L.locked) return true;
+    if(L.parentId==null) break;
+    L=findLayer(L.parentId);
+  }
+  return false;
+}
+window.toggleFolderLock=function(id){
+  const L=findLayer(id); if(!L||L.type!=='folder') return;
+  L.locked=!L.locked;
+  // If we just locked a folder whose descendant is selected, hide the gizmo and
+  // refresh the (now read-only) transform panel.
+  if(L.locked && typeof lpv!=='undefined' && lpv.group) lpv.group.visible=false;
+  renderLayerList();
+  if(typeof renderTransformPanel==='function') renderTransformPanel();
+  showUndoToast(L.locked
+    ? (window._lang==='en'?'🔒 Folder locked — its contents can’t be edited':'🔒 フォルダーをロック — 中身は編集できません')
+    : (window._lang==='en'?'🔓 Folder unlocked':'🔓 フォルダーのロックを解除'));
+  markDirty(6);
+};
+
 window.removeLayer=function(id){
   const L=findLayer(id); if(!L) return;
+  // Block deletion of locked folders / their locked descendants.
+  if(_isLayerLocked(id)){
+    showUndoToast(window._lang==='en'?'🔒 Locked — unlock the folder first':'🔒 ロック中です — 先にフォルダーのロックを解除してください');
+    return;
+  }
   const toDelete = [L];
   if(L.type==='folder'){
     (function collectChildren(pid){
@@ -13194,6 +13253,7 @@ function renderLayerList(){
       <span class="lr-icon" ${isFolder?'ondblclick="event.stopPropagation();openFolderColorPicker('+L.id+',event)" title="'+T('folder-color')+'" style="cursor:pointer;'+_fClr+'"':(L.type==='event'?'ondblclick="event.stopPropagation();openEventColorPicker('+L.id+',event)" title="Change event color" style="cursor:pointer"':'')}>${icon}</span>
       <span class="lr-name" title="${L.name} ［${renameTip}］">${L.name}${badge}</span>
       ${_camCtl}
+      ${isFolder?`<span class="lr-lock" onclick="event.stopPropagation();toggleFolderLock(${L.id})" title="${L.locked?(window._lang==='en'?'Unlock (enable editing)':'ロック解除（編集可に）'):(window._lang==='en'?'Lock folder (disable editing of its contents)':'フォルダーをロック（中身の編集を無効化）')}" style="font-size:.8em;cursor:pointer;flex-shrink:0;opacity:${L.locked?'1':'.4'};user-select:none;margin-left:2px">${L.locked?'🔒':'🔓'}</span>`:''}
       <span class="lr-edit" onclick="event.stopPropagation();startRenameLayer(${L.id},event)" title="${renameTip}" style="font-size:.82em;cursor:pointer;flex-shrink:0;opacity:.5;user-select:none;margin-left:2px">✏️</span>
       <span class="lr-del" onclick="event.stopPropagation();removeLayer(${L.id})">🗑</span>
     </div>`;
@@ -13280,6 +13340,17 @@ function renderTransformPanel(){
     _list.style.height='';
   }
   if(!L||L.type==='folder'){ el.style.display='none'; el.innerHTML=''; return; }
+  // Locked (inside a locked folder): show a read-only notice instead of the
+  // editable transform controls.
+  if(typeof _isLayerLocked==='function' && _isLayerLocked(selectedLayerId)){
+    el.style.display='block';
+    el.innerHTML='<div style="padding:10px;text-align:center;color:#c9a23a;font-size:.8em;line-height:1.5;background:rgba(255,200,80,.06);border:1px solid rgba(255,200,80,.18);border-radius:6px">🔒 '
+      +(window._lang==='en'
+        ? 'This layer is in a <b>locked folder</b>.<br>Unlock the folder (🔓) to edit.'
+        : 'このレイヤーは<b>ロック中のフォルダー</b>内です。<br>編集するにはフォルダーのロックを解除（🔓）してください。')
+      +'</div>';
+    return;
+  }
   el.style.display='block';
   const {pos:p,rot:r,size:s}=L;
   const sc=L.scale||{x:1,y:1,z:1};
@@ -17241,6 +17312,7 @@ window.saveProjectZip = async function(){
       };
       if(L.type==='folder'){
         entry.expanded=L.expanded!==false;
+        entry.locked=!!L.locked;
       } else if(L.type==='cube'||L.type==='sphere'){
         entry.cubeColor=L.cubeColor||'#ffffff';
         entry.cubeOpacity=L.cubeOpacity!=null?L.cubeOpacity:0.85;
@@ -17624,6 +17696,7 @@ window.saveProject = async function() {
       };
       if(L.type==='folder'){
         entry.expanded=L.expanded!==false;
+        entry.locked=!!L.locked;
       } else if(L.type==='cube'||L.type==='sphere'){
         entry.cubeColor=L.cubeColor||'#ffffff';
         entry.cubeOpacity=L.cubeOpacity!=null?L.cubeOpacity:0.85;
@@ -17946,7 +18019,7 @@ async function restoreProject(project) {
     const L={
       id:entry.id, name:entry.name, type:entry.type,
       parentId:entry.parentId||null, mesh,
-      visible:entry.visible!==false, expanded:entry.expanded!==false,
+      visible:entry.visible!==false, expanded:entry.expanded!==false, locked:!!entry.locked,
       pos:entry.pos||{x:0,y:0,z:0}, rot:entry.rot||{x:0,y:0,z:0},
       size:entry.size||{x:1,y:1,z:1},
       scale:entry.scale||{x:1,y:1,z:1},
@@ -18390,8 +18463,8 @@ function _pathHideProbe(){
 function _pathHint(on){
   let el=document.getElementById('path-hint');
   if(on){
-    if(!el){ el=document.createElement('div'); el.id='path-hint';
-      el.style.cssText='position:fixed;top:64px;left:50%;transform:translateX(-50%);background:rgba(0,150,205,.94);color:#fff;padding:6px 16px;border-radius:20px;font-size:.78em;z-index:6000;pointer-events:none;box-shadow:0 2px 12px rgba(0,0,0,.45);white-space:nowrap';
+    if(!el){ el=document.createElement('div'); el.id='path-hint'; el.className='guide-banner';
+      el.style.background='rgba(0,150,205,.94)';
       document.body.appendChild(el); }
     el.textContent='🛣 パス: 4点を左クリック長押しで配置（押して位置を探り、離して確定 / 残り '+(4-_pathPts.length)+'）  ｜  Esc で中止';
     el.style.display='block';
@@ -18487,8 +18560,8 @@ function _placeHideProbe(){
 function _placeHint(on){
   let el=document.getElementById('place-hint');
   if(on){
-    if(!el){ el=document.createElement('div'); el.id='place-hint';
-      el.style.cssText='position:fixed;top:64px;left:50%;transform:translateX(-50%);background:rgba(200,150,0,.95);color:#fff;padding:6px 16px;border-radius:20px;font-size:.78em;z-index:6000;pointer-events:none;box-shadow:0 2px 12px rgba(0,0,0,.45);white-space:nowrap';
+    if(!el){ el=document.createElement('div'); el.id='place-hint'; el.className='guide-banner';
+      el.style.background='rgba(200,150,0,.95)';
       document.body.appendChild(el); }
     el.textContent=(window._lang==='en')
       ? '📍 Long-press to place (hold to aim, release to confirm) | Esc to cancel'
@@ -20478,7 +20551,7 @@ window.toggleChangelog = function(){
 //  Manifest format:
 //    { "version":"0.0.2", "url":"...", "sha256":"<hex>", "notes":"..." }
 // ══════════════════════════════════════════════════
-const CURRENT_VERSION    = '0.1.0-beta';
+const CURRENT_VERSION    = '0.1.1-beta';
 const UPDATE_MANIFEST_URL =
   'https://raw.githubusercontent.com/nakamurakou1108/Locahun3D/main/version.json';
 
