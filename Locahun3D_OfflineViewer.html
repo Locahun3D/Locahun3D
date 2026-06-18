@@ -3470,6 +3470,22 @@ document.addEventListener('dblclick', e => {
   if(t && (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA')) return;
   try { e.preventDefault(); } catch(_){}
 }, { passive:false });
+
+// ── Edge-swipe browser-navigation guard (user request 2026-06) ──
+// On phones a horizontal swipe from the extreme left/right screen edge fires
+// Safari/Chrome back/forward navigation and yanks the user out of the viewer.
+// Block it by preventing the default on single-finger touches that START
+// within a thin edge band — but only when the touch isn't on an interactive
+// control, so buttons / joystick / panel lists near the edge still work.
+const _EDGE_SWIPE_PX = 26;
+document.addEventListener('touchstart', e => {
+  if(!e.touches || e.touches.length !== 1) return;
+  const x = e.touches[0].clientX;
+  if(x > _EDGE_SWIPE_PX && x < (window.innerWidth - _EDGE_SWIPE_PX)) return;
+  const t = e.target;
+  if(t && t.closest && t.closest('button,input,textarea,select,a,label,#joy,#layer-panel,.modal,[role="button"],[onclick]')) return;
+  try { e.preventDefault(); } catch(_){}
+}, { passive:false });
 // Safari sometimes zooms when the user double-taps within ~300 ms even
 // when touch-action says no. Catch via touchend timing and preventDefault
 // the SECOND quick tap if it lands on a non-interactive target.
@@ -9093,6 +9109,10 @@ function showHUD() {
     if(el) el.style.display = hide ? 'none' : '';
   };
   _phoneHide('btnSaveCamera', _isPhoneTier);
+  // Update-check button is removed on phones (user request 2026-06): file://
+  // self-update is a desktop workflow and the button just crowds the narrow
+  // top bar. Desktop/tablet keep it.
+  _phoneHide('tb-update-btn', _isPhoneTier);
   // Camera animation (🎞) IS now exposed on phones too (user request 2026-06).
   _phoneHide('btnCamAnim',    false);
   // #btnViewRec lives in the cbar now and the cbar's smartphone media query
@@ -20388,7 +20408,7 @@ window.toggleChangelog = function(){
 //  Manifest format:
 //    { "version":"0.0.2", "url":"...", "sha256":"<hex>", "notes":"..." }
 // ══════════════════════════════════════════════════
-const CURRENT_VERSION    = '0.0.45-alpha';
+const CURRENT_VERSION    = '0.0.46-alpha';
 const UPDATE_MANIFEST_URL =
   'https://raw.githubusercontent.com/nakamurakou1108/Locahun3D/main/version.json';
 
