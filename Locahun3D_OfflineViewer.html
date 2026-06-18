@@ -3391,8 +3391,17 @@ const _macKind = _gpu.macKind;     // 'none' | 'silicon' | 'intel' | 'unknown'
 //   高 (idx 2) = scale 1.5
 // Mobile starts at 低, desktop at 中 — the old "高" / "最高" were redundant
 // in practice after the watchdog took over high-end up-stepping.
-let qualScale = isMobile ? 0.75 : 1.0;
-let qualIdx   = isMobile ? 0    : 1;
+// Quality auto-pick uses a BROADER touch test than `isMobile` (which requires
+// any-hover:none and so misses phones that report a hover-capable pointer).
+// User report: phones sometimes started at 中 instead of 低. Any coarse pointer
+// OR a mobile UA now reliably seeds 低 on phones/tablets. Desktop (pointer:fine,
+// no mobile UA) is unaffected and stays 中.
+const _qualTouchLike = (function(){
+  try { if(window.matchMedia('(pointer:coarse)').matches) return true; } catch(_){}
+  return /Android|iPhone|iPad|iPod|Mobile|Silk|Kindle/i.test(navigator.userAgent || '');
+})();
+let qualScale = _qualTouchLike ? 0.75 : 1.0;
+let qualIdx   = _qualTouchLike ? 0    : 1;
 // "Preferred" quality — the ceiling the continuous-watchdog up-steps toward
 // after a downgrade. Starts as the device-tier auto pick; setQuality()
 // updates it when the user manually picks a level (so the watchdog won't
@@ -15560,6 +15569,15 @@ function animate(now) {
   // _fpsDisplay stays correct, but skip DOM writes when #fps is absent.
   if(shouldRender){
     _fpsCounts++; _fpsElapsed+=wallDelta;
+    // Rolling 500 ms window so the displayed FPS reflects CURRENT performance.
+    // The old code only reset these counters when the loop went idle, so during
+    // a long continuous-render session _fpsDisplay became a cumulative average
+    // over minutes that drifted and lagged reality — the "perf monitor numbers
+    // are wrong" report. Recompute + reset every ~500 ms instead.
+    if(_fpsElapsed>=500){
+      _fpsDisplay = Math.round(_fpsCounts/_fpsElapsed*1000);
+      _fpsCounts=0; _fpsElapsed=0;
+    }
     fpsN++; fpsT+=dt;
     if(fpsT>=0.5){
       const _fpsEl = document.getElementById('fps');
@@ -15824,7 +15842,9 @@ function animate(now) {
     _rawDeltas.push(wallDelta);
     if(_rawDeltas.length > 240) _rawDeltas.shift();
   }
-  _fpsDisplay = _fpsCounts>0 ? Math.round(_fpsCounts/_fpsElapsed*1000) : 0;
+  // (_fpsDisplay is now maintained as a rolling 500 ms window in the FPS-display
+  //  block above — no per-frame cumulative recompute here, which used to make
+  //  the number drift over a long render session.)
 
   // ══════════════════════════════════════════════════
   //  CONTINUOUS QUALITY WATCHDOG  (target ≥ 30 fps)
@@ -20368,7 +20388,7 @@ window.toggleChangelog = function(){
 //  Manifest format:
 //    { "version":"0.0.2", "url":"...", "sha256":"<hex>", "notes":"..." }
 // ══════════════════════════════════════════════════
-const CURRENT_VERSION    = '0.0.44-alpha';
+const CURRENT_VERSION    = '0.0.45-alpha';
 const UPDATE_MANIFEST_URL =
   'https://raw.githubusercontent.com/nakamurakou1108/Locahun3D/main/version.json';
 
