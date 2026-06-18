@@ -1455,24 +1455,8 @@ body.immersive #immersive-exit{ display:inline-block; }
       <span style="font-size:.75em;color:#686868" id="qp-lbl-show">表示</span>
     </label>
   </div>
-  <!-- ── Low-poly toggle ── halves the rendered splat count by decimating
-       the PLY / SPLAT buffer at load time. SPZ / KSPLAT are proprietary
-       compressed formats so the toggle is a no-op there. Requires reload
-       of the scene to apply (the SplatMesh is immutable post-construction
-       in Spark 2.0.0). -->
-  <div class="qrow" style="display:flex;align-items:center;justify-content:space-between;gap:8px;margin:6px 0">
-    <label id="qp-lbl-lowpoly" style="font-size:.78em;color:#686868;line-height:1.25">
-      <span id="qp-lbl-lowpoly-main">ポリゴン 1/4</span>
-      <span id="qp-lbl-lowpoly-hint" style="display:block;font-size:.72em;color:#404040">PLY/SPLAT のみ・要再読み込み</span>
-    </label>
-    <label style="display:flex;align-items:center;gap:5px;cursor:pointer">
-      <input type="checkbox" id="lowpoly-toggle"
-        onchange="setLowPolyMode(this.checked)"
-        onclick="setTimeout(function(){var c=document.getElementById('lowpoly-toggle');if(c)setLowPolyMode(c.checked);},0)"
-        style="accent-color:#D8D8D8;cursor:pointer">
-      <span style="font-size:.75em;color:#686868" id="qp-lbl-lowpoly-on">ON</span>
-    </label>
-  </div>
+  <!-- Low-poly (ポリゴン 1/4) toggle removed per user request (v0.0.40):
+       the feature and its auto guide-popup are retired. -->
   <div class="qrow" style="display:flex;align-items:center;gap:6px;margin:6px 0">
     <label id="qp-lbl-fov" style="font-size:.78em;color:#686868;min-width:34px">FOV</label>
     <div class="qbtns" id="fovbtns" style="display:flex;gap:4px;flex:1">
@@ -1587,7 +1571,7 @@ body.immersive #immersive-exit{ display:inline-block; }
   <!-- Phone-only view-record button (sits to the LEFT of the AR button on
        touch devices). On non-phones the equivalent control is #btnViewRec
        above, hidden on phones by the same #view-tl-btns media query. -->
-  <button id="btnViewRecPhone" onclick="toggleViewRecording()" style="background:rgba(20,20,22,.88);border:1px solid rgba(255,255,255,.18);color:rgba(200,200,200,.85);border-radius:6px;padding:5px 12px;font-size:.72em;cursor:pointer;transition:all .2s;letter-spacing:.02em;white-space:nowrap;display:none;" title="ビューを MP4 で録画 / 停止">⏺ <span id="lbl-view-rec-phone">録画</span></button>
+  <!-- Phone-only view-record mirror removed per user request (v0.0.40). -->
   <button id="btnAR" onclick="toggleARMode()" style="background:rgba(20,20,22,.88);border:1px solid rgba(255,255,255,.18);color:rgba(200,200,200,.85);border-radius:6px;padding:5px 12px;font-size:.72em;cursor:pointer;transition:all .2s;letter-spacing:.02em;white-space:nowrap;display:none;" title="AR モード（背面カメラ越しに 3DGS を重ねて表示）">📱 <span id="lbl-ar">AR</span></button>
 </div>
 <!-- AR mode: WebGL-integrated camera passthrough. The off-screen video
@@ -2993,7 +2977,7 @@ body.ar-active #dz{display:none !important;}
     <button id="btnCamTool" onclick="toggleCamTool()">📷 <span id="lbl-camtool">カメラ</span></button>
     <button id="btn-sun"    onclick="toggleSunMode()">☀ <span id="lbl-sun" data-i18n="lbl-sun">日照</span></button>
     <button id="btnMeasure" onclick="toggleMeasure()">📐 <span id="lbl-measure">測定</span></button>
-    <button id="btnViewRec" onclick="toggleViewRecording()" title="ビューを MP4 で録画 / 停止">⏺ <span id="lbl-view-rec">録画</span></button>
+    <!-- View recording (⏺ 録画) removed per user request (v0.0.40). -->
 
     <!-- 画質 / 設定 buttons removed: quality is now an always-visible
          indicator at the top-right of the view (#qi-badge); grid / FOV /
@@ -9506,8 +9490,12 @@ document.addEventListener('DOMContentLoaded', () => {
 // iPad-specific top-center popup was unified into the single bottom-left
 // card to keep one consistent UX surface across all devices.
 window.showLowPolyHint = function(){
-  const old = document.getElementById('lowpoly-hint');
-  if(old) old.remove();
+  // Disabled (v0.0.40): the ポリゴン 1/4 feature and its auto guide-popup were
+  // retired per user request. Kept as a no-op so existing call sites are safe.
+  const _stale = document.getElementById('lowpoly-hint');
+  if(_stale) _stale.remove();
+  return;
+  // eslint-disable-next-line no-unreachable
   const card = document.createElement('div');
   card.id = 'lowpoly-hint';
   // Position: directly under the top-right #qi-badge (the 画質 / FPS
@@ -11911,6 +11899,9 @@ function addLayer(opts){
     rot: opts.rot || {x:THREE.MathUtils.radToDeg(_mr.x||0), y:THREE.MathUtils.radToDeg(_mr.y||0), z:THREE.MathUtils.radToDeg(_mr.z||0)},
     size:  opts.size||{x:1,y:1,z:1},
     scale: opts.scale||{x:1,y:1,z:1},
+    // New objects & imports default to LOCAL pivot space (user request v0.0.40).
+    // Restore passes an explicit pivotSpace so saved files keep their choice.
+    pivotSpace: opts.pivotSpace || 'local',
     wireframe: false,
     wireMesh: null,
   };
@@ -14916,7 +14907,7 @@ async function loadObjFile(file){
     L.pos={x:placePos.x,y:placePos.y,z:placePos.z};
     L.objColor=null; L.objOpacity=1.0; L.objWireframe=false;
     L.upAxis='y';
-    L.pivotSpace='world';
+    L.pivotSpace='local';  // imported objects default to local pivot (v0.0.40)
     L._rawBuffer=buf; L._rawExt=ext;  // cache original file for project save
     selectLayer(L.id);
     setBar(100); setMsg(T('done'));
@@ -20169,7 +20160,7 @@ window.toggleChangelog = function(){
 //  Manifest format:
 //    { "version":"0.0.2", "url":"...", "sha256":"<hex>", "notes":"..." }
 // ══════════════════════════════════════════════════
-const CURRENT_VERSION    = '0.0.39-alpha';
+const CURRENT_VERSION    = '0.0.40-alpha';
 const UPDATE_MANIFEST_URL =
   'https://raw.githubusercontent.com/nakamurakou1108/Locahun3D/main/version.json';
 
