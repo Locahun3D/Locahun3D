@@ -733,10 +733,12 @@ body{position:fixed;top:0;left:0;}
 #qi-badge .qib-icon{opacity:.65;}
 #qi-badge .qib-lvl{color:#ffe4b3;font-weight:600;}
 #qi-badge .qib-fps{color:rgba(180,180,180,.65);
-  font-variant-numeric:tabular-nums;min-width:33px;text-align:right;
+  font-variant-numeric:tabular-nums;min-width:46px;text-align:right;
   /* Never let the FPS read-out wrap to a 2nd line (that fattened the chip): keep
-     it on one line at its content width, and floor the width so it doesn't jitter
-     as the number changes. */
+     it on one line, and floor the width to the WIDEST value ("144 fps" ≈ 46px)
+     so the chip doesn't visibly grow when the readout flips from "— fps" (33px)
+     to "60 fps" (39px) the instant a tap/interaction starts rendering — the
+     "画質ボタンを触るとサイズが変わる" report. */
   white-space:nowrap;flex-shrink:0;}
 /* Touch-device badge sizing: keep visible on iPad / iPhone (FPS readout
    was requested back). Slightly larger tap target so users can comfortably
@@ -1041,6 +1043,9 @@ body{position:fixed;top:0;left:0;}
      it (dbl-tap) is impractical at that size anyway, so hide it on phones — the
      name is still editable on tablet/desktop where the bar has room. */
   #topbar #tb-project-name{display:none !important;}
+  /* Phones: brand text is hidden to save the narrow bar — the logo icon alone
+     represents the brand there. Desktop/tablet keep the icon + "ロケハン3D". */
+  #topbar #tb-brand-text{display:none !important;}
   #topbar .tb-update{padding:4px 6px;font-size:.58em;}
   #topbar .tb-lang{padding:4px 8px;font-size:.60em;}
   #topbar .tb-bug{padding:4px 6px;font-size:.64em;}
@@ -1587,8 +1592,8 @@ body.immersive #immersive-exit{ display:inline-block; }
          .zip → _loadProjectZipFromFile automatically) or via drag-and-drop. -->
     <span id="tb-project-name" style="font-size:.78em;color:rgba(200,200,200,.85);cursor:default;white-space:nowrap;max-width:280px;overflow:hidden;text-overflow:ellipsis;padding:2px 8px;border-radius:4px;border:1px solid transparent;user-select:none;letter-spacing:.02em;" ondblclick="startEditProjectName()" title="ダブルクリックで編集">Untitled Project</span>
   </div>
-  <button class="tb-home" onclick="resetToHome()" id="tb-home-btn" title="ホームに戻る — LOCAHUN 3D" aria-label="LOCAHUN 3D — Home" style="display:inline-flex;align-items:center;justify-content:center;padding:2px 7px">
-    <svg width="20" height="20" viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg" style="display:block">
+  <button class="tb-home" onclick="resetToHome()" id="tb-home-btn" title="ホームに戻る — ロケハン3D" aria-label="ロケハン3D — Home" style="display:inline-flex;align-items:center;justify-content:center;gap:6px;padding:2px 9px">
+    <svg width="18" height="18" viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg" style="display:block;flex-shrink:0">
       <rect x="6" y="6" width="88" height="88" rx="22" fill="#141417" stroke="rgba(216,176,97,.9)" stroke-width="3"/>
       <g stroke="#f3efe6" stroke-width="6" stroke-linecap="round" stroke-linejoin="round" fill="none">
         <path d="M25 36 V25 H36"/><path d="M75 36 V25 H64"/>
@@ -1596,7 +1601,7 @@ body.immersive #immersive-exit{ display:inline-block; }
       </g>
       <circle cx="50" cy="50" r="11" fill="#f3a02a"/>
       <circle cx="50" cy="50" r="4.4" fill="#0c0c0d"/>
-    </svg></button>
+    </svg><span id="tb-brand-text" data-i18n="tb-brand" style="font-weight:600;letter-spacing:.03em;white-space:nowrap">ロケハン3D</span></button>
   <div style="display:flex;align-items:center;gap:8px;flex:1;min-width:0;justify-content:flex-end">
     <button class="tb-bug" id="tb-report-btn" onclick="reportBug()"
       title="エラー / 不具合を開発者に報告">🐛</button>
@@ -1640,7 +1645,7 @@ body.immersive #immersive-exit{ display:inline-block; }
       background:linear-gradient(to bottom, rgba(255,180,84,.06), transparent)">
       <div style="display:flex;align-items:baseline;gap:14px">
         <strong style="font-size:1.25em;letter-spacing:.04em" data-i18n-key="manual-title">📖 ロケハン3D ユーザーマニュアル</strong>
-        <span style="opacity:.55;font-size:.82em" data-i18n-key="manual-version">v 0.0.4-alpha / 3DGS マルチビューア + プリビズ (αテスト版)</span>
+        <span style="opacity:.55;font-size:.82em" data-i18n-key="manual-version">v 0.1.0-beta / 3DGS マルチビューア + プリビズ (ベータ版)</span>
       </div>
       <button onclick="closeManual()" style="background:transparent;border:1px solid rgba(255,255,255,.12);
         color:#aab;border-radius:6px;padding:6px 12px;font-size:.92em;cursor:pointer;font-family:inherit"
@@ -2931,15 +2936,15 @@ body.ar-active #dz{display:none !important;}
     <button class="dz-changelog-head" type="button" onclick="toggleChangelog()"
       aria-expanded="false" aria-controls="dz-changelog-body">
       📋 <span id="cl-title">更新履歴</span>
-      <span class="cl-sub" id="cl-sub">αテスト版</span>
+      <span class="cl-sub" id="cl-sub">ベータ版</span>
       <span class="cl-chev" aria-hidden="true">▾</span>
     </button>
     <div class="dz-changelog-body" id="dz-changelog-body" hidden>
       <div class="cl-entry">
         <div class="cl-entry-head">
-          <span class="cl-ver">v 0.0.5-alpha</span>
+          <span class="cl-ver">v 0.1.0-beta</span>
           <span class="cl-date">2026-06-19</span>
-          <span class="cl-tag"><span class="cl-ja">操作性・モバイル・英語</span><span class="cl-en">UX · Mobile · i18n</span></span>
+          <span class="cl-tag"><span class="cl-ja">ベータ版・操作性・モバイル・英語</span><span class="cl-en">Beta · UX · Mobile · i18n</span></span>
         </div>
         <ul class="cl-ja">
           <li>🛣 <b>パス</b>: 中央ラベルを<b>複数行＋自動可変サイズ</b>に（段落改行・長文折返しで文字切れ解消）。レイヤー名を「Path 1, 2…」英語表記に</li>
@@ -2950,6 +2955,7 @@ body.ar-active #dz{display:none !important;}
           <li>⚙️ <b>描画FPS上限を60</b>に統一（全デバイス）。画質/FPSモニターの数値を是正し、<b>スマホは確実に画質「低」</b>で起動</li>
           <li>🌐 <b>英語化</b>: パスメニュー・実天気予報の読み出し・各UIラベルを翻訳。撮影バーンインのロゴ文字を<b>白</b>に、上部ロゴを<b>アイコン</b>化</li>
           <li>📱 スマホ: 端スワイプでのページ移動を抑止／最新版チェックボタンを非表示。<b>FOV110°・録画・「ポリゴン1/4」・書き出しを廃止</b></li>
+          <li>↩ <b>Ctrl+Z でオブジェクトの追加・削除も取り消し</b>（やり直しはCtrl+Y）／画質チップが押すとサイズ変化する不具合を修正／上部ロゴをアイコン＋「ロケハン3D」表記に</li>
         </ul>
         <ul class="cl-en">
           <li>🛣 <b>Path</b>: center label now <b>multi-line + auto-sizing</b> (paragraph breaks + wrapping, no more clipping). Layers named “Path 1, 2…”</li>
@@ -2960,6 +2966,7 @@ body.ar-active #dz{display:none !important;}
           <li>⚙️ <b>60 FPS cap</b> on all devices; fixed the quality/FPS monitor readouts; phones now reliably start at the <b>低 (Low)</b> preset</li>
           <li>🌐 <b>English</b> for the Path menu, live-weather readout and various labels; burn-in wordmark recolored <b>white</b>; top-bar logo is now an <b>icon</b></li>
           <li>📱 Phones: edge-swipe page navigation blocked; update-check button hidden. <b>Removed FOV 110°, view recording, “1/4 polygon”, and Export</b></li>
+          <li>↩ <b>Ctrl+Z now also undoes object add / delete</b> (Ctrl+Y to redo); fixed the quality chip resizing when tapped; top-bar logo is now an icon + “LOCAHUN 3D”</li>
         </ul>
       </div>
       <div class="cl-entry">
@@ -2990,7 +2997,7 @@ body.ar-active #dz{display:none !important;}
     </div>
   </div>
   <div class="dz-version-line">
-    <span id="tb-version">v 0.0.4-alpha</span>
+    <span id="tb-version">v 0.1.0-beta</span>
   </div>
 </div>
 
@@ -11804,6 +11811,19 @@ function globalRedo(){
     markDirty(8);
     // push back to undo so it can be undone again
     globalUndoStack.push(s);
+  } else if(s.type==='layer-add'){
+    // Redo an ADD = re-insert the captured mesh/layer.
+    const e=s.entry; if(!e) return;
+    if(e.mesh){ scene.add(e.mesh); e.layer.mesh=e.mesh; e.mesh.visible=true; e.layer.visible=true; }
+    if(e.wireMesh){ scene.add(e.wireMesh); e.layer.wireMesh=e.wireMesh; }
+    if(e.sceneAttachments) for(const obj of e.sceneAttachments){ if(obj && !obj.parent) scene.add(obj); }
+    layers.push(e.layer);
+    globalUndoStack.push({type:'layer-add', id:e.layer.id});
+    renderLayerList();
+    showUndoToast(window._lang==='en'?'↪ Add redone':'↪ 追加をやり直し');
+    markDirty(8);
+    if(typeof _recountLayerActivity==='function') _recountLayerActivity();
+    if(typeof _haloMarkDirty==='function') _haloMarkDirty();
   } else if(s.type==='figure-pose'){
     const L=findLayer(s.id); if(!L||L.type!=='figure') return;
     // re-apply the "after" state
@@ -11908,6 +11928,25 @@ function globalUndo(){
     renderLayerList();
     showUndoToast(T('undo-del'));
     markDirty(8);
+  } else if(s.type==='layer-add'){
+    // Undo an object ADD = remove it (capture for redo). Mirrors the delete
+    // capture so redo can re-add the exact same mesh/layer.
+    const L=findLayer(s.id); if(!L) return;
+    const entry={ id:L.id, mesh:L.mesh, wireMesh:L.wireMesh||null,
+      sceneAttachments:_collectLayerSceneAttachments(L), layer:Object.assign({},L) };
+    globalRedoStack.push({type:'layer-add', entry});
+    if(L.mesh) scene.remove(L.mesh);
+    if(L.wireMesh) scene.remove(L.wireMesh);
+    _detachLayerSceneAttachments(L);
+    const idx=layers.indexOf(L); if(idx>=0) layers.splice(idx,1);
+    if(selectedLayerId===L.id) selectedLayerId=null;
+    if(window.selectedLayerIds) window.selectedLayerIds.delete(L.id);
+    if(typeof lpv!=='undefined' && lpv && lpv.group && selectedLayerId==null) lpv.group.visible=false;
+    renderLayerList(); renderTransformPanel();
+    showUndoToast(window._lang==='en'?'↩ Add undone':'↩ 追加を取り消し');
+    markDirty(8);
+    if(typeof _recountLayerActivity==='function') _recountLayerActivity();
+    if(typeof _haloMarkDirty==='function') _haloMarkDirty();
   } else if(s.type==='figure-pose'){
     const L=findLayer(s.id); if(!L||L.type!=='figure') return;
     // Save current pose for redo
@@ -13521,6 +13560,7 @@ window.addCubeLayer = function(posHint){
   L.wireMesh=wireMesh;
   L.pos={x:p.x,y:p.y,z:p.z};
   wireMesh.position.copy(group.position);
+  pushGlobalUndo({type:'layer-add', id:L.id});  // Ctrl+Z removes the added cube
   selectLayer(L.id);
 };
 window.addCubeLayer = window.addCubeLayer;
@@ -14124,6 +14164,7 @@ window.addFigureLayer = async function(posHint){
       L.figureLastPose = 'rest';
     }
   } catch(_){ L.figureLastPose = 'rest'; }
+  pushGlobalUndo({type:'layer-add', id:L.id});  // Ctrl+Z removes the added figure
   selectLayer(L.id);
 };
 
@@ -18164,6 +18205,7 @@ window.addEventLayer = function(posHint){
   L.pos={x:p.x,y:p.y,z:p.z};
   L.scale={x:0.25,y:0.25,z:0.25};
   L.eventImage=null; L.eventImageName=null;
+  pushGlobalUndo({type:'layer-add', id:L.id});  // Ctrl+Z removes the added event
   selectLayer(L.id);
   showUndoToast(T('ev-added'));
 };
@@ -18402,6 +18444,7 @@ function _finalizePath(){
   L.pos={x:C.x,y:C.y,z:C.z}; L.rot={x:0,y:0,z:0}; L.scale={x:1,y:1,z:1};
   L.pathPoints=local; L.pathLabel=''; L.pathColor=color; L.pathOpacity=opacity;
   L.pathLabelSprite=group.userData.pathLabelSprite;
+  pushGlobalUndo({type:'layer-add', id:L.id});  // Ctrl+Z removes the created path
   _cancelPath();
   selectLayer(L.id);
   showUndoToast('🛣 パスを作成しました — オブジェクト情報でテキストを入力できます');
@@ -18679,7 +18722,7 @@ Object.assign(I18N.ja,{
   'sun-h-title':'日照シミュレーション',
   'sun-l-loc':'📍 場所（都道府県）',
   'sun-l-weather':'🌤 天気','sun-wx-clear':'☀ 晴れ','sun-wx-cloudy':'☁ 曇り','sun-wx-rain':'🌧 雨',
-  'sun-fetch-wx':'🌐 実際の天気予報を取得（オンライン時）','immersive-exit':'⤢ 表示',
+  'sun-fetch-wx':'🌐 実際の天気予報を取得（オンライン時）','immersive-exit':'⤢ 表示','tb-brand':'ロケハン3D',
   'sun-l-date':'📅 日付','sun-btn-now':'今',
   'sun-l-time':'🕐 時刻',
   'sun-viz-hint':'🧭 ビュー内に方位コンパスと一日の太陽軌道を表示中。北はシーンの固定軸（−Z）です。',
@@ -18765,7 +18808,7 @@ Object.assign(I18N.ja,{
   'tt-integrity-ok':'ファイル整合性 OK (SHA-256 一致)',
   'tt-integrity-bad':'⚠ ファイル整合性が一致しません — 改竄の可能性があります',
   'cl-title':'更新履歴',
-  'cl-sub':'αテスト版',
+  'cl-sub':'ベータ版',
   'cl-tag-init':'初版',
   'cl-tag-v003':'プリビズ拡張',
   'ph-cm-env':'夕方 / 晴れ / 17:30',
@@ -18862,7 +18905,7 @@ Object.assign(I18N.ja,{
   'lbl-rot':'角度',
   'tt-edit-dbl':'ダブルクリックで編集',
   'manual-title':'📖 ロケハン3D ユーザーマニュアル',
-  'manual-version':'v 0.0.4-alpha / 3DGS マルチビューア + プリビズ (αテスト版)',
+  'manual-version':'v 0.1.0-beta / 3DGS マルチビューア + プリビズ (ベータ版)',
   'manual-close':'閉じる ✕',
   'manual-grp-quick':'クイックスタート',
   'manual-grp-basic':'基本操作',
@@ -18943,7 +18986,7 @@ Object.assign(I18N.en,{
   'sun-h-title':'Sun / Daylight',
   'sun-l-loc':'📍 Location (Prefecture)',
   'sun-l-weather':'🌤 Weather','sun-wx-clear':'☀ Clear','sun-wx-cloudy':'☁ Cloudy','sun-wx-rain':'🌧 Rain',
-  'sun-fetch-wx':'🌐 Get live weather forecast (online)','immersive-exit':'⤢ View',
+  'sun-fetch-wx':'🌐 Get live weather forecast (online)','immersive-exit':'⤢ View','tb-brand':'LOCAHUN 3D',
   'sun-l-date':'📅 Date','sun-btn-now':'Now',
   'sun-l-time':'🕐 Time',
   'sun-viz-hint':'🧭 Compass and the day\'s sun path are shown in the view. North is the scene\'s fixed axis (−Z).',
@@ -19029,7 +19072,7 @@ Object.assign(I18N.en,{
   'tt-integrity-ok':'File integrity OK (SHA-256 match)',
   'tt-integrity-bad':'⚠ File integrity mismatch — possible tampering',
   'cl-title':'Changelog',
-  'cl-sub':'Alpha',
+  'cl-sub':'Beta',
   'cl-tag-init':'Initial',
   'cl-tag-v003':'Previz expansion',
   'ph-cm-env':'Evening / Clear / 17:30',
@@ -19126,7 +19169,7 @@ Object.assign(I18N.en,{
   'lbl-rot':'Angle',
   'tt-edit-dbl':'Double-click to edit',
   'manual-title':'📖 LOCAHUN 3D User Manual',
-  'manual-version':'v 0.0.4-alpha / 3DGS multi-viewer + previz (Alpha)',
+  'manual-version':'v 0.1.0-beta / 3DGS multi-viewer + previz (Beta)',
   'manual-close':'Close ✕',
   'manual-grp-quick':'QUICK START',
   'manual-grp-basic':'BASICS',
@@ -20435,7 +20478,7 @@ window.toggleChangelog = function(){
 //  Manifest format:
 //    { "version":"0.0.2", "url":"...", "sha256":"<hex>", "notes":"..." }
 // ══════════════════════════════════════════════════
-const CURRENT_VERSION    = '0.0.47-alpha';
+const CURRENT_VERSION    = '0.1.0-beta';
 const UPDATE_MANIFEST_URL =
   'https://raw.githubusercontent.com/nakamurakou1108/Locahun3D/main/version.json';
 
