@@ -7006,6 +7006,9 @@ const camAnim = {
                      // (Was seconds-per-metre prior to v0.0.4, but that
                      // inverted the user's intuition where a bigger
                      // number ought to mean a faster shot.)
+  easing: true,      // true = ease in/out (smoothstep on the 0..1 progress so
+                     // the shot accelerates from rest and decelerates to a
+                     // stop); false = linear (constant speed). User-selectable.
   playing: false,
   // Warm-up before RECORDING starts. A fresh jump to key 0 leaves Spark at a
   // coarse LOD/SH level; recording immediately bakes those low-detail frames
@@ -7152,7 +7155,11 @@ function _camAnimSampleAt(t){
   // Arc-length parameter (0..1) so a uniform speed setting feels uniform
   // along the curve even though Catmull-Rom's native parameterisation is
   // not arc-length linear.
-  const u   = t / camAnim.totalSec;
+  let u     = t / camAnim.totalSec;
+  // Ease in/out (user-selectable). Smoothstep on the normalised progress so the
+  // shot accelerates from rest and decelerates to a stop; position AND every
+  // scalar field derive from the same eased u, so they stay in lockstep.
+  if(camAnim.easing){ u = u*u*(3 - 2*u); }
   // CRITICAL: getPointAt(u) is ARC-LENGTH parameterised, but _catRom1D()
   // below is parameterised UNIFORMLY in key index (f = param*(n-1)). Passing
   // the arc-length u straight into _catRom1D phase-shifts the ORIENTATION
@@ -7368,6 +7375,27 @@ function _camAnimRenderPanel(){
         style="width:54px;background:#1a1a1f;color:#fff;border:1px solid rgba(255,255,255,.18);
                border-radius:4px;padding:2px 4px;font-size:.84em">
     </div>
+    <div style="display:flex;align-items:center;gap:6px;margin-bottom:8px">
+      <label style="font-size:.76em;color:#bbb;min-width:70px">
+        ${t('Motion', '動き')}
+      </label>
+      <div style="flex:1;display:flex;gap:4px">
+        <button id="cam-anim-ease-on" onclick="window.camAnimSetEasing(true)"
+          style="flex:1;padding:5px;border-radius:5px;cursor:pointer;font-size:.78em;
+                 border:1px solid ${camAnim.easing?'rgba(180,140,255,.6)':'rgba(255,255,255,.14)'};
+                 background:${camAnim.easing?'rgba(160,120,255,.22)':'rgba(255,255,255,.04)'};
+                 color:${camAnim.easing?'#e0ccff':'#999'}">
+          ${t('Ease in/out','イージング')}
+        </button>
+        <button id="cam-anim-ease-off" onclick="window.camAnimSetEasing(false)"
+          style="flex:1;padding:5px;border-radius:5px;cursor:pointer;font-size:.78em;
+                 border:1px solid ${!camAnim.easing?'rgba(180,140,255,.6)':'rgba(255,255,255,.14)'};
+                 background:${!camAnim.easing?'rgba(160,120,255,.22)':'rgba(255,255,255,.04)'};
+                 color:${!camAnim.easing?'#e0ccff':'#999'}">
+          ${t('Linear','リニア')}
+        </button>
+      </div>
+    </div>
     <div style="font-size:.72em;color:#777;margin-bottom:8px">
       ${t('Total duration', '総再生時間')}: <span id="cam-anim-total">${camAnim.totalSec.toFixed(2)}</span> s
     </div>
@@ -7471,6 +7499,13 @@ window.camAnimSetSpeed = function(v){
   const s2 = document.getElementById('cam-anim-speed');
   if(s1 && parseFloat(s1.value) !== camAnim.speed) s1.value = camAnim.speed;
   if(s2 && parseFloat(s2.value) !== camAnim.speed) s2.value = camAnim.speed;
+};
+
+// Motion profile: true = ease in/out (smoothstep), false = linear (constant
+// speed). Applied to the normalised progress in _camAnimSampleAt.
+window.camAnimSetEasing = function(on){
+  camAnim.easing = !!on;
+  _camAnimRenderPanel(); // refresh the segmented toggle highlight
 };
 
 // Preview tick. Driven by BOTH rAF (smooth visual updates when the page
@@ -18054,20 +18089,52 @@ let _pathMode=false, _pathPts=[], _pathMarkers=[], _pathPreviewLine=null;
 let _pathClickX=0, _pathClickY=0;
 
 function _makePathLabelSprite(text, color){
-  const W=512, H=128;
-  const cv=document.createElement('canvas'); cv.width=W; cv.height=H;
-  const x=cv.getContext('2d');
-  if(text){
-    x.font='bold 60px sans-serif'; x.textAlign='center'; x.textBaseline='middle';
-    const tw=Math.min(W-12, x.measureText(text).width+44);
-    x.fillStyle='rgba(0,0,0,.55)'; x.fillRect((W-tw)/2, H/2-42, tw, 84);
-    x.lineWidth=4; x.strokeStyle=color||'#00d0ff'; x.strokeRect((W-tw)/2, H/2-42, tw, 84);
-    x.fillStyle='#ffffff'; x.fillText(text, W/2, H/2+2);
+  // Multi-line + auto-sizing label box (v0.0.41). The text may contain explicit
+  // line breaks (\n from the textarea) AND any single line that runs too long is
+  // wrapped character-by-character (works for CJK, which has no spaces). The
+  // canvas, border box and world sprite scale all grow to fit the content so
+  // nothing is clipped and paragraphs stay separated.
+  const FONT_PX=60, LINE_H=76, PAD_X=26, PAD_Y=18, MAX_LINE_W=900;
+  const MPP=0.6/128; // metres per canvas pixel — keeps glyph size == legacy 60px box
+  text=(text==null?'':String(text));
+  const meas=document.createElement('canvas').getContext('2d');
+  meas.font='bold '+FONT_PX+'px sans-serif';
+  // Wrap each explicit paragraph to MAX_LINE_W (char-based; handles Japanese).
+  let lines=[];
+  const paras=text.split(/\r?\n/);
+  for(const para of paras){
+    if(para===''){ lines.push(''); continue; }
+    let cur='';
+    for(const ch of para){
+      const t=cur+ch;
+      if(cur && meas.measureText(t).width>MAX_LINE_W){ lines.push(cur); cur=ch; }
+      else cur=t;
+    }
+    lines.push(cur);
   }
-  const tex=new THREE.CanvasTexture(cv); tex.needsUpdate=true;
+  if(lines.length===0) lines=[''];
+  let maxW=0; for(const l of lines){ maxW=Math.max(maxW, meas.measureText(l).width); }
+  const boxW=Math.max(120, Math.ceil(maxW)+PAD_X*2);
+  const boxH=Math.ceil(lines.length*LINE_H)+PAD_Y*2;
+  const cv=document.createElement('canvas'); cv.width=boxW; cv.height=boxH;
+  const x=cv.getContext('2d');
+  const hasText=!!text.trim();
+  if(hasText){
+    x.font='bold '+FONT_PX+'px sans-serif'; x.textAlign='center'; x.textBaseline='middle';
+    x.fillStyle='rgba(0,0,0,.55)'; x.fillRect(0,0,boxW,boxH);
+    x.lineWidth=4; x.strokeStyle=color||'#00d0ff'; x.strokeRect(2,2,boxW-4,boxH-4);
+    x.fillStyle='#ffffff';
+    const startY=PAD_Y+LINE_H/2;
+    for(let i=0;i<lines.length;i++){ x.fillText(lines[i], boxW/2, startY+i*LINE_H); }
+  }
+  const tex=new THREE.CanvasTexture(cv);
+  // Box dimensions are non-power-of-two → disable mipmaps / use linear filtering
+  // so WebGL1 doesn't render the sprite black.
+  tex.minFilter=THREE.LinearFilter; tex.magFilter=THREE.LinearFilter;
+  tex.generateMipmaps=false; tex.needsUpdate=true;
   const sp=new THREE.Sprite(new THREE.SpriteMaterial({map:tex, depthTest:false, depthWrite:false, transparent:true}));
-  sp.renderOrder=9006; sp.scale.set(2.4, 0.6, 1);
-  sp.userData.isPathLabel=true; sp.visible=!!text;
+  sp.renderOrder=9006; sp.scale.set(boxW*MPP, boxH*MPP, 1);
+  sp.userData.isPathLabel=true; sp.visible=hasText;
   return sp;
 }
 
@@ -20160,7 +20227,7 @@ window.toggleChangelog = function(){
 //  Manifest format:
 //    { "version":"0.0.2", "url":"...", "sha256":"<hex>", "notes":"..." }
 // ══════════════════════════════════════════════════
-const CURRENT_VERSION    = '0.0.40-alpha';
+const CURRENT_VERSION    = '0.0.41-alpha';
 const UPDATE_MANIFEST_URL =
   'https://raw.githubusercontent.com/nakamurakou1108/Locahun3D/main/version.json';
 
