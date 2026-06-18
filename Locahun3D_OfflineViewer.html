@@ -2937,6 +2937,33 @@ body.ar-active #dz{display:none !important;}
     <div class="dz-changelog-body" id="dz-changelog-body" hidden>
       <div class="cl-entry">
         <div class="cl-entry-head">
+          <span class="cl-ver">v 0.0.5-alpha</span>
+          <span class="cl-date">2026-06-19</span>
+          <span class="cl-tag"><span class="cl-ja">操作性・モバイル・英語</span><span class="cl-en">UX · Mobile · i18n</span></span>
+        </div>
+        <ul class="cl-ja">
+          <li>🛣 <b>パス</b>: 中央ラベルを<b>複数行＋自動可変サイズ</b>に（段落改行・長文折返しで文字切れ解消）。レイヤー名を「Path 1, 2…」英語表記に</li>
+          <li>📦 <b>Cube・イベント・フィギュア</b>を<b>左クリックした場所に配置</b>（長押しで位置を探り、離して確定。パス機能と同じ操作）</li>
+          <li>🎞 <b>カメラアニメーション</b>に<b>イージング／リニア</b>切替を追加</li>
+          <li>📱 <b>iPad対応</b>: レイヤー名の<b>キーボード編集</b>（✏️ボタン）／<b>ピボットのタッチドラッグ</b>で移動・回転・拡縮</li>
+          <li>🖱 オブジェクト・パス等の選択中、<b>空クリックで選択解除</b>を徹底。新規/インポートは既定で<b>ローカル座標</b></li>
+          <li>⚙️ <b>描画FPS上限を60</b>に統一（全デバイス）。画質/FPSモニターの数値を是正し、<b>スマホは確実に画質「低」</b>で起動</li>
+          <li>🌐 <b>英語化</b>: パスメニュー・実天気予報の読み出し・各UIラベルを翻訳。撮影バーンインのロゴ文字を<b>白</b>に、上部ロゴを<b>アイコン</b>化</li>
+          <li>📱 スマホ: 端スワイプでのページ移動を抑止／最新版チェックボタンを非表示。<b>FOV110°・録画・「ポリゴン1/4」・書き出しを廃止</b></li>
+        </ul>
+        <ul class="cl-en">
+          <li>🛣 <b>Path</b>: center label now <b>multi-line + auto-sizing</b> (paragraph breaks + wrapping, no more clipping). Layers named “Path 1, 2…”</li>
+          <li>📦 <b>Cube / Event / Figure</b> are now <b>placed where you left-click</b> (long-press to aim, release to confirm — same as Path)</li>
+          <li>🎞 <b>Camera animation</b>: new <b>Ease in/out vs Linear</b> motion toggle</li>
+          <li>📱 <b>iPad</b>: layer-name <b>keyboard editing</b> (✏️ button) and <b>touch-drag the pivot</b> to move / rotate / scale</li>
+          <li>🖱 Empty-click <b>deselect</b> made thorough; new / imported objects default to <b>local</b> coordinates</li>
+          <li>⚙️ <b>60 FPS cap</b> on all devices; fixed the quality/FPS monitor readouts; phones now reliably start at the <b>低 (Low)</b> preset</li>
+          <li>🌐 <b>English</b> for the Path menu, live-weather readout and various labels; burn-in wordmark recolored <b>white</b>; top-bar logo is now an <b>icon</b></li>
+          <li>📱 Phones: edge-swipe page navigation blocked; update-check button hidden. <b>Removed FOV 110°, view recording, “1/4 polygon”, and Export</b></li>
+        </ul>
+      </div>
+      <div class="cl-entry">
+        <div class="cl-entry-head">
           <span class="cl-ver">v 0.0.4-alpha</span>
           <span class="cl-date">2026-06-11</span>
           <span class="cl-tag"><span class="cl-ja">日照・天気</span><span class="cl-en">Sun &amp; Weather</span></span>
@@ -20408,7 +20435,7 @@ window.toggleChangelog = function(){
 //  Manifest format:
 //    { "version":"0.0.2", "url":"...", "sha256":"<hex>", "notes":"..." }
 // ══════════════════════════════════════════════════
-const CURRENT_VERSION    = '0.0.46-alpha';
+const CURRENT_VERSION    = '0.0.47-alpha';
 const UPDATE_MANIFEST_URL =
   'https://raw.githubusercontent.com/nakamurakou1108/Locahun3D/main/version.json';
 
