@@ -648,7 +648,7 @@ body{position:fixed;top:0;left:0;}
 }
 #layer-transform .lt-wire input{cursor:pointer;}
 .lp-footer{
-  display:grid;grid-template-columns:1fr 1fr 1fr;gap:6px;padding:6px;
+  display:grid;grid-template-columns:1fr 1fr;gap:6px;padding:6px;
   background:rgba(26,26,28,.97);border-top:1px solid rgba(255,255,255,.12);
   pointer-events:all;flex-shrink:0;
 }
@@ -1239,7 +1239,6 @@ body.immersive #immersive-exit{ display:inline-block; }
        Hidden along with the rest of the panel content when collapsed. -->
   <div class="lp-footer" id="lp-footer-bar">
     <button onclick="triggerImportAny()" id="fp-btn-import">📁 <span id="fp-btn-import-lbl">読み込み</span></button>
-    <button onclick="openExportModal()" id="fp-btn-export" style="color:#ffd49a">📤 <span id="fp-btn-export-lbl">書き出し</span></button>
     <button onclick="saveCameraLayer()" id="btnSaveCamera" style="color:#9fd0ff" title="現在のカメラ位置・アングル・画角・アスペクト比を保存">🎥 <span id="lbl-save-camera">カメラ保存</span></button>
   </div>
   <!-- Layer list — always visible when the panel itself is expanded.
@@ -1480,7 +1479,6 @@ body.immersive #immersive-exit{ display:inline-block; }
       <button onclick="setFOV(50,0)">50°</button>
       <button onclick="setFOV(70,1)">70°</button>
       <button onclick="setFOV(90,2)" class="on">90°</button>
-      <button onclick="setFOV(110,3)">110°</button>
     </div>
   </div>
   <div class="qrow" style="margin:6px 0 2px">
@@ -15155,11 +15153,11 @@ function _updateRefreshEstimate(){
 // throttling for no visible benefit on splat scenes. False on desktop:
 // 144 / 165 Hz monitors clear the strict FRAME_MS-1 gate unevenly and
 // would land at 48 fps, which is worse than uncapped native refresh.
-let _fpsCapTouchOnly = (function(){
-  try {
-    return window.matchMedia('(pointer:coarse) and (any-hover:none)').matches;
-  } catch(_){ return false; }
-})();
+// User request (v0.0.39): hard FPS ceiling of 60 on ALL devices (desktop
+// included) — splat scenes gain nothing perceptual above 60 and high-refresh
+// monitors just burn power. The old uneven FRAME_MS-1 gate dropped 144 Hz to
+// 48 fps; the carry-based due-time gate below averages a true 60 instead.
+let _fpsCap = true;
 // ── URL override for ProMotion (120 Hz) smoothness testing ──
 // The default 60-fps touch cap saves battery/thermal on heavy splat scenes,
 // but on a 120 Hz iPhone/iPad Pro it makes LIGHT scenes (and fast pans) feel
@@ -15171,10 +15169,11 @@ let _fpsCapTouchOnly = (function(){
 let _touchFpsTarget = TARGET_FPS;
 try {
   const _capParam = new URLSearchParams(location.search).get('fpscap');
-  if(_capParam === 'off' || _capParam === '0'){ _fpsCapTouchOnly = false; }
+  if(_capParam === 'off' || _capParam === '0'){ _fpsCap = false; }
   else if(_capParam && Number(_capParam) > 0){ _touchFpsTarget = Number(_capParam); }
 } catch(_){}
 const _touchFrameMs = 1000 / _touchFpsTarget;
+let _nextFrameDue = 0; // carry-based 60-fps gate target (see animate loop)
 
 // ══════════════════════════════════════════════════
 //  CSS REPROJECTION  (input → canvas, runs at 60 Hz)
@@ -15410,7 +15409,14 @@ function animate(now) {
   // to skip 2-3 rAFs to clear the gate, landing at ~48 fps. Better to
   // let desktop run free at its native refresh; the GPU on those rigs is
   // never the limiting factor on a single-splat scene.
-  if(_fpsCapTouchOnly && now - _lastFrameTime < _touchFrameMs - 1) return;
+  // Carry-based 60-fps cap (all devices). Advance the due time by exactly one
+  // frame each render so high-refresh monitors average a true 60 fps instead
+  // of the 48 fps the old fixed FRAME_MS-1 gate produced on 144/165 Hz.
+  if(_fpsCap){
+    if(now < _nextFrameDue) return;
+    _nextFrameDue += _touchFrameMs;
+    if(_nextFrameDue < now) _nextFrameDue = now + _touchFrameMs; // resync after a stall
+  }
   const elapsed = now - _lastFrameTime;
   _lastFrameTime = now;
 
@@ -18245,7 +18251,7 @@ function _finalizePath(){
   const color='#00d0ff', opacity=0.95;
   const group=_buildPathMesh(local, color, opacity, '');
   group.position.copy(C);
-  const L=addLayer({name:'パス '+_nextLayerNameNumber('path'), type:'path', mesh:group, size:{x:1,y:1,z:1}});
+  const L=addLayer({name:'Path '+_nextLayerNameNumber('path'), type:'path', mesh:group, size:{x:1,y:1,z:1}});
   L.pos={x:C.x,y:C.y,z:C.z}; L.rot={x:0,y:0,z:0}; L.scale={x:1,y:1,z:1};
   L.pathPoints=local; L.pathLabel=''; L.pathColor=color; L.pathOpacity=opacity;
   L.pathLabelSprite=group.userData.pathLabelSprite;
@@ -20163,7 +20169,7 @@ window.toggleChangelog = function(){
 //  Manifest format:
 //    { "version":"0.0.2", "url":"...", "sha256":"<hex>", "notes":"..." }
 // ══════════════════════════════════════════════════
-const CURRENT_VERSION    = '0.0.38-alpha';
+const CURRENT_VERSION    = '0.0.39-alpha';
 const UPDATE_MANIFEST_URL =
   'https://raw.githubusercontent.com/nakamurakou1108/Locahun3D/main/version.json';
 
