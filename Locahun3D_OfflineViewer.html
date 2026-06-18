@@ -12927,7 +12927,12 @@ window.startRenameLayer = function(id, ev) {
   };
   inp.onblur = () => { L.name = inp.value.trim() || L.name; renderLayerList(); };
   nameEl.replaceWith(inp);
-  requestAnimationFrame(()=>{ inp.focus(); inp.select(); });
+  // iOS Safari only raises the on-screen keyboard when focus() runs
+  // SYNCHRONOUSLY inside the tap gesture — a deferred (rAF-only) focus is
+  // ignored, which is why layer names couldn't be edited on iPad. Focus now,
+  // and retry next frame for engines that need layout first.
+  try { inp.focus(); inp.select(); } catch(_){}
+  requestAnimationFrame(()=>{ try { inp.focus(); inp.select(); } catch(_){} });
 };
 
 function buildLayerTree() {
@@ -13078,6 +13083,7 @@ function renderLayerList(){
       <span class="lr-icon" ${isFolder?'ondblclick="event.stopPropagation();openFolderColorPicker('+L.id+',event)" title="'+T('folder-color')+'" style="cursor:pointer;'+_fClr+'"':(L.type==='event'?'ondblclick="event.stopPropagation();openEventColorPicker('+L.id+',event)" title="Change event color" style="cursor:pointer"':'')}>${icon}</span>
       <span class="lr-name" title="${L.name} ［${renameTip}］">${L.name}${badge}</span>
       ${_camCtl}
+      <span class="lr-edit" onclick="event.stopPropagation();startRenameLayer(${L.id},event)" title="${renameTip}" style="font-size:.82em;cursor:pointer;flex-shrink:0;opacity:.5;user-select:none;margin-left:2px">✏️</span>
       <span class="lr-del" onclick="event.stopPropagation();removeLayer(${L.id})">🗑</span>
     </div>`;
   }).join('');
@@ -19607,6 +19613,10 @@ canvas.addEventListener('wheel',e=>{
 
 // Touch look
 let tlId=-1,tlX=0,tlY=0;
+// Pivot-gizmo touch-drag (v0.0.43): the finger identifier currently dragging a
+// transform handle of the selected object. Lets iPad users grab the pivot and
+// move/rotate/scale, mirroring the desktop mouse gizmo drag.
+let _lpvTouchId=-1;
 // ── Long-press tap placement for measure mode ──
 // In measure mode a finger held still for ~350 ms on the canvas enters
 // "preview placement" — mirrors the desktop left-click-hold flow. The
@@ -19627,6 +19637,21 @@ function _cancelMsrLongPress(){
 }
 
 canvas.addEventListener('touchstart',e=>{
+  // ── Pivot gizmo touch-drag (highest priority) ──
+  // If a finger lands on a transform handle of the selected object, grab it
+  // and drag instead of rotating the camera. The fat invisible hit-shafts make
+  // the small arrows touch-friendly.
+  if(_lpvTouchId === -1 && typeof lpv!=='undefined' && lpv.group && lpv.group.visible
+     && !(msr && msr.active) && e.changedTouches.length){
+    const tg = e.changedTouches[0];
+    const hit = checkLpvHandle(tg.clientX, tg.clientY);
+    if(hit){
+      startLpvDrag(hit, tg.clientX, tg.clientY);
+      _lpvTouchId = tg.identifier;
+      try { if(navigator.vibrate) navigator.vibrate(12); } catch(_){}
+      markDirty(6);
+    }
+  }
   // Measure-mode long-press scheduler — only when no placement is already
   // in progress AND a single finger is going down.
   if(msr.active && _msrPlacingId === -1 && _msrLongPressId === -1 && e.changedTouches.length){
@@ -19659,9 +19684,15 @@ canvas.addEventListener('touchstart',e=>{
   // (z-index 60, pointer-events) that capture their own touches before the canvas
   // sees them, so the only thing the wider zone claims is empty canvas left-of-centre.
   for(const t of e.changedTouches)
-    if(t.clientX>innerWidth*0.3){tlId=t.identifier;tlX=t.clientX;tlY=t.clientY;}
+    if(t.identifier!==_lpvTouchId && t.clientX>innerWidth*0.3){tlId=t.identifier;tlX=t.clientX;tlY=t.clientY;}
 },{passive:true});
 canvas.addEventListener('touchmove',e=>{
+  // ── Pivot gizmo touch-drag update (highest priority) ──
+  if(_lpvTouchId !== -1){
+    for(const t of e.changedTouches){
+      if(t.identifier === _lpvTouchId){ updateLpvDrag(t.clientX, t.clientY); markDirty(3); return; }
+    }
+  }
   // ── Measure-mode placement preview update (active long-press) ──
   if(_msrPlacingId !== -1){
     for(const t of e.changedTouches){
@@ -19720,6 +19751,16 @@ canvas.addEventListener('touchmove',e=>{
     }
 },{passive:true});
 canvas.addEventListener('touchend',e=>{
+  // End a pivot gizmo touch-drag when its finger lifts.
+  if(_lpvTouchId !== -1){
+    for(const t of e.changedTouches){
+      if(t.identifier === _lpvTouchId){
+        _lpvTouchId = -1;
+        if(typeof lpv!=='undefined' && lpv.dragging){ lpv.dragging=null; markDirty(6); }
+        break;
+      }
+    }
+  }
   // Commit a measure-mode placement if the finger that's being lifted
   // is the one currently holding the preview.
   if(_msrPlacingId !== -1){
@@ -19742,6 +19783,11 @@ canvas.addEventListener('touchend',e=>{
   for(const t of e.changedTouches)if(t.identifier===tlId){ tlId=-1; markDirty(6); }
 });
 canvas.addEventListener('touchcancel',e=>{
+  // Abort a pivot gizmo touch-drag on cancel (e.g. iOS palm rejection).
+  if(_lpvTouchId !== -1){
+    _lpvTouchId = -1;
+    if(typeof lpv!=='undefined' && lpv.dragging){ lpv.dragging=null; markDirty(6); }
+  }
   // Abort placement / arming on touchcancel (e.g. iOS palm rejection).
   if(_msrPlacingId !== -1){
     _msrPlacingId = -1;
@@ -20302,7 +20348,7 @@ window.toggleChangelog = function(){
 //  Manifest format:
 //    { "version":"0.0.2", "url":"...", "sha256":"<hex>", "notes":"..." }
 // ══════════════════════════════════════════════════
-const CURRENT_VERSION    = '0.0.42-alpha';
+const CURRENT_VERSION    = '0.0.43-alpha';
 const UPDATE_MANIFEST_URL =
   'https://raw.githubusercontent.com/nakamurakou1108/Locahun3D/main/version.json';
 
