@@ -891,15 +891,16 @@ body{position:fixed;top:0;left:0;}
    width/font はインライン指定なので !important で上書きする。 */
 @media (pointer:coarse) and (any-hover:none) and (max-width:600px),
        (pointer:coarse) and (any-hover:none) and (max-height:500px){
-  /* 文字サイズを4パネルで統一（.78em等→.68em） */
-  #sun-panel, #cam-panel, #quality-panel, #gizmo{ font-size:.68em !important; }
+  /* ★縮小対象は「ボタンを押して出るUI＝各パネル」（user 2026-06-20 明確化）。
+     ボタン本体・文字ではない。文字サイズを4パネルで統一して一段小さく（→.64em）。
+     子要素は em 基準なので全体が比例縮小する。 */
+  #sun-panel, #cam-panel, #quality-panel, #gizmo{ font-size:.64em !important; }
   /* 横幅を画面に収まるよう縮小（端から最低24pxの余白を確保） */
-  /* 日照パネルはさらに一段小さく（user request 2026-06-19「もう少し小さく」）。
-     font .68→.6em／幅も縮小／パディング圧縮。 */
-  #sun-panel{ font-size:.6em !important; width:min(212px, calc(100vw - 24px)) !important; padding:9px !important; }
-  #cam-panel{ width:min(238px, 82vw) !important; padding:10px 11px !important; }
-  #quality-panel{ width:min(206px, calc(100vw - 24px)) !important; padding:9px 11px !important; }
-  #gizmo{ width:min(230px, calc(100vw - 24px)) !important; padding:10px 12px !important; }
+  /* 日照パネルはさらに一段小さく（user request「もう少し小さく」）。 */
+  #sun-panel{ font-size:.58em !important; width:min(204px, calc(100vw - 24px)) !important; padding:8px !important; }
+  #cam-panel{ width:min(230px, 80vw) !important; padding:9px 10px !important; }
+  #quality-panel{ width:min(200px, calc(100vw - 24px)) !important; padding:8px 10px !important; }
+  #gizmo{ width:min(222px, calc(100vw - 24px)) !important; padding:9px 11px !important; }
 }
 
 /* ── Axis pivot highlight ── */
@@ -1114,11 +1115,10 @@ body{position:fixed;top:0;left:0;}
      パネルを開いても上部ボタン（特に AR）が常にタップできるようにする
      （user report 2026-06: パネルに覆われて AR が押せない＝「使えなくなってる」）。 */
   #view-tl-btns{top:34px !important;gap:5px;padding-top:2px;z-index:120 !important;}
-  /* スマホは上部ボタンをアイコンのみに（混雑・被り緩和＋小型化）。長いラベル
-     「カメラリセット」「カメラワーク」を隠して 🏠 / 🎞 のアイコンだけにする。
-     AR(短い)と画質バッジは文字を残す。PC/iPad はラベル表示のまま。 */
-  #view-tl-btns #lbl-cam-reset,
-  #view-tl-btns #lbl-cam-anim{ display:none !important; }
+  /* （上部ボタンのラベルは表示のまま。アイコンのみ化は user の意図と違ったため撤回
+     2026-06-20: 縮小したいのは「ボタンを押して出るUI＝パネル」であって、ボタン自体や
+     その文字ではない。パネル縮小は上の #sun-panel/#cam-panel/#quality-panel/#gizmo
+     ルールで対応済み。） */
   #view-tl-btns > button,
   #view-tl-btns button{
     padding:6px 8px !important;font-size:.57em !important;line-height:1.2 !important;
@@ -1713,7 +1713,7 @@ body.immersive #immersive-exit{ display:inline-block; }
       background:linear-gradient(to bottom, rgba(255,180,84,.06), transparent)">
       <div style="display:flex;align-items:baseline;gap:14px">
         <strong style="font-size:1.25em;letter-spacing:.04em" data-i18n-key="manual-title">📖 ロケハン3D ユーザーマニュアル</strong>
-        <span style="opacity:.55;font-size:.82em" data-i18n-key="manual-version">v 0.1.6-beta / 3DGS マルチビューア + プリビズ (ベータ版)</span>
+        <span style="opacity:.55;font-size:.82em" data-i18n-key="manual-version">v 0.1.7-beta / 3DGS マルチビューア + プリビズ (ベータ版)</span>
       </div>
       <button onclick="closeManual()" style="background:transparent;border:1px solid rgba(255,255,255,.12);
         color:#aab;border-radius:6px;padding:6px 12px;font-size:.92em;cursor:pointer;font-family:inherit"
@@ -3207,6 +3207,21 @@ body.ar-active #dz{display:none !important;}
     <div class="dz-changelog-body" id="dz-changelog-body" hidden>
       <div class="cl-entry">
         <div class="cl-entry-head">
+          <span class="cl-ver">v 0.1.7-beta</span>
+          <span class="cl-date">2026-06-20</span>
+          <span class="cl-tag"><span class="cl-ja">モバイル微調整</span><span class="cl-en">Mobile tweaks</span></span>
+        </div>
+        <ul class="cl-ja">
+          <li>📱 上部ボタンの<b>文字ラベルを元に戻し</b>（前版のアイコンのみ化を撤回）</li>
+          <li>📱 スマホ: <b>ボタンを押して出るパネル（日照・測定・カメラツール・画質）をさらに小さく</b>（文字・幅を縮小。ボタン自体は縮小しません）</li>
+        </ul>
+        <ul class="cl-en">
+          <li>📱 <b>Restored the text labels on the top buttons</b> (reverted the previous icon-only change)</li>
+          <li>📱 Phone: <b>made the pop-up panels (Sun / Measure / Camera-tool / Quality) even smaller</b> (reduced font + width; the buttons themselves are unchanged)</li>
+        </ul>
+      </div>
+      <div class="cl-entry">
+        <div class="cl-entry-head">
           <span class="cl-ver">v 0.1.6-beta</span>
           <span class="cl-date">2026-06-19</span>
           <span class="cl-tag"><span class="cl-ja">モバイル微調整</span><span class="cl-en">Mobile tweaks</span></span>
@@ -3304,7 +3319,7 @@ body.ar-active #dz{display:none !important;}
     </div>
   </div>
   <div class="dz-version-line">
-    <span id="tb-version">v 0.1.6-beta</span>
+    <span id="tb-version">v 0.1.7-beta</span>
   </div>
 </div>
 
@@ -19288,7 +19303,7 @@ Object.assign(I18N.ja,{
   'lbl-rot':'角度',
   'tt-edit-dbl':'ダブルクリックで編集',
   'manual-title':'📖 ロケハン3D ユーザーマニュアル',
-  'manual-version':'v 0.1.6-beta / 3DGS マルチビューア + プリビズ (ベータ版)',
+  'manual-version':'v 0.1.7-beta / 3DGS マルチビューア + プリビズ (ベータ版)',
   'manual-close':'閉じる ✕',
   'manual-grp-quick':'クイックスタート',
   'manual-grp-basic':'基本操作',
@@ -19552,7 +19567,7 @@ Object.assign(I18N.en,{
   'lbl-rot':'Angle',
   'tt-edit-dbl':'Double-click to edit',
   'manual-title':'📖 LOCAHUN 3D User Manual',
-  'manual-version':'v 0.1.6-beta / 3DGS multi-viewer + previz (Beta)',
+  'manual-version':'v 0.1.7-beta / 3DGS multi-viewer + previz (Beta)',
   'manual-close':'Close ✕',
   'manual-grp-quick':'QUICK START',
   'manual-grp-basic':'BASICS',
@@ -20861,7 +20876,7 @@ window.toggleChangelog = function(){
 //  Manifest format:
 //    { "version":"0.0.2", "url":"...", "sha256":"<hex>", "notes":"..." }
 // ══════════════════════════════════════════════════
-const CURRENT_VERSION    = '0.1.6-beta';
+const CURRENT_VERSION    = '0.1.7-beta';
 const UPDATE_MANIFEST_URL =
   'https://raw.githubusercontent.com/nakamurakou1108/Locahun3D/main/version.json';
 
