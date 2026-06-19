@@ -238,6 +238,21 @@ body{position:fixed;top:0;left:0;}
   #dz .zone{padding:20px 24px;}
   #dz .demo-btn{padding:9px 18px;font-size:.82em;}
 }
+/* 横画面など「縦が短い」画面ではホーム画面の各要素をさらに小さく
+   （user request 2026-06-20「横画面でホーム画面が大きすぎて見切れる」）。
+   ロゴ/見出しは vw 基準で横が広い landscape では大きいまま＝短い縦幅で
+   はみ出す。高さ基準でさらに圧縮し、収まる範囲を広げる。 */
+@media (max-height:500px){
+  #dz{ padding:44px 12px 12px !important; gap:6px !important; }
+  #dz .dz-logo svg{ width:42px !important; }
+  #dz h1{ font-size:1.4em !important; }
+  #dz .sub{ font-size:.72em !important; }
+  #dz .zone{ padding:9px 22px !important; }
+  #dz .zone .ico{ font-size:1.4em !important; margin-bottom:3px !important; }
+  #dz .zone .fmt{ font-size:.6em !important; }
+  #dz .demo-btn{ padding:5px 18px !important; font-size:.74em !important; }
+  #dz .dz-changelog{ margin-top:6px !important; }
+}
 /* Stacking order: aspect frames behind, content above */
 #dz>h1,#dz>p,#dz>.zone,#dz>.demo-btn{position:relative;z-index:2;}
 #dz h1{
@@ -1111,10 +1126,14 @@ body{position:fixed;top:0;left:0;}
      一切効かない＝以前の top:30/15px は反映されていなかった。スマホの #topbar は
      高さ30px なので、トップバー直下に詰める top:34px を !important で適用する
      （15px だと30pxのトップバーに被るため不可）。
-     ★z-index:120: 日照(91)/画質(95)/測定・カメラツール(60)パネルより上に出し、
+     ★z-index:98: 日照(91)/画質(95)/測定・カメラツール(60)パネルより上に出し、
      パネルを開いても上部ボタン（特に AR）が常にタップできるようにする
-     （user report 2026-06: パネルに覆われて AR が押せない＝「使えなくなってる」）。 */
-  #view-tl-btns{top:34px !important;gap:5px;padding-top:2px;z-index:120 !important;}
+     （user report 2026-06: パネルに覆われて AR が押せない＝「使えなくなってる」）。
+     ただし**ホーム画面 #dz は z-index:100** なので、120 だとホーム上にボタンが
+     残ってしまう（user report 2026-06-20「ホームに戻っても上部ボタンがある」）。
+     → 98（パネル95より上・ホーム100より下）にして、ホームでは #dz の黒背景に
+     隠れ、シーン表示中（#dz は opacity:0 で透過）はパネルより前面に出る。 */
+  #view-tl-btns{top:34px !important;gap:5px;padding-top:2px;z-index:98 !important;}
   /* （上部ボタンのラベルは表示のまま。アイコンのみ化は user の意図と違ったため撤回
      2026-06-20: 縮小したいのは「ボタンを押して出るUI＝パネル」であって、ボタン自体や
      その文字ではない。パネル縮小は上の #sun-panel/#cam-panel/#quality-panel/#gizmo
@@ -1713,7 +1732,7 @@ body.immersive #immersive-exit{ display:inline-block; }
       background:linear-gradient(to bottom, rgba(255,180,84,.06), transparent)">
       <div style="display:flex;align-items:baseline;gap:14px">
         <strong style="font-size:1.25em;letter-spacing:.04em" data-i18n-key="manual-title">📖 ロケハン3D ユーザーマニュアル</strong>
-        <span style="opacity:.55;font-size:.82em" data-i18n-key="manual-version">v 0.1.7-beta / 3DGS マルチビューア + プリビズ (ベータ版)</span>
+        <span style="opacity:.55;font-size:.82em" data-i18n-key="manual-version">v 0.1.8-beta / 3DGS マルチビューア + プリビズ (ベータ版)</span>
       </div>
       <button onclick="closeManual()" style="background:transparent;border:1px solid rgba(255,255,255,.12);
         color:#aab;border-radius:6px;padding:6px 12px;font-size:.92em;cursor:pointer;font-family:inherit"
@@ -3207,6 +3226,21 @@ body.ar-active #dz{display:none !important;}
     <div class="dz-changelog-body" id="dz-changelog-body" hidden>
       <div class="cl-entry">
         <div class="cl-entry-head">
+          <span class="cl-ver">v 0.1.8-beta</span>
+          <span class="cl-date">2026-06-20</span>
+          <span class="cl-tag"><span class="cl-ja">モバイル微調整</span><span class="cl-en">Mobile tweaks</span></span>
+        </div>
+        <ul class="cl-ja">
+          <li>🏠 <b>ホーム画面に上部ボタンが残ってしまう不具合を修正</b>（前版でボタン列を前面に出した際、ホーム画面にも被って表示されていた）</li>
+          <li>📱 <b>横画面でホーム画面が大きすぎて見切れる問題を修正</b>（ロゴ・見出し・余白を縮小して収まるように）</li>
+        </ul>
+        <ul class="cl-en">
+          <li>🏠 <b>Fixed the top buttons lingering on the home screen</b> (the previous version brought the button row to the front and it also showed over the home screen)</li>
+          <li>📱 <b>Fixed the home screen being too large / cut off in landscape</b> (logo, heading and spacing reduced to fit)</li>
+        </ul>
+      </div>
+      <div class="cl-entry">
+        <div class="cl-entry-head">
           <span class="cl-ver">v 0.1.7-beta</span>
           <span class="cl-date">2026-06-20</span>
           <span class="cl-tag"><span class="cl-ja">モバイル微調整</span><span class="cl-en">Mobile tweaks</span></span>
@@ -3319,7 +3353,7 @@ body.ar-active #dz{display:none !important;}
     </div>
   </div>
   <div class="dz-version-line">
-    <span id="tb-version">v 0.1.7-beta</span>
+    <span id="tb-version">v 0.1.8-beta</span>
   </div>
 </div>
 
@@ -19303,7 +19337,7 @@ Object.assign(I18N.ja,{
   'lbl-rot':'角度',
   'tt-edit-dbl':'ダブルクリックで編集',
   'manual-title':'📖 ロケハン3D ユーザーマニュアル',
-  'manual-version':'v 0.1.7-beta / 3DGS マルチビューア + プリビズ (ベータ版)',
+  'manual-version':'v 0.1.8-beta / 3DGS マルチビューア + プリビズ (ベータ版)',
   'manual-close':'閉じる ✕',
   'manual-grp-quick':'クイックスタート',
   'manual-grp-basic':'基本操作',
@@ -19567,7 +19601,7 @@ Object.assign(I18N.en,{
   'lbl-rot':'Angle',
   'tt-edit-dbl':'Double-click to edit',
   'manual-title':'📖 LOCAHUN 3D User Manual',
-  'manual-version':'v 0.1.7-beta / 3DGS multi-viewer + previz (Beta)',
+  'manual-version':'v 0.1.8-beta / 3DGS multi-viewer + previz (Beta)',
   'manual-close':'Close ✕',
   'manual-grp-quick':'QUICK START',
   'manual-grp-basic':'BASICS',
@@ -20876,7 +20910,7 @@ window.toggleChangelog = function(){
 //  Manifest format:
 //    { "version":"0.0.2", "url":"...", "sha256":"<hex>", "notes":"..." }
 // ══════════════════════════════════════════════════
-const CURRENT_VERSION    = '0.1.7-beta';
+const CURRENT_VERSION    = '0.1.8-beta';
 const UPDATE_MANIFEST_URL =
   'https://raw.githubusercontent.com/nakamurakou1108/Locahun3D/main/version.json';
 
