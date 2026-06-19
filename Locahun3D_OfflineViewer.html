@@ -882,6 +882,24 @@ body{position:fixed;top:0;left:0;}
   #sun-panel{ bottom:264px !important; max-height:46vh; }
 }
 
+/* ── スマホ専用: フローティングパネルを小さく＋文字サイズを統一 ──
+   user request 2026-06-19「そもそものサイズが大きい・文字も無駄にでかい」。
+   日照/カメラツール/画質/測定パネルは元々デスクトップ幅(256〜288px)＋.78em で、
+   390px級のスマホでは画面の3/4を覆い被って読みにくかった。phone専用ブロック
+   (pointer:coarse & any-hover:none & 幅600 or 高さ500以下)なので iPad/PC は不変。
+   子要素は em 基準ゆえ、ルートの font-size を下げると中身が比例縮小する。
+   width/font はインライン指定なので !important で上書きする。 */
+@media (pointer:coarse) and (any-hover:none) and (max-width:600px),
+       (pointer:coarse) and (any-hover:none) and (max-height:500px){
+  /* 文字サイズを4パネルで統一（.78em等→.68em） */
+  #sun-panel, #cam-panel, #quality-panel, #gizmo{ font-size:.68em !important; }
+  /* 横幅を画面に収まるよう縮小（端から最低24pxの余白を確保） */
+  #sun-panel{ width:min(236px, calc(100vw - 24px)) !important; padding:10px !important; }
+  #cam-panel{ width:min(238px, 82vw) !important; padding:10px 11px !important; }
+  #quality-panel{ width:min(206px, calc(100vw - 24px)) !important; padding:9px 11px !important; }
+  #gizmo{ width:min(230px, calc(100vw - 24px)) !important; padding:10px 12px !important; }
+}
+
 /* ── Axis pivot highlight ── */
 .ax-highlight{ outline:none; }
 
@@ -1036,7 +1054,7 @@ body{position:fixed;top:0;left:0;}
      joystick group (bottom:212px, below), so the daylight + view-recording
      tools the user works with on phone fit too — they wrap to a tidy 2nd row.
      🗺マップ / 使い方 stay hidden to keep the bar to ≤2 rows (user choice). */
-  #hud .cbar > button:not(#btnMeasure):not(#btnCamTool):not(#btn-sun):not(#btnViewRec):not(#btnCamAnim){display:none !important;}
+  #hud .cbar > button:not(#btnMeasure):not(#btnCamTool):not(#btn-sun):not(#btnViewRec){display:none !important;}
   /* Center the surviving buttons so they don't anchor to the cbar's
      original (off-center) origin. */
   #hud .cbar{justify-content:center !important;}
@@ -1084,7 +1102,9 @@ body{position:fixed;top:0;left:0;}
      row INSIDE the topbar; here we keep the generic "flush against
      topbar bottom" placement so other small-screen devices still get
      a sane fallback layout. */
-  #view-tl-btns{top:30px;gap:5px;padding-top:2px;}
+  /* 上の隙間を半分に（user request 2026-06-19: top:30px→15px）。トップバー
+     直下のデッドスペースを詰めて上UI群を画面上端寄りに。 */
+  #view-tl-btns{top:15px;gap:5px;padding-top:2px;}
   #view-tl-btns > button,
   #view-tl-btns button{
     padding:6px 8px !important;font-size:.57em !important;line-height:1.2 !important;
@@ -1577,6 +1597,19 @@ body.immersive #immersive-exit{ display:inline-block; }
            reachable from the UI dropdown. -->
     </div>
   </div>
+  <!-- Camera work (🎞 カメラワーク) — was in the bottom cbar, moved up here
+       2026-06-19 per user request to gather it with the other top controls.
+       Renamed アニメーション→カメラワーク (i18n key lbl-cam-anim). Inline-styled
+       to match the sibling top-row buttons; active (.on) highlight is the
+       purple #btnCamAnim.on rule in CSS (the cbar's generic button.on no
+       longer applies now that it's out of the cbar). -->
+  <button id="btnCamAnim" onclick="toggleCamAnimPanel()"
+    style="background:rgba(20,20,22,.88);border:1px solid rgba(255,255,255,.18);
+           color:rgba(200,200,200,.85);border-radius:6px;padding:5px 12px;
+           font-size:.72em;cursor:pointer;transition:all .2s;letter-spacing:.02em;white-space:nowrap;"
+    onmouseover="this.style.background='rgba(170,120,255,.18)';this.style.borderColor='rgba(190,140,255,.45)'"
+    onmouseout="this.style.background='rgba(20,20,22,.88)';this.style.borderColor='rgba(255,255,255,.18)'"
+    title="カメラパスを定義してアニメーション動画を書き出し">🎞 <span id="lbl-cam-anim">カメラワーク</span></button>
   <!-- Standalone #btnAddFigureTop merged into the オブジェクト追加 dropdown
        above so all "add new layer" entries live in one menu. -->
   <!-- Multi-camera placement (🎥 カメラ保存) relocated to the layer-panel
@@ -1666,7 +1699,7 @@ body.immersive #immersive-exit{ display:inline-block; }
       background:linear-gradient(to bottom, rgba(255,180,84,.06), transparent)">
       <div style="display:flex;align-items:baseline;gap:14px">
         <strong style="font-size:1.25em;letter-spacing:.04em" data-i18n-key="manual-title">📖 ロケハン3D ユーザーマニュアル</strong>
-        <span style="opacity:.55;font-size:.82em" data-i18n-key="manual-version">v 0.1.4-beta / 3DGS マルチビューア + プリビズ (ベータ版)</span>
+        <span style="opacity:.55;font-size:.82em" data-i18n-key="manual-version">v 0.1.5-beta / 3DGS マルチビューア + プリビズ (ベータ版)</span>
       </div>
       <button onclick="closeManual()" style="background:transparent;border:1px solid rgba(255,255,255,.12);
         color:#aab;border-radius:6px;padding:6px 12px;font-size:.92em;cursor:pointer;font-family:inherit"
@@ -3065,6 +3098,10 @@ body.immersive #immersive-exit{ display:inline-block; }
 #btnCamTool.on{background:rgba(255,180,84,.22);border-color:rgba(255,180,84,.55);
   color:#ffe4b3;}
 #btnAvatarWalk.on{background:rgba(120,200,255,.22)!important;border-color:rgba(140,210,255,.6)!important;color:#cbe8ff!important;}
+/* カメラワーク (🎞) active highlight — it moved out of the cbar into the top
+   row, so the generic `.cbar button.on` rule no longer reaches it. Purple to
+   match the cam-anim panel. */
+#btnCamAnim.on{background:rgba(170,120,255,.22)!important;border-color:rgba(190,140,255,.6)!important;color:#e6d6ff!important;}
 /* Avatar walk button intentionally hidden — feature is being held back
    for a follow-up revision. The element + JS handlers (toggleAvatarWalk,
    walkMode state, animation clips, etc.) all stay in place so re-
@@ -3156,6 +3193,23 @@ body.ar-active #dz{display:none !important;}
     <div class="dz-changelog-body" id="dz-changelog-body" hidden>
       <div class="cl-entry">
         <div class="cl-entry-head">
+          <span class="cl-ver">v 0.1.5-beta</span>
+          <span class="cl-date">2026-06-19</span>
+          <span class="cl-tag"><span class="cl-ja">操作性・モバイル</span><span class="cl-en">UX · Mobile</span></span>
+        </div>
+        <ul class="cl-ja">
+          <li>🎞 <b>アニメーションを上部UI群に移動</b>し、名称を<b>「カメラワーク」</b>に変更（英語 Camera Work）</li>
+          <li>☀📐 <b>日照と測定を排他化</b>：一方を開くともう一方は自動で閉じ、パネルがぶつからないように</li>
+          <li>📱 スマホ: 上部ボタンの<b>上の隙間を半分</b>に／日照・カメラツール・画質・測定の<b>各パネルを縮小＋文字サイズを統一</b>（被り・大きすぎを軽減）</li>
+        </ul>
+        <ul class="cl-en">
+          <li>🎞 <b>Moved Animation into the top button group</b> and renamed it <b>“Camera Work”</b> (JP カメラワーク)</li>
+          <li>☀📐 <b>Sun and Measure are now mutually exclusive</b>: opening one closes the other so their panels no longer collide</li>
+          <li>📱 Phone: <b>halved the gap above the top buttons</b>; <b>shrank the Sun / Camera-tool / Quality / Measure panels and unified their font size</b> (less overlap, less oversized)</li>
+        </ul>
+      </div>
+      <div class="cl-entry">
+        <div class="cl-entry-head">
           <span class="cl-ver">v 0.1.4-beta</span>
           <span class="cl-date">2026-06-19</span>
           <span class="cl-tag"><span class="cl-ja">ベータ版・操作性・モバイル・英語</span><span class="cl-en">Beta · UX · Mobile · i18n</span></span>
@@ -3217,7 +3271,7 @@ body.ar-active #dz{display:none !important;}
     </div>
   </div>
   <div class="dz-version-line">
-    <span id="tb-version">v 0.1.4-beta</span>
+    <span id="tb-version">v 0.1.5-beta</span>
   </div>
 </div>
 
@@ -3240,9 +3294,9 @@ body.ar-active #dz{display:none !important;}
     <button id="btnCamTool" onclick="toggleCamTool()">📷 <span id="lbl-camtool">カメラ</span></button>
     <button id="btn-sun"    onclick="toggleSunMode()">☀ <span id="lbl-sun" data-i18n="lbl-sun">日照</span></button>
     <button id="btnMeasure" onclick="toggleMeasure()">📐 <span id="lbl-measure">測定</span></button>
-    <!-- Camera animation moved here (bottom cbar) per user request: "アニメーション
-         ボタンの配置を下部にまとめて". The old top-row #btnCamAnim was removed. -->
-    <button id="btnCamAnim" onclick="toggleCamAnimPanel()" title="カメラパスを定義してアニメーション動画を書き出し">🎞 <span id="lbl-cam-anim">アニメーション</span></button>
+    <!-- Camera animation (🎞 カメラワーク) MOVED to the top-row #view-tl-btns
+         group per user request 2026-06-19 (gather it with the other top
+         controls + renamed アニメーション→カメラワーク). See its markup there. -->
     <!-- View recording (⏺ 録画) removed per user request (v0.0.40). -->
 
     <!-- 画質 / 設定 buttons removed: quality is now an always-visible
@@ -4586,6 +4640,9 @@ function _sunShowPanel(show){
 window.toggleSunMode = function(){
   // 日照は独立トグル（カメラ等とは同時操作OK）。
   if(!sun.active){
+    // 日照と測定は排他（user request 2026-06-19）。パネルが画面上でぶつかるため、
+    // 日照を開くなら測定を閉じる。
+    if(typeof msr!=='undefined' && msr.active && typeof _closeMeasureOnly==='function') _closeMeasureOnly();
     _setSunActive(true);   // 点灯
     _sunShowPanel(true);   // 操作パネルを開く
   } else {
@@ -8719,6 +8776,12 @@ window.toggleMeasure = function() {
   const wasActive=msr.active;
   closeAllPanels();
   if(!wasActive){
+    // 測定と日照は排他（user request 2026-06-19）。closeAllPanels() は日照を
+    // 独立扱いで閉じないため、測定を開くときはここで日照を明示的に閉じる。
+    if(typeof sun!=='undefined' && sun.active){
+      if(typeof _sunShowPanel==='function') _sunShowPanel(false);
+      if(typeof _setSunActive==='function') _setSunActive(false);
+    }
     msr.active=true;
     document.getElementById('btnMeasure').classList.add('on');
     document.getElementById('btnMeasure').innerHTML='📐 <span id="lbl-measure">'+T('msr-active-lbl')+'</span>';
@@ -19097,7 +19160,7 @@ Object.assign(I18N.ja,{
   'lbl-save-camera':'カメラ保存',
   'lbl-view-rec':'録画',
   'lbl-view-rec-phone':'録画',
-  'lbl-cam-anim':'アニメーション',
+  'lbl-cam-anim':'カメラワーク',
   'tt-save-camera':'現在のカメラ位置・アングル・画角・アスペクト比を保存',
   'tt-view-rec':'ビューを MP4 で録画 / 停止',
   'tt-cam-anim':'カメラパスを定義してアニメーション動画を書き出し',
@@ -19184,7 +19247,7 @@ Object.assign(I18N.ja,{
   'lbl-rot':'角度',
   'tt-edit-dbl':'ダブルクリックで編集',
   'manual-title':'📖 ロケハン3D ユーザーマニュアル',
-  'manual-version':'v 0.1.4-beta / 3DGS マルチビューア + プリビズ (ベータ版)',
+  'manual-version':'v 0.1.5-beta / 3DGS マルチビューア + プリビズ (ベータ版)',
   'manual-close':'閉じる ✕',
   'manual-grp-quick':'クイックスタート',
   'manual-grp-basic':'基本操作',
@@ -19361,7 +19424,7 @@ Object.assign(I18N.en,{
   'lbl-save-camera':'Save Cam',
   'lbl-view-rec':'Rec',
   'lbl-view-rec-phone':'Rec',
-  'lbl-cam-anim':'Animation',
+  'lbl-cam-anim':'Camera Work',
   'tt-save-camera':'Save current camera position / angle / focal length / aspect',
   'tt-view-rec':'Record / stop view as MP4',
   'tt-cam-anim':'Define a camera path and export an animation',
@@ -19448,7 +19511,7 @@ Object.assign(I18N.en,{
   'lbl-rot':'Angle',
   'tt-edit-dbl':'Double-click to edit',
   'manual-title':'📖 LOCAHUN 3D User Manual',
-  'manual-version':'v 0.1.4-beta / 3DGS multi-viewer + previz (Beta)',
+  'manual-version':'v 0.1.5-beta / 3DGS multi-viewer + previz (Beta)',
   'manual-close':'Close ✕',
   'manual-grp-quick':'QUICK START',
   'manual-grp-basic':'BASICS',
@@ -20757,7 +20820,7 @@ window.toggleChangelog = function(){
 //  Manifest format:
 //    { "version":"0.0.2", "url":"...", "sha256":"<hex>", "notes":"..." }
 // ══════════════════════════════════════════════════
-const CURRENT_VERSION    = '0.1.4-beta';
+const CURRENT_VERSION    = '0.1.5-beta';
 const UPDATE_MANIFEST_URL =
   'https://raw.githubusercontent.com/nakamurakou1108/Locahun3D/main/version.json';
 
