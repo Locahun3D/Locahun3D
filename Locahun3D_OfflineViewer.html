@@ -868,6 +868,16 @@ body{position:fixed;top:0;left:0;}
        (pointer:coarse) and (any-hover:none) and (max-height:500px){
   .guide-banner{ bottom:270px; }                                /* phone: cbar lifted above joystick */
 }
+/* iPad/touch: the 日照 panel's inline bottom:64px sat ON the cbar (also bottom:64px),
+   so the panel's lower edge overlapped the bottom buttons (user report). Lift it
+   clear above the cbar. Phones lift further since their cbar is at bottom:212px. */
+@media (pointer:coarse){
+  #sun-panel{ bottom:120px !important; max-height:60vh; }
+}
+@media (pointer:coarse) and (any-hover:none) and (max-width:600px),
+       (pointer:coarse) and (any-hover:none) and (max-height:500px){
+  #sun-panel{ bottom:264px !important; max-height:46vh; }
+}
 
 /* ── Axis pivot highlight ── */
 .ax-highlight{ outline:none; }
@@ -1023,7 +1033,7 @@ body{position:fixed;top:0;left:0;}
      joystick group (bottom:212px, below), so the daylight + view-recording
      tools the user works with on phone fit too — they wrap to a tidy 2nd row.
      🗺マップ / 使い方 stay hidden to keep the bar to ≤2 rows (user choice). */
-  #hud .cbar > button:not(#btnMeasure):not(#btnCamTool):not(#btn-sun):not(#btnViewRec){display:none !important;}
+  #hud .cbar > button:not(#btnMeasure):not(#btnCamTool):not(#btn-sun):not(#btnViewRec):not(#btnCamAnim){display:none !important;}
   /* Center the surviving buttons so they don't anchor to the cbar's
      original (off-center) origin. */
   #hud .cbar{justify-content:center !important;}
@@ -1575,17 +1585,8 @@ body.immersive #immersive-exit{ display:inline-block; }
        the right of #btnMeasure — see the markup further down. On phones
        there's still a sibling phone-only mirror button just left of the
        AR button; see #btnViewRecPhone below. -->
-  <!-- Camera animation: open a side-panel to add multiple camera key
-       positions, preview the path, and export an FHD MP4. Phone-hidden
-       by the same #view-tl-btns media query. -->
-  <button id="btnCamAnim" onclick="toggleCamAnimPanel()"
-    style="background:rgba(20,20,22,.88);border:1px solid rgba(255,255,255,.18);
-           color:rgba(200,200,200,.85);border-radius:6px;padding:5px 12px;
-           font-size:.72em;cursor:pointer;transition:all .2s;letter-spacing:.02em;
-           white-space:nowrap;"
-    onmouseover="this.style.background='rgba(160,120,255,.18)';this.style.borderColor='rgba(180,140,255,.45)'"
-    onmouseout="this.style.background='rgba(20,20,22,.88)';this.style.borderColor='rgba(255,255,255,.18)'"
-    title="カメラパスを定義してアニメーション動画を書き出し">🎞 <span id="lbl-cam-anim">アニメーション</span></button>
+  <!-- Camera animation button MOVED to the bottom cbar (user request: gather it
+       at the bottom). See #btnCamAnim in the cbar markup. -->
   <button id="btnAvatarWalk" onclick="toggleAvatarWalk()" style="background:rgba(20,20,22,.88);border:1px solid rgba(255,255,255,.18);color:rgba(200,200,200,.85);border-radius:6px;padding:5px 12px;font-size:.72em;cursor:pointer;transition:all .2s;letter-spacing:.02em;white-space:nowrap;" onmouseover="this.style.background='rgba(120,200,255,.18)';this.style.borderColor='rgba(140,210,255,.45)'" onmouseout="this.style.background='rgba(20,20,22,.88)';this.style.borderColor='rgba(255,255,255,.18)'" title="アバター歩行モード（WASDでアバターを動かす）">🚶 <span id="lbl-walk">アバター歩行</span></button>
   <!-- AR mode (touch devices only — uses rear camera as backdrop + device
        orientation for camera control). Hidden on desktop via the same media
@@ -1662,7 +1663,7 @@ body.immersive #immersive-exit{ display:inline-block; }
       background:linear-gradient(to bottom, rgba(255,180,84,.06), transparent)">
       <div style="display:flex;align-items:baseline;gap:14px">
         <strong style="font-size:1.25em;letter-spacing:.04em" data-i18n-key="manual-title">📖 ロケハン3D ユーザーマニュアル</strong>
-        <span style="opacity:.55;font-size:.82em" data-i18n-key="manual-version">v 0.1.2-beta / 3DGS マルチビューア + プリビズ (ベータ版)</span>
+        <span style="opacity:.55;font-size:.82em" data-i18n-key="manual-version">v 0.1.3-beta / 3DGS マルチビューア + プリビズ (ベータ版)</span>
       </div>
       <button onclick="closeManual()" style="background:transparent;border:1px solid rgba(255,255,255,.12);
         color:#aab;border-radius:6px;padding:6px 12px;font-size:.92em;cursor:pointer;font-family:inherit"
@@ -3152,7 +3153,7 @@ body.ar-active #dz{display:none !important;}
     <div class="dz-changelog-body" id="dz-changelog-body" hidden>
       <div class="cl-entry">
         <div class="cl-entry-head">
-          <span class="cl-ver">v 0.1.2-beta</span>
+          <span class="cl-ver">v 0.1.3-beta</span>
           <span class="cl-date">2026-06-19</span>
           <span class="cl-tag"><span class="cl-ja">ベータ版・操作性・モバイル・英語</span><span class="cl-en">Beta · UX · Mobile · i18n</span></span>
         </div>
@@ -3168,6 +3169,7 @@ body.ar-active #dz{display:none !important;}
           <li>↩ <b>Ctrl+Z でオブジェクトの追加・削除も取り消し</b>（やり直しはCtrl+Y）／画質チップが押すとサイズ変化する不具合を修正／上部ロゴをアイコン＋「ロケハン3D」表記に</li>
           <li>🔒 <b>フォルダーの編集ロック</b>を追加（中身の移動・編集・削除を一括無効化）／🎬 カメラアニメのイージングを弱めに調整＋緩急/等速の切替</li>
           <li>🧹 案内バナーを下部に統一して上部ボタンとの重なりを解消／日照パネルを簡潔化／<b>ユーザーマニュアルを現行情報で再整備</b>（わかりやすさ優先）</li>
+          <li>📱 iPadで日照パネルが下部ボタンに重なる問題を修正／<b>🎞 アニメーションボタンを下部バーに移動</b>（カメラ/日照/測定と並列）</li>
         </ul>
         <ul class="cl-en">
           <li>🛣 <b>Path</b>: center label now <b>multi-line + auto-sizing</b> (paragraph breaks + wrapping, no more clipping). Layers named “Path 1, 2…”</li>
@@ -3181,6 +3183,7 @@ body.ar-active #dz{display:none !important;}
           <li>↩ <b>Ctrl+Z now also undoes object add / delete</b> (Ctrl+Y to redo); fixed the quality chip resizing when tapped; top-bar logo is now an icon + “LOCAHUN 3D”</li>
           <li>🔒 <b>Folder edit-lock</b> added (disables moving / editing / deleting its contents); 🎬 camera-anim easing softened, with Ease/Linear toggle</li>
           <li>🧹 Instruction banners unified to the bottom (no longer overlap the top buttons); sun panel simplified; <b>user manual rebuilt</b> with current, clearer content</li>
+          <li>📱 Fixed the Sun panel overlapping the bottom buttons on iPad; <b>moved the 🎞 Animation button to the bottom bar</b> (next to Camera / Sun / Measure)</li>
         </ul>
       </div>
       <div class="cl-entry">
@@ -3211,7 +3214,7 @@ body.ar-active #dz{display:none !important;}
     </div>
   </div>
   <div class="dz-version-line">
-    <span id="tb-version">v 0.1.2-beta</span>
+    <span id="tb-version">v 0.1.3-beta</span>
   </div>
 </div>
 
@@ -3234,6 +3237,9 @@ body.ar-active #dz{display:none !important;}
     <button id="btnCamTool" onclick="toggleCamTool()">📷 <span id="lbl-camtool">カメラ</span></button>
     <button id="btn-sun"    onclick="toggleSunMode()">☀ <span id="lbl-sun" data-i18n="lbl-sun">日照</span></button>
     <button id="btnMeasure" onclick="toggleMeasure()">📐 <span id="lbl-measure">測定</span></button>
+    <!-- Camera animation moved here (bottom cbar) per user request: "アニメーション
+         ボタンの配置を下部にまとめて". The old top-row #btnCamAnim was removed. -->
+    <button id="btnCamAnim" onclick="toggleCamAnimPanel()" title="カメラパスを定義してアニメーション動画を書き出し">🎞 <span id="lbl-cam-anim">アニメーション</span></button>
     <!-- View recording (⏺ 録画) removed per user request (v0.0.40). -->
 
     <!-- 画質 / 設定 buttons removed: quality is now an always-visible
@@ -19175,7 +19181,7 @@ Object.assign(I18N.ja,{
   'lbl-rot':'角度',
   'tt-edit-dbl':'ダブルクリックで編集',
   'manual-title':'📖 ロケハン3D ユーザーマニュアル',
-  'manual-version':'v 0.1.2-beta / 3DGS マルチビューア + プリビズ (ベータ版)',
+  'manual-version':'v 0.1.3-beta / 3DGS マルチビューア + プリビズ (ベータ版)',
   'manual-close':'閉じる ✕',
   'manual-grp-quick':'クイックスタート',
   'manual-grp-basic':'基本操作',
@@ -19439,7 +19445,7 @@ Object.assign(I18N.en,{
   'lbl-rot':'Angle',
   'tt-edit-dbl':'Double-click to edit',
   'manual-title':'📖 LOCAHUN 3D User Manual',
-  'manual-version':'v 0.1.2-beta / 3DGS multi-viewer + previz (Beta)',
+  'manual-version':'v 0.1.3-beta / 3DGS multi-viewer + previz (Beta)',
   'manual-close':'Close ✕',
   'manual-grp-quick':'QUICK START',
   'manual-grp-basic':'BASICS',
@@ -20748,7 +20754,7 @@ window.toggleChangelog = function(){
 //  Manifest format:
 //    { "version":"0.0.2", "url":"...", "sha256":"<hex>", "notes":"..." }
 // ══════════════════════════════════════════════════
-const CURRENT_VERSION    = '0.1.2-beta';
+const CURRENT_VERSION    = '0.1.3-beta';
 const UPDATE_MANIFEST_URL =
   'https://raw.githubusercontent.com/nakamurakou1108/Locahun3D/main/version.json';
 
