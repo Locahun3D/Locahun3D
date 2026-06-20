@@ -8878,7 +8878,9 @@ window.toggleMeasure = function() {
     // Position gizmo just below topbar — helpbox was removed.
     const helpboxEl=document.getElementById('helpbox');
     const hbBottom = helpboxEl ? helpboxEl.getBoundingClientRect().bottom : 0;
-    const topPos=Math.max(57, hbBottom + 10);
+    const tlBtns=document.getElementById('view-tl-btns');
+    const tlBottom=tlBtns?tlBtns.getBoundingClientRect().bottom:0;
+    const topPos=Math.max(92, tlBottom + 6, hbBottom + 10);
     gizmoEl.style.top=topPos+'px';
     gizmoEl.style.display='block';
     const hintEl=document.getElementById('msr-hint');
