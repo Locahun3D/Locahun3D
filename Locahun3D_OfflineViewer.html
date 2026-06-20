@@ -561,12 +561,9 @@ body{position:fixed;top:0;left:0;}
 }
 #gizmo .giz-btns button:hover{background:rgba(255,255,255,.08);color:#D8D8D8;}
 
-/* ── Measure hint ── */
+/* ── Measure hint ── removed per user request 2026-06-20 (独立ウィンドウが邪魔) */
 #msr-hint{
-  /* Positioned by .guide-banner (bottom-centre band). Here we only override the
-     appearance to the measure-tool's dark pill. */
-  font-size:.72em;color:#cfcfcf;
-  background:rgba(26,26,28,.93)!important;border:1px solid rgba(255,255,255,.12);border-radius:9px;
+  display:none!important;
   z-index:59;display:none;line-height:1.6;
 }
 
@@ -891,6 +888,7 @@ body{position:fixed;top:0;left:0;}
    clear above the cbar. Phones lift further since their cbar is at bottom:212px. */
 @media (pointer:coarse){
   #sun-panel{ bottom:120px !important; max-height:60vh; }
+  #cam-anim-panel{ width:260px !important; font-size:.72em !important; padding:10px !important; max-height:70vh !important; }
 }
 @media (pointer:coarse) and (any-hover:none) and (max-width:600px),
        (pointer:coarse) and (any-hover:none) and (max-height:500px){
@@ -909,13 +907,13 @@ body{position:fixed;top:0;left:0;}
   /* ★縮小対象は「ボタンを押して出るUI＝各パネル」（user 2026-06-20 明確化）。
      ボタン本体・文字ではない。文字サイズを4パネルで統一して一段小さく（→.64em）。
      子要素は em 基準なので全体が比例縮小する。 */
-  #sun-panel, #cam-panel, #quality-panel, #gizmo{ font-size:.64em !important; }
+  #sun-panel, #cam-panel, #quality-panel, #gizmo, #cam-anim-panel{ font-size:.58em !important; }
   /* 横幅を画面に収まるよう縮小（端から最低24pxの余白を確保） */
-  /* 日照パネルはさらに一段小さく（user request「もう少し小さく」）。 */
-  #sun-panel{ font-size:.58em !important; width:min(204px, calc(100vw - 24px)) !important; padding:8px !important; }
-  #cam-panel{ width:min(230px, 80vw) !important; padding:9px 10px !important; }
-  #quality-panel{ width:min(200px, calc(100vw - 24px)) !important; padding:8px 10px !important; }
-  #gizmo{ width:min(222px, calc(100vw - 24px)) !important; padding:9px 11px !important; }
+  #sun-panel{ width:min(190px, calc(100vw - 24px)) !important; padding:7px !important; }
+  #cam-panel{ width:min(210px, 75vw) !important; padding:8px 9px !important; }
+  #quality-panel{ width:min(190px, calc(100vw - 24px)) !important; padding:7px 9px !important; }
+  #gizmo{ width:min(200px, calc(100vw - 24px)) !important; padding:8px 10px !important; }
+  #cam-anim-panel{ width:min(210px, calc(100vw - 24px)) !important; padding:8px 10px !important; max-height:60vh !important; }
 }
 
 /* ── Axis pivot highlight ── */
@@ -3353,7 +3351,7 @@ body.ar-active #dz{display:none !important;}
     </div>
   </div>
   <div class="dz-version-line">
-    <span id="tb-version">v 0.1.9-beta</span>
+    <span id="tb-version">v 0.2.0-beta</span>
   </div>
 </div>
 
@@ -9360,23 +9358,7 @@ function updateOverlay() {
   octx.clearRect(0, 0, overlay.width, overlay.height);
   window._overlayHadContent = overlayWants;
 
-  // Keep msr-hint pinned below gizmo panel — clamped INSIDE the viewport.
-  // The panel itself reserves room for the hint (see toggleMeasure), but the
-  // panel can grow after open (point C row appears, i18n swap); clamp here so
-  // the hint can never be pushed off the bottom edge, and keep it right-
-  // anchored at the panel's width so it never spreads left over the
-  // joystick / ▲▼ elevation pad.
-  if (msr.active) {
-    const gizmoEl = document.getElementById('gizmo');
-    const hintEl  = document.getElementById('msr-hint');
-    const gr = gizmoEl.getBoundingClientRect();
-    const hh = hintEl.offsetHeight || 40;
-    const top = Math.min(gr.bottom + 6, window.innerHeight - hh - 8);
-    hintEl.style.top   = Math.max(8, top) + 'px';
-    hintEl.style.width = gr.width + 'px';
-    hintEl.style.left  = 'auto';
-    hintEl.style.right = '14px';
-  }
+  // msr-hint removed (user 2026-06-20) — no positioning needed.
 
   // ── Pivot glow is always drawn (measurement OR layer pivot) ──
   drawPivotGlow(octx);
@@ -20973,7 +20955,7 @@ window.toggleChangelog = function(){
 //  Manifest format:
 //    { "version":"0.0.2", "url":"...", "sha256":"<hex>", "notes":"..." }
 // ══════════════════════════════════════════════════
-const CURRENT_VERSION    = '0.1.9-beta';
+const CURRENT_VERSION    = '0.2.0-beta';
 const UPDATE_MANIFEST_URL =
   'https://raw.githubusercontent.com/nakamurakou1108/Locahun3D/main/version.json';
 
