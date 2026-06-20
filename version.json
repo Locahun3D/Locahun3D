@@ -1,6 +1,6 @@
 {
-  "version": "0.1.8-beta",
+  "version": "0.1.9-beta",
   "url": "https://locahun3d.nakamurakou1108.workers.dev",
   "sha256": null,
-  "notes": "🏠ホーム画面に上部ボタン列が残る不具合を修正(前版でz-index:120にした際、ホーム画面#dz(z-index:100)より前面に出ていた→z-index:98=パネル95より上・ホーム100より下にしてホームでは隠れ、シーン中はパネルより前面)。📱横画面でホーム画面が大きすぎ見切れる問題を修正(@media max-height:500pxでロゴ/見出し/余白を縮小、844x390ではみ出し58px→10pxに)。Builds on v0.1.7."
+  "notes": "🐛 ZIP/エクスポート総当たりバグ修正: (1) restoreProjectでeventタイプのメッシュが再構築されない→リング/サークル/ドット/ヒットボックス再構築追加。(2) saveProject(JSON保存)がlight/figure/eventの固有フィールドを欠落→追加。(3) URL.revokeObjectURL即座呼び出しでDL失敗の可能性→全箇所setTimeout 5sに統一。(4) saveProjectZip/saveProjectに再入防止ガード追加。(5) saveProjectでsplatの_loadFlipped/_flipAxes保存漏れ→追加。(6) restoreProjectでsplatの_loadFlippedを保存値でなく拡張子から再導出→保存値を優先。(7) saveProjectZipでeventColor保存漏れ→追加。(8) 録画exportのrevokeObjectURLタイマー1500ms→5000msに延長。"
 }

@@ -7391,7 +7391,7 @@ window.startViewRecording = function(){
     document.body.appendChild(a);
     a.click();
     a.remove();
-    setTimeout(() => URL.revokeObjectURL(url), 1500);
+    setTimeout(() => URL.revokeObjectURL(url), 5000);
     showUndoToast((window._lang === 'en')
       ? `Saved ${a.download}` : `保存しました: ${a.download}`);
   };
@@ -17433,7 +17433,7 @@ window.exportSplat = function(){
     a.href = url;
     a.download = `${L.name.replace(/[^a-zA-Z0-9_-]/g,'_')}.${ext}`;
     document.body.appendChild(a); a.click(); document.body.removeChild(a);
-    URL.revokeObjectURL(url);
+    setTimeout(()=>URL.revokeObjectURL(url), 5000);
     count++;
   }
   showUndoToast(window._lang==='en'
@@ -17461,7 +17461,7 @@ window.exportGLB = async function() {
       const a=document.createElement('a');
       a.href=url; a.download='scene_export.glb';
       document.body.appendChild(a); a.click(); document.body.removeChild(a);
-      URL.revokeObjectURL(url);
+      setTimeout(()=>URL.revokeObjectURL(url), 5000);
       showUndoToast(window._lang==='en'
         ? `✅ GLB exported (${count} object${count===1?'':'s'})`
         : `✅ GLBエクスポート完了 (${count}オブジェクト)`);
@@ -17491,7 +17491,7 @@ window.exportOBJ = async function() {
     const a = document.createElement('a');
     a.href=url; a.download='scene_export.obj';
     document.body.appendChild(a); a.click(); document.body.removeChild(a);
-    URL.revokeObjectURL(url);
+    setTimeout(()=>URL.revokeObjectURL(url), 5000);
     showUndoToast(window._lang==='en'
       ? `✅ OBJ exported (${count} object${count===1?'':'s'})`
       : `✅ OBJエクスポート完了 (${count}オブジェクト)`);
@@ -17609,7 +17609,10 @@ async function _fetchStreamUrlToBytes(url, label){
   }
 }
 
+let _zipSaving = false;
 window.saveProjectZip = async function(){
+  if(_zipSaving){ showUndoToast(T('zip-saving')); return; }
+  _zipSaving = true;
   showUndoToast(T('zip-saving'));
   try {
     const fflate = await getFflate();
@@ -17797,6 +17800,7 @@ window.saveProjectZip = async function(){
         entry.eventImage=L.eventImage||null;
         entry.eventImageName=L.eventImageName||null;
         entry.eventGuide=L.eventGuide||null;
+        entry.eventColor=L.eventColor||'#ff8800';
       }
       if(L.type==='path'){
         entry.pathPoints=L.pathPoints?L.pathPoints.map(p=>({...p})):[];
@@ -17852,7 +17856,7 @@ window.saveProjectZip = async function(){
     a.href=URL.createObjectURL(blob);
     a.download=(_projectName||'scene_project').replace(/[^a-zA-Z0-9_\\-\u3040-\u309F\u30A0-\u30FF\u4E00-\u9FFF]/g,'_')+'.zip';
     document.body.appendChild(a); a.click(); document.body.removeChild(a);
-    URL.revokeObjectURL(a.href);
+    setTimeout(()=>URL.revokeObjectURL(a.href), 5000);
 
     const missing=serialized.filter(e=>e.missing).length;
     // streamed = splat layers saved as a URL reference (URL-streamed RAD) with
@@ -17886,7 +17890,7 @@ window.saveProjectZip = async function(){
         :(_en?`✅ ZIP saved (${fileCount} file${fileCount===1?'':'s'} + project.json${_offlineNote}${_streamNote})`
              :`✅ ZIP保存完了 (${fileCount}ファイル + project.json${_offlineNote}${_streamNote})`));
     }
-  } catch(e){ console.error(e); showUndoToast(T('zip-fail')+e.message); }
+  } catch(e){ console.error(e); showUndoToast(T('zip-fail')+e.message); } finally { _zipSaving = false; }
 };
 
 // ── Core ZIP load logic (callable directly with a File object) ──
@@ -18030,7 +18034,10 @@ window.loadProjectZip = function(){
   input.click();
 };
 
+let _jsonSaving = false;
 window.saveProject = async function() {
+  if(_jsonSaving){ showUndoToast(T('save-ing')); return; }
+  _jsonSaving = true;
   showUndoToast(T('save-ing'));
   try {
     const { GLTFExporter } = await import('three/addons/exporters/GLTFExporter.js');
@@ -18079,13 +18086,30 @@ window.saveProject = async function() {
           entry.rawData=bufToBase64(L._rawBuffer);
           entry.rawExt=L._rawExt||'splat';
         } else if(L._streamUrl){
-          // URL-streamed RAD — no local bytes to embed; persist the source
-          // URL so restore can re-stream (see saveProjectZip for rationale).
           entry.streamUrl=L._streamUrl;
           entry.rawExt=L._rawExt||'rad';
         } else {
           entry.missing=true;
         }
+        entry._loadFlipped = !!L._loadFlipped;
+        if(L._flipAxes) entry._flipAxes = {...L._flipAxes};
+      } else if(L.type==='light'){
+        entry.lightColor=L.lightColor||'#ffffff';
+        entry.lightIntensity=L.lightIntensity!=null?L.lightIntensity:1.5;
+        entry.lightDistance=L.lightDistance!=null?L.lightDistance:20;
+      } else if(L.type==='figure'){
+        entry.figurePose=L.figurePose||_emptyPoseData();
+        entry.figureSkinColor=L.figureSkinColor||'#c5c0b6';
+        entry.figureJointColor=L.figureJointColor||'#ff8844';
+        entry.figureShowJoints=L.figureShowJoints!==false;
+        entry.figureSelectedBone=L.figureSelectedBone||'pelvis';
+        entry.figureHeight=L.figureHeight||FIGURE_REF_HEIGHT_CM;
+        entry.figureSource=L.figureSource||'procedural';
+      } else if(L.type==='event'){
+        entry.eventImage=L.eventImage||null;
+        entry.eventImageName=L.eventImageName||null;
+        entry.eventGuide=L.eventGuide||null;
+        entry.eventColor=L.eventColor||'#ff8800';
       } else if(L.type==='path'){
         entry.pathPoints=L.pathPoints?L.pathPoints.map(p=>({...p})):[];
         entry.pathLabel=L.pathLabel||'';
@@ -18110,14 +18134,14 @@ window.saveProject = async function() {
     const a=document.createElement('a');
     a.href=url; a.download='scene_project.json';
     document.body.appendChild(a); a.click(); document.body.removeChild(a);
-    URL.revokeObjectURL(url);
+    setTimeout(()=>URL.revokeObjectURL(url), 5000);
     const missingCount=serialized.filter(e=>e.missing).length;
     const _en=window._lang==='en';
     if(missingCount>0)
       showUndoToast(_en?`✅ Saved (${missingCount} file(s) uncached)`:`✅ 保存完了 (${missingCount}件はファイル未キャッシュ)`);
     else
       showUndoToast(_en?'✅ Project saved (all data included)':'✅ プロジェクトを保存しました（全データ含む）');
-  } catch(e){ console.error(e); showUndoToast((window._lang==='en'?'⚠ Save failed: ':'⚠ 保存失敗: ')+e.message); }
+  } catch(e){ console.error(e); showUndoToast((window._lang==='en'?'⚠ Save failed: ':'⚠ 保存失敗: ')+e.message); } finally { _jsonSaving = false; }
 };
 
 // ── Project Load ──
@@ -18308,9 +18332,7 @@ async function restoreProject(project) {
           const _radTargetCount4 = (ext === 'rad') ? _parseRadHeaderCount(new Uint8Array(bufCopy)) : 0;
           mesh=new SplatMesh(opts);
           if(_radTargetCount4 > 0) mesh._radTargetCount = _radTargetCount4;
-          // Mark _loadFlipped on the entry so the layer constructor below
-          // picks it up; orientation will be composed via applyLayerFlipQuat.
-          entry._loadFlipped = (ext==='ply'||ext==='spz');
+          if(entry._loadFlipped === undefined) entry._loadFlipped = (ext==='ply'||ext==='spz');
           tuneSplatMesh(mesh);
           console.log(`[restore] splat ok: ${entry.name} (${ext}, ${(rawBuf.byteLength/1024).toFixed(1)}KB)`);
         } catch(e){
@@ -18342,7 +18364,7 @@ async function restoreProject(project) {
             mesh=new SplatMesh(opts);
           }
           tuneSplatMesh(mesh);
-          entry._loadFlipped=(sext==='ply'||sext==='spz');
+          if(entry._loadFlipped === undefined) entry._loadFlipped=(sext==='ply'||sext==='spz');
           console.log(`[restore] splat re-streaming: ${entry.name} ← ${surl}`);
         }catch(e){
           console.error(`[restore] splat stream-restore fail: ${entry.name}`, e);
@@ -18371,6 +18393,24 @@ async function restoreProject(project) {
       const r = await window._restoreFigureFromEntry(entry);
       mesh = r.root;
       mesh.userData.__figureRig = r;
+    } else if(entry.type==='event'){
+      const evGroup = new THREE.Group();
+      const evColor = entry.eventColor || '#ff8800';
+      const ringGeo = new THREE.RingGeometry(0.35, 0.45, 32);
+      const ringMat = new THREE.MeshBasicMaterial({color:new THREE.Color(evColor), side:THREE.DoubleSide, transparent:true, opacity:0.9});
+      evGroup.add(new THREE.Mesh(ringGeo, ringMat));
+      const circGeo = new THREE.CircleGeometry(0.34, 32);
+      const c3 = new THREE.Color(evColor); c3.lerp(new THREE.Color(1,1,1), 0.3);
+      const circMat = new THREE.MeshBasicMaterial({color:c3, side:THREE.DoubleSide, transparent:true, opacity:0.35});
+      evGroup.add(new THREE.Mesh(circGeo, circMat));
+      const dotGeo = new THREE.CircleGeometry(0.08, 16);
+      const dotMat = new THREE.MeshBasicMaterial({color:0xffffff, side:THREE.DoubleSide});
+      evGroup.add(new THREE.Mesh(dotGeo, dotMat));
+      const hitGeo = new THREE.SphereGeometry(1.2, 8, 8);
+      const hitMat = new THREE.MeshBasicMaterial({visible:false});
+      evGroup.add(new THREE.Mesh(hitGeo, hitMat));
+      evGroup.userData.isBillboard = true;
+      mesh = evGroup;
     } else if(entry.type==='path'){
       mesh=_buildPathMesh(entry.pathPoints||[], entry.pathColor||'#00d0ff', entry.pathOpacity!=null?entry.pathOpacity:0.28, entry.pathLabel||'');
     }
@@ -18426,6 +18466,7 @@ async function restoreProject(project) {
       L.eventImage=entry.eventImage||null;
       L.eventImageName=entry.eventImageName||null;
       L.eventGuide=entry.eventGuide||null;
+      L.eventColor=entry.eventColor||'#ff8800';
     }
     if(entry.type==='path'){
       L.pathPoints=entry.pathPoints?entry.pathPoints.map(p=>({...p})):[];
@@ -20910,7 +20951,7 @@ window.toggleChangelog = function(){
 //  Manifest format:
 //    { "version":"0.0.2", "url":"...", "sha256":"<hex>", "notes":"..." }
 // ══════════════════════════════════════════════════
-const CURRENT_VERSION    = '0.1.8-beta';
+const CURRENT_VERSION    = '0.1.9-beta';
 const UPDATE_MANIFEST_URL =
   'https://raw.githubusercontent.com/nakamurakou1108/Locahun3D/main/version.json';
 
