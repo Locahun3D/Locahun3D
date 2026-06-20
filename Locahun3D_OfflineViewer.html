@@ -1207,6 +1207,14 @@ body{position:fixed;top:0;left:0;}
      sliders that used to sit under the joystick) stays clear above. The collapsed
      panel is height:auto so it's unaffected. */
   #layer-panel:not(.collapsed){ bottom: 208px !important; }
+  /* iPad panel sizing: between desktop (.78em/256-288px) and phone (.58em/190-210px).
+     iPad mini (744px) and standard iPad (810-1024px) benefit from slightly smaller
+     panels than desktop — thumbs can't reach desktop-sized controls easily. */
+  #sun-panel, #quality-panel, #gizmo{ font-size:.68em !important; width:220px !important; padding:10px 12px !important; }
+  #cam-anim-panel{ font-size:.68em !important; }
+  /* When camera tool is open, move ▲▼ beside the joystick (same as phone fix) so
+     the right-side cam-panel doesn't cover them. */
+  body.cam-active #joy-vert{ left:208px !important; right:auto !important; }
 }
 @media (pointer:coarse) and (any-hover:none) and (orientation:portrait) and (min-width:600px) and (max-width:900px){
   /* iPad PORTRAIT (≤834px): the camera action row now carries 5 buttons
@@ -1230,6 +1238,10 @@ body{position:fixed;top:0;left:0;}
      bar centred above. Previously the arrows sat right next to the joystick, so
      every bottom control crowded the left half and the right side sat empty. */
   #joy-vert{ left:auto !important; right:24px !important; }
+  /* When the camera tool panel (#cam-panel) is open it occupies the right
+     side (right:0, width ≈210px on phone) and completely covers the ▲▼
+     buttons. Move them back beside the joystick so they stay usable. */
+  body.cam-active #joy-vert{ left:208px !important; right:auto !important; }
 }
 /* Fullscreen top-overlap fix (2026-06): in fullscreen the browser status bar is
    hidden, so the top UI (topbar / camera action row / perf badge) slides up under
@@ -6092,6 +6104,8 @@ function closeAllPanels(opts){
     }
     // カメラを閉じたので、開いている日照パネルは右下へ戻す
     if(typeof _sunUpdatePanelPos === 'function') _sunUpdatePanelPos();
+    if(typeof _camHideLetterbox === 'function') _camHideLetterbox();
+    document.body.classList.remove('cam-active');
     markDirty(4);
   }
   // Env panel (note: env preset stays applied — we only hide the panel)
@@ -6656,6 +6670,29 @@ function layoutCamFrame(){
   frame.style.height = r.h + 'px';
 }
 
+let _camLetterbox = null;
+function _camUpdateLetterbox(r){
+  if(!_camLetterbox){
+    _camLetterbox = document.createElement('div');
+    _camLetterbox.id = 'cam-letterbox';
+    _camLetterbox.style.cssText = 'position:fixed;inset:0;pointer-events:none;z-index:49;';
+    document.body.appendChild(_camLetterbox);
+  }
+  const W = r.viewportW, H = r.viewportH;
+  const fx = r.x, fy = r.y, fw = r.w, fh = r.h;
+  const pct = (v, total) => (v / total * 100).toFixed(3) + '%';
+  _camLetterbox.style.clipPath =
+    `polygon(evenodd, 0% 0%, 100% 0%, 100% 100%, 0% 100%, 0% 0%, ` +
+    `${pct(fx,W)} ${pct(fy,H)}, ${pct(fx,W)} ${pct(fy+fh,H)}, ` +
+    `${pct(fx+fw,W)} ${pct(fy+fh,H)}, ${pct(fx+fw,W)} ${pct(fy,H)}, ` +
+    `${pct(fx,W)} ${pct(fy,H)})`;
+  _camLetterbox.style.background = 'rgba(0,0,0,0.75)';
+  _camLetterbox.style.display = 'block';
+}
+function _camHideLetterbox(){
+  if(_camLetterbox) _camLetterbox.style.display = 'none';
+}
+
 function applyWBTint(){
   const tint = document.getElementById('cam-wb-tint');
   if(!tint) return;
@@ -6882,6 +6919,7 @@ window.toggleCamTool = function(){
   const tint = document.getElementById('cam-wb-tint');
   // ショット情報 is now embedded inside #cam-panel — its visibility follows
   // the panel automatically, no separate show/hide needed.
+  document.body.classList.toggle('cam-active', cam.active);
   if(cam.active){
     cam.prevFOV = fov;
     btn.classList.add('on');
@@ -6906,6 +6944,7 @@ window.toggleCamTool = function(){
     hud.style.display = 'none';
     pan.style.display = 'none';
     if(tint) tint.style.display = 'none';
+    if(typeof _camHideLetterbox === 'function') _camHideLetterbox();
     fov = cam.prevFOV;
     camera.fov = fov;
     camera.updateProjectionMatrix();
@@ -16270,20 +16309,30 @@ function animate(now) {
           if(typeof drawCamGrid === 'function'){ try { drawCamGrid(); } catch(_){} }
         }
       }
-      // Clear the full canvas first so the area outside the safe-frame
-      // is solid black instead of stale framebuffer content from the
-      // previous, larger render.
+      // ── Two-pass render: show the scene at 20% brightness OUTSIDE the
+      // safe-frame so the user has spatial context beyond the crop, then
+      // re-render the frame area at full brightness with the correct
+      // sensor aspect ratio for precise composition. ──
+      const yFromBottom = r.viewportH - r.y - r.h;
+
+      // Pass 1 — outside context: full canvas, canvas aspect.
       renderer.setScissorTest(false);
       renderer.setViewport(0, 0, innerWidth, innerHeight);
-      renderer.setScissor(0, 0, innerWidth, innerHeight);
-      renderer.clear();
-      // Convert CSS top-down → GL bottom-up viewport coords.
-      const yFromBottom = r.viewportH - r.y - r.h;
+      camera.aspect = innerWidth / Math.max(1, innerHeight);
+      camera.updateProjectionMatrix();
+      if(_useOrtho){ _syncOrthoCamera(); renderer.render(scene,_orthoCamera); }
+      else renderer.render(scene, camera);
+
+      // Pass 2 — frame composition: frame aspect, scissored.
       renderer.setViewport(r.x, yFromBottom, r.w, r.h);
       renderer.setScissor(r.x, yFromBottom, r.w, r.h);
       renderer.setScissorTest(true);
+      renderer.clear();
       camera.aspect = r.w / Math.max(1, r.h);
       camera.updateProjectionMatrix();
+
+      // Update the CSS letterbox overlay that darkens the outside area.
+      _camUpdateLetterbox(r);
     } catch(e){ _camViewportRect = null; }
   }
   if(_useOrtho){ _syncOrthoCamera(); renderer.render(scene,_orthoCamera); }
