@@ -890,9 +890,13 @@ body{position:fixed;top:0;left:0;}
   #sun-panel{ bottom:120px !important; max-height:60vh; }
   #cam-anim-panel{ width:260px !important; font-size:.72em !important; padding:10px !important; max-height:70vh !important; }
 }
-@media (pointer:coarse) and (any-hover:none) and (max-width:600px),
-       (pointer:coarse) and (any-hover:none) and (max-height:500px){
-  #sun-panel{ bottom:264px !important; max-height:46vh; }
+@media (pointer:coarse) and (any-hover:none) and (max-width:600px){
+  #sun-panel{ bottom:264px !important; max-height:46vh; left:auto !important; right:14px !important; }
+}
+@media (pointer:coarse) and (any-hover:none) and (orientation:landscape) and (max-height:500px){
+  #sun-panel{ bottom:64px !important; top:auto !important; left:auto !important; right:14px !important; max-height:calc(100vh - 80px); }
+  #cam-anim-panel{ max-height:calc(100vh - 100px) !important; }
+  #gizmo{ max-height:calc(100vh - 100px) !important; }
 }
 
 /* ── スマホ専用: フローティングパネルを小さく＋文字サイズを統一 ──
