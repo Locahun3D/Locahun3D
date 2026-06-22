@@ -1,0 +1,23 @@
+#!/usr/bin/env bash
+# deploy-viewer.sh — ビューアーを Cloudflare Worker にデプロイ
+#
+# 使い方:
+#   cd "F:\UNDEFINED Dropbox\UNDEFINED\Works\MFF\01_ProjectFile\3DGS"
+#   bash deploy-viewer.sh
+#
+set -e
+DIR="$(cd "$(dirname "$0")" && pwd)"
+DIST="$DIR/viewer-dist"
+
+echo "=== Syncing viewer-dist ==="
+cp "$DIR/index.html"                       "$DIST/"
+cp "$DIR/Locahun3D_OfflineViewer.html"     "$DIST/"
+cp "$DIR/version.json"                     "$DIST/"
+cp -r "$DIR/figures/"                      "$DIST/figures/"
+
+echo "=== Deploying to Cloudflare ==="
+cd "$DIR"
+npx wrangler deploy
+
+echo "=== Done ==="
+echo "SHA256: $(sha256sum "$DIST/Locahun3D_OfflineViewer.html" | cut -d' ' -f1)"

@@ -41,3 +41,4 @@ __pycache__/
 /Locahun3D_OfflineViewer_LCC2.html
 /Locahun3D_OfflineViewer_*.html
 .wrangler/
+/viewer-dist/

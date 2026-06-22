@@ -1,0 +1,16 @@
+# Cloudflare Worker: locahun3d (ビューアー本体)
+#
+# viewer.locahun3d.com で公開している3DGSオフラインビューアー。
+# Assets-only Worker（Worker スクリプトなし、静的ファイル配信のみ）。
+#
+# デプロイ手順:
+#   cd "F:\UNDEFINED Dropbox\UNDEFINED\Works\MFF\01_ProjectFile\3DGS"
+#   npx wrangler deploy
+#
+# カスタムドメイン viewer.locahun3d.com は Cloudflare Dashboard で設定済み。
+
+name = "locahun3d"
+compatibility_date = "2026-06-22"
+
+[assets]
+directory = "./viewer-dist"
