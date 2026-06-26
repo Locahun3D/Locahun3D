@@ -20217,54 +20217,9 @@ window.addEventListener('mousemove',e=>{
     return;
   }
   // ── Axis drag (XZ plane or single axis) ──
-  if(msr.axisDragging){
-    const rect=canvas.getBoundingClientRect();
-    _v2.set(((e.clientX-rect.left)/rect.width)*2-1,
-            -((e.clientY-rect.top)/rect.height)*2+1);
-    _ray.setFromCamera(_v2,camera);
-    const hit=new THREE.Vector3();
-    if(_ray.ray.intersectPlane(msr.axisDragging.dragPlane, hit)){
-      let newPos;
-      if(msr.axisDragging.isXZ){
-        // Free XZ movement, Y locked
-        newPos = new THREE.Vector3(
-          msr.axisDragging.startPos.x + (hit.x - msr.axisDragging.startHit.x),
-          msr.axisDragging.startPos.y,
-          msr.axisDragging.startPos.z + (hit.z - msr.axisDragging.startHit.z)
-        );
-      } else {
-        const delta=hit.clone().sub(msr.axisDragging.startHit);
-        const proj=delta.dot(msr.axisDragging.axisDir);
-        newPos=msr.axisDragging.startPos.clone()
-          .addScaledVector(msr.axisDragging.axisDir, proj);
-      }
-      const dp = msr.axisDragging.point;
-      if(dp==='A'){
-        msr.ptA.copy(newPos); msr.markerA.position.copy(newPos);
-      } else if(dp==='B'){
-        msr.ptB.copy(newPos); msr.markerB.position.copy(newPos);
-      } else if(dp==='C'){
-        msr.ptC.copy(newPos); if(msr.markerC) msr.markerC.position.copy(newPos);
-      }
-      syncGizmoToMsr();
-    }
-    return;
-  }
+  if(msr.axisDragging){ _updateAxisDragAt(e.clientX, e.clientY); return; }
   // ── Drag marker ──
-  if(msr.dragging){
-    const rect=canvas.getBoundingClientRect();
-    _v2.set(((e.clientX-rect.left)/rect.width)*2-1,
-            -((e.clientY-rect.top)/rect.height)*2+1);
-    _ray.setFromCamera(_v2,camera);
-    const hit=new THREE.Vector3();
-    if(_ray.ray.intersectPlane(msr.dragPlane,hit)){
-      if(msr.dragging==='A'){msr.ptA.copy(hit);msr.markerA.position.copy(hit);}
-      else if(msr.dragging==='B'){msr.ptB.copy(hit);msr.markerB.position.copy(hit);}
-      else if(msr.dragging==='C'){msr.ptC.copy(hit);if(msr.markerC)msr.markerC.position.copy(hit);}
-      syncGizmoToMsr();
-    }
-    return;
-  }
+  if(msr.dragging){ _updateMarkerDragAt(e.clientX, e.clientY); return; }
   // ── Look rotation ──
   if(!dragOn)return;
   // While pointer is locked to the canvas, e.clientX/Y don't update — use
@@ -20411,12 +20366,70 @@ canvas.addEventListener('wheel',e=>{
   }
 },{passive:false});
 
+// ── Shared drag-update helpers (used by BOTH mouse and touch paths) ──
+// Extracted from the inline mousemove handler so the touch handlers can reuse
+// the EXACT same math. Both take screen-space client coordinates.
+function _updateAxisDragAt(clientX, clientY){
+  if(!msr.axisDragging) return;
+  const rect=canvas.getBoundingClientRect();
+  _v2.set(((clientX-rect.left)/rect.width)*2-1,
+          -((clientY-rect.top)/rect.height)*2+1);
+  _ray.setFromCamera(_v2,camera);
+  const hit=new THREE.Vector3();
+  if(_ray.ray.intersectPlane(msr.axisDragging.dragPlane, hit)){
+    let newPos;
+    if(msr.axisDragging.isXZ){
+      // Free XZ movement, Y locked
+      newPos = new THREE.Vector3(
+        msr.axisDragging.startPos.x + (hit.x - msr.axisDragging.startHit.x),
+        msr.axisDragging.startPos.y,
+        msr.axisDragging.startPos.z + (hit.z - msr.axisDragging.startHit.z)
+      );
+    } else {
+      const delta=hit.clone().sub(msr.axisDragging.startHit);
+      const proj=delta.dot(msr.axisDragging.axisDir);
+      newPos=msr.axisDragging.startPos.clone()
+        .addScaledVector(msr.axisDragging.axisDir, proj);
+    }
+    const dp = msr.axisDragging.point;
+    if(dp==='A'){
+      msr.ptA.copy(newPos); msr.markerA.position.copy(newPos);
+    } else if(dp==='B'){
+      msr.ptB.copy(newPos); msr.markerB.position.copy(newPos);
+    } else if(dp==='C'){
+      msr.ptC.copy(newPos); if(msr.markerC) msr.markerC.position.copy(newPos);
+    }
+    syncGizmoToMsr();
+  }
+}
+function _updateMarkerDragAt(clientX, clientY){
+  if(!msr.dragging) return;
+  const rect=canvas.getBoundingClientRect();
+  _v2.set(((clientX-rect.left)/rect.width)*2-1,
+          -((clientY-rect.top)/rect.height)*2+1);
+  _ray.setFromCamera(_v2,camera);
+  const hit=new THREE.Vector3();
+  if(_ray.ray.intersectPlane(msr.dragPlane,hit)){
+    if(msr.dragging==='A'){msr.ptA.copy(hit);msr.markerA.position.copy(hit);}
+    else if(msr.dragging==='B'){msr.ptB.copy(hit);msr.markerB.position.copy(hit);}
+    else if(msr.dragging==='C'){msr.ptC.copy(hit);if(msr.markerC)msr.markerC.position.copy(hit);}
+    syncGizmoToMsr();
+  }
+}
+
 // Touch look
 let tlId=-1,tlX=0,tlY=0;
 // Pivot-gizmo touch-drag (v0.0.43): the finger identifier currently dragging a
 // transform handle of the selected object. Lets iPad users grab the pivot and
 // move/rotate/scale, mirroring the desktop mouse gizmo drag.
 let _lpvTouchId=-1;
+// Generic handle touch-drag (2026-06): the finger identifier currently dragging
+// a NON-lpv transform handle — measurement axis arrow / XZ plane, measurement
+// marker, figure bone-rotation ring, figure IK handle, or path edit point.
+// Mirrors the desktop mousedown→mousemove→mouseup path for these widgets, which
+// previously had NO touch wiring at all (iPad/phone users couldn't drag them).
+let _handleTouchId=-1;
+let _handleTouchKind='';   // 'axis' | 'marker' | 'bone' | 'ik' | 'path'
 // ── Long-press tap placement for measure mode ──
 // In measure mode a finger held still for ~350 ms on the canvas enters
 // "preview placement" — mirrors the desktop left-click-hold flow. The
@@ -20437,11 +20450,35 @@ function _cancelMsrLongPress(){
 }
 
 canvas.addEventListener('touchstart',e=>{
-  // ── Pivot gizmo touch-drag (highest priority) ──
+  // ── Figure bone-rotation ring / IK handle touch-drag (highest priority) ──
+  // Mirrors the desktop mousedown order (bone ring → IK → lpv). Only outside
+  // measure mode and only when a figure widget is actually pickable. Previously
+  // these had NO touch wiring, so iPad/phone users couldn't rotate bones or
+  // drag IK targets.
+  if(_handleTouchId === -1 && _lpvTouchId === -1 && !(msr && msr.active) && e.changedTouches.length){
+    const tg = e.changedTouches[0];
+    const cx = tg.clientX, cy = tg.clientY;
+    let grabbed = false;
+    if(typeof _checkBoneRotateRingHit === 'function'){
+      const ringHit = _checkBoneRotateRingHit(cx, cy);
+      if(ringHit){ _startBoneRotateDrag(ringHit, cx, cy);
+        _handleTouchId = tg.identifier; _handleTouchKind = 'bone'; grabbed = true; }
+    }
+    if(!grabbed && typeof _checkIKHandleHit === 'function'){
+      const ikHit = _checkIKHandleHit(cx, cy);
+      if(ikHit){ _startIKHandleDrag(ikHit, cx, cy);
+        _handleTouchId = tg.identifier; _handleTouchKind = 'ik'; grabbed = true; }
+    }
+    if(grabbed){
+      try { if(navigator.vibrate) navigator.vibrate(12); } catch(_){}
+      markDirty(6);
+    }
+  }
+  // ── Pivot gizmo touch-drag (object translate / rotate / scale) ──
   // If a finger lands on a transform handle of the selected object, grab it
   // and drag instead of rotating the camera. The fat invisible hit-shafts make
   // the small arrows touch-friendly.
-  if(_lpvTouchId === -1 && typeof lpv!=='undefined' && lpv.group && lpv.group.visible
+  if(_handleTouchId === -1 && _lpvTouchId === -1 && typeof lpv!=='undefined' && lpv.group && lpv.group.visible
      && !(msr && msr.active) && e.changedTouches.length){
     const tg = e.changedTouches[0];
     const hit = checkLpvHandle(tg.clientX, tg.clientY);
@@ -20452,9 +20489,52 @@ canvas.addEventListener('touchstart',e=>{
       markDirty(6);
     }
   }
+  // ── Path edit handle touch-drag (path layers, outside measure mode) ──
+  if(_handleTouchId === -1 && _lpvTouchId === -1 && typeof _pathEditId!=='undefined' && _pathEditId!=null
+     && !(msr && msr.active) && e.changedTouches.length){
+    const tg = e.changedTouches[0];
+    const h = _pathHandleAt(tg.clientX, tg.clientY);
+    if(h>=0){
+      _pathDragH = h; _handleTouchId = tg.identifier; _handleTouchKind = 'path';
+      try { if(navigator.vibrate) navigator.vibrate(12); } catch(_){}
+      markDirty(6);
+    }
+  }
+  // ── Measurement axis-arrow / XZ-plane / marker touch-drag (measure mode) ──
+  // Mirrors the desktop mousedown order inside measure mode: axis handle first
+  // (constrained drag along an arrow or the XZ plane), then a free marker grab.
+  // These also had no touch wiring before — the user could place points but not
+  // nudge them along an axis or move an existing marker with a finger.
+  if(_handleTouchId === -1 && msr && msr.active && e.changedTouches.length){
+    const tg = e.changedTouches[0];
+    const cx = tg.clientX, cy = tg.clientY;
+    const axHit = (typeof checkAxisHandle === 'function') ? checkAxisHandle(cx, cy) : null;
+    if(axHit){
+      pushUndo();
+      startAxisDrag(axHit, cx, cy);
+      _handleTouchId = tg.identifier; _handleTouchKind = 'axis';
+      try { if(navigator.vibrate) navigator.vibrate(12); } catch(_){}
+      markDirty(6);
+    } else {
+      const mHit = (typeof nearMarker === 'function') ? nearMarker(cx, cy) : null;
+      if(mHit){
+        pushUndo();
+        msr.dragging = mHit;
+        const pt = _msrPt(mHit);
+        const camDir = new THREE.Vector3();
+        camera.getWorldDirection(camDir);
+        msr.dragPlane.setFromNormalAndCoplanarPoint(camDir, pt);
+        _handleTouchId = tg.identifier; _handleTouchKind = 'marker';
+        try { if(navigator.vibrate) navigator.vibrate(12); } catch(_){}
+        markDirty(6);
+      }
+    }
+  }
   // Measure-mode long-press scheduler — only when no placement is already
-  // in progress AND a single finger is going down.
-  if(msr.active && _msrPlacingId === -1 && _msrLongPressId === -1 && e.changedTouches.length){
+  // in progress AND a single finger is going down. Skip entirely if a measure
+  // handle (axis/marker) was just grabbed, so dragging a handle doesn't also
+  // arm a point-placement.
+  if(msr.active && _handleTouchId === -1 && _msrPlacingId === -1 && _msrLongPressId === -1 && e.changedTouches.length){
     const t0 = e.changedTouches[0];
     _msrLongPressId = t0.identifier;
     _msrLongPressX = t0.clientX;
@@ -20484,13 +20564,28 @@ canvas.addEventListener('touchstart',e=>{
   // (z-index 60, pointer-events) that capture their own touches before the canvas
   // sees them, so the only thing the wider zone claims is empty canvas left-of-centre.
   for(const t of e.changedTouches)
-    if(t.identifier!==_lpvTouchId && t.clientX>innerWidth*0.3){tlId=t.identifier;tlX=t.clientX;tlY=t.clientY;}
+    if(t.identifier!==_lpvTouchId && t.identifier!==_handleTouchId && t.clientX>innerWidth*0.3){tlId=t.identifier;tlX=t.clientX;tlY=t.clientY;}
 },{passive:true});
 canvas.addEventListener('touchmove',e=>{
   // ── Pivot gizmo touch-drag update (highest priority) ──
   if(_lpvTouchId !== -1){
     for(const t of e.changedTouches){
       if(t.identifier === _lpvTouchId){ updateLpvDrag(t.clientX, t.clientY); markDirty(3); return; }
+    }
+  }
+  // ── Generic handle touch-drag update (bone ring / IK / axis / marker / path) ──
+  if(_handleTouchId !== -1){
+    for(const t of e.changedTouches){
+      if(t.identifier === _handleTouchId){
+        const cx = t.clientX, cy = t.clientY;
+        if(_handleTouchKind === 'bone'){ if(_boneRotDrag.active) _updateBoneRotateDrag(cx, cy); }
+        else if(_handleTouchKind === 'ik'){ if(_ikDrag.active) _updateIKHandleDrag(cx, cy); }
+        else if(_handleTouchKind === 'axis'){ _updateAxisDragAt(cx, cy); }
+        else if(_handleTouchKind === 'marker'){ _updateMarkerDragAt(cx, cy); }
+        else if(_handleTouchKind === 'path'){ if(_pathDragH>=0) _pathUpdateHandleDrag(cx, cy); }
+        markDirty(3);
+        return;
+      }
     }
   }
   // ── Measure-mode placement preview update (active long-press) ──
@@ -20561,6 +20656,21 @@ canvas.addEventListener('touchend',e=>{
       }
     }
   }
+  // End a generic handle touch-drag (bone ring / IK / axis / marker / path)
+  // when its finger lifts — mirrors the desktop mouseup cleanup.
+  if(_handleTouchId !== -1){
+    for(const t of e.changedTouches){
+      if(t.identifier === _handleTouchId){
+        if(_handleTouchKind === 'bone'){ if(_boneRotDrag.active) _endBoneRotateDrag(); }
+        else if(_handleTouchKind === 'ik'){ if(_ikDrag.active) _endIKHandleDrag(); }
+        else if(_handleTouchKind === 'path'){ _pathDragH = -1; }
+        if(_handleTouchKind === 'axis' || _handleTouchKind === 'marker'){ msr.dragging=null; msr.axisDragging=null; }
+        _handleTouchId = -1; _handleTouchKind = '';
+        markDirty(6);
+        break;
+      }
+    }
+  }
   // Commit a measure-mode placement if the finger that's being lifted
   // is the one currently holding the preview.
   if(_msrPlacingId !== -1){
@@ -20587,6 +20697,15 @@ canvas.addEventListener('touchcancel',e=>{
   if(_lpvTouchId !== -1){
     _lpvTouchId = -1;
     if(typeof lpv!=='undefined' && lpv.dragging){ lpv.dragging=null; markDirty(6); }
+  }
+  // Abort a generic handle touch-drag on cancel (e.g. iOS palm rejection).
+  if(_handleTouchId !== -1){
+    if(_boneRotDrag.active) _endBoneRotateDrag();
+    if(_ikDrag.active) _endIKHandleDrag();
+    if(_pathDragH>=0) _pathDragH = -1;
+    msr.dragging=null; msr.axisDragging=null;
+    _handleTouchId = -1; _handleTouchKind = '';
+    markDirty(6);
   }
   // Abort placement / arming on touchcancel (e.g. iOS palm rejection).
   if(_msrPlacingId !== -1){
