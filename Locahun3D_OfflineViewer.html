@@ -1282,6 +1282,150 @@ body.immersive #qi-badge{ display:none !important; }
 }
 body.immersive #immersive-exit{ display:inline-block; }
 
+/* ══════════════════════════════════════════════════════════════════════
+   Large-screen / 4K scaling (2026-06)
+   On ≥1920px monitors the default UI is proportionally small — scale up
+   all interactive elements so buttons stay comfortably clickable and
+   panels remain readable without squinting. Touch devices never hit
+   these because phones/tablets max out at ~1400px CSS width.
+   ══════════════════════════════════════════════════════════════════════ */
+@media (min-width:1920px) and (pointer:fine){
+  #topbar{ height:52px; padding:0 14px; gap:10px; }
+  #topbar .tb-home{ font-size:.82em; padding:3px 14px; }
+  #topbar .tb-save-btn,
+  #topbar #tb-save-btn{ font-size:.78em; padding:3px 12px; }
+  #topbar .tb-update{ font-size:.74em; padding:3px 10px; }
+  #topbar .tb-lang{ font-size:.76em; padding:3px 10px; }
+  #topbar .tb-bug{ font-size:.86em; }
+  #topbar .tb-integrity{ font-size:.76em; }
+
+  #view-tl-btns{ top:64px !important; }
+  #view-tl-btns button{ font-size:.82em !important; padding:7px 16px !important; }
+
+  #qi-badge{ top:62px; font-size:.80em; padding:5px 11px; }
+  #view-tl-btns > #qi-badge{ padding:6px 12px !important; }
+
+  #hud .cbar button{ font-size:.86em; padding:10px 18px; border-radius:10px; }
+
+  #gizmo{ width:300px; top:100px; max-height:calc(100vh - 116px); }
+  #quality-panel{ width:min(260px, calc(100vw - 28px)); }
+  #sun-panel{ width:320px; }
+  #cam-panel{ width:330px !important; }
+  #cam-anim-panel{ width:300px !important; }
+
+  #layer-panel{ width:320px; }
+  :root{ --lp-width-default:320px; }
+
+  #helpbox{ font-size:12.5px; min-width:220px; top:66px; }
+  #hud .ibox{ top:116px; font-size:12px; }
+
+  #qpanel{ min-width:240px; }
+
+  #dz h1{ font-size:clamp(2.6em, 4vw, 4em); }
+  #dz .sub{ font-size:1em; }
+  #dz .zone{ padding:40px 80px; }
+  #dz .zone .ico{ font-size:2.8em; }
+  #dz .demo-btn{ padding:12px 30px; font-size:.92em; }
+  #dz .dz-changelog-head{ font-size:.86em; padding:9px 16px; }
+}
+@media (min-width:2560px) and (pointer:fine){
+  #topbar{ height:58px; padding:0 18px; gap:12px; }
+  #topbar .tb-home{ font-size:.88em; padding:4px 16px; }
+  #topbar .tb-update{ font-size:.80em; }
+  #topbar .tb-lang{ font-size:.82em; }
+
+  #view-tl-btns{ top:72px !important; }
+  #view-tl-btns button{ font-size:.88em !important; padding:8px 18px !important; }
+
+  #qi-badge{ top:70px; font-size:.86em; padding:6px 13px; }
+
+  #hud .cbar button{ font-size:.94em; padding:12px 22px; }
+
+  #gizmo{ width:340px; top:110px; }
+  #quality-panel{ width:min(300px, calc(100vw - 28px)); }
+  #sun-panel{ width:360px; }
+  #cam-panel{ width:380px !important; }
+  #cam-anim-panel{ width:340px !important; }
+
+  #layer-panel{ width:360px; }
+
+  #helpbox{ font-size:13.5px; min-width:240px; top:74px; }
+  #hud .ibox{ top:126px; font-size:13px; }
+
+  #dz h1{ font-size:clamp(3em, 3.8vw, 4.6em); }
+  #dz .zone{ padding:48px 100px; }
+  #dz .demo-btn{ padding:14px 36px; font-size:1em; }
+
+  #joy{ width:210px; height:210px; }
+  #joy .knob{ width:84px; height:84px; }
+  #joy-vert{ left:244px; width:84px; height:210px; }
+  #joy-vert .jv-btn{ width:84px; height:84px; font-size:1.6em; }
+}
+
+/* ══════════════════════════════════════════════════════════════════════
+   Panel max-height safeguards (all devices)
+   Prevent any floating panel from exceeding the viewport height.
+   Some panels already have max-height on specific breakpoints — these
+   rules provide a baseline for devices/orientations not covered.
+   ══════════════════════════════════════════════════════════════════════ */
+#sun-panel{ max-height:calc(100vh - 140px); max-height:calc(100dvh - 140px); overflow-y:auto; }
+#cam-anim-panel{ max-height:calc(100vh - 100px); max-height:calc(100dvh - 100px); overflow-y:auto; }
+
+/* ══════════════════════════════════════════════════════════════════════
+   iPad landscape panel overlap refinements (2026-06)
+   On iPad landscape (1024×768 / 1180×820) the right-anchored panels
+   (sun / quality / gizmo) can overlap each other or the cbar.
+   ══════════════════════════════════════════════════════════════════════ */
+@media (pointer:coarse) and (any-hover:none) and (orientation:landscape) and (min-width:600px) and (min-height:600px){
+  #sun-panel{ bottom:120px !important; max-height:calc(100vh - 186px); }
+  #gizmo{ max-height:calc(100vh - 160px); }
+  #cam-anim-panel{ max-height:calc(100vh - 160px) !important; }
+  #cam-panel{ max-height:calc(100vh - 52px); }
+}
+
+/* ══════════════════════════════════════════════════════════════════════
+   iPad portrait panel + cbar refinements (2026-06)
+   Portrait has less width — panels must not overflow horizontally.
+   ══════════════════════════════════════════════════════════════════════ */
+@media (pointer:coarse) and (any-hover:none) and (orientation:portrait) and (min-width:600px) and (min-height:600px){
+  #sun-panel{ max-height:calc(100vh - 250px); width:min(220px, calc(100vw - 28px)) !important; }
+  #gizmo{ max-height:calc(100vh - 160px); width:min(220px, calc(100vw - 28px)) !important; }
+  #cam-panel{ width:min(288px, 42vw) !important; }
+  #cam-anim-panel{ max-height:calc(100vh - 200px) !important; }
+}
+
+/* ══════════════════════════════════════════════════════════════════════
+   Phone landscape safeguards (2026-06)
+   Height ≤500px — the tightest layout. Ensure all panels fit within
+   the viewport and the cbar doesn't collide with joystick / panels.
+   ══════════════════════════════════════════════════════════════════════ */
+@media (pointer:coarse) and (any-hover:none) and (orientation:landscape) and (max-height:500px){
+  #hud .cbar > button{ padding:5px 8px !important; font-size:.56em !important; }
+  #sun-panel{ max-height:calc(100vh - 96px) !important; width:min(180px, 40vw) !important; }
+  #cam-panel{ width:min(200px, 38vw) !important; max-height:calc(100vh - 36px) !important; top:34px !important; }
+  #quality-panel{ width:min(180px, 40vw) !important; max-height:calc(100vh - 80px) !important; }
+  #gizmo{ width:min(190px, 40vw) !important; max-height:calc(100vh - 80px) !important; top:64px !important; }
+  #cam-anim-panel{ max-height:calc(100vh - 80px) !important; width:min(200px, 40vw) !important; }
+  #topbar{ height:28px !important; }
+  #view-tl-btns{ top:30px !important; }
+  #view-tl-btns button{ padding:4px 6px !important; font-size:.52em !important; }
+  #qi-badge{ top:28px !important; font-size:.54em !important; padding:3px 6px !important; }
+}
+
+/* ══════════════════════════════════════════════════════════════════════
+   Phone portrait narrow (≤375px) — extra tightening
+   iPhone SE / mini has only ~375px width. Ensure cbar buttons and
+   panels don't overflow.
+   ══════════════════════════════════════════════════════════════════════ */
+@media (pointer:coarse) and (any-hover:none) and (orientation:portrait) and (max-width:375px){
+  #hud .cbar{ gap:4px !important; }
+  #hud .cbar > button{ padding:6px 7px !important; font-size:.55em !important; }
+  #sun-panel{ width:min(170px, calc(100vw - 16px)) !important; }
+  #cam-panel{ width:min(190px, 70vw) !important; }
+  #quality-panel{ width:min(170px, calc(100vw - 16px)) !important; }
+  #gizmo{ width:min(180px, calc(100vw - 16px)) !important; }
+}
+
 </style>
 </head>
 <body>
