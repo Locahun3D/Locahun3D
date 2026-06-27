@@ -495,6 +495,24 @@ body.msr-active #hud .cbar > button:not(#btnMeasure){ display:none !important; }
    🖥画質チップ のみ表示し、カメラリセット・オブジェクト追加・アバター歩行は隠す
    （user 2026-06-27）。AR は元々タッチ端末でのみ表示。 */
 body.cam-active #view-tl-btns > *:not(#btnCamAnim):not(#btnAR):not(#qi-badge){ display:none !important; }
+/* カメラモード中：下ボタン群(cbar)と上ボタン群を、左の操作系(ジョイスティック or
+   レイヤーパネル)と右のカメラツール情報パネルの「あいだ」の中央へ寄せ直す。
+   --cam-cbar-left / --cam-top-left は _layoutCamMode() が実測して px で設定する
+   （iPad/スマホ縦でボタンが右パネルに隠れる問題の解消 — user 2026-06-27）。 */
+body.cam-active #hud .cbar{
+  left: var(--cam-cbar-left, 50%) !important;
+  right:auto !important;
+  transform: translateX(-50%) !important;
+}
+body.cam-active #view-tl-btns{
+  left: var(--cam-top-left, 50%) !important;
+  right:auto !important;
+  transform: translateX(-50%) !important;
+  max-width: var(--cam-top-maxw, none);
+  flex-wrap: wrap;
+  justify-content: center;
+  row-gap: 5px;
+}
 
 /* ── Settings panel ── */
 #qpanel{
@@ -7206,9 +7224,49 @@ window.toggleCamTool = function(){
   // If the カメラアニメ panel is open alongside, re-tuck it left of / back from
   // the camera panel as the tool opens/closes.
   if(typeof _camAnimReposition === 'function') _camAnimReposition();
+  // Re-centre cbar / top buttons between the left controls and the right cam panel
+  // (or clear the vars when closing). setTimeout (not rAF) so it runs reliably AND
+  // after the panel's layout has settled — works for both open and close.
+  setTimeout(()=>{ if(window._layoutCamMode) window._layoutCamMode(); }, 30);
 };
 
-window.addEventListener('resize', ()=>{ if(cam.active) layoutCamFrame(); });
+window.addEventListener('resize', ()=>{ if(cam.active){ layoutCamFrame(); if(window._layoutCamMode) window._layoutCamMode(); } });
+window.addEventListener('orientationchange', ()=>{ setTimeout(()=>{ if(cam.active){ layoutCamFrame(); if(window._layoutCamMode) window._layoutCamMode(); } }, 220); });
+
+// Re-centre the bottom (cbar) + top (#view-tl-btns) button groups into the free
+// space BETWEEN the left controls (joystick if shown, else layer panel) and the
+// right カメラツール panel while camera mode is open. Sets px CSS vars consumed by
+// the `body.cam-active` rules. user 2026-06-27 (E/F: buttons hid behind / weren't
+// centred relative to the right panel on iPad / phone portrait).
+function _layoutCamMode(){
+  const root = document.documentElement;
+  const pan = document.getElementById('cam-panel');
+  const open = document.body.classList.contains('cam-active') && pan && getComputedStyle(pan).display!=='none';
+  if(!open){
+    root.style.removeProperty('--cam-cbar-left');
+    root.style.removeProperty('--cam-top-left');
+    root.style.removeProperty('--cam-top-maxw');
+    return;
+  }
+  const panLeft = pan.getBoundingClientRect().left;   // right edge of the free zone
+  let leftBound = 0;
+  const joy = document.getElementById('joy');
+  if(joy && getComputedStyle(joy).display!=='none'){
+    const jr = joy.getBoundingClientRect().right;
+    const jv = document.getElementById('joy-vert');
+    const jvr = (jv && getComputedStyle(jv).display!=='none') ? jv.getBoundingClientRect().right : jr;
+    leftBound = Math.max(jr, jvr);
+  } else {
+    const lp = document.getElementById('layer-panel');
+    if(lp && getComputedStyle(lp).display!=='none') leftBound = lp.getBoundingClientRect().right;
+  }
+  const center = Math.round((leftBound + panLeft) / 2);
+  const freeW = Math.max(80, Math.round(panLeft - leftBound - 12));
+  root.style.setProperty('--cam-cbar-left', center+'px');
+  root.style.setProperty('--cam-top-left', center+'px');
+  root.style.setProperty('--cam-top-maxw', freeW+'px');
+}
+window._layoutCamMode = _layoutCamMode;   // exposed for resize hooks / debugging
 
 // ══════════════════════════════════════════════════
 //  CAMERA LAYER (multi-camera placement)
