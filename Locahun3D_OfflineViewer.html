@@ -1084,7 +1084,15 @@ body.cam-active #view-tl-btns{
   #cam-anim-panel{ width:min(210px, calc(100vw - 24px)) !important; padding:8px 10px !important; max-height:60vh !important; }
   /* user 2026-06-28: スマホUIをさらに 2/3 に縮小（押して出るパネル＋上部カメラワーク/画質バッジ）。
      パネルは右下/右上を基点に scale → 位置を保ったまま一回り小さく（日照パネルの上見切れも緩和）。 */
-  #sun-panel{ transform:scale(.67); transform-origin:bottom right; }
+  /* スマホ限定: 日照(#sun-panel)/測定(#gizmo) を カメラワーク(#cam-anim-panel) と同じ
+     「右上・同じ幅・同じ最大高」に統一（user 2026-06-28）。サイズは共有の .58em＋幅で合わせ、
+     位置は bottom 基点をやめて top:46px・right:14px に揃える。scale は使わない。 */
+  #sun-panel, #gizmo, #cam-anim-panel{
+    top:46px !important; bottom:auto !important; left:auto !important; right:14px !important;
+    width:min(210px, calc(100vw - 24px)) !important;
+    max-height:calc(100vh - 64px) !important;
+    transform:none !important;
+  }
   /* 上部の カメラワーク(🎞) ボタンの行内サイズを 2/3 に詰める。
      ※画質/FPSバッジ(#qi-badge)そのものは変更しない（縮小対象は低中高ボタン側）。 */
   #view-tl-btns > #btnCamAnim{ font-size:.5em !important; padding:3px 7px !important; }
