@@ -89,6 +89,21 @@ body{position:fixed;top:0;left:0;}
 @media (min-width:1600px) and (hover:none){
   :focus-visible{ outline-width: 4px !important; outline-offset: 3px !important; }
 }
+/* ── TV / set-top D-pad: no pointing device at all → `pointer:none`. These fall
+   through to desktop sizing but are viewed from across a room, so enlarge the
+   controls for a legible 10-foot UI. Precise target — desktop is pointer:fine,
+   touch is pointer:coarse, so ONLY a pure remote/D-pad matches; nothing else is
+   affected. user 2026-06-28. ── */
+@media (pointer: none){
+  #view-tl-btns button{ font-size:.9em !important; padding:8px 16px !important; }
+  #hud .cbar button{ font-size:.92em !important; padding:11px 18px !important; }
+  #qi-badge{ font-size:.9em !important; }
+  #topbar .tb-home, #topbar .tb-update, #topbar .tb-lang,
+  #topbar #tb-save-btn, #topbar #tb-undo-btn{ font-size:.85em; padding:5px 12px; }
+  #quality-panel #qbtns button{ padding:10px 0 !important; font-size:1.05em !important; }
+  /* The bottom bar can sit a touch higher so it clears any TV bottom overscan. */
+  #hud .cbar{ bottom:28px; }
+}
 
 /* iPad/iPhone fix (2026-06): touch-action:manipulation on the document root does
    NOT reliably propagate the "no double-tap-zoom" behaviour to individual elements
