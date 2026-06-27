@@ -465,6 +465,12 @@ body{position:fixed;top:0;left:0;}
 /* Toggle JA / EN entries via lang on root */
 :root[lang="en"] #dz .dz-changelog .cl-ja{display:none;}
 :root:not([lang="en"]) #dz .dz-changelog .cl-en{display:none;}
+/* 更新履歴の下: ロケハン3D サイトへ戻るリンク */
+#dz .dz-back-site{display:block;margin:10px auto 0;max-width:340px;width:100%;text-align:center;
+  padding:9px 14px;border-radius:8px;border:1px solid rgba(255,255,255,.12);
+  background:rgba(255,255,255,.03);color:rgba(220,220,220,.78);font-size:.82em;
+  text-decoration:none;cursor:pointer;transition:background .15s,color .15s,border-color .15s;}
+#dz .dz-back-site:hover{background:rgba(255,180,84,.1);border-color:rgba(255,180,84,.4);color:#ffd9a8;}
 
 /* ── Loading ── */
 #ld{
@@ -701,6 +707,8 @@ body.cam-active #view-tl-btns{
   background:rgba(22,22,24,.96);display:flex;flex-direction:column;
   z-index:55;pointer-events:all;transition:opacity .5s;opacity:0;
   border-right:1px solid rgba(255,255,255,.07);
+  /* iOSで長押しすると選択ルーペ/コールアウトが出てページがずれるのを防ぐ */
+  -webkit-touch-callout:none;-webkit-user-select:none;user-select:none;
 }
 #layer-panel.visible{opacity:1;}
 .lp-head{
@@ -737,6 +745,7 @@ body.cam-active #view-tl-btns{
 #layer-list{
   flex:1 1 auto;overflow-y:auto;padding:5px;background:rgba(22,22,24,.82);
   min-height:60px;
+  touch-action:pan-y;overscroll-behavior:contain;-webkit-touch-callout:none;
 }
 #layer-list::-webkit-scrollbar{width:4px;}
 #layer-list::-webkit-scrollbar-thumb{background:rgba(255,255,255,.1);border-radius:2px;}
@@ -1526,7 +1535,7 @@ body.immersive #immersive-exit{ display:inline-block; }
 @media (pointer:coarse) and (any-hover:none) and (orientation:portrait) and (min-width:600px) and (min-height:600px){
   #sun-panel{ max-height:calc(100vh - 250px); width:min(220px, calc(100vw - 28px)) !important; }
   #gizmo{ max-height:calc(100vh - 160px); width:min(220px, calc(100vw - 28px)) !important; }
-  #cam-panel{ width:min(288px, 42vw) !important; }
+  #cam-panel{ width:min(262px, 40vw) !important; }
   #cam-anim-panel{ max-height:calc(100vh - 200px) !important; }
 }
 
@@ -3170,7 +3179,7 @@ body.immersive #immersive-exit{ display:inline-block; }
 <div id="cam-shot-panel" style="display:none" aria-hidden="true"></div>
 
 <!-- Side panel (right) -->
-<div id="cam-panel" style="position:fixed;top:46px;right:0;bottom:0;width:288px;
+<div id="cam-panel" style="position:fixed;top:46px;right:0;bottom:0;width:262px;
   background:rgba(20,20,22,.95);backdrop-filter:blur(12px);
   border-left:1px solid rgba(255,255,255,.08);color:#d8d8d8;
   font-size:.78em;font-family:ui-sans-serif,system-ui,sans-serif;
@@ -3442,21 +3451,22 @@ body.immersive #immersive-exit{ display:inline-block; }
 /* Legacy section header (kept for sub-headings inside groups) */
 #cam-panel .cm-sec{font-size:.72em;color:#aaa;letter-spacing:.06em;margin:10px 0 4px;
   text-transform:uppercase;font-weight:600;}
-#cam-panel .cm-row{display:flex;align-items:center;gap:6px;margin-bottom:5px;}
-#cam-panel .cm-lbl{font-size:.82em;color:#888;min-width:52px;}
+/* ボタン幅を詰めて右パネル全体を細く（段組み/セクション配置は不変）。 */
+#cam-panel .cm-row{display:flex;align-items:center;gap:5px;margin-bottom:5px;}
+#cam-panel .cm-lbl{font-size:.82em;color:#888;min-width:44px;}
 #cam-panel .cm-input{flex:1;background:#0e0e10;border:1px solid rgba(255,255,255,.1);
-  color:#ddd;border-radius:3px;padding:4px 6px;font-size:.92em;font-family:inherit;
+  color:#ddd;border-radius:3px;padding:4px 5px;font-size:.92em;font-family:inherit;
   min-width:0;}
 #cam-panel .cm-aspect,#cam-panel .cm-grid-btn{flex:1;background:#1a1a1c;
   border:1px solid rgba(255,255,255,.1);color:#888;border-radius:3px;
-  padding:4px 6px;font-size:.78em;cursor:pointer;font-family:inherit;min-width:54px;}
+  padding:4px 4px;font-size:.78em;cursor:pointer;font-family:inherit;min-width:42px;}
 #cam-panel .cm-aspect.on,#cam-panel .cm-grid-btn.on{background:rgba(255,180,84,.18);
   border-color:rgba(255,180,84,.5);color:#ffe4b3;}
 #cam-panel .cm-wb-btn{background:#1a1a1c;border:1px solid rgba(255,255,255,.1);
-  color:#aaa;border-radius:3px;padding:4px 8px;font-size:1em;cursor:pointer;}
+  color:#aaa;border-radius:3px;padding:4px 6px;font-size:1em;cursor:pointer;}
 #cam-panel .cm-focal-btn{flex:0 0 auto;background:#1a1a1c;
   border:1px solid rgba(255,255,255,.1);color:#888;border-radius:3px;
-  padding:3px 8px;font-size:.78em;cursor:pointer;font-family:inherit;min-width:36px;}
+  padding:3px 5px;font-size:.78em;cursor:pointer;font-family:inherit;min-width:29px;}
 #cam-panel .cm-focal-btn.on{background:rgba(255,180,84,.18);
   border-color:rgba(255,180,84,.5);color:#ffe4b3;}
 #btnCamTool.on{background:rgba(255,180,84,.22);border-color:rgba(255,180,84,.55);
@@ -3683,6 +3693,9 @@ body.ar-active #dz{display:none !important;}
       </div>
     </div>
   </div>
+  <a class="dz-back-site" id="dz-back-site" href="https://locahun3d.com/">
+    <span id="dz-back-site-lbl">← ロケハン3D サイトへ戻る</span>
+  </a>
   <div class="dz-version-line">
     <span id="tb-version">v 0.2.0-beta</span>
   </div>
@@ -5112,6 +5125,21 @@ window.__cloudDbg = function(){
 // 3Dパイプラインから独立。雨=斜めの筋(霧雨/雨/豪雨)、雪=白い粒がゆらぎ落ちる、雹=速く白い短粒。
 // ★日照の空(__sun)が表示中なら、日照ボタンでモードを抜けても(凍結保持)降り続ける＝雲と同じ挙動。
 let _precipCv=null, _precipCtx=null, _precipParts=[], _precipTimer=null, _precipType='none', _precipLevel=0, _precipLast=null;
+let _precipLastYaw=null, _precipLastPitch=null; const _precipDirV=new THREE.Vector3();
+// カメラの回転に合わせて粒を逆方向へずらす（パララックス）→ 画面に張り付かず世界に追従して見える。
+function _precipParallax(W,H){
+  if(typeof camera==='undefined' || !camera) return {sx:0, sy:0};
+  camera.getWorldDirection(_precipDirV);
+  const yaw=Math.atan2(_precipDirV.x, _precipDirV.z);
+  const pitch=Math.asin(Math.max(-1,Math.min(1,_precipDirV.y)));
+  if(_precipLastYaw==null){ _precipLastYaw=yaw; _precipLastPitch=pitch; return {sx:0, sy:0}; }
+  let dyaw=yaw-_precipLastYaw; if(dyaw>Math.PI)dyaw-=6.2832; if(dyaw<-Math.PI)dyaw+=6.2832;
+  const dpitch=pitch-_precipLastPitch;
+  _precipLastYaw=yaw; _precipLastPitch=pitch;
+  const vfov=((camera.fov||50)*Math.PI/180), hfov=2*Math.atan(Math.tan(vfov/2)*(W/Math.max(1,H)));
+  // カメラが右を向く(dyaw>0)→粒は左へ。カメラが上を向く(dpitch>0)→粒は下へ。
+  return { sx:-dyaw*(W/Math.max(0.001,hfov)), sy:dpitch*(H/Math.max(0.001,vfov)) };
+}
 function _sunSkyShown(){ return (typeof env!=='undefined' && env && env.mesh && env.mesh.visible && env.preset==='__sun'); }
 function _precipConfig(type, lv){
   if(type==='snow'){
@@ -5151,25 +5179,30 @@ function _precipSeed(cfg){
 }
 function _precipTick(){
   _precipTimer=null;
-  if(_precipLevel<1 || _precipType==='none' || !_sunSkyShown()){ if(_precipCv) _precipCv.style.display='none'; _precipLast=null; return; }
+  if(_precipLevel<1 || _precipType==='none' || !_sunSkyShown()){ if(_precipCv) _precipCv.style.display='none'; _precipLast=null; _precipLastYaw=null; return; }
   const cfg=_precipConfig(_precipType,_precipLevel);
   const now=(typeof performance!=='undefined'?performance.now():Date.now());
   const dt=_precipLast==null?0.016:Math.min(0.05,(now-_precipLast)/1000); _precipLast=now;
   const t=now/1000, W=window.innerWidth, H=window.innerHeight, ctx=_precipCtx;
+  const par=_precipParallax(W,H), sx=par.sx, sy=par.sy, WW=W+260;
   ctx.clearRect(0,0,W,H);
   if(cfg.snow){
     ctx.fillStyle='rgba(248,250,255,'+cfg.alpha+')';
     for(const p of _precipParts){
-      p.y+=p.v*dt; p.x+=Math.sin(t*cfg.sway+p.ph)*0.5;
+      p.y+=p.v*dt+sy; p.x+=Math.sin(t*cfg.sway+p.ph)*0.5+sx;
+      if(p.x<-130)p.x+=WW; else if(p.x>W+130)p.x-=WW;
       if(p.y>H+8){ p.y=-8-Math.random()*40; p.x=Math.random()*(W+240)-120; }
+      else if(p.y<-60){ p.y=H+Math.random()*30; p.x=Math.random()*(W+240)-120; }
       ctx.beginPath(); ctx.arc(p.x,p.y,p.r,0,6.2832); ctx.fill();
     }
   } else {
     ctx.strokeStyle=(_precipType==='hail'?'rgba(232,240,250,':'rgba(176,194,216,')+cfg.alpha+')';
     ctx.lineWidth=cfg.w; ctx.lineCap='round'; ctx.beginPath();
     for(const p of _precipParts){
-      p.y+=p.v*dt; p.x+=p.v*dt*cfg.slant;
+      p.y+=p.v*dt+sy; p.x+=p.v*dt*cfg.slant+sx;
+      if(p.x<-130)p.x+=WW; else if(p.x>W+130)p.x-=WW;
       if(p.y>H+24){ p.y=-24-Math.random()*80; p.x=Math.random()*(W+240)-120; }
+      else if(p.y<-90){ p.y=H+Math.random()*40; p.x=Math.random()*(W+240)-120; }
       ctx.moveTo(p.x,p.y); ctx.lineTo(p.x - p.l*cfg.slant, p.y - p.l);
     }
     ctx.stroke();
@@ -13592,9 +13625,11 @@ window.readTransformInputs=function(id){
   L.scale.y=Math.max(0.001,g('lt-scy')||1);
   L.scale.z=Math.max(0.001,g('lt-scz')||1);
   if(L.type==='cube'||L.type==='sphere'){
-    L.size.x=Math.max(0.01,g('lt-sw')||1);
-    L.size.y=Math.max(0.01,g('lt-sh')||1);
-    L.size.z=Math.max(0.01,g('lt-sd')||1);
+    if(document.getElementById('lt-sw')){   // サイズ入力がある(球)ときだけ読む。立方体は非表示なので既存値を維持。
+      L.size.x=Math.max(0.01,g('lt-sw')||1);
+      L.size.y=Math.max(0.01,g('lt-sh')||1);
+      L.size.z=Math.max(0.01,g('lt-sd')||1);
+    }
     updateCubeGeometry(id);
   }
   applyLayerTransform(id);
@@ -14019,7 +14054,7 @@ function applyI18n(){
   // ── Home screen & extended elements ──
   const _s=(id,key)=>{ const e=document.getElementById(id); if(e) e.textContent=T(key); };
   _s('dz-h1','dz-h1'); _s('dz-sub','dz-sub');
-  _s('dz-drop-text','dz-drop-text'); _s('dz-empty-text','dz-empty-text');
+  _s('dz-drop-text','dz-drop-text'); _s('dz-empty-text','dz-empty-text'); _s('dz-back-site-lbl','dz-back-site-lbl');
   _s('dz-zip-text','dz-zip-text'); _s('dz-continue-text','dz-continue-text');
   _s('mf-title','mf-title');
   const mfHint=document.getElementById('mf-hint'); if(mfHint) mfHint.textContent=T('mf-hint');
@@ -14613,13 +14648,16 @@ function renderTransformPanel(){
        hotkey / saved-project / scripted caller still resolves cleanly. -->`;
   }
   if(L.type==='cube'||L.type==='sphere'){
+    // サイズ(W/H/D)は球のみ表示。立方体は冗長なので非表示（拡縮=スケールで調整）。
+    if(L.type==='sphere'){
     html+=`<div class="lt-section">${T('lt-size')}</div>
   <div class="lt-row">
     <span class="la" style="color:#ff5566">W</span><input type="number" id="lt-sw" step="0.01" min="0.01" value="${s.x.toFixed(2)}" oninput="readTransformInputs(${L.id})">
     <span class="la" style="color:#55ee66">H</span><input type="number" id="lt-sh" step="0.01" min="0.01" value="${s.y.toFixed(2)}" oninput="readTransformInputs(${L.id})">
     <span class="la" style="color:#5599ff">D</span><input type="number" id="lt-sd" step="0.01" min="0.01" value="${s.z.toFixed(2)}" oninput="readTransformInputs(${L.id})">
-  </div>
-  <div class="lt-section">${T('lt-appear')}</div>
+  </div>`;
+    }
+    html+=`<div class="lt-section">${T('lt-appear')}</div>
   <div class="lt-row" style="align-items:center;gap:6px">
     <span class="la" style="color:#D8D8D8;width:auto;font-size:.68em">${T('lt-color')}</span>
     <input type="color" value="${L.cubeColor||'#ffffff'}" oninput="setCubeColor(${L.id},this.value)"
@@ -19968,7 +20006,7 @@ Object.assign(I18N.ja,{
   'dz-h1':'ロケハン3D',
   'dz-sub':'3D Gaussian Splatting ビューア',
   'dz-drop-text':'3DGS、Zipファイルをドロップ、またはクリックして選択',
-  'dz-empty-text':'空プロジェクトを開く',
+  'dz-empty-text':'空プロジェクトを開く','dz-back-site-lbl':'← ロケハン3D サイトへ戻る',
   'dz-zip-text':'プロジェクトを開く (.zip)',
   'dz-continue-text':'編集を続ける',
   'mf-title':'ミニマップ',
@@ -20235,7 +20273,7 @@ Object.assign(I18N.en,{
   'dz-h1':'LOCAHUN 3D',
   'dz-sub':'3D Gaussian Splatting Viewer',
   'dz-drop-text':'Drop 3DGS / ZIP file(s) or click to browse',
-  'dz-empty-text':'Open Empty Project',
+  'dz-empty-text':'Open Empty Project','dz-back-site-lbl':'← Back to Locahun3D site',
   'dz-zip-text':'Open Project (.zip)',
   'dz-continue-text':'Continue Editing',
   'mf-title':'Minimap',
