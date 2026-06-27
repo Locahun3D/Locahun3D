@@ -3841,6 +3841,11 @@ body.ar-active #dz{display:none !important;}
 
 <!-- Gizmo / Measure panel -->
 <div id="gizmo">
+  <!-- 右上の × で測定を閉じる（user 2026-06-28）。.gt は applyI18n が innerHTML を
+       書き換えるので、その外（パネル直下）に絶対配置で置く。 -->
+  <button id="msr-close-x" onclick="toggleMeasure()" ontouchend="if(event.cancelable)event.preventDefault(); toggleMeasure();"
+    title="測定を閉じる" aria-label="閉じる"
+    style="position:absolute;top:9px;right:11px;background:none;border:none;color:#9a9a9a;font-size:1.05em;line-height:1;cursor:pointer;padding:3px 5px;z-index:2">✕</button>
   <div class="gt">📐 距離測定</div>
 
   <!-- Point list (uniform rows). The per-point world-coordinate inputs and
