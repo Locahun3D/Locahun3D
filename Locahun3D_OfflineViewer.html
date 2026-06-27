@@ -582,6 +582,9 @@ body.msr-active #hud .cbar > button:not(#btnMeasure){ display:none !important; }
    🖥画質チップ のみ表示し、カメラリセット・オブジェクト追加・アバター歩行は隠す
    （user 2026-06-27）。AR は元々タッチ端末でのみ表示。 */
 body.cam-active #view-tl-btns > *:not(#btnCamAnim):not(#btnAR):not(#qi-badge){ display:none !important; }
+/* 自由ゾーンが狭い（スマホ縦でカメラパネルが画面を占有）と上部ボタンがパネルに重なるため隠す。
+   _layoutCamMode() が body.cam-cramped を付与。横向き/iPad/PCでは余白が十分なので発火しない。 */
+body.cam-active.cam-cramped #view-tl-btns{ display:none !important; }
 /* カメラモード中：下ボタン群(cbar)と上ボタン群を、左の操作系(ジョイスティック or
    レイヤーパネル)と右のカメラツール情報パネルの「あいだ」の中央へ寄せ直す。
    --cam-cbar-left / --cam-top-left は _layoutCamMode() が実測して px で設定する
@@ -7734,6 +7737,7 @@ function _layoutCamMode(){
     root.style.removeProperty('--cam-cbar-left');
     root.style.removeProperty('--cam-top-left');
     root.style.removeProperty('--cam-top-maxw');
+    document.body.classList.remove('cam-cramped');
     return;
   }
   const panLeft = pan.getBoundingClientRect().left;   // right edge of the free zone
@@ -7749,10 +7753,13 @@ function _layoutCamMode(){
     if(lp && getComputedStyle(lp).display!=='none') leftBound = lp.getBoundingClientRect().right;
   }
   const center = Math.round((leftBound + panLeft) / 2);
-  const freeW = Math.max(80, Math.round(panLeft - leftBound - 12));
+  const room = panLeft - leftBound;
+  const freeW = Math.max(80, Math.round(room - 12));
   root.style.setProperty('--cam-cbar-left', center+'px');
   root.style.setProperty('--cam-top-left', center+'px');
   root.style.setProperty('--cam-top-maxw', freeW+'px');
+  // 自由ゾーンが狭すぎる（スマホ縦など）と上部ボタンがパネルに重なるので、その時は隠す。
+  document.body.classList.toggle('cam-cramped', room < 150);
 }
 window._layoutCamMode = _layoutCamMode;   // exposed for resize hooks / debugging
 
