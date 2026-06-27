@@ -76,6 +76,20 @@ body{position:fixed;top:0;left:0;}
   }
 }
 
+/* ── No-hover devices: reinforce the focused control with a tinted background
+   (D-pad / gaze users never get :hover, so the ring alone can be easy to lose
+   against busy splat backgrounds). Only fires for real focus-navigation
+   (:focus-visible), so touch taps and mouse clicks are unaffected. ── */
+@media (hover: none){
+  button:focus-visible, a:focus-visible, [role="button"]:focus-visible, [tabindex]:focus-visible{
+    background: rgba(90,169,255,.20) !important;
+  }
+}
+/* 10-foot screens (TV / console / VR viewed from afar): a bolder ring. */
+@media (min-width:1600px) and (hover:none){
+  :focus-visible{ outline-width: 4px !important; outline-offset: 3px !important; }
+}
+
 /* iPad/iPhone fix (2026-06): touch-action:manipulation on the document root does
    NOT reliably propagate the "no double-tap-zoom" behaviour to individual elements
    in iOS Safari — a touch that STARTS on an element uses that element's own (auto)
