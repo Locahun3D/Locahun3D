@@ -1090,6 +1090,8 @@ body.cam-active #view-tl-btns{
   #view-tl-btns > #btnCamAnim{ font-size:.5em !important; padding:3px 7px !important; }
   /* 画質「低 / 中 / 高」3ボタンを 2/3 に（タッチ用拡大で大きすぎたのを是正）。 */
   #quality-panel #qbtns button{ padding-top:5px !important; padding-bottom:5px !important; font-size:.66em !important; }
+  /* スマホでは画質パネルの「処理能力モニター」を丸ごと非表示（user 2026-06-28）。 */
+  #qp-perf-section{ display:none !important; }
 }
 
 /* ── Axis pivot highlight ── */
@@ -1898,7 +1900,8 @@ body.immersive #immersive-exit{ display:inline-block; }
            oninput="onSpeedSlider(this.value)" style="width:100%">
   </div>
 
-  <!-- ── パフォーマンスメトリクス ── -->
+  <!-- ── パフォーマンスメトリクス ── （スマホでは丸ごと非表示・user 2026-06-28） -->
+  <div id="qp-perf-section">
   <div class="qp-divider"></div>
   <div class="qp-perf-title" id="qp-perf-t">📊 処理能力モニター</div>
 
@@ -1935,6 +1938,7 @@ body.immersive #immersive-exit{ display:inline-block; }
   </div>
 
   <div style="margin-top:7px;font-size:.62em;color:#303030;text-align:right" id="qp-resolution">—</div>
+  </div><!-- /qp-perf-section -->
 </div>
 
 <!-- ══ View Top-Left Buttons (projection toggle + camera reset) ══ -->
@@ -3854,7 +3858,9 @@ body.ar-active #dz{display:none !important;}
     ＋ <span id="giz-height-lbl">高さを図る (点C追加)</span>
   </button>
 
-  <div class="dist-row"><span id="dist-l">距離</span>: <span id="measDist">-</span></div>
+  <!-- 距離の数値表示はパネルから非表示（user 2026-06-28・全端末）。#measDist は JS が
+       参照するので要素は残し display:none。 -->
+  <div class="dist-row" style="display:none"><span id="dist-l">距離</span>: <span id="measDist">-</span></div>
   <div class="dist-components" id="distComp" style="display:none">
     <span class="dc" style="color:#ff5566">ΔX <span id="dcX">-</span></span>
     <span class="dc" style="color:#55ee66">ΔY <span id="dcY">-</span></span>
