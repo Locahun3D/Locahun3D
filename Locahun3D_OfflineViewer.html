@@ -1245,6 +1245,8 @@ body.cam-active #view-tl-btns{
   /* カメラ起動中(スマホ)は 日照ボタンを隠し、カメラ(終了)ボタンだけを
      ジョイスティック上の空きスペース(青枠)へ寄せる(横位置は _layoutCamMode が設定)。 */
   body.cam-active #btn-sun{ display:none !important; }
+  /* 対称: 日照起動中(スマホ)は カメラボタンを隠す（カメラ起動中に日照を隠すのと同様）。 */
+  body.sun-active #btnCamTool{ display:none !important; }
   /* Phone fix (2026-06): on a ≤600px phone the 176px joystick (anchored
      bottom-left, reaching the horizontal centre at x≈200) plus the elevation
      arrows immediately to its right (x≈208–278) fill the ENTIRE bottom band.
@@ -5286,8 +5288,20 @@ window.addEventListener('resize', ()=>{ if(_precipLevel>=1) _precipResize(); });
 // iOS/iPad: テキスト入力にフォーカスすると position:fixed のページごとスクロールしてしまう。
 // アプリは全画面固定で正規のページスクロールが無いので、常に左上(0,0)へ戻す（内部パネルの
 // overflow スクロールはwindowのscrollイベントを発火しないので影響なし）。
-window.addEventListener('scroll', ()=>{ if(window.pageYOffset || window.pageXOffset) window.scrollTo(0,0); }, {passive:true});
-if(window.visualViewport){ window.visualViewport.addEventListener('scroll', ()=>{ if(window.pageYOffset||window.pageXOffset) window.scrollTo(0,0); }); }
+function _lockPageScroll(){ if(window.pageYOffset||window.pageXOffset||document.documentElement.scrollTop||document.body.scrollTop){ window.scrollTo(0,0); document.documentElement.scrollTop=0; document.body.scrollTop=0; } }
+window.addEventListener('scroll', _lockPageScroll, {passive:true});
+document.addEventListener('focusin', ()=>setTimeout(_lockPageScroll,60));
+document.addEventListener('focusout', ()=>setTimeout(_lockPageScroll,60));
+if(window.visualViewport){ window.visualViewport.addEventListener('scroll', _lockPageScroll); }
+// iPad/iOS: ページ地のタッチドラッグでページごと動くのを抑止（overflowスクロール可能なパネル内は許可）。
+document.addEventListener('touchmove', function(e){
+  let el = e.target;
+  while(el && el.nodeType===1 && el!==document.body){
+    if(el.scrollHeight > el.clientHeight + 1){ const oy=getComputedStyle(el).overflowY; if(oy==='auto'||oy==='scroll') return; }
+    el = el.parentElement;
+  }
+  if(e.cancelable) e.preventDefault();   // ページ地のスクロールを止める
+}, {passive:false});
 window.__setRain   = function(lv){ _precipFxUpdate(lv>=1?'rain':'none', lv||0); };  // 後方互換
 window.__setPrecip = function(type, lv){ _precipFxUpdate(type, lv||0); };           // 検証/微調整用
 
