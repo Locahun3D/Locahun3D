@@ -4609,9 +4609,11 @@ function _envBuildMesh(){
         if(uCloudAmt > 0.001 && vDir.y > 0.0){
           float yy = max(vDir.y, 0.06);
           vec2 uv = (vDir.xz / yy) * 0.45;                       // planar projection
-          vec2 drift = vec2(uCloudTime * 0.006, uCloudTime * 0.0026);
+          // 一方向の風で流す（正確性より体感重視・速め・主に横方向）。
+          // 基層と詳細層を「同方向」かつ詳細をやや速く＝視差で自然に一方向へ流れて見える。
+          vec2 drift = vec2(uCloudTime * 0.028, uCloudTime * 0.005);
           float base   = fbm(uv + drift);
-          float detail = fbm(uv * 2.7 - drift * 1.7);
+          float detail = fbm(uv * 2.7 + drift * 1.6);
           float n = base * 0.62 + detail * 0.38;                 // multi-scale wisps
           float cov = clamp(uCloudAmt, 0.0, 1.0);
           float lo = mix(0.86, 0.12, cov);                       // higher coverage → lower threshold
