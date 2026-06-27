@@ -12512,12 +12512,15 @@ async function _arEnter(orientPermP){
   // result. Only a hard 'denied' aborts — once denied, iOS never re-prompts, so
   // point the user at Settings. 'error'/undefined means we couldn't determine it
   // (e.g. the call threw); continue anyway so the camera passthrough still runs.
+  arMode.noGyro = false;
   if(orientPermP){
     let r = 'granted';
     try { r = await orientPermP; } catch(_){ r = 'error'; }
     if(r === 'denied'){
+      // ★ジャイロ拒否でも AR を中止しない。背面カメラ表示は出し、傾き追従なし＝指で見回す。
+      //   （設定>Safari>モーションと画面の向きのアクセス OFF でも AR が使えるように）
+      arMode.noGyro = true;
       showUndoToast(T('ar-perm-motion-denied'));
-      return;
     }
   }
   // Same minimum cap as V1: 640×360 / 15 fps. In V2 this matters EVEN
@@ -12737,7 +12740,9 @@ async function _arEnter(orientPermP){
     _pitchTarget = newPitchTarget;
     if(dyaw > ARGYRO_EPS || dpitch > ARGYRO_EPS) markDirty(2);
   };
-  window.addEventListener('deviceorientation', arMode.orientHandler, true);
+  // ジャイロ権限が拒否されたときは傾き追従を付けない → baselineCaptured が false のまま
+  // となり、タッチドラッグが直接 free-look（指で見回し）になる。
+  if(!arMode.noGyro) window.addEventListener('deviceorientation', arMode.orientHandler, true);
 
   // ── Store handles + UI swap ──
   arMode.video = video;
@@ -20191,7 +20196,7 @@ Object.assign(I18N.ja,{
   'ar-off':'AR モードを終了しました',
   'ar-unsupported':'⚠ この端末では AR モードが利用できません',
   'ar-permission-denied':'⚠ カメラ / モーションセンサの許可が必要です',
-  'ar-perm-motion-denied':'⚠ モーションセンサが拒否されています。設定 > Safari > モーションと画面の向きのアクセス をオンにして再読み込みしてください',
+  'ar-perm-motion-denied':'ジャイロは無効です（指で見回せます）。傾けて見回すには 設定 > Safari > モーションと画面の向きのアクセス をオン＋再読み込み',
   'ar-perm-camera-denied':'⚠ カメラが拒否されています。設定 > Safari > カメラ を「許可」にして再読み込みしてください',
   'giz-pt-a':'点 A',
   'giz-pt-b':'点 B',
@@ -20458,7 +20463,7 @@ Object.assign(I18N.en,{
   'ar-off':'AR mode ended',
   'ar-unsupported':'⚠ This device does not support AR mode',
   'ar-permission-denied':'⚠ Camera / motion sensor permission required',
-  'ar-perm-motion-denied':'⚠ Motion sensor is blocked. Enable Settings > Safari > Motion & Orientation Access, then reload',
+  'ar-perm-motion-denied':'Gyro is off (drag to look around). To look by tilting, enable Settings > Safari > Motion & Orientation Access, then reload',
   'ar-perm-camera-denied':'⚠ Camera is blocked. Set Settings > Safari > Camera to Allow, then reload',
   'giz-pt-a':'Point A',
   'giz-pt-b':'Point B',
