@@ -4617,8 +4617,10 @@ function _envBuildMesh(){
           float detail = fbm(uv * 2.7);
           float n = base * 0.62 + detail * 0.38;                 // multi-scale wisps
           float cov = clamp(uCloudAmt, 0.0, 1.0);
-          float lo = mix(0.86, 0.12, cov);                       // higher coverage → lower threshold
-          float density = smoothstep(lo, lo + 0.16, n);          // crisp edges → 部分曇りで青空の隙間が見える
+          // 気象庁の雲量定義(空を覆う割合)に一致させる較正。実測ノイズ分布の分位点から逆算し、
+          // 「雲で覆われる面積割合 ≈ 雲量cov」になるしきい値(mid)を求める（cov→mid はほぼ線形、上端で完全曇天へ）。
+          float mid = 0.642 - 0.303 * cov - 0.34 * smoothstep(0.85, 1.0, cov);
+          float density = smoothstep(mid - 0.055, mid + 0.055, n);
           density *= smoothstep(0.02, 0.24, vDir.y);             // haze-fade near horizon (no singularity)
           // shading: sunlit top vs shadowed underside (underside follows sky → dark in rain)
           float lit = clamp(fbm(uv * 1.3 + normalize(uSunDir).xz * 0.28) * 1.35, 0.0, 1.0);
@@ -5095,6 +5097,66 @@ window.__cloudDbg = function(){
     timer: _cloudAnimTimer!=null, params: (typeof _sunCloudParams==='function'? _sunCloudParams():null) };
 };
 
+// ── 雨の表現: シーンの上に降る雨筋を2Dキャンバスで描く（予報が雨のときだけ） ──
+// 3Dパイプラインから独立した前面オーバーレイ。霧雨/雨/豪雨で本数・速度・長さ・濃さを変える。
+let _rainCv=null, _rainCtx=null, _rainDrops=[], _rainTimer=null, _rainLevel=0, _rainLast=null;
+function _rainConfig(lv){
+  if(lv>=3) return { n:340, vmin:980, vmax:1380, lmin:20, lmax:36, slant:0.34, w:1.5, alpha:0.36 };  // 豪雨
+  if(lv>=2) return { n:175, vmin:680, vmax:1000, lmin:13, lmax:26, slant:0.26, w:1.2, alpha:0.30 };  // 雨
+  return       { n:75,  vmin:380, vmax:580,  lmin:7,  lmax:14, slant:0.16, w:0.9, alpha:0.20 };  // 霧雨
+}
+function _rainEnsure(){
+  if(_rainCv) return;
+  _rainCv=document.createElement('canvas'); _rainCv.id='rain-fx';
+  _rainCv.style.cssText='position:fixed;inset:0;width:100%;height:100%;pointer-events:none;z-index:5;display:none;';
+  document.body.appendChild(_rainCv);
+  _rainCtx=_rainCv.getContext('2d');
+}
+function _rainResize(){
+  if(!_rainCv) return;
+  const dpr=Math.min(2, window.devicePixelRatio||1);
+  _rainCv.width=Math.round(window.innerWidth*dpr); _rainCv.height=Math.round(window.innerHeight*dpr);
+  _rainCtx.setTransform(dpr,0,0,dpr,0,0);
+}
+function _rainSeed(cfg){
+  const W=window.innerWidth, H=window.innerHeight; _rainDrops=[];
+  for(let i=0;i<cfg.n;i++) _rainDrops.push({
+    x:Math.random()*(W+240)-120, y:Math.random()*H,
+    v:cfg.vmin+Math.random()*(cfg.vmax-cfg.vmin),
+    l:cfg.lmin+Math.random()*(cfg.lmax-cfg.lmin) });
+}
+function _rainTick(){
+  _rainTimer=null;
+  if(_rainLevel<1 || !(typeof sun!=='undefined' && sun && sun.active)){ if(_rainCv) _rainCv.style.display='none'; _rainLast=null; return; }
+  const cfg=_rainConfig(_rainLevel);
+  const now=(typeof performance!=='undefined'?performance.now():Date.now());
+  const dt=_rainLast==null?0.016:Math.min(0.05,(now-_rainLast)/1000); _rainLast=now;
+  const W=window.innerWidth, H=window.innerHeight, ctx=_rainCtx;
+  ctx.clearRect(0,0,W,H);
+  ctx.strokeStyle='rgba(176,194,216,'+cfg.alpha+')'; ctx.lineWidth=cfg.w; ctx.lineCap='round';
+  ctx.beginPath();
+  for(const d of _rainDrops){
+    d.y+=d.v*dt; d.x+=d.v*dt*cfg.slant;
+    if(d.y>H+24){ d.y=-24-Math.random()*80; d.x=Math.random()*(W+240)-120; }
+    ctx.moveTo(d.x, d.y); ctx.lineTo(d.x - d.l*cfg.slant, d.y - d.l);
+  }
+  ctx.stroke();
+  _rainTimer=setTimeout(_rainTick, 33);   // ~30fps（rAFはラップ済なので setTimeout）
+}
+function _rainFxUpdate(lv){
+  _rainEnsure();
+  const nl=lv||0;
+  if(nl>=1){
+    const reseed = (_rainLevel<1) || (_rainConfig(_rainLevel).n!==_rainConfig(nl).n);
+    _rainLevel=nl; _rainResize();
+    if(reseed) _rainSeed(_rainConfig(nl));
+    _rainCv.style.display='block';
+    if(_rainTimer==null){ _rainLast=null; _rainTick(); }
+  } else { _rainLevel=0; if(_rainCv) _rainCv.style.display='none'; }
+}
+window.addEventListener('resize', ()=>{ if(_rainLevel>=1) _rainResize(); });
+window.__setRain = function(lv){ _rainFxUpdate(lv||0); };   // 検証/微調整用
+
 // 現在の sun.state から太陽位置/日照時間を計算し、ドーム・ティント・読み出し・3D可視化を更新
 function updateSunMode(){
   if(!sun.active) return;
@@ -5135,6 +5197,10 @@ function updateSunMode(){
     u.uCloudLight.value = cp.light * (0.25 + 0.75 * nightFade);
   }
   _cloudAnimEnsure();
+  // 雨の表現: 予報フォロー中＆雨のときだけ降らせる（手動「雨」は従来通り降らせない）。
+  // 夜(高度<-6)は降っていても見えにくいので止める。
+  const _rainLv = (sun._fcAuto && sun.weather==='rain' && altDeg > -6) ? (sun._fcRainLevel || 2) : 0;
+  _rainFxUpdate(_rainLv);
   applySceneTint();
   _sunUpdateReadout(altDeg, w.az, times);
   _sunVizUpdate(dir, times);   // 3D コンパス＋太陽軌道を更新
@@ -5314,7 +5380,7 @@ function _sunFcDetailForNow(){
   const hh=fc.hourly;
   const code=(hh.weather_code&&hh.weather_code[idx]!=null)?hh.weather_code[idx]:null;
   if(code==null) return null;
-  const wx=_wmoWx(code).wx;
+  let wx=_wmoWx(code).wx;
   // ★雲量は天気分類に関係なく常に cloud_cover% から取る（晴れでも雨でも雲は存在する）。
   const cc=(hh.cloud_cover&&hh.cloud_cover[idx]!=null)?hh.cloud_cover[idx]:null;
   let cloudAmt = (cc!=null) ? Math.max(0,Math.min(1, cc/100)) : null;
@@ -5327,6 +5393,12 @@ function _sunFcDetailForNow(){
     cloudAmt = 0.85;                            // 霧(45/48)など雲量欠損 → 厚め
   } else if(cloudAmt==null){
     cloudAmt = 0;                               // 晴れで雲量欠損 → 雲なし
+  }
+  // ★気象庁の雲量基準で「晴れ/曇り」を再判定（雲量で決まる code 0-3 のみ）。
+  //   快晴=雲量0-1 / 晴れ=2-8(15-85%) / 曇り=9-10(85%超)。WMOの partly-cloudy(=晴れ)を
+  //   灰色の曇り扱いにしていたズレを是正。雨・雪・霧はそのまま。
+  if(code>=0 && code<=3 && cloudAmt!=null){
+    wx = (cloudAmt > 0.85) ? 'cloudy' : 'clear';
   }
   return { wx, cloudAmt, rainLevel };
 }
