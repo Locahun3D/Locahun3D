@@ -38,6 +38,31 @@ html,body{
   text-size-adjust:100%;
 }
 body{position:fixed;top:0;left:0;}
+
+/* ══════════════════════════════════════════════════════════════════════════
+   FOCUS RING for non-pointer / no-hover devices (user 2026-06-28).
+   Smart TVs (remote D-pad), game consoles (controller), VR/MR headsets
+   (Vision Pro gaze, Quest), smart displays and car screens all navigate by
+   MOVING FOCUS between controls — and most report `hover:none`, so the app's
+   hover affordances are invisible to them. Without a focus ring the user can't
+   tell which control is selected.
+   :focus-visible only triggers for keyboard / D-pad / gaze focus (NOT mouse
+   clicks), so pointer users see no change. The ring is bright + has an offset
+   gap + a dark contrast halo (box-shadow) so it stays visible on both the dark
+   UI and bright splat backgrounds. !important re-asserts it over the various
+   `outline:none` rules on inputs/sliders.
+   ══════════════════════════════════════════════════════════════════════════ */
+:focus-visible{
+  outline: 3px solid #5aa9ff !important;
+  outline-offset: 2px !important;
+  box-shadow: 0 0 0 5px rgba(0,0,0,.55) !important;
+}
+/* Keep mouse focus quiet (some engines fall back to :focus): only the
+   :focus-visible heuristic should paint the ring. */
+:focus:not(:focus-visible){ outline: none; }
+/* The WebGL canvas itself never needs a ring even if focused for key input. */
+#c:focus-visible, #overlay:focus-visible{ outline: none !important; box-shadow: none !important; }
+
 /* iPad/iPhone fix (2026-06): touch-action:manipulation on the document root does
    NOT reliably propagate the "no double-tap-zoom" behaviour to individual elements
    in iOS Safari — a touch that STARTS on an element uses that element's own (auto)
