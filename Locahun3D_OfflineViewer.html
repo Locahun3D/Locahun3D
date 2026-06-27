@@ -2112,6 +2112,24 @@ body.immersive #immersive-exit{ display:inline-block; }
         <p style="color:#889">スマホ / iPad では、左下のジョイスティックで移動、画面ドラッグで視点回転します。</p>
       </section>
 
+      <section id="m-devices">
+        <h2>📱 デバイス別の対応機能</h2>
+        <p style="color:#889">デバイスによって使える機能・操作が異なります（◯=対応 / △=一部・非推奨 / －=非対応）。</p>
+        <table class="m-tbl">
+          <tr><th>機能</th><th>PC<br>(マウス/キー)</th><th>スマホ/<br>タブレット</th><th>VR<br>(Vision Pro/Quest)</th><th>TV/ゲーム機<br>(リモコン/パッド)</th></tr>
+          <tr><td>視点回転・閲覧</td><td>◯</td><td>◯</td><td>◯</td><td>◯</td></tr>
+          <tr><td>移動（WASD / ジョイスティック）</td><td>◯ WASD</td><td>◯ ジョイ</td><td>◯</td><td>△ D-pad</td></tr>
+          <tr><td>日照・天気シミュレーション</td><td>◯</td><td>◯</td><td>◯</td><td>◯</td></tr>
+          <tr><td>距離測定</td><td>◯</td><td>◯</td><td>△</td><td>△</td></tr>
+          <tr><td>カメラツール（プリビズ）</td><td>◯</td><td>◯</td><td>△</td><td>△</td></tr>
+          <tr><td>オブジェクト追加・編集</td><td>◯</td><td>◯</td><td>△</td><td>△</td></tr>
+          <tr><td>アバター歩行</td><td>◯</td><td>△</td><td>◯</td><td>－</td></tr>
+          <tr><td>AR（背面カメラ重畳）</td><td>－</td><td>◯</td><td>－</td><td>－</td></tr>
+          <tr><td>フォーカス操作（D-pad/視線）</td><td>－</td><td>－</td><td>◯</td><td>◯</td></tr>
+        </table>
+        <p style="color:#889">※ AR はスマホ / タブレットのみ（端末の「設定 &gt; Safari &gt; モーションと画面の向きのアクセス」を ON に）。VR は閲覧・歩行に最適。細かな編集は PC を推奨します。</p>
+      </section>
+
       <section id="m-layers">
         <h2>📁 レイヤーとフォルダー</h2>
         <p>左の「シーンレイヤー」に、読み込んだファイルや追加オブジェクトが並びます。</p>
@@ -2610,6 +2628,24 @@ body.immersive #immersive-exit{ display:inline-block; }
           <li><b>Reset view</b>: “🏠 Camera reset” at the top</li>
         </ul>
         <p style="color:#889">On phone / iPad, use the bottom-left joystick to move and drag the screen to look around.</p>
+      </section>
+
+      <section id="m-devices">
+        <h2>📱 Features by device</h2>
+        <p style="color:#889">Available features and controls differ by device (◯=yes / △=partial or not recommended / －=no).</p>
+        <table class="m-tbl">
+          <tr><th>Feature</th><th>PC<br>(mouse/key)</th><th>Phone/<br>Tablet</th><th>VR<br>(Vision Pro/Quest)</th><th>TV/Console<br>(remote/pad)</th></tr>
+          <tr><td>Look around / view</td><td>◯</td><td>◯</td><td>◯</td><td>◯</td></tr>
+          <tr><td>Move (WASD / joystick)</td><td>◯ WASD</td><td>◯ joy</td><td>◯</td><td>△ D-pad</td></tr>
+          <tr><td>Sun / weather sim</td><td>◯</td><td>◯</td><td>◯</td><td>◯</td></tr>
+          <tr><td>Distance measure</td><td>◯</td><td>◯</td><td>△</td><td>△</td></tr>
+          <tr><td>Camera tool (previz)</td><td>◯</td><td>◯</td><td>△</td><td>△</td></tr>
+          <tr><td>Add / edit objects</td><td>◯</td><td>◯</td><td>△</td><td>△</td></tr>
+          <tr><td>Avatar walk</td><td>◯</td><td>△</td><td>◯</td><td>－</td></tr>
+          <tr><td>AR (rear-camera overlay)</td><td>－</td><td>◯</td><td>－</td><td>－</td></tr>
+          <tr><td>Focus nav (D-pad / gaze)</td><td>－</td><td>－</td><td>◯</td><td>◯</td></tr>
+        </table>
+        <p style="color:#889">AR is phone / tablet only (enable “Settings &gt; Safari &gt; Motion &amp; Orientation Access”). VR is best for viewing &amp; walking; use a PC for detailed editing.</p>
       </section>
 
       <section id="m-layers">
@@ -17086,7 +17122,11 @@ function animate(now) {
       // "枠内とレンズ画角が違う") — Pass 1 must use a WIDER vertical FOV that fills the
       // full viewport height H at that same scale: fov_context = fov · (H / r.h).
       const _lensVFov = fov;
-      const _ctxVFov  = _lensVFov * (r.viewportH / Math.max(1, r.h));
+      // ★焦点距離(px)を枠と完全一致させる＝tanベースでスケールする。
+      //   旧コードは角度を線形にスケール(fov·H/h)していたが、ピンホール射影では
+      //   焦点距離が一致しないと枠縁で見え方(スケール)がジャンプする（35mm等の広角で顕著）。
+      //   f_px = (h/2)/tan(fov/2) を全画面高Hでも一致 → ctxVFov = 2·atan((H/h)·tan(fov/2))。
+      const _ctxVFov  = 2 * Math.atan((r.viewportH / Math.max(1, r.h)) * Math.tan(_lensVFov * Math.PI/360)) * 180/Math.PI;
 
       // Pass 1 — outside context: full canvas, canvas aspect, widened FOV.
       renderer.setScissorTest(false);
