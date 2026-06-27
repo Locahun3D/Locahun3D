@@ -4551,6 +4551,10 @@ function _envBuildMesh(){
       uSunDir:    { value: new THREE.Vector3(0, 1, 0) },       // WORLD direction toward the sun
       uSunColor:  { value: new THREE.Color(1.0, 0.95, 0.85) }, // disc + glow tint
       uSunGlow:   { value: 1.0 },                              // glow strength (fades near/below horizon)
+      // ── Procedural clouds (日照モードのみ) ──
+      uCloudAmt:  { value: 0.0 },                              // 0 = clear sky, 1 = full overcast (coverage)
+      uCloudTime: { value: 0.0 },                              // drift animation seconds
+      uCloudLight:{ value: 1.0 },                              // sunlit-top whiteness (lowered for rain)
     },
     vertexShader: `
       varying vec3 vDir;
@@ -4573,6 +4577,24 @@ function _envBuildMesh(){
       uniform vec3  uSunDir;
       uniform vec3  uSunColor;
       uniform float uSunGlow;
+      uniform float uCloudAmt;
+      uniform float uCloudTime;
+      uniform float uCloudLight;
+      // ── value-noise FBM (procedural clouds) ──
+      float h21(vec2 p){ return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453123); }
+      float vnoise(vec2 p){
+        vec2 i = floor(p), f = fract(p);
+        vec2 u = f * f * (3.0 - 2.0 * f);
+        float a = h21(i), b = h21(i + vec2(1.0, 0.0));
+        float c = h21(i + vec2(0.0, 1.0)), d = h21(i + vec2(1.0, 1.0));
+        return mix(mix(a, b, u.x), mix(c, d, u.x), u.y);
+      }
+      float fbm(vec2 p){
+        float v = 0.0, a = 0.5;
+        mat2 m = mat2(1.6, 1.2, -1.2, 1.6);   // rotate+scale each octave to kill axis artifacts
+        for(int i = 0; i < 6; i++){ v += a * vnoise(p); p = m * p; a *= 0.5; }
+        return v;
+      }
       void main(){
         float y = vDir.y;
         vec3 col;
@@ -4582,6 +4604,25 @@ function _envBuildMesh(){
         } else {
           float t = pow(clamp(-y, 0.0, 1.0), 0.7);
           col = mix(uHorizon, uGround, t);
+        }
+        // ── procedural clouds: 視線を雲層平面へ投影 → 地平線に向かって雲が収束する ──
+        if(uCloudAmt > 0.001 && vDir.y > 0.0){
+          float yy = max(vDir.y, 0.06);
+          vec2 uv = (vDir.xz / yy) * 0.45;                       // planar projection
+          vec2 drift = vec2(uCloudTime * 0.006, uCloudTime * 0.0026);
+          float base   = fbm(uv + drift);
+          float detail = fbm(uv * 2.7 - drift * 1.7);
+          float n = base * 0.62 + detail * 0.38;                 // multi-scale wisps
+          float cov = clamp(uCloudAmt, 0.0, 1.0);
+          float lo = mix(0.80, 0.16, cov);                       // higher coverage → lower threshold
+          float density = smoothstep(lo, lo + 0.30, n);
+          density *= smoothstep(0.02, 0.24, vDir.y);             // haze-fade near horizon (no singularity)
+          // shading: sunlit top vs shadowed underside (underside follows sky → dark in rain)
+          float lit = clamp(fbm(uv * 1.3 + drift + normalize(uSunDir).xz * 0.28) * 1.35, 0.0, 1.0);
+          vec3 cloudBase = mix(uHorizon, uZenith, 0.35) * 0.55;
+          vec3 cloudTop  = mix(vec3(1.0), uSunColor, 0.4);
+          vec3 cloudCol  = mix(cloudBase, cloudTop, lit * uCloudLight);
+          col = mix(col, cloudCol, density);
         }
         // ── 日照モード: 太陽方向への暖色グロー＋ディスク ──
         // uShowSun=0（手動環境 or 太陽が地平線下）のとき完全に無効。
@@ -4627,8 +4668,9 @@ window.setEnvPreset = function(key){
 };
 function _setEnvPresetCore(key){
   env.preset = key;
-  // 手動プリセット/なし は太陽ディスクを持たない（日照モードは updateSunMode で再点灯）。
-  if(env.material) env.material.uniforms.uShowSun.value = 0;
+  // 手動プリセット/なし は太陽ディスク＋プロシージャル雲を持たない
+  // （日照モードのみ updateSunMode で再点灯・雲量を設定）。起動時の day 背景も雲なしのまま。
+  if(env.material){ env.material.uniforms.uShowSun.value = 0; env.material.uniforms.uCloudAmt.value = 0; }
   document.querySelectorAll('#env-panel .env-btn').forEach(b=>{
     b.classList.toggle('on', b.dataset.env === key);
   });
@@ -5001,6 +5043,52 @@ function _applyWeather(pal, weather){
   return { zenith:mul(z,dim), horizon:mul(h,dim), ground:mul(g,dim), tint:mul(t,[0.62,0.68,0.78]) };
 }
 
+// 雲量(amt 0..1)と雲の明るさ(light)を決める。
+//  ★プロシージャル雲は「実際の天気予報を取得」したフォローモード(_fcAuto)時のみ描く。
+//   手動の晴れ/曇り/雨は従来通りフラット（雲なし）＝見た目を一切変えない。
+//  予報時は cloud_cover% / 雨レベルで連続的にスケール（強度再現）。
+function _sunCloudParams(){
+  if(!sun._fcAuto) return { amt:0.0, light:1.0 };    // 手動＝雲なし（フラット表示を厳守）
+  const w = sun.weather;
+  if(w === 'rain'){
+    const lv = sun._fcRainLevel || 2;
+    if(lv >= 3) return { amt:0.97, light:0.32 };     // 豪雨: 真っ黒に近い厚い雲
+    if(lv >= 2) return { amt:0.90, light:0.48 };     // 雨
+    return { amt:0.80, light:0.62 };                 // 霧雨: 薄め・明るめ
+  }
+  if(w === 'cloudy'){
+    const a = (typeof sun._fcCloudAmt === 'number') ? sun._fcCloudAmt : 0.6;  // 0..1 実雲量
+    return { amt: 0.30 + 0.68 * a, light: 0.92 - 0.30 * a };
+  }
+  // 晴れ（予報）: cloud_cover が低ければまばらな好天積雲を反映。
+  let a = 0.16;
+  if(typeof sun._fcCloudAmt === 'number') a = Math.min(0.45, 0.10 + 0.55 * sun._fcCloudAmt);
+  return { amt:a, light:1.0 };
+}
+
+// 雲のドリフト(流れ)アニメ。日照モード中＆雲があるときだけ ~10fps で回し、
+// それ以外は自動停止（重い連続描画を避ける）。rAFはラップ済みなので setTimeout を使う。
+let _cloudAnimTimer = null, _cloudT0 = null;
+function _cloudAnimTick(){
+  _cloudAnimTimer = null;
+  if(!(env.material && sun.active && env.material.uniforms.uCloudAmt.value > 0.001)) return;
+  const now = (typeof performance !== 'undefined' ? performance.now() : Date.now());
+  if(_cloudT0 == null) _cloudT0 = now;
+  env.material.uniforms.uCloudTime.value = (now - _cloudT0) / 1000;
+  markDirty(6);
+  _cloudAnimTimer = setTimeout(_cloudAnimTick, 100);
+}
+function _cloudAnimEnsure(){
+  if(_cloudAnimTimer == null && env.material && sun.active && env.material.uniforms.uCloudAmt.value > 0.001) _cloudAnimTick();
+}
+// 検証/微調整用フック（手動で雲量・明るさを直接設定して見た目を確認できる）
+window.__setClouds = function(amt, light){
+  if(!env.material) return;
+  env.material.uniforms.uCloudAmt.value = (amt == null ? 0.6 : amt);
+  if(light != null) env.material.uniforms.uCloudLight.value = light;
+  _cloudAnimEnsure(); markDirty(6);
+};
+
 // 現在の sun.state から太陽位置/日照時間を計算し、ドーム・ティント・読み出し・3D可視化を更新
 function updateSunMode(){
   if(!sun.active) return;
@@ -5034,7 +5122,13 @@ function updateSunMode(){
     u.uSunDir.value.copy(dir);
     u.uSunColor.value.setRGB(..._sunDiscColor(altDeg));
     u.uSunGlow.value = _sunGlowStrength(altDeg);
+    // 雲量/雲の明るさ（天気＋予報強度から）。夜は描いても見えないので高度で減衰。
+    const cp = _sunCloudParams();
+    const nightFade = THREE.MathUtils.clamp((altDeg + 6.0) / 8.0, 0.0, 1.0); // 薄明で雲をフェードアウト
+    u.uCloudAmt.value = cp.amt;
+    u.uCloudLight.value = cp.light * (0.25 + 0.75 * nightFade);
   }
+  _cloudAnimEnsure();
   applySceneTint();
   _sunUpdateReadout(altDeg, w.az, times);
   _sunVizUpdate(dir, times);   // 3D コンパス＋太陽軌道を更新
