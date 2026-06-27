@@ -609,6 +609,10 @@ body.cam-active #view-tl-btns{
 #gizmo .dist-components{
   display:flex;gap:8px;margin-top:4px;font-size:.72em;
 }
+/* Hide the ΔX/ΔY/ΔZ component breakdown in the measure panel — unnecessary info
+   (user 2026-06-28「不要な情報」). The JS still updates #dcX/#dcY/#dcZ harmlessly;
+   only the panel display is suppressed (the main 距離 / 高さ readouts stay). */
+#gizmo #distComp{ display:none !important; }
 #gizmo .dist-components .dc{color:#404040;}
 #gizmo .dist-components .dc span{font-size:.9em;}
 #gizmo .giz-btns{display:flex;gap:6px;margin-top:8px;}
@@ -1354,7 +1358,11 @@ body.immersive #immersive-exit{ display:inline-block; }
    these because phones/tablets max out at ~1400px CSS width.
    ══════════════════════════════════════════════════════════════════════ */
 @media (min-width:1920px) and (pointer:fine){
-  #topbar{ height:52px; padding:0 14px; gap:10px; }
+  /* Keep the topbar at its default 45px height so it never overlaps the layer
+     panel (which starts at top:45px). Only the horizontal padding/gap and the
+     button fonts grow on big monitors — NOT the bar height (user 2026-06-28
+     「一番上のメニューを上に縮小してかぶらないように」). */
+  #topbar{ padding:0 14px; gap:10px; }
   #topbar .tb-home{ font-size:.82em; padding:3px 14px; }
   #topbar .tb-save-btn,
   #topbar #tb-save-btn{ font-size:.78em; padding:3px 12px; }
@@ -1363,7 +1371,7 @@ body.immersive #immersive-exit{ display:inline-block; }
   #topbar .tb-bug{ font-size:.86em; }
   #topbar .tb-integrity{ font-size:.76em; }
 
-  #view-tl-btns{ top:64px !important; }
+  #view-tl-btns{ top:54px !important; }
   /* 画質チップ含む全ボタンを一括拡大（バッジ専用ルールは廃止＝兄弟と完全統一）。 */
   #view-tl-btns button{ font-size:.82em !important; padding:7px 16px !important; }
 
@@ -1391,12 +1399,13 @@ body.immersive #immersive-exit{ display:inline-block; }
   #dz .dz-changelog-head{ font-size:.86em; padding:9px 16px; }
 }
 @media (min-width:2560px) and (pointer:fine){
-  #topbar{ height:58px; padding:0 18px; gap:12px; }
+  /* Same: bar height stays 45px (no overlap with the layer panel). */
+  #topbar{ padding:0 18px; gap:12px; }
   #topbar .tb-home{ font-size:.88em; padding:4px 16px; }
   #topbar .tb-update{ font-size:.80em; }
   #topbar .tb-lang{ font-size:.82em; }
 
-  #view-tl-btns{ top:72px !important; }
+  #view-tl-btns{ top:56px !important; }
   #view-tl-btns button{ font-size:.88em !important; padding:8px 18px !important; }
 
   #hud .cbar button{ font-size:.94em; padding:12px 22px; }
@@ -3712,7 +3721,9 @@ body.ar-active #dz{display:none !important;}
 
   <div class="giz-btns">
     <button onclick="clearMeasure()" id="msr-clear">🗑 クリア</button>
-    <button onclick="undoMeasure()" id="btnUndo" style="color:#686868">↩ <span id="msr-undo">戻る</span></button>
+    <!-- In-panel 「↩ 戻る」 removed (user 2026-06-28): the top-menu ↩ 戻る button
+         now also undoes measurement steps, so this was redundant. undoMeasure()
+         stays reachable via that button / Ctrl+Z / Z. -->
     <button onclick="toggleMeasure()" id="btnMeasureEnd"><span id="msr-end-lbl-init">終了</span></button>
   </div>
 </div>
@@ -9464,7 +9475,12 @@ window.undoMeasure = function() {
     msr.markerC.position.copy(msr.ptC);
   }
   if(msr.lineAC) msr.lineAC.visible = msr.heightOn && msr.step >= 1;
-  if (s.step < 2) document.getElementById('distComp').style.display = 'none';
+  if (s.step < 2){
+    document.getElementById('distComp').style.display = 'none';
+    // Clear the stale 距離 readout when we drop below 2 points (it used to keep
+    // showing the old value after an undo).
+    const _md = document.getElementById('measDist'); if(_md) _md.textContent = '-';
+  }
   syncGizmoToMsr();
   // 点B段階(step 1)のヒント(msr-h1)は全端末で非表示（user request 2026-06-19）。
   const hintMap = [T('msr-h0'), T('msr-h1'), T('msr-h2')];
