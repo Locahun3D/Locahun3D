@@ -7,7 +7,8 @@
 // REPORT_FROM must be a verified sender domain in your Resend account (locahun3d.com).
 
 const REPORT_TO   = 'contact@locahun3d.com';
-const REPORT_FROM = 'ロケハン3D 報告 <report@locahun3d.com>';
+// 送信元は Resend で認証済みドメイン(locahun3d.com)。オンライン版と同じ noreply@ に揃える。
+const REPORT_FROM = 'ロケハン3D 報告 <noreply@locahun3d.com>';
 
 export default {
   async fetch(request, env) {
