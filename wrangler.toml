@@ -1,14 +1,19 @@
 # Cloudflare Worker: locahun3d (ビューアー本体)
 #
 # viewer.locahun3d.com で公開している3DGSオフラインビューアー。
-# Assets-only Worker + Custom Domain で DNS 自動設定。
+# worker.js が POST /api/report を Resend でメール送信し、それ以外は静的アセットを配信。
+# Custom Domain で DNS 自動設定。
 #
+# 初回のみ Resend キーをシークレット投入:
+#   npx wrangler secret put RESEND_API_KEY
 # デプロイ:
 #   cd "F:\UNDEFINED Dropbox\UNDEFINED\Works\MFF\01_ProjectFile\3DGS"
 #   npx wrangler deploy
 
 name = "locahun3d"
+main = "worker.js"
 compatibility_date = "2026-06-22"
 
 [assets]
 directory = "./viewer-dist"
+binding = "ASSETS"

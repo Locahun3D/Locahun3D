@@ -22238,7 +22238,6 @@ const REPORT_EMAIL = 'contact@locahun3d.com';   // Bug reports — opens user's 
 // the user (a) copy the address, (b) copy the body, or (c) open Gmail Web
 // in a new tab with everything pre-filled.
 function _showReportFallback(to, subject, body){
-  // Reuse existing modal style if present, otherwise inject a minimal one.
   const old = document.getElementById('report-fallback-modal');
   if(old) old.remove();
   const m = document.createElement('div');
@@ -22246,20 +22245,15 @@ function _showReportFallback(to, subject, body){
   m.setAttribute('style', 'position:fixed;inset:0;z-index:99999;display:flex;' +
     'align-items:center;justify-content:center;background:rgba(0,0,0,.78);' +
     'font-family:system-ui,"Segoe UI",sans-serif;color:#e8e8e8;');
-  const gmail = 'https://mail.google.com/mail/?view=cm&fs=1'
-              + '&to='      + encodeURIComponent(to)
-              + '&su='      + encodeURIComponent(subject)
-              + '&body='    + encodeURIComponent(body);
   const _en = (window._lang === 'en');
   const _t = {
-    title:  _en ? '🐛 Bug Report — couldn\'t open your mail app'
-                : '🐛 エラー報告 — メーラを開けませんでした',
-    intro:  _en ? 'No default mail app is configured, so <code>mailto:</code> couldn\'t launch. Send it one of these ways:'
-                : '既定のメールアプリが未設定のため <code>mailto:</code> を起動できませんでした。以下のいずれかで送信してください:',
-    gmail:  _en ? '📧 Open in Gmail (new tab)'      : '📧 Gmail で開く(新規タブ)',
-    copyTo: _en ? '📋 Copy recipient'               : '📋 宛先をコピー',
-    copyBody:_en ? '📋 Copy subject + body'         : '📋 件名+本文をコピー',
-    toLbl:  _en ? 'To:'                             : '宛先:',
+    title:  _en ? '❗ Bug Report' : '❗ エラー報告',
+    intro:  _en ? 'Describe the symptom & steps below, then press Send. It is emailed directly — no mail app needed.'
+                : '下に症状・再現手順を書いて「送信」してください。メールアプリ不要で直接送られます。',
+    send:   _en ? '📧 Send' : '📧 送信',
+    mail:   _en ? 'Open in mail app' : 'メールアプリで開く',
+    gmail:  _en ? 'Gmail' : 'Gmail で開く',
+    copyBody:_en ? 'Copy text' : '本文をコピー',
   };
   m.innerHTML = `
     <div style="background:#1a1a1c;border:1px solid #444;border-radius:10px;max-width:640px;
@@ -22271,47 +22265,57 @@ function _showReportFallback(to, subject, body){
         <button id="rfb-close" style="background:none;border:0;color:#aaa;font-size:1.4em;
                 cursor:pointer;line-height:1">×</button>
       </div>
-      <div style="padding:14px 18px 6px;font-size:.9em;line-height:1.55;color:#bbb">
-        ${_t.intro}
-      </div>
-      <div style="padding:0 18px 10px;display:flex;flex-wrap:wrap;gap:8px;">
-        <a id="rfb-gmail" href="${gmail}" target="_blank" rel="noopener"
-           style="background:#5b4632;border:1px solid #b9883b;color:#ffd87a;
-                  padding:8px 14px;border-radius:6px;text-decoration:none;font-size:.9em">
-          ${_t.gmail}
-        </a>
-        <button id="rfb-copy-to" style="background:#2c3c4e;border:1px solid #4a6478;color:#cfe4ff;
-                  padding:8px 14px;border-radius:6px;cursor:pointer;font-size:.9em">
-          ${_t.copyTo}
-        </button>
-        <button id="rfb-copy-body" style="background:#2c3c4e;border:1px solid #4a6478;color:#cfe4ff;
-                  padding:8px 14px;border-radius:6px;cursor:pointer;font-size:.9em">
-          ${_t.copyBody}
-        </button>
-      </div>
-      <div style="padding:6px 18px 4px;font-size:.78em;color:#888">
-        ${_t.toLbl} <code id="rfb-to-text"></code></div>
-      <textarea id="rfb-body" readonly style="margin:6px 18px 18px;flex:1;min-height:200px;
+      <div style="padding:14px 18px 6px;font-size:.9em;line-height:1.55;color:#bbb">${_t.intro}</div>
+      <textarea id="rfb-body" style="margin:8px 18px 6px;flex:1;min-height:200px;
                 background:#0e0e10;color:#dadada;border:1px solid #333;border-radius:6px;
                 padding:10px 12px;font:.82em/1.5 ui-monospace,Menlo,Consolas,monospace;
                 resize:vertical;"></textarea>
+      <div id="rfb-status" style="padding:0 18px;font-size:.82em;color:#9ad59a;min-height:1.2em"></div>
+      <div style="padding:6px 18px 16px;display:flex;flex-wrap:wrap;gap:8px;align-items:center;">
+        <button id="rfb-send" style="background:#3a5b3a;border:1px solid #6abf6a;color:#dfffdf;
+                  padding:9px 18px;border-radius:6px;cursor:pointer;font-size:.95em;font-weight:600">${_t.send}</button>
+        <span style="flex:1"></span>
+        <a id="rfb-mail" href="#" style="color:#9ab;text-decoration:none;font-size:.82em">${_t.mail}</a>
+        <a id="rfb-gmail" href="#" target="_blank" rel="noopener" style="color:#9ab;text-decoration:none;font-size:.82em">${_t.gmail}</a>
+        <button id="rfb-copy-body" style="background:none;border:0;color:#9ab;cursor:pointer;font-size:.82em">${_t.copyBody}</button>
+      </div>
     </div>`;
   document.body.appendChild(m);
-  m.querySelector('#rfb-to-text').textContent = to;
-  m.querySelector('#rfb-body').value = 'Subject: ' + subject + '\n\n' + body;
+  const ta = m.querySelector('#rfb-body');
+  ta.value = body;
+  const status = m.querySelector('#rfb-status');
+  const mailto = ()=> 'mailto:'+encodeURIComponent(to)+'?subject='+encodeURIComponent(subject)+'&body='+encodeURIComponent(ta.value);
+  const gmailUrl = ()=> 'https://mail.google.com/mail/?view=cm&fs=1&to='+encodeURIComponent(to)+'&su='+encodeURIComponent(subject)+'&body='+encodeURIComponent(ta.value);
+  m.querySelector('#rfb-mail').onclick  = (e)=>{ e.preventDefault(); try{ location.href = mailto(); }catch(_){} };
+  m.querySelector('#rfb-gmail').onclick = (e)=>{ e.preventDefault(); window.open(gmailUrl(),'_blank','noopener'); };
   const close = () => m.remove();
   m.querySelector('#rfb-close').onclick = close;
   m.addEventListener('click', e => { if(e.target === m) close(); });
-  m.querySelector('#rfb-copy-to').onclick = async () => {
-    try{ await navigator.clipboard.writeText(to);
-      if(typeof showUndoToast === 'function') showUndoToast(_en ? 'Recipient copied' : '宛先をコピーしました'); }
-    catch(_){ m.querySelector('#rfb-to-text').focus && m.querySelector('#rfb-to-text').focus(); }
-  };
   m.querySelector('#rfb-copy-body').onclick = async () => {
-    const text = 'To: ' + to + '\nSubject: ' + subject + '\n\n' + body;
-    try{ await navigator.clipboard.writeText(text);
-      if(typeof showUndoToast === 'function') showUndoToast(_en ? 'Subject + body copied' : '件名+本文をコピーしました'); }
-    catch(_){ m.querySelector('#rfb-body').select(); }
+    try{ await navigator.clipboard.writeText('To: '+to+'\nSubject: '+subject+'\n\n'+ta.value);
+      status.style.color='#9ad59a'; status.textContent = _en?'Copied':'コピーしました'; }
+    catch(_){ ta.select(); }
+  };
+  // ── 直接サーバー送信（/api/report → Worker → Resend）。メーラ不要。 ──
+  const sendBtn = m.querySelector('#rfb-send');
+  sendBtn.onclick = async () => {
+    sendBtn.disabled = true;
+    status.style.color = '#cdd'; status.textContent = _en ? 'Sending…' : '送信中…';
+    try {
+      const r = await fetch('/api/report', { method:'POST', headers:{'content-type':'application/json'},
+        body: JSON.stringify({ subject, body: ta.value }) });
+      const j = await r.json().catch(()=>({}));
+      if(r.ok && j && j.ok){
+        status.style.color='#9ad59a'; status.textContent = _en ? 'Sent ✓ — thank you!' : '送信しました ✓ ありがとうございます';
+        setTimeout(close, 1400);
+        return;
+      }
+      throw new Error((j && j.error) || ('HTTP '+r.status));
+    } catch(e){
+      sendBtn.disabled = false;
+      status.style.color = '#e6a';
+      status.textContent = (_en ? 'Send failed — use mail / Gmail / copy below. ' : '送信に失敗しました。下のメール/Gmail/コピーをご利用ください。 ') + (e && e.message ? '('+e.message+')' : '');
+    }
   };
 }
 
@@ -22351,26 +22355,10 @@ window.reportBug = function(){
       'UA      : ' + ua,
     ].join('\n');
     const body = bodyLines;
-    const url = 'mailto:' + encodeURIComponent(REPORT_EMAIL)
-              + '?subject=' + encodeURIComponent(subject)
-              + '&body='    + encodeURIComponent(body);
-    // Try the simplest mailto trigger first: location.href. Then detect
-    // whether anything actually happened by listening for `blur` — if the
-    // browser handed mailto to an external app the page typically loses
-    // focus within ~250 ms. If no blur fires (no handler registered), fall
-    // back to the modal.
-    let handed = false;
-    const onBlur = () => { handed = true; };
-    window.addEventListener('blur', onBlur, { once: true });
-    try { location.href = url; } catch(_){}
-    setTimeout(() => {
-      window.removeEventListener('blur', onBlur);
-      // If still focused after 600 ms, mailto: was silently dropped. Open the
-      // fallback modal so the user has *some* way to send the report.
-      if(!handed && document.hasFocus()){
-        _showReportFallback(REPORT_EMAIL, subject, body);
-      }
-    }, 600);
+    // メーラ依存をやめ、報告ダイアログを直接開く。ダイアログの「送信」ボタンが
+    // /api/report (Cloudflare Worker→Resend) で直接メール送信する（メーラ不要）。
+    // 送信できない環境向けに メールアプリ/Gmail/コピー の手段も残す。
+    _showReportFallback(REPORT_EMAIL, subject, body);
   } catch(e){
     console.warn('[reportBug] failed:', e);
     if(typeof showUndoToast === 'function') showUndoToast('メール起動に失敗しました');
