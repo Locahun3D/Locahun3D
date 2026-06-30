@@ -18808,6 +18808,9 @@ window.saveProjectZip = async function(){
       camera:{pos:{x:camPos.x,y:camPos.y,z:camPos.z},yaw,pitch},
       layerNextId:_layerNextId,
       layers:serialized,
+      // 天候/日照シミュ設定（都道府県・天気・日時・ON状態）。新潟のスキャンを
+      // 新潟に合わせて保存→受け渡し先でそのまま再現できるよう project に含める。
+      sun:{ city:sun.city, weather:sun.weather, y:sun.y, mo:sun.mo, d:sun.d, timeMin:sun.timeMin, active:sun.active },
     };
     files['project.json']=fflate.strToU8(JSON.stringify(project,null,2));
 
@@ -19116,6 +19119,8 @@ window.saveProject = async function() {
       camera:{ pos:{x:camPos.x,y:camPos.y,z:camPos.z}, yaw, pitch },
       layerNextId:_layerNextId,
       layers:serialized,
+      // 天候/日照シミュ設定（都道府県・天気・日時・ON状態）も含める（ZIP保存と同様）。
+      sun:{ city:sun.city, weather:sun.weather, y:sun.y, mo:sun.mo, d:sun.d, timeMin:sun.timeMin, active:sun.active },
     };
 
     const jsonStr=JSON.stringify(project);
@@ -19510,6 +19515,23 @@ async function restoreProject(project) {
   // window every frame for a splat that no longer exists (and the inverse
   // skips real work). Recompute from the freshly restored `layers` array.
   if(typeof _recountLayerActivity === 'function') _recountLayerActivity();
+
+  // ── 天候/日照シミュ設定の復元 ──（保存に含めた project.sun を再現）
+  if(project.sun && typeof project.sun==='object'){
+    const ps=project.sun;
+    if(typeof ps.city==='string' && SUN_CITIES[ps.city]){
+      const c=SUN_CITIES[ps.city]; sun.city=ps.city; sun.lat=c.lat; sun.lng=c.lng; sun.tz=c.tz;
+    }
+    if(ps.weather==='clear'||ps.weather==='cloudy'||ps.weather==='rain'||ps.weather==='snow'){
+      sun.weather=ps.weather;
+      sun._fcAuto=false; sun._fcCloudAmt=null; sun._fcRainLevel=null; sun._fcSnowLevel=null; sun._fcPrecip=null;
+    }
+    if(Number.isFinite(ps.y)&&Number.isFinite(ps.mo)&&Number.isFinite(ps.d)){ sun.y=ps.y; sun.mo=ps.mo; sun.d=ps.d; }
+    if(Number.isFinite(ps.timeMin)) sun.timeMin=Math.max(0,Math.min(1439,ps.timeMin));
+    if(typeof _sunSyncForm==='function') _sunSyncForm();
+    // 保存時に日照モードONなら再点灯して見た目を再現。OFFなら設定のみ反映。
+    if(ps.active && typeof _setSunActive==='function') _setSunActive(true);
+  }
 
   renderLayerList(); renderTransformPanel();
 
