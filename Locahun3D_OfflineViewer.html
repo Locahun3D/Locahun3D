@@ -16913,8 +16913,6 @@ const _headless = /[?&]headless=1/.test(location.search);
 const _protected = /[?&]protected=1/.test(location.search);
 if(_protected){
   document.body.classList.add('protected-mode');
-  window.saveProjectZip = ()=>{ showUndoToast('オンライン閲覧モードではデータ保存できません'); };
-  window.exportSplat    = ()=>{ showUndoToast('オンライン閲覧モードではデータ保存できません'); };
 }
 function animate(now) {
   if(_headless) setTimeout(()=>animate(performance.now()), 16);
@@ -22521,6 +22519,11 @@ window.addEventListener('online', ()=>{
     window.checkForUpdate(false);
   }
 });
+
+if(_protected){
+  window.saveProjectZip = ()=>{ showUndoToast('オンライン閲覧モードではデータ保存できません'); };
+  window.exportSplat    = ()=>{ showUndoToast('オンライン閲覧モードではデータ保存できません'); };
+}
 
 </script>
 </body>
