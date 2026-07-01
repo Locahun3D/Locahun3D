@@ -1,0 +1,7 @@
+[
+  { "out": "template", "start": 1, "end": 2 },
+  { "out": "src/css/010_main.css", "start": 3, "end": 3 },
+  { "out": "template", "start": 4, "end": 5 },
+  { "out": "src/js/010_a.js", "start": 6, "end": 7 },
+  { "out": "template", "start": 8, "end": 8 }
+]

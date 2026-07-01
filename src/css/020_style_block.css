@@ -1,0 +1,22 @@
+#orient-lock{
+  display:none;
+  position:fixed; inset:0; z-index:2147483646;
+  background:#0a0a0c; color:#e8e8e8;
+  flex-direction:column; align-items:center; justify-content:center;
+  gap:12px; text-align:center; padding:32px;
+  font-family:'Helvetica Neue',Arial,'Hiragino Kaku Gothic ProN','Yu Gothic',Meiryo,sans-serif;
+  -webkit-user-select:none; user-select:none; touch-action:none;
+}
+#orient-lock .ol-icon{ font-size:60px; line-height:1; display:inline-block;
+  animation:ol-rotate 2.4s ease-in-out infinite; }
+#orient-lock .ol-msg{ font-size:1.12em; font-weight:700; letter-spacing:.04em; }
+#orient-lock .ol-sub{ font-size:.82em; color:#9a9aa2; line-height:1.5; }
+@keyframes ol-rotate{ 0%,38%{transform:rotate(0)} 58%,100%{transform:rotate(-90deg)} }
+/* Portrait is now SUPPORTED on phones (user request 2026-06): the portrait
+   layout is functional (toolbar / camera row / cbar-above-joystick all fit and
+   were verified clean), so we no longer force-rotate to landscape. The
+   #orient-lock element is kept in the DOM for possible future use but is never
+   auto-shown — both orientations are usable. */
+@media (orientation: portrait) and (pointer:coarse) and (any-hover:none){
+  /* #orient-lock{ display:flex; }   ← disabled: portrait is allowed now */
+}

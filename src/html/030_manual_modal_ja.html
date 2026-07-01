@@ -1,0 +1,704 @@
+<!-- ══════════════════════════════════════════════════
+     USER MANUAL MODAL
+     Opened from the dropzone "📖 ユーザーマニュアル" button
+     and from the cbar "❓" button during use.
+     ══════════════════════════════════════════════════ -->
+<div id="manual-overlay" style="display:none;position:fixed;inset:0;z-index:10000;
+  background:rgba(8,8,10,.92);backdrop-filter:blur(4px);
+  font-family:ui-sans-serif,system-ui,-apple-system,sans-serif;color:#e8e8e8">
+  <div id="manual-shell" style="position:absolute;inset:24px;background:#16161a;
+    border:1px solid rgba(255,255,255,.08);border-radius:12px;
+    display:grid;grid-template-columns:240px 1fr;grid-template-rows:auto 1fr;
+    grid-template-areas:'header header' 'nav body';overflow:hidden">
+
+    <!-- Header -->
+    <div style="grid-area:header;display:flex;align-items:center;justify-content:space-between;
+      padding:14px 22px;border-bottom:1px solid rgba(255,255,255,.07);
+      background:linear-gradient(to bottom, rgba(255,180,84,.06), transparent)">
+      <div style="display:flex;align-items:baseline;gap:14px">
+        <strong style="font-size:1.25em;letter-spacing:.04em" data-i18n-key="manual-title">📖 ロケハン3D ユーザーマニュアル</strong>
+        <span style="opacity:.55;font-size:.82em" data-i18n-key="manual-version">v 0.1.8-beta / 3DGS マルチビューア + プリビズ (ベータ版)</span>
+      </div>
+      <button onclick="closeManual()" style="background:transparent;border:1px solid rgba(255,255,255,.12);
+        color:#aab;border-radius:6px;padding:6px 12px;font-size:.92em;cursor:pointer;font-family:inherit"
+        data-i18n-key="manual-close">
+        閉じる ✕
+      </button>
+    </div>
+
+    <!-- Side navigation (sticky table of contents) -->
+    <nav id="manual-nav" style="grid-area:nav;border-right:1px solid rgba(255,255,255,.06);
+      background:rgba(10,10,12,.4);overflow-y:auto;padding:14px 0">
+      <div class="mn-grp" data-i18n-key="manual-grp-quick">クイックスタート</div>
+      <a href="#m-quick" class="mn-link" data-i18n-key="manual-link-quick">🚀 5分で使う</a>
+
+      <div class="mn-grp" data-i18n-key="manual-grp-basic">基本操作</div>
+      <a href="#m-cam"   class="mn-link" data-i18n-key="manual-link-cam">🎮 カメラを動かす</a>
+
+      <div class="mn-grp" data-i18n-key="manual-grp-layer">レイヤー</div>
+      <a href="#m-layers"  class="mn-link" data-i18n-key="manual-link-layers">📁 レイヤーパネル</a>
+      <a href="#m-trans"   class="mn-link" data-i18n-key="manual-link-trans">⇆ 位置・回転・拡縮</a>
+      <a href="#m-add"     class="mn-link" data-i18n-key="manual-link-add">＋ オブジェクトを追加</a>
+
+      <div class="mn-grp" data-i18n-key="manual-grp-tools">機能ツール</div>
+      <a href="#m-measure" class="mn-link" data-i18n-key="manual-link-measure">📐 距離測定</a>
+      <a href="#m-camtool" class="mn-link" data-i18n-key="manual-link-camtool">📷 カメラツール</a>
+      <a href="#m-env"     class="mn-link" data-i18n-key="manual-link-env">☀ 日照・天気</a>
+      <a href="#m-walkar"  class="mn-link" data-i18n-key="manual-link-walkar">🚶 アバター歩行・AR</a>
+
+      <div class="mn-grp" data-i18n-key="manual-grp-save">設定 / 保存</div>
+      <a href="#m-save"    class="mn-link" data-i18n-key="manual-link-save">💾 プロジェクト保存</a>
+
+      <div class="mn-grp" data-i18n-key="manual-grp-trouble">トラブル</div>
+      <a href="#m-faq"     class="mn-link" data-i18n-key="manual-link-faq">❓ よくある質問</a>
+    </nav>
+
+    <!-- Body (scrollable content) -->
+    <main id="manual-body" style="grid-area:body;overflow-y:auto;padding:24px 36px;
+      line-height:1.7;font-size:.94em;scroll-behavior:smooth">
+    <div class="m-ja">
+      <section id="m-quick">
+        <h2>🚀 5 分で使う</h2>
+        <p style="color:#aab">ロケハン3Dは、3Dスキャン（3DGS）を読み込んでロケハン・絵コンテ・プリビズに使うビューアーです。まずはこの3ステップ。</p>
+        <ol style="line-height:1.9">
+          <li><b>読み込む</b> — 最初の画面の「📂」エリアに 3DGS ファイル（.splat / .ply など）をドラッグ。試すだけなら「デモシーン」ボタン。</li>
+          <li><b>動かす</b> — マウス<b>右ドラッグ</b>で視点回転、<kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd>で移動。</li>
+          <li><b>使う</b> — 画面下のボタンで「カメラ / 日照 / 測定」、上のボタンで「オブジェクト追加」。左のレイヤーパネルで管理。</li>
+        </ol>
+      </section>
+
+      <section id="m-cam">
+        <h2>🎮 カメラを動かす</h2>
+        <ul style="line-height:1.9">
+          <li><b>視点を回す</b>：マウス右ドラッグ</li>
+          <li><b>移動</b>：<kbd>W</kbd>前 / <kbd>S</kbd>後 / <kbd>A</kbd>左 / <kbd>D</kbd>右 / <kbd>Q</kbd>下 / <kbd>E</kbd>上</li>
+          <li><b>移動速度</b>：マウスホイール（または画質パネルのスライダー）</li>
+          <li><b>視点リセット</b>：上部「🏠 カメラリセット」</li>
+        </ul>
+        <p style="color:#889">スマホ / iPad では、左下のジョイスティックで移動、画面ドラッグで視点回転します。</p>
+      </section>
+
+      <section id="m-devices">
+        <h2>📱 デバイス別の対応機能</h2>
+        <p style="color:#889">デバイスによって使える機能・操作が異なります（◯=対応 / △=一部・非推奨 / －=非対応）。</p>
+        <table class="m-tbl">
+          <tr><th>機能</th><th>PC<br>(マウス/キー)</th><th>スマホ/<br>タブレット</th><th>VR<br>(Vision Pro/Quest)</th><th>TV/ゲーム機<br>(リモコン/パッド)</th></tr>
+          <tr><td>視点回転・閲覧</td><td>◯</td><td>◯</td><td>◯</td><td>◯</td></tr>
+          <tr><td>移動（WASD / ジョイスティック）</td><td>◯ WASD</td><td>◯ ジョイ</td><td>◯</td><td>△ D-pad</td></tr>
+          <tr><td>日照・天気シミュレーション</td><td>◯</td><td>◯</td><td>◯</td><td>◯</td></tr>
+          <tr><td>距離測定</td><td>◯</td><td>◯</td><td>△</td><td>△</td></tr>
+          <tr><td>カメラツール（プリビズ）</td><td>◯</td><td>◯</td><td>△</td><td>△</td></tr>
+          <tr><td>オブジェクト追加・編集</td><td>◯</td><td>◯</td><td>△</td><td>△</td></tr>
+          <tr><td>アバター歩行</td><td>◯</td><td>△</td><td>◯</td><td>－</td></tr>
+          <tr><td>AR（背面カメラ重畳）</td><td>－</td><td>◯</td><td>－</td><td>－</td></tr>
+          <tr><td>フォーカス操作（D-pad/視線）</td><td>－</td><td>－</td><td>◯</td><td>◯</td></tr>
+        </table>
+        <p style="color:#889">※ AR はスマホ / タブレットのみ（端末の「設定 &gt; Safari &gt; モーションと画面の向きのアクセス」を ON に）。VR は閲覧・歩行に最適。細かな編集は PC を推奨します。</p>
+      </section>
+
+      <section id="m-layers">
+        <h2>📁 レイヤーとフォルダー</h2>
+        <p>左の「シーンレイヤー」に、読み込んだファイルや追加オブジェクトが並びます。</p>
+        <ul style="line-height:1.9">
+          <li>👁 表示 / 非表示の切替</li>
+          <li>✏️ 名前を変更（ダブルクリックでも可）</li>
+          <li>🗑 削除（<kbd>Ctrl</kbd>+<kbd>Z</kbd> で元に戻せます）</li>
+          <li>ドラッグで並べ替え・フォルダーへ収納</li>
+          <li>🔒 <b>フォルダーをロック</b>：中身の移動・編集・削除をまとめて無効化（誤操作防止）。もう一度押すと解除。</li>
+        </ul>
+      </section>
+
+      <section id="m-trans">
+        <h2>⇆ 位置・回転・拡縮</h2>
+        <p>オブジェクトを選ぶと、3Dハンドル（ギズモ）と数値入力が出ます。</p>
+        <ul style="line-height:1.9">
+          <li>矢印＝移動 / リング＝回転 / キューブ＝拡縮</li>
+          <li>「ローカル / ワールド」で座標系を切替（新規・読み込みは既定でローカル）</li>
+          <li>位置・回転・拡縮・寸法の数値入力は <b>0.01 刻み</b>で微調整できます</li>
+          <li>iPad / スマホではギズモ（矢印・リング・ピボット）を<b>指でドラッグ</b>して操作できます</li>
+        </ul>
+      </section>
+
+      <section id="m-add">
+        <h2>＋ オブジェクトを追加</h2>
+        <p>上部「📦 オブジェクト追加」から種類を選び、<b>シーン内を左クリック長押し</b>して配置します（押して位置を探り、離して確定。<kbd>Esc</kbd>で中止）。</p>
+        <ul style="line-height:1.9">
+          <li>📦 <b>Cube</b> — 寸法の目安・あたり</li>
+          <li>🟠 <b>Event</b> — 注目ポイント。画像を貼れます</li>
+          <li>👤 <b>Figure</b> — 人型。身長を変えてスケール感・アイレベルを確認。<b>関節を選んで回転</b>、または<b>IKハンドル</b>を引いてポーズ付けできます</li>
+          <li>🛣 <b>パス</b> — 4点で囲む区画＋中央ラベル（駐車区画など）。ラベルは複数行OK</li>
+        </ul>
+      </section>
+
+      <section id="m-measure">
+        <h2>📐 距離測定</h2>
+        <p>画面下「📐 測定」をON。スキャン表面の2点間の<b>実距離</b>を測ります。</p>
+        <ul style="line-height:1.9">
+          <li>左クリック長押しで点をプレビュー → 離して確定（点A → 点B）</li>
+          <li>「+ 高さを図る」で3点目（高さ）も測定</li>
+          <li>マーカーは矢印（軸）・XZ面で微調整、🗑 でクリア</li>
+          <li>iPad / スマホでも、矢印・マーカーを<b>指でドラッグ</b>して微調整できます</li>
+          <li>距離・高さ・成分は <b>0.01 m（1cm）単位</b>で表示します</li>
+        </ul>
+      </section>
+
+      <section id="m-camtool">
+        <h2>📷 カメラツール / アニメーション</h2>
+        <p><b>カメラツール</b>（下「📷 カメラ」）：実機のレンズ・センサー・アスペクト比を設定し、構図枠とグリッドを表示。JPEG撮影でカメラ情報も焼き込めます。</p>
+        <p><b>カメラアニメーション</b>（上「🎞 アニメーション」）：カメラ位置を複数登録してパスを作り、MP4で書き出し。動きは「イージング（緩急） / リニア（等速）」を選べます。</p>
+      </section>
+
+      <section id="m-env">
+        <h2>☀ 日照・天気</h2>
+        <p>画面下「☀ 日照」：日付・時刻・都道府県から太陽の位置と光のムードを再現します。</p>
+        <ul style="line-height:1.9">
+          <li>時刻スライダーで朝〜夜の光をスクラブ</li>
+          <li>天気（晴れ / 曇り / 雨）で空の雰囲気を変更</li>
+          <li>「🌐 実際の天気予報を取得」でオンラインの実天気に追従（任意）</li>
+        </ul>
+      </section>
+
+      <section id="m-walkar">
+        <h2>🚶 アバター歩行・📱 AR</h2>
+        <p><b>アバター歩行</b>（上「🚶 アバター歩行」）：人の目線でシーンを歩いて確認できます。<kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd>でアバターを移動、視点は通常どおり。実際に立ったときの見え方・アイレベル・スケール感のチェックに。もう一度押すと解除。</p>
+        <p><b>AR モード</b>（上「📱 AR」・スマホ / タブレットのみ）：背面カメラの映像に 3DGS を重ねて表示し、端末を傾けて見回せます。現地で実寸の重なりを確認するときに。</p>
+        <p style="color:#889">※ iOS は初回に「設定 &gt; Safari &gt; モーションと画面の向きのアクセス」を ON にし、ページを再読み込みすると AR が使えます。</p>
+      </section>
+
+      <section id="m-save">
+        <h2>💾 保存・読み込み</h2>
+        <ul style="line-height:1.9">
+          <li><b>Zip保存</b>（左上）：シーン全体を1つのZIPに保存。レイヤー・オブジェクト・カメラ・設定をまるごと復元できます。</li>
+          <li><b>読み込み</b>（レイヤーパネル上の「📁 読み込み」）：ZIPや 3DGS / モデルを追加。</li>
+          <li><b>🎥 カメラ保存</b>：今のカメラ位置をレイヤーとして保存。</li>
+        </ul>
+      </section>
+
+      <section id="m-faq">
+        <h2>❓ よくある質問・ショートカット</h2>
+        <ul style="line-height:1.9">
+          <li><b>シーンが上下逆 / 横倒し</b> → レイヤーを選び「軸反転」または角度入力で調整。</li>
+          <li><b>動作が重い</b> → 右上の画質チップで「低」に。描画は最大60fpsです。</li>
+          <li><b>言語</b> → 右上「EN / 日本語」で切替。</li>
+        </ul>
+        <p style="color:#889"><b>ショートカット</b>：<kbd>Ctrl</kbd>+<kbd>Z</kbd> 取り消し / <kbd>Ctrl</kbd>+<kbd>Y</kbd> やり直し / <kbd>Ctrl</kbd>+<kbd>D</kbd> 複製</p>
+      </section>
+    </div><!-- /.m-ja (new) -->
+    <div class="m-old" style="display:none" aria-hidden="true">
+
+      <!-- ── QUICK START ── -->
+      <section id="m-quick">
+        <h2>🚀 5 分で使う</h2>
+        <p style="color:#aab">最低限これだけで動かせます。詳細は各セクションへ。</p>
+        <div class="m-steps">
+          <div class="m-step">
+            <div class="m-step-n">1</div>
+            <div>
+              <strong>PLY / SPLAT ファイルをドロップ</strong><br>
+              <span style="opacity:.75">最初の画面の「📂」エリアにドラッグ。複数ファイル同時 OK。</span>
+            </div>
+          </div>
+          <div class="m-step">
+            <div class="m-step-n">2</div>
+            <div>
+              <strong>WASD で移動・<u>右</u>ドラッグで視点回転</strong><br>
+              <span style="opacity:.75">向きが上下逆ならレイヤー選択→「X軸反転 / Y軸反転」を試す。</span>
+            </div>
+          </div>
+          <div class="m-step">
+            <div class="m-step-n">3</div>
+            <div>
+              <strong>📷 カメラボタンで撮影 → JPEG 出力</strong><br>
+              <span style="opacity:.75">焦点距離・センサーを選び、左下パネルの「📸 撮影」。</span>
+            </div>
+          </div>
+        </div>
+
+        <h3>初回チェックリスト</h3>
+        <ul class="m-check">
+          <li><kbd>M</kbd> で測定モードに入れる</li>
+          <li>レイヤーパネル (左) でシーンを管理する</li>
+          <li>cbar (中央下) のボタンで全機能にアクセス</li>
+          <li>分からなくなったら <kbd>❓</kbd> ボタンでこのマニュアルへ</li>
+        </ul>
+      </section>
+
+      <!-- ── LOAD ── -->
+      <section id="m-load">
+        <h2>📂 ファイルを開く</h2>
+        <p>ホーム画面 (起動直後) のドロップゾーンが入口です。</p>
+        <div class="m-grid2">
+          <div class="m-card">
+            <h4>📁 対応形式</h4>
+            <ul>
+              <li>3D Gaussian Splatting: <code>.ply</code> <code>.splat</code> <code>.spz</code> <code>.ksplat</code> <code>.rad</code> <code>.sog</code></li>
+              <li>3D モデル: <code>.obj</code> <code>.glb</code> <code>.gltf</code> <code>.fbx</code></li>
+              <li>プロジェクト: <code>.zip</code> (ロケハン3Dで保存したもの)</li>
+            </ul>
+          </div>
+          <div class="m-card">
+            <h4>📥 読み込み方</h4>
+            <ul>
+              <li>クリック → ファイル選択 (Ctrl で複数選択可)</li>
+              <li>ドラッグ&ドロップ (複数同時 OK)</li>
+              <li>1 つ目はメインシーン、残りは追加レイヤー</li>
+            </ul>
+          </div>
+        </div>
+        <div class="m-tip">
+          <b>💡 ヒント:</b> 大きい PLY (100MB+) は読み込みに数十秒かかります。読み込み中はプログレスが表示されます。
+        </div>
+      </section>
+
+      <!-- ── CAMERA ── -->
+      <section id="m-cam">
+        <h2>🎮 カメラを動かす</h2>
+        <p>キーボードで前後左右上下、マウスで視点回転。</p>
+
+        <!-- Keyboard SVG diagram -->
+        <div class="m-fig">
+          <svg viewBox="0 0 320 200" style="width:100%;max-width:480px;height:auto">
+            <defs>
+              <linearGradient id="key-grad" x1="0" x2="0" y1="0" y2="1">
+                <stop offset="0" stop-color="#3a3a40"/>
+                <stop offset="1" stop-color="#1a1a1d"/>
+              </linearGradient>
+            </defs>
+            <!-- Q W E -->
+            <g font-family="ui-monospace,monospace" font-size="14" fill="#ddd" text-anchor="middle">
+              <rect x="50"  y="20" width="40" height="40" rx="6" fill="url(#key-grad)" stroke="#555"/>
+              <text x="70" y="46">Q</text>
+              <text x="70" y="78" font-size="9" fill="#9bf">下</text>
+
+              <rect x="100" y="20" width="40" height="40" rx="6" fill="url(#key-grad)" stroke="#555"/>
+              <text x="120" y="46">W</text>
+              <text x="120" y="78" font-size="9" fill="#9bf">前</text>
+
+              <rect x="150" y="20" width="40" height="40" rx="6" fill="url(#key-grad)" stroke="#555"/>
+              <text x="170" y="46">E</text>
+              <text x="170" y="78" font-size="9" fill="#9bf">上</text>
+
+              <!-- A S D -->
+              <rect x="100" y="90" width="40" height="40" rx="6" fill="url(#key-grad)" stroke="#555"/>
+              <text x="120" y="116">S</text>
+              <text x="120" y="148" font-size="9" fill="#9bf">後</text>
+
+              <rect x="50"  y="90" width="40" height="40" rx="6" fill="url(#key-grad)" stroke="#555"/>
+              <text x="70" y="116">A</text>
+              <text x="70" y="148" font-size="9" fill="#9bf">左</text>
+
+              <rect x="150" y="90" width="40" height="40" rx="6" fill="url(#key-grad)" stroke="#555"/>
+              <text x="170" y="116">D</text>
+              <text x="170" y="148" font-size="9" fill="#9bf">右</text>
+
+              <!-- Shift -->
+              <rect x="220" y="90" width="80" height="40" rx="6" fill="url(#key-grad)" stroke="#555"/>
+              <text x="260" y="116" font-size="13">Shift</text>
+              <text x="260" y="148" font-size="9" fill="#fc8">押しながら 5× 高速</text>
+            </g>
+          </svg>
+        </div>
+
+        <h3>速度を変える</h3>
+        <ul>
+          <li><kbd>Shift</kbd> 押している間だけ 5 倍速</li>
+          <li>マウスホイールで巡航速度自体を変更</li>
+          <li>右下に現在の速度が表示されます (HUD)</li>
+        </ul>
+      </section>
+
+      <!-- ── MOUSE ── -->
+      <section id="m-mouse">
+        <h2>🖱 マウス操作</h2>
+        <div class="m-fig">
+          <svg viewBox="0 0 260 200" style="width:160px;height:auto">
+            <!-- Mouse body -->
+            <path d="M60,30 Q60,10 90,10 L170,10 Q200,10 200,30 L200,160 Q200,190 130,190 Q60,190 60,160 Z"
+              fill="#222" stroke="#555" stroke-width="1.5"/>
+            <!-- Left button -->
+            <path d="M60,30 Q60,10 90,10 L128,10 L128,90 L60,90 Z" fill="#88aaff" opacity=".55" stroke="#88aaff"/>
+            <!-- Right button -->
+            <path d="M132,10 L170,10 Q200,10 200,30 L200,90 L132,90 Z" fill="#ff8866" opacity=".55" stroke="#ff8866"/>
+            <!-- Scroll wheel -->
+            <rect x="120" y="35" width="20" height="40" rx="6" fill="#444" stroke="#777"/>
+            <text x="130" y="115" font-size="10" fill="#88aaff" text-anchor="middle">左 = 選択</text>
+            <text x="130" y="130" font-size="10" fill="#ff8866" text-anchor="middle">右ドラッグ = 視点回転</text>
+            <text x="130" y="145" font-size="10" fill="#ff8866" text-anchor="middle">右(測定中) = 配置</text>
+            <text x="130" y="175" font-size="9"  fill="#aaa"   text-anchor="middle">ホイール = FOV変更</text>
+          </svg>
+        </div>
+        <table class="m-tbl">
+          <tr><th>操作</th><th>動作</th></tr>
+          <tr><td>右ドラッグ</td><td>視点を回す (パン/ティルト)</td></tr>
+          <tr><td>左クリック長押し (測定中)</td><td>配置点をプレビュー / 離して確定</td></tr>
+          <tr><td>ホイール</td><td>FOV (画角) を変更 — 拡大/縮小に近い感覚</td></tr>
+          <tr><td>左クリック (オブジェクト上)</td><td>レイヤー選択</td></tr>
+          <tr><td>左ドラッグ (3Dハンドル)</td><td>位置/回転/スケール ハンドルの操作</td></tr>
+          <tr><td>Ctrl + 左クリック (レイヤーパネル)</td><td>複数選択</td></tr>
+        </table>
+      </section>
+
+      <!-- ── ORIENT ── -->
+      <section id="m-orient">
+        <h2>🔄 シーンの向きを直す</h2>
+        <p>PLY の出力ソフトによってシーンが上下逆 / 横倒しに見えることがあります。</p>
+        <div class="m-grid2">
+          <div class="m-card">
+            <h4>🎯 上下が逆 / 横倒しの場合</h4>
+            <ol>
+              <li>レイヤーを選択</li>
+              <li>右パネル「表示調整」の <b>X軸反転 / Y軸反転 / Z軸反転</b> を試す</li>
+              <li>それでもズレるなら下の角度入力で直接調整</li>
+            </ol>
+          </div>
+          <div class="m-card">
+            <h4>🔁 微調整</h4>
+            <ul>
+              <li><b>X / Y / Z 軸反転</b> を組み合わせて試す (3 軸独立トグル)</li>
+              <li>ダメなら下の <b>位置/回転/サイズ</b> 入力で手動補正</li>
+            </ul>
+          </div>
+        </div>
+      </section>
+
+      <!-- ── LAYERS ── -->
+      <section id="m-layers">
+        <h2>📁 レイヤーパネル</h2>
+        <p>左サイドの「シーンレイヤー」が中心。読み込んだファイルやオブジェクトはすべてここに並びます。</p>
+        <ul>
+          <li><b>👁</b> 表示 / 非表示</li>
+          <li><b>🗑</b> 削除 (<kbd>Z</kbd> で取り消し可、最大10ステップ)</li>
+          <li><b>ダブルクリック</b> 名前を変更</li>
+          <li><b>ドラッグ</b> 並べ替え / フォルダ階層化</li>
+          <li><b>Ctrl+クリック</b> 複数選択 → <kbd>Delete</kbd> で一括削除</li>
+        </ul>
+      </section>
+
+      <!-- ── TRANSFORM ── -->
+      <section id="m-trans">
+        <h2>⇆ 位置・回転・拡縮</h2>
+        <p>レイヤーを選択すると左パネル下部に「Transform」が表示されます。</p>
+        <ul>
+          <li><b>X / Y / Z</b> の数値入力 (位置/回転/スケール)</li>
+          <li>3D ビューに表示される<b>矢印ハンドル</b>を直接ドラッグでも動かせます</li>
+          <li>水平面ハンドル (□) で XZ 平面移動</li>
+          <li>回転リング (<b>↻ X/Y/Z</b>) でその軸まわりの回転</li>
+          <li>キューブハンドルで軸別スケール</li>
+        </ul>
+        <div class="m-tip"><b>💡:</b> <kbd>Z</kbd> で操作を最大10回まで戻せます。<kbd>Y</kbd> で進む。</div>
+      </section>
+
+      <!-- ── ADD ── -->
+      <section id="m-add">
+        <h2>＋ オブジェクトを追加</h2>
+        <p>左上の「<b>オブジェクト追加 ▾</b>」メニュー から:</p>
+        <ul>
+          <li><b>＋ 3DGS</b> — 追加の splat ファイル (PLY/SPLAT/SPZ/KSPLAT)</li>
+          <li><b>＋ OBJ/GLB</b> — 3Dモデル (OBJ/GLTF/GLB/FBX)</li>
+          <li><b>📦 キューブ / ⚽ 球 / 📁 フォルダ / 💡 ライト / 🟠 イベント</b> — シーン構成用のヘルパー</li>
+        </ul>
+      </section>
+
+      <!-- ── MEASURE ── -->
+      <section id="m-measure">
+        <h2>📐 距離測定</h2>
+        <p>splat 表面上の 2 点間の実距離を測ります。</p>
+        <ol>
+          <li><kbd>M</kbd> または cbar の「📐 測定」で測定モードに入る</li>
+          <li><b>左クリック長押し</b> → カーソル先にゴーストマーカーが追従</li>
+          <li>離した瞬間に点 A が確定</li>
+          <li>もう一度同じ操作で点 B → 距離が画面上に表示</li>
+          <li>マーカーを矢印 (X/Y/Z) でドラッグして微調整可</li>
+        </ol>
+        <div class="m-tip">
+          <b>📏 精度:</b> splat の表面の最近接点を自動でスナップします。シーンサイズに応じて
+          最大 200 万点をキャッシュして高精度に判定。
+        </div>
+      </section>
+
+      <!-- ── CAMERA TOOL ── -->
+      <section id="m-camtool">
+        <h2>📷 カメラツール (プリビズ機能)</h2>
+        <p>実機カメラのようにレンズ・センサーを設定して JPEG 出力。Blender Photographer 風。</p>
+
+        <h3>パネル構成</h3>
+        <div class="m-grid2">
+          <div class="m-card">
+            <h4>右パネル — 技術設定</h4>
+            <ul>
+              <li>🔍 <b>レンズ</b> 焦点距離 (14 / 35 / 50 / 85 / … プリセット)</li>
+              <li>⬛ <b>センサー</b> FF / APS-C / MFT / S35 / 65mm / カスタム</li>
+              <li>🎯 <b>角度</b> パン / ティルト / ロール (ダッチアングル)</li>
+              <li>☀ <b>WB</b> 色温度 K (2000–12000)</li>
+              <li>🎬 <b>アスペクト</b> 16:9 / 2.39 / 1:1 / カスタム</li>
+              <li># <b>グリッド</b> 三分割 / 黄金 / セーフ / カスタム (複数 OK)</li>
+            </ul>
+          </div>
+          <div class="m-card">
+            <h4>左下パネル — ショット情報</h4>
+            <ul>
+              <li>📷 <b>カメラ情報</b> リアルタイム表示</li>
+              <li>📝 <b>メタ</b> ショット名 / 機材 / 環境 / 備考</li>
+              <li>📸 <b>キャプチャ</b> バーンインON/OFF + 画質 + 撮影</li>
+              <li>📥 <b>サルベージ</b> 過去JPEGをドロップで復元</li>
+            </ul>
+          </div>
+        </div>
+
+        <h3>センサーとレンズの関係</h3>
+        <p>焦点距離 + センサーサイズから視野角 (FOV) が自動計算されます (実機と同じピンホール式):</p>
+        <ul>
+          <li>FF 36×24mm + 35mm レンズ → 水平 54.4° / 垂直 38.6°</li>
+          <li>APS-C で同じ画角を得たい場合: 35÷1.5 ≈ 24mm</li>
+          <li>HUD には常に <b>35mm 換算</b>も表示</li>
+        </ul>
+
+        <h3>セーフフレームと余白</h3>
+        <p>選択したアスペクトの枠が表示され、外側が暗くマスクされます。「外側余白」スライダで枠を内側にオフセット。</p>
+      </section>
+
+      <!-- ── SALVAGE ── -->
+      <section id="m-salvage">
+        <h2>📥 サルベージ (カメラ位置の復元)</h2>
+        <p>ロケハン3Dで撮った JPEG にはカメラ位置・角度・全設定が <b>JPEG COM セグメント</b> に埋め込まれています。</p>
+        <ol>
+          <li>カメラツールを起動</li>
+          <li>左下パネル下部の点線エリアに以前撮った JPEG をドラッグ</li>
+          <li>カメラ位置 / 向き / レンズ / WB / グリッド設定がすべて復元</li>
+        </ol>
+        <div class="m-tip">
+          <b>⚠ 注意:</b> JPEG を別アプリで再保存すると埋め込みデータが失われる場合があります。
+          オリジナルの撮って出しを保管してください。
+        </div>
+      </section>
+
+      <!-- ── ENVIRONMENT ── -->
+      <section id="m-env">
+        <h2>🌅 環境 (疑似HDRI)</h2>
+        <p>cbar の「🌅 環境」ボタンから。空の色とシーン全体の色味を一括変更。</p>
+        <ul>
+          <li><b>9 プリセット:</b> ☀ 昼 / 🌅 朝 / 🌇 夕方 / 🌃 夜 / ☁ 曇り / ⛅ 薄曇 / 🌧 雨 / 🌌 黄昏 / なし</li>
+          <li><b>回転スライダ</b> 空を 0–360° 回せる (光の方向を合わせる)</li>
+          <li><b>強度スライダ</b> 0–200% (100% で標準, 200% で強めにライティング感)</li>
+        </ul>
+        <p>選んだ環境で splat やモデルにも乗算ティントがかかり、夜なら全体が暗青、夕方なら暖色寄りに見えます。</p>
+      </section>
+
+      <!-- ── MAP ── -->
+      <section id="m-map">
+        <h2>🗺 ミニマップ</h2>
+        <p>cbar の「🗺 マップ」をクリックで表示/非表示。</p>
+        <ul>
+          <li><b>右クリック長押し</b> → 離した位置に瞬間移動</li>
+          <li>表示距離: <b>10 / 50 / 100 / 500 m</b> (デフォルト 100m)</li>
+          <li>クリックでマップ拡大表示</li>
+        </ul>
+      </section>
+
+      <!-- ── QUALITY ── -->
+      <section id="m-quality">
+        <h2>🖥 画質と速度</h2>
+        <p>cbar の「🖥 画質」で描画品質を切替。</p>
+        <ul>
+          <li>低品質 = 動作軽快 (大きい PLY や非力 GPU 用)</li>
+          <li>標準 / 高品質 = 通常使用</li>
+          <li>カメラ動作中は自動的に解像度を 65% に下げ、停止後に復元 (Spark のソート遅延対策)</li>
+        </ul>
+      </section>
+
+      <!-- ── SAVE ── -->
+      <section id="m-save">
+        <h2>💾 プロジェクト保存</h2>
+        <ul>
+          <li>左上の <b>📁 保存</b> ボタン → ZIP でダウンロード (シーン全体 + カメラ設定)</li>
+          <li><kbd>Ctrl</kbd>+<kbd>S</kbd> でも同じ</li>
+          <li>左上 <b>📥 読込</b> または起動画面「📦 プロジェクトを開く」で復元</li>
+          <li>「▶ 編集を続ける」(起動画面) は前回の編集状態を継続</li>
+        </ul>
+      </section>
+
+      <!-- ── SHORTCUTS ── -->
+      <section id="m-shortcut">
+        <h2>⌨ ショートカット早見表</h2>
+        <table class="m-tbl">
+          <tr><th>キー</th><th>動作</th></tr>
+          <tr><td><kbd>↑</kbd> <kbd>↓</kbd> <kbd>←</kbd> <kbd>→</kbd> / <kbd>W</kbd> <kbd>A</kbd> <kbd>S</kbd> <kbd>D</kbd></td><td>移動 (前 / 後 / 左 / 右パン)</td></tr>
+          <tr><td><kbd>Ctrl</kbd> + <kbd>↑↓←→</kbd></td><td>視点を回す / 上下チルト</td></tr>
+          <tr><td><kbd>Page Up</kbd> / <kbd>Page Down</kbd> ・ <kbd>+</kbd> / <kbd>-</kbd></td><td>ズームイン / アウト</td></tr>
+          <tr><td><kbd>Q</kbd> / <kbd>E</kbd> ・ <kbd>R</kbd> / <kbd>F</kbd></td><td>上昇 / 下降</td></tr>
+          <tr><td><kbd>Shift</kbd> (押しながら)</td><td>5× 高速移動</td></tr>
+          <tr><td>マウスホイール</td><td>巡航速度を変更</td></tr>
+          <tr><td><kbd>M</kbd></td><td>測定モード ON / OFF</td></tr>
+          <tr><td><kbd>Z</kbd></td><td>取り消し (Undo, 最大 10)</td></tr>
+          <tr><td><kbd>Y</kbd></td><td>やり直し (Redo)</td></tr>
+          <tr><td><kbd>Ctrl</kbd> + <kbd>S</kbd></td><td>プロジェクト保存</td></tr>
+          <tr><td><kbd>Delete</kbd> / <kbd>Backspace</kbd></td><td>選択レイヤー削除</td></tr>
+          <tr><td><kbd>Esc</kbd></td><td>測定モード終了</td></tr>
+          <tr><td>右ドラッグ (通常)</td><td>視点を回す</td></tr>
+          <tr><td>左クリック長押し (測定中)</td><td>配置点プレビュー → 離して確定</td></tr>
+          <tr><td>Ctrl + クリック (レイヤー)</td><td>複数選択</td></tr>
+        </table>
+      </section>
+
+      <!-- ── FAQ ── -->
+      <section id="m-faq">
+        <h2>❓ よくある質問</h2>
+        <div class="m-faq">
+          <h4>Q. 読み込んだシーンが上下逆さま</h4>
+          <p>A. レイヤー選択 → 表示調整の「X軸反転 / Y軸反転 / Z軸反転」を試してください。</p>
+        </div>
+        <div class="m-faq">
+          <h4>Q. カメラを振ったとき画面端が黒い / にじむ</h4>
+          <p>A. Spark のソート遅延です。動作中は自動で解像度が下がり、停止すれば復元されます。
+             どうしても気になる場合は cbar の「🖥 画質」を一段下げてみてください。</p>
+        </div>
+        <div class="m-faq">
+          <h4>Q. 測定が表面を貫通して奥に置かれる</h4>
+          <p>A. キャッシュ密度を上げ済 (最大 2M 点)。それでもズレる場合は、選択中のレイヤーが
+             正しく メイン splat を含んでいるか確認してください。</p>
+        </div>
+        <div class="m-faq">
+          <h4>Q. 撮った JPEG をサルベージしたら復元されない</h4>
+          <p>A. 別ソフトで再エンコードされた可能性があります。ロケハン3Dの撮って出しのみ対応します。</p>
+        </div>
+        <div class="m-faq">
+          <h4>Q. F値や ISO がない</h4>
+          <p>A. 仮想カメラなので被写界深度や露出はありません。色温度 (WB) のみ画作りに反映します。</p>
+        </div>
+        <div class="m-faq">
+          <h4>Q. もう一度マニュアルを開きたい</h4>
+          <p>A. 画面下中央の「<kbd>❓</kbd>」ボタンからいつでも開けます。</p>
+        </div>
+      </section>
+
+      <div style="height:60px"></div>
+    </div><!-- /.m-ja -->
+
+    <div class="m-en">
+      <section id="m-quick">
+        <h2>🚀 5-Minute Quickstart</h2>
+        <p style="color:#aab">Locahun3D is a viewer for loading 3D scans (3DGS) for location scouting, storyboards and previz. Start with these three steps.</p>
+        <ol style="line-height:1.9">
+          <li><b>Load</b> — drag a 3DGS file (.splat / .ply, etc.) onto the “📂” area on the start screen, or hit “Demo scene” to try it.</li>
+          <li><b>Move</b> — <b>right-drag</b> the mouse to look around; <kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd> to move.</li>
+          <li><b>Use</b> — bottom buttons: Camera / Sun / Measure. Top button: Add object. Manage everything in the left layer panel.</li>
+        </ol>
+      </section>
+
+      <section id="m-cam">
+        <h2>🎮 Moving the camera</h2>
+        <ul style="line-height:1.9">
+          <li><b>Look around</b>: right-drag the mouse</li>
+          <li><b>Move</b>: <kbd>W</kbd>fwd / <kbd>S</kbd>back / <kbd>A</kbd>left / <kbd>D</kbd>right / <kbd>Q</kbd>down / <kbd>E</kbd>up</li>
+          <li><b>Speed</b>: mouse wheel (or the slider in the quality panel)</li>
+          <li><b>Reset view</b>: “🏠 Camera reset” at the top</li>
+        </ul>
+        <p style="color:#889">On phone / iPad, use the bottom-left joystick to move and drag the screen to look around.</p>
+      </section>
+
+      <section id="m-devices">
+        <h2>📱 Features by device</h2>
+        <p style="color:#889">Available features and controls differ by device (◯=yes / △=partial or not recommended / －=no).</p>
+        <table class="m-tbl">
+          <tr><th>Feature</th><th>PC<br>(mouse/key)</th><th>Phone/<br>Tablet</th><th>VR<br>(Vision Pro/Quest)</th><th>TV/Console<br>(remote/pad)</th></tr>
+          <tr><td>Look around / view</td><td>◯</td><td>◯</td><td>◯</td><td>◯</td></tr>
+          <tr><td>Move (WASD / joystick)</td><td>◯ WASD</td><td>◯ joy</td><td>◯</td><td>△ D-pad</td></tr>
+          <tr><td>Sun / weather sim</td><td>◯</td><td>◯</td><td>◯</td><td>◯</td></tr>
+          <tr><td>Distance measure</td><td>◯</td><td>◯</td><td>△</td><td>△</td></tr>
+          <tr><td>Camera tool (previz)</td><td>◯</td><td>◯</td><td>△</td><td>△</td></tr>
+          <tr><td>Add / edit objects</td><td>◯</td><td>◯</td><td>△</td><td>△</td></tr>
+          <tr><td>Avatar walk</td><td>◯</td><td>△</td><td>◯</td><td>－</td></tr>
+          <tr><td>AR (rear-camera overlay)</td><td>－</td><td>◯</td><td>－</td><td>－</td></tr>
+          <tr><td>Focus nav (D-pad / gaze)</td><td>－</td><td>－</td><td>◯</td><td>◯</td></tr>
+        </table>
+        <p style="color:#889">AR is phone / tablet only (enable “Settings &gt; Safari &gt; Motion &amp; Orientation Access”). VR is best for viewing &amp; walking; use a PC for detailed editing.</p>
+      </section>
+
+      <section id="m-layers">
+        <h2>📁 Layers &amp; folders</h2>
+        <p>Loaded files and added objects appear in “Scene layers” on the left.</p>
+        <ul style="line-height:1.9">
+          <li>👁 toggle visibility</li>
+          <li>✏️ rename (double-click also works)</li>
+          <li>🗑 delete (<kbd>Ctrl</kbd>+<kbd>Z</kbd> to undo)</li>
+          <li>drag to reorder / drop into a folder</li>
+          <li>🔒 <b>Lock a folder</b> to disable moving, editing and deleting its contents (prevents accidents). Click again to unlock.</li>
+        </ul>
+      </section>
+
+      <section id="m-trans">
+        <h2>⇆ Move / rotate / scale</h2>
+        <p>Select an object to get the 3D handles (gizmo) and numeric inputs.</p>
+        <ul style="line-height:1.9">
+          <li>arrows = move / rings = rotate / cubes = scale</li>
+          <li>switch coordinate space with “Local / World” (new &amp; imported objects default to Local)</li>
+          <li>position / rotation / scale / size inputs step by <b>0.01</b> for fine adjustment</li>
+          <li>on iPad / phone you can <b>drag the gizmo (arrows, rings, pivot) with your finger</b></li>
+        </ul>
+      </section>
+
+      <section id="m-add">
+        <h2>＋ Adding objects</h2>
+        <p>Pick a type from “📦 Add object” at the top, then <b>long-press (left-click) in the scene</b> to place it (hold to aim, release to confirm; <kbd>Esc</kbd> to cancel).</p>
+        <ul style="line-height:1.9">
+          <li>📦 <b>Cube</b> — size reference / blocking</li>
+          <li>🟠 <b>Event</b> — a point of interest; you can attach an image</li>
+          <li>👤 <b>Figure</b> — a human; adjust height to check scale &amp; eye level, and pose it by <b>selecting joints to rotate</b> or pulling the <b>IK handles</b></li>
+          <li>🛣 <b>Path</b> — a 4-point area with a centre label (e.g. parking bays). Labels can be multi-line.</li>
+        </ul>
+      </section>
+
+      <section id="m-measure">
+        <h2>📐 Distance measure</h2>
+        <p>Turn on “📐 Measure” at the bottom. Measures the <b>real distance</b> between two points on the scan surface.</p>
+        <ul style="line-height:1.9">
+          <li>long-press to preview a point, release to confirm (point A → point B)</li>
+          <li>“+ Measure height” adds a 3rd point for height</li>
+          <li>fine-tune markers with the arrows (axis) or the XZ plane; 🗑 to clear</li>
+          <li>on iPad / phone you can also <b>drag the arrows and markers with your finger</b></li>
+          <li>distance, height &amp; components read out in <b>0.01 m (1 cm)</b> steps</li>
+        </ul>
+      </section>
+
+      <section id="m-camtool">
+        <h2>📷 Camera tool / animation</h2>
+        <p><b>Camera tool</b> (“📷 Camera” at the bottom): set a real lens, sensor and aspect ratio, show the framing box and grid, and capture JPEGs with camera metadata burned in.</p>
+        <p><b>Camera animation</b> (“🎞 Animation” at the top): add several camera keys to build a path and export an MP4. Motion can be <b>Ease in/out</b> or <b>Linear</b>.</p>
+      </section>
+
+      <section id="m-env">
+        <h2>☀ Sun &amp; weather</h2>
+        <p>“☀ Sun” at the bottom: reproduces the sun position and lighting mood from date, time and prefecture.</p>
+        <ul style="line-height:1.9">
+          <li>scrub the time slider from morning to night</li>
+          <li>change the sky mood with weather (clear / cloudy / rain)</li>
+          <li>“🌐 Get live forecast” follows real online weather (optional)</li>
+        </ul>
+      </section>
+
+      <section id="m-walkar">
+        <h2>🚶 Avatar walk / 📱 AR</h2>
+        <p><b>Avatar walk</b> (“🚶 Avatar walk” at the top): explore the scene from a person’s eye level. Move the avatar with <kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd>; look around as usual. Great for checking sightlines, eye level and sense of scale. Click again to exit.</p>
+        <p><b>AR mode</b> (“📱 AR” at the top; phone / tablet only): overlays the 3DGS on the rear-camera feed so you can tilt the device to look around — handy for checking the real-scale overlay on location.</p>
+        <p style="color:#889">Note: on iOS, first enable “Settings &gt; Safari &gt; Motion &amp; Orientation Access”, then reload the page to use AR.</p>
+      </section>
+
+      <section id="m-save">
+        <h2>💾 Save &amp; load</h2>
+        <ul style="line-height:1.9">
+          <li><b>Zip save</b> (top-left): saves the whole scene into a single ZIP — layers, objects, camera and settings all restore.</li>
+          <li><b>Load</b> (“📁 Load” above the layer panel): add a ZIP or a 3DGS / model.</li>
+          <li><b>🎥 Save camera</b>: stores the current camera position as a layer.</li>
+        </ul>
+      </section>
+
+      <section id="m-faq">
+        <h2>❓ FAQ &amp; shortcuts</h2>
+        <ul style="line-height:1.9">
+          <li><b>Scene upside-down / sideways</b> → select the layer and use “Flip axis” or the angle inputs.</li>
+          <li><b>Running slow</b> → set the quality chip (top-right) to “Low”. Rendering is capped at 60 fps.</li>
+          <li><b>Language</b> → toggle “EN / 日本語” at the top-right.</li>
+        </ul>
+        <p style="color:#889"><b>Shortcuts</b>: <kbd>Ctrl</kbd>+<kbd>Z</kbd> undo / <kbd>Ctrl</kbd>+<kbd>Y</kbd> redo / <kbd>Ctrl</kbd>+<kbd>D</kbd> duplicate</p>
+      </section>
+    </div><!-- /.m-en (new) -->

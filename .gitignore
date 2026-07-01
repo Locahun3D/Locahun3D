@@ -42,3 +42,6 @@ __pycache__/
 /Locahun3D_OfflineViewer_*.html
 .wrangler/
 /viewer-dist/
+
+# ── Build tool state ──────────────────────────────────────────────────────
+.build-hash

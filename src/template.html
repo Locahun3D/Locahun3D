@@ -1,0 +1,996 @@
+<!DOCTYPE html>
+<!-- GENERATED FILE — DO NOT EDIT. Source: src/ in F:/Htlml/3DGS/Locahun3D (build: node build.mjs) -->
+<html lang="ja" id="html-root">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,minimum-scale=1,user-scalable=no,viewport-fit=cover">
+<title>ロケハン3D</title>
+<!-- Favicon / SEO: 実ファイル参照（Google検索はdata-URIを無視するため /favicon.* を配信） -->
+<link rel="icon" href="/favicon.ico" sizes="any">
+<link rel="icon" type="image/svg+xml" href="/favicon.svg">
+<link rel="apple-touch-icon" href="/apple-touch-icon.png">
+<meta name="theme-color" content="#0c0c0d">
+<meta name="description" content="ロケハン3D — 3D Gaussian Splatting のオフライン・ビューアー。ロケハン/現場検証のためのプリビズ・カメラツール・日照/天気シミュレーション。">
+<meta property="og:title" content="ロケハン3D">
+<meta property="og:description" content="3D Gaussian Splatting ビューアー（ロケハン・現場検証向け）">
+<meta property="og:type" content="website">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@200;300;400;600;700;900&family=JetBrains+Mono:wght@300;500&display=swap" rel="stylesheet">
+<style>
+{{include:src/css/010_style_block.css}}
+{{include:src/css/011_style_block_layer_panel.css}}
+{{include:src/css/012_style_block_mobile.css}}
+</style>
+</head>
+<body>
+
+<!-- ══ Force-landscape overlay (non-PC only) ══
+     Pure-CSS: shown only on coarse-pointer (phone / tablet) devices held in
+     PORTRAIT. Desktop never matches the media query, and rotating the device
+     to landscape auto-dismisses it (no JS, no touch-coordinate breakage). The
+     app keeps initialising / auto-loading underneath, so it's ready the moment
+     the user rotates. -->
+<style>
+{{include:src/css/020_style_block.css}}
+</style>
+<div id="orient-lock" aria-hidden="true">
+  <div class="ol-icon">📱</div>
+  <div class="ol-msg" id="orient-lock-msg">横画面でご利用ください</div>
+  <div class="ol-sub" id="orient-lock-sub">端末を横向きに回転してください</div>
+</div>
+
+
+<!-- ══ Layer Panel ══ -->
+<div id="layer-panel" class="collapsed">
+  <div class="lp-resize" id="lp-resize-handle"></div>
+  <div class="lp-head" id="lp-title-head" onclick="toggleLayerPanelCollapse(event)">
+    <span><span class="lp-chev">▾</span>📁 <span id="lp-h-scene">シーンレイヤー</span></span>
+    <button onclick="event.stopPropagation();addFolder()" title="フォルダを追加"
+      style="background:rgba(255,220,80,.12);border:1px solid rgba(255,220,80,.25);color:rgba(255,220,80,.8);
+             border-radius:5px;padding:2px 8px;font-size:.75em;cursor:pointer;transition:all .15s"
+      onmouseover="this.style.background='rgba(255,220,80,.22)'"
+      onmouseout="this.style.background='rgba(255,220,80,.12)'">📁＋</button>
+  </div>
+  <!-- Type-visibility filter row (#lp-type-filter) removed per user request.
+       toggleTypeVis() remains exported on window so any programmatic toggling
+       (e.g. from a future plugin or saved project) still works; the per-layer
+       visibility toggles inside each layer row are unaffected. -->
+  <!-- 読み込み / 書き出し buttons live ABOVE the layer list now (per user
+       request) so the most-used actions sit closest to the panel title.
+       Hidden along with the rest of the panel content when collapsed. -->
+  <div class="lp-footer" id="lp-footer-bar">
+    <button onclick="triggerImportAny()" id="fp-btn-import">📁 <span id="fp-btn-import-lbl">読み込み</span></button>
+    <button onclick="saveCameraLayer()" id="btnSaveCamera" style="color:#9fd0ff" title="現在のカメラ位置・アングル・画角・アスペクト比を保存">🎥 <span id="lbl-save-camera">カメラ保存</span></button>
+  </div>
+  <!-- Layer list — always visible when the panel itself is expanded.
+       (The earlier "sub-header chevron" second-level collapse was removed
+       per user request; the panel-header chevron still expands/collapses
+       the whole sidebar.) -->
+  <div id="layer-list"><div id="lp-empty" style="font-size:.72em;color:#404040;padding:10px;text-align:center">まだシーンがありません</div></div>
+  <div id="lp-divider" style="height:7px;cursor:ns-resize;background:rgba(255,255,255,.04);border-top:1px solid rgba(255,255,255,.1);border-bottom:1px solid rgba(255,255,255,.06);flex-shrink:0;transition:background .15s;display:none;"
+    onmouseover="this.style.background='rgba(255,255,255,.15)'"
+    onmouseout="this.style.background='rgba(255,255,255,.04)'"><div style="width:30px;height:2px;background:rgba(255,255,255,.2);border-radius:1px;margin:auto"></div></div>
+  <div id="layer-transform" style="display:none"></div>
+</div>
+<!-- File inputs for the in-app 📁 読み込み button. Placed at body root
+     (NOT inside #layer-panel) so they're never hit by the panel-collapse
+     `display:none` rule or by the touch-device hide-everything rule. With
+     the inputs hidden via `display:none` (legacy two), calling .click()
+     would silently fail in modern Chrome/Safari; visually-hidden via
+     clip-path keeps the picker working reliably across browsers. -->
+<input type="file" id="lfi-any"
+  accept=".splat,.ply,.spz,.ksplat,.rad,.sog,.pcsogs,.pcsogszip,.obj,.gltf,.glb,.fbx,.zip,.json" multiple
+  style="position:fixed;left:0;top:0;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0 0 0 0);clip-path:inset(50%);border:0;opacity:0;pointer-events:none">
+<!-- Legacy hidden inputs kept for back-compat with code that references
+     them by id; the new flow uses #lfi-any. Same visually-hidden pattern
+     so a programmatic .click() still pops the picker on iOS Safari. -->
+<input type="file" id="lfi-splat" accept=".splat,.ply,.spz,.ksplat,.rad,.sog,.pcsogs,.pcsogszip" multiple
+  style="position:fixed;left:0;top:0;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0 0 0 0);clip-path:inset(50%);border:0;opacity:0;pointer-events:none">
+<input type="file" id="lfi-obj" accept=".obj,.gltf,.glb,.fbx"
+  style="position:fixed;left:0;top:0;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0 0 0 0);clip-path:inset(50%);border:0;opacity:0;pointer-events:none">
+
+<!-- ══ Floating Minimap (bottom-left) ══ -->
+<!-- Scene-tint overlay: drives a global multiplicative color over the rendered scene
+     so splats and OBJ models appear to be "lit" by the chosen environment.
+     Underneath the WB tint (z-index 47 vs 48) so WB still feels like a camera-side
+     correction sitting on top of the scene-side lighting. -->
+<div id="env-tint" style="position:fixed;inset:0;pointer-events:none;display:none;
+  z-index:47;mix-blend-mode:multiply;background:rgba(255,255,255,1);
+  transition:background .4s ease-out;"></div>
+
+<!-- Light halo overlay: per-PointLight screen-blend halos that "shine through"
+     the env-tint darkness, so placed lights actually brighten the scene visually.
+     Sits above #env-tint (later DOM order, same z-index 47) so screen blend lifts
+     the multiplied-dark scene wherever a light is positioned. -->
+<div id="light-halo-layer" style="position:fixed;inset:0;pointer-events:none;
+  z-index:47;mix-blend-mode:screen;display:none;"></div>
+
+<!-- 環境(手動プリセット)パネルは廃止。背景は「日照」モード＋天気(晴/曇/雨)で制御する。
+     ENV_PRESETS / _setEnvPresetCore / applySceneTint / 空ドーム などの env 機構は
+     日照モードが内部で利用するため JS 側にそのまま残している（UI だけ撤去）。 -->
+
+<!-- ☀ 日照 (Sun / Daylight) panel -->
+<div id="sun-panel" style="position:fixed;bottom:64px;right:14px;z-index:91;
+  background:rgba(26,26,28,.97);border:1px solid rgba(255,255,255,.1);
+  border-radius:10px;padding:14px;width:286px;max-height:72vh;overflow-y:auto;
+  color:#d0d0d0;font-size:.78em;font-family:ui-sans-serif,system-ui,sans-serif;
+  backdrop-filter:blur(12px);display:none;">
+  <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">
+    <strong>☀ <span id="sun-h-title" data-i18n="sun-h-title">日照シミュレーション</span></strong>
+    <button onclick="toggleSunMode()" style="background:none;border:none;color:#888;font-size:1.2em;cursor:pointer">✕</button>
+  </div>
+
+  <!-- 場所 (47都道府県: 値=ローマ字キー, 緯度経度=県庁所在地。JIS順) -->
+  <div class="sun-sec-lbl" id="sun-l-loc" data-i18n="sun-l-loc">📍 場所（都道府県）</div>
+  <select id="sun-city" onchange="onSunCityChange(this.value)" class="sun-inp" style="width:100%;margin-bottom:4px">
+    <option value="hokkaido">北海道</option>
+    <option value="aomori">青森県</option>
+    <option value="iwate">岩手県</option>
+    <option value="miyagi">宮城県</option>
+    <option value="akita">秋田県</option>
+    <option value="yamagata">山形県</option>
+    <option value="fukushima">福島県</option>
+    <option value="ibaraki">茨城県</option>
+    <option value="tochigi">栃木県</option>
+    <option value="gunma">群馬県</option>
+    <option value="saitama">埼玉県</option>
+    <option value="chiba">千葉県</option>
+    <option value="tokyo">東京都</option>
+    <option value="kanagawa">神奈川県</option>
+    <option value="niigata">新潟県</option>
+    <option value="toyama">富山県</option>
+    <option value="ishikawa">石川県</option>
+    <option value="fukui">福井県</option>
+    <option value="yamanashi">山梨県</option>
+    <option value="nagano">長野県</option>
+    <option value="gifu">岐阜県</option>
+    <option value="shizuoka">静岡県</option>
+    <option value="aichi">愛知県</option>
+    <option value="mie">三重県</option>
+    <option value="shiga">滋賀県</option>
+    <option value="kyoto">京都府</option>
+    <option value="osaka">大阪府</option>
+    <option value="hyogo">兵庫県</option>
+    <option value="nara">奈良県</option>
+    <option value="wakayama">和歌山県</option>
+    <option value="tottori">鳥取県</option>
+    <option value="shimane">島根県</option>
+    <option value="okayama">岡山県</option>
+    <option value="hiroshima">広島県</option>
+    <option value="yamaguchi">山口県</option>
+    <option value="tokushima">徳島県</option>
+    <option value="kagawa">香川県</option>
+    <option value="ehime">愛媛県</option>
+    <option value="kochi">高知県</option>
+    <option value="fukuoka">福岡県</option>
+    <option value="saga">佐賀県</option>
+    <option value="nagasaki">長崎県</option>
+    <option value="kumamoto">熊本県</option>
+    <option value="oita">大分県</option>
+    <option value="miyazaki">宮崎県</option>
+    <option value="kagoshima">鹿児島県</option>
+    <option value="okinawa">沖縄県</option>
+  </select>
+  <div id="sun-coords" style="display:none;color:#777;font-size:.85em;margin-bottom:10px">—</div>
+
+  <!-- 天気 (疑似HDRI連動) -->
+  <div class="sun-sec-lbl" id="sun-l-weather" data-i18n="sun-l-weather">🌤 天気</div>
+  <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:5px;margin-bottom:10px">
+    <button class="sun-wx-btn" data-wx="clear"  id="sun-wx-clear"  data-i18n="sun-wx-clear"  onclick="onSunWeather('clear')">☀ 晴れ</button>
+    <button class="sun-wx-btn" data-wx="cloudy" id="sun-wx-cloudy" data-i18n="sun-wx-cloudy" onclick="onSunWeather('cloudy')">☁ 曇り</button>
+    <button class="sun-wx-btn" data-wx="rain"   id="sun-wx-rain"   data-i18n="sun-wx-rain"   onclick="onSunWeather('rain')">🌧 雨</button>
+    <button class="sun-wx-btn" data-wx="snow"   id="sun-wx-snow"   data-i18n="sun-wx-snow"   onclick="onSunWeather('snow')">❄ 雪</button>
+  </div>
+  <!-- 実際の天気予報 (Open-Meteo, オンライン時のみ) -->
+  <button id="sun-fetch-wx" data-i18n="sun-fetch-wx" onclick="fetchSunForecast()" title="選択中の場所・日付・時刻の実際の天気予報を読み込み、上の天気を自動設定します（インターネット接続が必要）" style="width:100%;margin-bottom:6px;background:rgba(120,180,255,.16);border:1px solid rgba(120,180,255,.4);color:#bdf;border-radius:6px;padding:5px 8px;font-size:.85em;cursor:pointer">🌐 実際の天気予報を取得（オンライン時）</button>
+  <div id="sun-forecast" style="display:none;background:rgba(120,180,255,.08);border:1px solid rgba(120,180,255,.22);border-radius:6px;padding:6px 9px;font-size:.88em;margin-bottom:10px;line-height:1.4"></div>
+
+  <!-- 日付 (カスタムカレンダー) -->
+  <div class="sun-sec-lbl" id="sun-l-date" data-i18n="sun-l-date">📅 日付</div>
+  <div style="display:flex;gap:5px;margin-bottom:6px;align-items:center">
+    <button id="sun-date-btn" class="sun-inp" style="flex:1;text-align:left;cursor:pointer" onclick="sunCalToggle()">————</button>
+    <button class="sun-btn" id="sun-btn-now" data-i18n="sun-btn-now" onclick="sunSetNow()">今</button>
+  </div>
+  <div id="sun-calendar" style="display:none;background:#15151a;border:1px solid rgba(255,255,255,.1);border-radius:6px;padding:8px;margin-bottom:10px"></div>
+
+  <!-- 時刻スクラブ -->
+  <div class="sun-sec-lbl" style="display:flex;justify-content:space-between">
+    <span id="sun-l-time" data-i18n="sun-l-time">🕐 時刻</span><span id="sun-time-val" style="color:#fc8">12:00</span>
+  </div>
+  <div style="position:relative;margin:2px 0 12px">
+    <input type="range" id="sun-time" min="0" max="1430" step="10" value="720"
+      oninput="onSunTime(this.value)" style="width:100%;accent-color:#ffd49a;display:block">
+    <div id="sun-scrub-marks" style="position:relative;height:8px;margin-top:1px">
+      <div id="sun-mark-rise" style="display:none;position:absolute;top:0;width:0;height:0;
+        border-left:4px solid transparent;border-right:4px solid transparent;border-top:6px solid #ffd49a;transform:translateX(-4px)" title="日の出"></div>
+      <div id="sun-mark-set" style="display:none;position:absolute;top:0;width:0;height:0;
+        border-left:4px solid transparent;border-right:4px solid transparent;border-top:6px solid #d88" title="日の入り"></div>
+    </div>
+  </div>
+
+  <!-- 北方位スライダーは廃止。代わりに 3D シーン内にコンパス＋太陽軌道を表示 -->
+  <div style="display:none;color:#777;font-size:.82em;margin-bottom:10px;line-height:1.4" id="sun-viz-hint"
+    data-i18n="sun-viz-hint">🧭 ビュー内に方位コンパスと一日の太陽軌道を表示中。北はシーンの固定軸（−Z）です。</div>
+
+  <!-- 読み出し -->
+  <div id="sun-readout" style="background:rgba(255,255,255,.04);border-radius:6px;padding:8px 10px;
+    display:grid;grid-template-columns:1fr 1fr;gap:4px 10px;font-size:.95em">
+    <div><span class="sun-rk" id="sun-rl-rise" data-i18n="sun-rl-rise">🌅 日の出</span> <b id="sun-r-rise">—</b></div>
+    <div><span class="sun-rk" id="sun-rl-set" data-i18n="sun-rl-set">🌇 日の入り</span> <b id="sun-r-set">—</b></div>
+    <div style="display:none"><span class="sun-rk" id="sun-rl-noon" data-i18n="sun-rl-noon">☀ 南中</span> <b id="sun-r-noon">—</b></div>
+    <div><span class="sun-rk" id="sun-rl-len" data-i18n="sun-rl-len">⏱ 昼の長さ</span> <b id="sun-r-len">—</b></div>
+    <div style="display:none"><span class="sun-rk" id="sun-rl-alt" data-i18n="sun-rl-alt">↕ 高度</span> <b id="sun-r-alt">—</b></div>
+    <div style="display:none"><span class="sun-rk" id="sun-rl-az" data-i18n="sun-rl-az">↗ 方位</span> <b id="sun-r-az">—</b></div>
+  </div>
+</div>
+
+<style>
+{{include:src/css/030_style_block.css}}
+</style>
+{{include:src/html/010_quality_view_buttons.html}}
+{{include:src/html/020_view_buttons_ar.html}}
+{{include:src/html/030_manual_modal_ja.html}}
+{{include:src/html/040_manual_modal_en.html}}
+<style>
+{{include:src/css/040_style_block.css}}
+</style>
+
+<!-- Motion edge vignette: subtle, feathered black rim that fades in during
+     camera motion to mask Spark's async depth-sort lag at the frustum edges
+     (otherwise visible as 1-4 frames of black gap on fast pans), and fades
+     out smoothly on idle so the static frame remains fully visible.
+     CSS transition (.28s) prevents the on/off flash that the previous
+     immediate-toggle implementation had. -->
+<div id="motion-vignette" aria-hidden="true"></div>
+
+<!-- ══ Camera tool: HUD overlay + side panel ══ -->
+<!-- WB tint: full-screen colored layer that multiplies the rendered scene to simulate
+     a white-balance shift. Cooler WB → blue tint, warmer WB → orange tint. -->
+<div id="cam-wb-tint" style="position:fixed;inset:0;pointer-events:none;display:none;
+  z-index:48;mix-blend-mode:multiply;background:rgba(255,255,255,1);"></div>
+
+<!-- HUD shown in viewport when camera tool active (safe frame + grid + center crosshair).
+     The text readouts have been moved to a dedicated LEFT info panel (#cam-info)
+     so they don't clutter the framed shot itself. -->
+<div id="cam-hud" style="position:fixed;inset:0;pointer-events:none;display:none;z-index:50;
+  font-family:ui-monospace,'SFMono-Regular',Menlo,Consolas,monospace;color:#f8f8f8;
+  text-shadow:0 1px 2px rgba(0,0,0,.85);">
+  <!-- safe-frame box drawn dynamically by JS so it matches sensor aspect ratio.
+       The renderer itself is scissored to this rect at draw time (see animate());
+       outside the rect is the GL clear color (black), so the mask overlay
+       used previously (box-shadow:0 0 0 9999px) is no longer needed and would
+       just double up the black. We keep a subtle 1 px border so the user can
+       still see the rectangle boundary against the surrounding letterbox. -->
+  <div id="cam-frame" style="position:absolute;border:1px solid rgba(255,255,255,.6);
+    box-sizing:border-box;">
+    <!-- Grid SVG sized to the safe-frame; redrawn whenever frame layout / grid changes. -->
+    <svg id="cam-grid-svg" style="position:absolute;inset:0;width:100%;height:100%;
+      pointer-events:none;opacity:.85" preserveAspectRatio="none"></svg>
+  </div>
+  <!-- center crosshair REMOVED (bug fix): this was a hardcoded, always-on reticle
+       with no JS toggle, so a center "+" appeared whenever the camera tool was active
+       — even with 構図ガイド = なし. The on-demand center cross is provided by the
+       中央マーク grid option (drawCamGrid → 'center-mark') and 十字 ('cross'), which
+       the user enables via the グリッド toggles. Capture/burn-in draws its own grid
+       (see composeBurnInFrame center-mark branch), so this removal is HUD-only. -->
+</div>
+
+<!-- Standalone #cam-shot-panel removed: its content (read-only camera info,
+     meta inputs, capture controls, salvage drop) is now embedded as a
+     .cm-group at the top of #cam-panel (the カメラツール side panel) so
+     all camera-related controls live in one place. -->
+<div id="cam-shot-panel" style="display:none" aria-hidden="true"></div>
+
+<!-- Side panel (right) -->
+<div id="cam-panel" style="position:fixed;top:46px;right:0;bottom:0;width:262px;
+  background:rgba(20,20,22,.95);backdrop-filter:blur(12px);
+  border-left:1px solid rgba(255,255,255,.08);color:#d8d8d8;
+  font-size:.78em;font-family:ui-sans-serif,system-ui,sans-serif;
+  padding:14px 14px 14px;overflow-y:auto;overscroll-behavior:contain;z-index:60;display:none;">
+  <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">
+    <strong style="font-size:1.05em;letter-spacing:.04em">📷 <span id="ct-tool">カメラツール</span></strong>
+    <button onclick="toggleCamTool()" style="background:none;border:none;color:#888;
+      font-size:1.3em;cursor:pointer;line-height:1">✕</button>
+  </div>
+
+  <!-- ── 🔍 レンズ ── -->
+  <div class="cm-group">
+    <div class="cm-group-head">🔍 <span id="ct-lens">レンズ</span>
+    </div>
+    <div class="cm-group-body">
+      <div class="cm-row">
+        <label class="cm-lbl"><span id="ct-focal">焦点距離</span></label>
+        <input type="number" id="cm-focal" step="1" class="cm-input" oninput="onCamFieldChange()">
+        <span style="font-size:.82em;color:#666">mm</span>
+      </div>
+      <div class="cm-row">
+        <input type="range" id="cm-focal-slider" min="8" max="200" step="1"
+          oninput="document.getElementById('cm-focal').value=this.value;onCamFieldChange()"
+          style="flex:1;accent-color:#ffb454">
+      </div>
+      <div class="cm-row" style="gap:3px;flex-wrap:wrap">
+        <button class="cm-focal-btn" onclick="setCamFocal(14)"  data-f="14">14</button>
+        <button class="cm-focal-btn" onclick="setCamFocal(18)"  data-f="18">18</button>
+        <button class="cm-focal-btn" onclick="setCamFocal(24)"  data-f="24">24</button>
+        <button class="cm-focal-btn" onclick="setCamFocal(28)"  data-f="28">28</button>
+        <button class="cm-focal-btn" onclick="setCamFocal(35)"  data-f="35">35</button>
+        <button class="cm-focal-btn" onclick="setCamFocal(50)"  data-f="50">50</button>
+        <button class="cm-focal-btn" onclick="setCamFocal(75)"  data-f="75">75</button>
+        <button class="cm-focal-btn" onclick="setCamFocal(85)"  data-f="85">85</button>
+        <button class="cm-focal-btn" onclick="setCamFocal(100)" data-f="100">100</button>
+        <button class="cm-focal-btn" onclick="setCamFocal(135)" data-f="135">135</button>
+        <button class="cm-focal-btn" onclick="setCamFocal(200)" data-f="200">200</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── ⬛ センサー ── -->
+  <div class="cm-group">
+    <div class="cm-group-head">⬛ <span id="ct-sensor">センサー</span>
+    </div>
+    <div class="cm-group-body">
+      <div class="cm-row">
+        <select id="cm-sensor" onchange="onCamSensorPreset(this.value)" class="cm-input">
+          <optgroup label="📷 Photo / Mirrorless" id="ct-sensor-group-photo">
+            <option value="ff"   id="ct-sensor-ff">フルサイズ (36 × 24)</option>
+            <option value="apsc" id="ct-sensor-apsc">APS-C (23.6 × 15.7)</option>
+            <option value="apsh" id="ct-sensor-apsh">APS-H (28.7 × 19)</option>
+            <option value="mft"  id="ct-sensor-mft">マイクロフォーサーズ (17.3 × 13)</option>
+          </optgroup>
+          <optgroup label="📱 Compact / Phone" id="ct-sensor-group-compact">
+            <option value="oneinch" id="ct-sensor-1inch">1型 (13.2 × 8.8)</option>
+            <option value="phone13" id="ct-sensor-phone13">1/1.3型 スマホ大型 (9.8 × 7.3)</option>
+            <option value="phone17" id="ct-sensor-phone17">1/1.7型 (7.6 × 5.7)</option>
+            <option value="phone23" id="ct-sensor-phone23">1/2.3型 スマホ (6.17 × 4.55)</option>
+          </optgroup>
+          <optgroup label="🎬 Cinema" id="ct-sensor-group-cine">
+            <option value="ax35og"    id="ct-sensor-ax35og">ARRI Alexa 35 — 4.6K Open Gate (27.99 × 19.22)</option>
+            <option value="ax35"      id="ct-sensor-ax35">ARRI Alexa 35 — 4K 16:9 (24.89 × 14.00)</option>
+            <option value="ax65"      id="ct-sensor-ax65">ARRI Alexa 65 (54.12 × 25.58)</option>
+            <option value="vraptor8k" id="ct-sensor-vraptor">RED V-Raptor 8K VV (40.96 × 21.60)</option>
+            <option value="venice2"   id="ct-sensor-venice2">Sony Venice 2 — 8.6K FF (35.90 × 24.00)</option>
+            <option value="ursa12k"   id="ct-sensor-ursa">Blackmagic URSA Cine 12K LF (35.63 × 23.32)</option>
+            <option value="c70"       id="ct-sensor-c70">Canon EOS C70 — Super 35 (26.20 × 13.80)</option>
+            <option value="bmpcc6k"   id="ct-sensor-bmpcc6k">BMPCC 6K (23.10 × 12.99)</option>
+          </optgroup>
+          <option value="custom" id="ct-sensor-cust">カスタム…</option>
+        </select>
+      </div>
+      <div class="cm-row" id="cm-sensor-custom-row" style="display:none">
+        <label class="cm-lbl"><span id="ct-sensor-w">幅 mm</span></label>
+        <input type="number" id="cm-sw" step="0.1" class="cm-input" oninput="onCamFieldChange()">
+        <label class="cm-lbl"><span id="ct-sensor-h">高 mm</span></label>
+        <input type="number" id="cm-sh" step="0.1" class="cm-input" oninput="onCamFieldChange()">
+      </div>
+    </div>
+  </div>
+
+  <!-- (Camera Angle and White Balance sections removed per user request.) -->
+
+
+  <!-- ── 🎬 アスペクト + 余白 ── -->
+  <div class="cm-group">
+    <div class="cm-group-head">🎬 <span id="ct-aspect">アスペクト</span>
+    </div>
+    <div class="cm-group-body">
+      <div class="cm-row" style="gap:3px;flex-wrap:wrap">
+        <button class="cm-aspect" onclick="setCamAspect(null)" data-ar="null" id="ct-aspect-sensor">センサー</button>
+        <button class="cm-aspect" onclick="setCamAspect(1.778)" data-ar="1.778">16:9</button>
+        <button class="cm-aspect" onclick="setCamAspect(2.39)" data-ar="2.39">2.39</button>
+        <button class="cm-aspect" onclick="setCamAspect(2.0)" data-ar="2.0">2.0</button>
+        <button class="cm-aspect" onclick="setCamAspect(1.5)" data-ar="1.5">3:2</button>
+        <button class="cm-aspect" onclick="setCamAspect(1.0)" data-ar="1.0">1:1</button>
+        <button class="cm-aspect" onclick="setCamAspect(0.5625)" data-ar="0.5625">9:16</button>
+        <button class="cm-aspect" onclick="setCamAspect(0.8)"   data-ar="0.8">4:5</button>
+      </div>
+      <div class="cm-row" style="gap:4px;align-items:center">
+        <span class="cm-lbl" style="min-width:48px" id="ct-aspect-cust">カスタム</span>
+        <input type="number" id="cm-ar-w" min="0.1" step="0.1" value="16" placeholder="W"
+          class="cm-input" style="max-width:54px" oninput="onCamCustomAspect()">
+        <span style="color:#666">:</span>
+        <input type="number" id="cm-ar-h" min="0.1" step="0.1" value="9"  placeholder="H"
+          class="cm-input" style="max-width:54px" oninput="onCamCustomAspect()">
+        <button onclick="applyCamCustomAspect()" class="cm-aspect" style="flex:0 0 auto;padding:4px 10px" id="ct-aspect-apply">適用</button>
+      </div>
+      <div class="cm-row" style="margin-top:6px">
+        <label class="cm-lbl" style="min-width:54px" id="ct-margin">外側余白</label>
+        <input type="range" id="cm-margin" min="0" max="20" step="1" value="10"
+          oninput="onCamFieldChange()" style="flex:1;accent-color:#ffb454">
+        <span id="cm-margin-val" style="min-width:34px;text-align:right;color:#888;font-size:.82em">10%</span>
+      </div>
+      <div class="cm-row" style="margin-top:6px;align-items:center;gap:5px">
+        <label class="cm-lbl" style="min-width:54px" id="ct-roll">ロール</label>
+        <input type="range" id="cm-roll-slider" min="-180" max="180" step="0.5" value="0"
+          oninput="document.getElementById('cm-roll').value=this.value;onCamRollChange(parseFloat(this.value))"
+          style="flex:1;accent-color:#ffb454">
+        <input type="number" id="cm-roll" step="0.1" value="0"
+          class="cm-input" style="max-width:54px;flex:0 0 auto"
+          oninput="onCamRollChange(parseFloat(this.value))">
+        <span style="font-size:.78em;color:#666">°</span>
+        <button onclick="resetCamRoll()" id="ct-roll-level"
+          class="cm-aspect" style="flex:0 0 auto;padding:4px 8px">水平</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── # グリッド ── -->
+  <div class="cm-group">
+    <div class="cm-group-head"># <span id="ct-grid">グリッド</span> <span style="opacity:.45;font-size:.85em;font-weight:400" id="ct-grid-multi">(複数選択可)</span>
+    </div>
+    <div class="cm-group-body">
+      <div class="cm-sec" style="margin-top:0" id="ct-grid-guide">構図ガイド</div>
+      <div class="cm-row" style="gap:3px;flex-wrap:wrap">
+        <button class="cm-grid-btn" onclick="setCamGrid('off')"     data-g="off" id="ct-grid-off">なし</button>
+        <button class="cm-grid-btn" onclick="setCamGrid('thirds')"  data-g="thirds" id="ct-grid-thirds">三分割</button>
+        <button class="cm-grid-btn" onclick="setCamGrid('golden')"  data-g="golden" id="ct-grid-golden">黄金</button>
+        <button class="cm-grid-btn" onclick="setCamGrid('cross')"   data-g="cross" id="ct-grid-cross">十字</button>
+        <button class="cm-grid-btn" onclick="setCamGrid('diag')"    data-g="diag" id="ct-grid-diag">対角</button>
+      </div>
+      <div class="cm-sec" id="ct-grid-safe-cust">セーフ / カスタム</div>
+      <div class="cm-row" style="gap:3px;flex-wrap:wrap">
+        <button class="cm-grid-btn" onclick="setCamGrid('safe-action')" data-g="safe-action" id="ct-grid-action">A セーフ</button>
+        <button class="cm-grid-btn" onclick="setCamGrid('safe-title')"  data-g="safe-title" id="ct-grid-title">T セーフ</button>
+        <button class="cm-grid-btn" onclick="setCamGrid('center-mark')" data-g="center-mark" id="ct-grid-center">中央マーク</button>
+        <button class="cm-grid-btn" onclick="setCamGrid('custom')"      data-g="custom" id="ct-grid-custom">カスタム</button>
+      </div>
+      <div class="cm-row" id="cm-grid-custom-row" style="display:none">
+        <label class="cm-lbl"><span id="ct-grid-cols">列</span></label>
+        <input type="number" id="cm-grid-cols" min="1" max="20" step="1" value="3" class="cm-input" oninput="onCamFieldChange()">
+        <label class="cm-lbl"><span id="ct-grid-rows">行</span></label>
+        <input type="number" id="cm-grid-rows" min="1" max="20" step="1" value="3" class="cm-input" oninput="onCamFieldChange()">
+      </div>
+      <div class="cm-row" style="margin-top:6px">
+        <label class="cm-lbl"><span id="ct-grid-opacity">不透明度</span></label>
+        <input type="range" id="cm-grid-opacity" min="0" max="100" step="1" value="85"
+          oninput="onCamFieldChange()" style="flex:1;accent-color:#ffb454">
+        <span id="cm-grid-opacity-val" style="min-width:34px;text-align:right;color:#888;font-size:.82em">85%</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══ ショット情報 (placed BELOW the グリッド group per user request) ══ -->
+  <div class="cm-group">
+    <div class="cm-group-head">📷 <span id="csp-shot-info">ショット情報</span></div>
+    <div class="cm-group-body">
+      <!-- ── Read-only camera info (collapsible, default collapsed) ── -->
+      <div class="cm-sec cm-sec-toggle" style="margin-top:0;cursor:pointer;
+           display:flex;align-items:center;justify-content:space-between;
+           user-select:none"
+           onclick="toggleCamInfo()">
+        <span>📷 <span id="csp-cam-info">カメラ情報</span></span>
+        <span id="cam-info-chev" style="color:#888;font-size:.85em;
+          transition:transform .18s;display:inline-block;
+          transform:rotate(-90deg)">▾</span>
+      </div>
+      <div id="cam-info-body" style="display:none">
+        <div id="cam-info-lens"  style="font-family:ui-monospace,Menlo,Consolas,monospace;
+          font-size:.85em;line-height:1.5;color:#e0e0e0;margin-bottom:6px"></div>
+        <div id="cam-info-angle" style="font-family:ui-monospace,Menlo,Consolas,monospace;
+          font-size:.85em;line-height:1.5;color:#d8d8d8;margin-bottom:6px"></div>
+        <div id="cam-info-pos"   style="font-family:ui-monospace,Menlo,Consolas,monospace;
+          font-size:.85em;line-height:1.5;color:#aaa;margin-bottom:4px"></div>
+      </div>
+
+      <!-- ── Editable metadata ── -->
+      <div class="cm-sec">▸ <span id="csp-meta-info">メタ情報 (バーンイン用)</span></div>
+      <div class="cm-row">
+        <label class="cm-lbl"><span id="csp-shot-name">ショット名</span></label>
+        <input type="text" id="cm-shot" placeholder="SC01_C03"
+          class="cm-input" oninput="onCamFieldChange()">
+      </div>
+      <div class="cm-row">
+        <label class="cm-lbl"><span id="csp-rig">機材</span></label>
+        <input type="text" id="cm-rig" placeholder="ARRI Alexa 35 + Signature Prime"
+          class="cm-input" oninput="onCamFieldChange()">
+      </div>
+      <div class="cm-row">
+        <label class="cm-lbl"><span id="csp-env">環境</span></label>
+        <input type="text" id="cm-env" placeholder="夕方 / 晴れ / 17:30"
+          class="cm-input" oninput="onCamFieldChange()">
+      </div>
+      <div class="cm-row">
+        <label class="cm-lbl"><span id="csp-note">備考</span></label>
+        <input type="text" id="cm-note" placeholder="LD1 ティルトダウン"
+          class="cm-input" oninput="onCamFieldChange()">
+      </div>
+
+      <!-- ── Capture ── -->
+      <div class="cm-sec">▸ <span id="csp-capture">キャプチャ</span></div>
+      <div class="cm-row" style="flex-direction:column;gap:6px;align-items:stretch">
+        <label style="display:flex;align-items:center;gap:6px;font-size:.95em;cursor:pointer">
+          <input type="checkbox" id="cm-burnin"
+            style="accent-color:#ffb454;cursor:pointer"> <span id="csp-burnin">メタデータをバーンイン</span>
+        </label>
+        <label style="display:flex;align-items:center;gap:6px;font-size:.95em;cursor:pointer">
+          <input type="checkbox" id="cm-burnin-grid"
+            style="accent-color:#ffb454;cursor:pointer"> <span id="csp-burnin-grid">グリッド/セーフ枠も焼き込み</span>
+        </label>
+        <label style="display:flex;align-items:center;gap:6px;font-size:.95em;cursor:pointer">
+          <input type="checkbox" id="cm-hide-overlays"
+            style="accent-color:#ffb454;cursor:pointer"> <span id="csp-hide-overlays">区画パス・イベントを非表示</span>
+        </label>
+        <button onclick="captureCamShot()" id="cm-capture-btn"
+          style="margin-top:4px;padding:8px;background:rgba(255,180,84,.2);
+          border:1px solid rgba(255,180,84,.5);color:#ffe4b3;border-radius:4px;
+          font-size:1.05em;cursor:pointer;letter-spacing:.04em">📸 <span id="csp-capture-btn">撮影 → JPEG</span></button>
+        <label style="display:flex;align-items:center;gap:6px;font-size:.78em;
+          color:rgba(180,210,235,.85);cursor:pointer;margin-top:5px;
+          padding:4px 7px;border-radius:4px;
+          background:rgba(120,200,255,.05);border:1px solid rgba(120,200,255,.22)">
+          <input type="checkbox" id="cm-export-4k" onchange="onCamExport4kChange(this.checked)"
+            style="accent-color:#66bbff;cursor:pointer;width:13px;height:13px;flex:0 0 auto">
+          <span id="csp-4k-lbl">4K 書き出し</span>
+        </label>
+        <div id="cm-capture-res" style="text-align:center;font-size:.78em;
+          color:rgba(220,200,160,.7);font-family:ui-monospace,Consolas,monospace;
+          letter-spacing:.04em;margin-top:3px">— × —</div>
+      </div>
+
+      <!-- ── Salvage ── -->
+      <div class="cm-sec">▸ <span id="csp-salvage">カメラ位置をサルベージ</span></div>
+      <div id="cm-salvage" style="border:1.5px dashed rgba(255,180,84,.35);
+        border-radius:6px;padding:12px 10px;text-align:center;color:#888;
+        background:rgba(255,180,84,.04);cursor:pointer;font-size:.85em;line-height:1.5">
+        <div style="font-size:1.4em;margin-bottom:2px">📥</div>
+        <span id="csp-salvage-drop">以前撮った JPEG をここにドロップ</span><br>
+        <span style="opacity:.65;font-size:.92em" id="csp-salvage-sub">カメラ位置/設定を復元します</span>
+        <input type="file" id="cm-salvage-input" accept="image/jpeg" style="display:none">
+      </div>
+    </div>
+  </div>
+</div>
+
+<style>
+{{include:src/css/050_style_block.css}}
+</style>
+
+<!-- Drop zone (REEL — ASPECT FRAMES) -->
+<div id="dz">
+  <span class="dz-tc tl">REEL 01 — INT.STUDIO — DAY</span>
+  <span class="dz-tc tr">2026 / LOCAHUN 3D</span>
+  <span class="dz-tc bl">LOCAHUN 3D — LOCATION SCOUT</span>
+  <span class="dz-tc br">EST. 2026</span>
+  <div class="dz-head">
+    <div class="dz-logo" aria-hidden="true">
+      <svg viewBox="0 0 100 100" width="100" height="100" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="ロケハン3D">
+        <defs><linearGradient id="dzlogobg" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0" stop-color="#17171a"/><stop offset="1" stop-color="#070708"/></linearGradient></defs>
+        <rect x="5" y="5" width="90" height="90" rx="24" fill="url(#dzlogobg)" stroke="#d8b061" stroke-width="1.6" stroke-opacity=".9"/>
+        <g fill="none" stroke="#f3efe6" stroke-width="5.4" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M25 36 L25 25 L36 25"/><path d="M75 36 L75 25 L64 25"/>
+          <path d="M25 64 L25 75 L36 75"/><path d="M75 64 L75 75 L64 75"/></g>
+        <circle cx="50" cy="50" r="10.5" fill="#f3a02a"/><circle cx="50" cy="50" r="4.3" fill="#0c0c0d"/>
+      </svg>
+    </div>
+    <div class="dz-titletext">
+      <h1 id="dz-h1">ロケハン3D</h1>
+      <p class="sub" id="dz-sub">3D Gaussian Splatting ビューア</p>
+    </div>
+  </div>
+  <div class="zone" id="dropzone">
+    <div class="ico">📂</div>
+    <div id="dz-drop-text">3DGS、Zipファイルをドロップ、またはクリックして選択</div>
+    <div class="fmt">.splat&nbsp;&nbsp; .ply&nbsp;&nbsp; .spz&nbsp;&nbsp; .ksplat&nbsp;&nbsp; .rad&nbsp;&nbsp; .sog&nbsp;&nbsp; .obj&nbsp;&nbsp; .glb&nbsp;&nbsp; .fbx&nbsp;&nbsp; .zip&nbsp;&nbsp; .json</div>
+    <!-- File input: kept in layout but visually hidden via clip-path so iPad
+         Safari reliably opens the native picker on programmatic .click().
+         display:none here had been silently blocking the picker on some
+         iOS Safari versions. -->
+    <input type="file" id="fi" accept=".splat,.ply,.spz,.ksplat,.rad,.sog,.pcsogs,.pcsogszip,.obj,.gltf,.glb,.fbx,.zip,.json" multiple
+           style="position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0 0 0 0);clip-path:inset(50%);border:0;opacity:0;pointer-events:none">
+  </div>
+  <button class="demo-btn" id="emptyBtn">📄 <span id="dz-empty-text">空プロジェクトを開く</span></button>
+  <!-- "📦 プロジェクトを開く (.zip)" button removed in v0.0.3-alpha.
+       Dropping a .zip on the dropzone (or via the file picker) now
+       handles both project ZIPs AND zipped raw splat / mesh assets via
+       _loadProjectZipFromFile's fallback scan, so a separate button is
+       redundant. The window.loadProjectZip() helper is kept as a
+       programmatic entry point for any external triggers. -->
+  <button class="demo-btn" id="dz-continue-btn" onclick="continueEditing()" style="display:none;
+    border-color:rgba(100,255,150,.3);color:rgba(100,255,150,.8)">
+    ▶ <span id="dz-continue-text">編集を続ける</span>
+  </button>
+
+  <!-- ── Changelog (bottom of home screen, collapsible) ──
+       Version label is rendered as a sibling AFTER this block.
+  -->
+  <div class="dz-changelog" id="dz-changelog">
+    <button class="dz-changelog-head" type="button" onclick="toggleChangelog()"
+      aria-expanded="false" aria-controls="dz-changelog-body">
+      📋 <span id="cl-title">更新履歴</span>
+      <span class="cl-sub" id="cl-sub">ベータ版</span>
+      <span class="cl-chev" aria-hidden="true">▾</span>
+    </button>
+    <div class="dz-changelog-body" id="dz-changelog-body" hidden>
+      <div class="cl-entry">
+        <div class="cl-entry-head">
+          <span class="cl-ver">v 0.1.8-beta</span>
+          <span class="cl-date">2026-06-20</span>
+          <span class="cl-tag"><span class="cl-ja">モバイル微調整</span><span class="cl-en">Mobile tweaks</span></span>
+        </div>
+        <ul class="cl-ja">
+          <li>🏠 <b>ホーム画面に上部ボタンが残ってしまう不具合を修正</b>（前版でボタン列を前面に出した際、ホーム画面にも被って表示されていた）</li>
+          <li>📱 <b>横画面でホーム画面が大きすぎて見切れる問題を修正</b>（ロゴ・見出し・余白を縮小して収まるように）</li>
+        </ul>
+        <ul class="cl-en">
+          <li>🏠 <b>Fixed the top buttons lingering on the home screen</b> (the previous version brought the button row to the front and it also showed over the home screen)</li>
+          <li>📱 <b>Fixed the home screen being too large / cut off in landscape</b> (logo, heading and spacing reduced to fit)</li>
+        </ul>
+      </div>
+      <div class="cl-entry">
+        <div class="cl-entry-head">
+          <span class="cl-ver">v 0.1.7-beta</span>
+          <span class="cl-date">2026-06-20</span>
+          <span class="cl-tag"><span class="cl-ja">モバイル微調整</span><span class="cl-en">Mobile tweaks</span></span>
+        </div>
+        <ul class="cl-ja">
+          <li>📱 上部ボタンの<b>文字ラベルを元に戻し</b>（前版のアイコンのみ化を撤回）</li>
+          <li>📱 スマホ: <b>ボタンを押して出るパネル（日照・測定・カメラツール・画質）をさらに小さく</b>（文字・幅を縮小。ボタン自体は縮小しません）</li>
+        </ul>
+        <ul class="cl-en">
+          <li>📱 <b>Restored the text labels on the top buttons</b> (reverted the previous icon-only change)</li>
+          <li>📱 Phone: <b>made the pop-up panels (Sun / Measure / Camera-tool / Quality) even smaller</b> (reduced font + width; the buttons themselves are unchanged)</li>
+        </ul>
+      </div>
+      <div class="cl-entry">
+        <div class="cl-entry-head">
+          <span class="cl-ver">v 0.1.6-beta</span>
+          <span class="cl-date">2026-06-19</span>
+          <span class="cl-tag"><span class="cl-ja">モバイル微調整</span><span class="cl-en">Mobile tweaks</span></span>
+        </div>
+        <ul class="cl-ja">
+          <li>📱 スマホ: <b>各パネル（日照・測定・カメラワーク等）に覆われて AR ボタンが押せなくなる問題を修正</b>（上部ボタン列を最前面に）</li>
+          <li>📱 スマホ: <b>上部ボタンをアイコンのみに整理</b>（混雑・被りを軽減）＋<b>トップバー直下へ詰めて上のデッドスペースを解消</b>（従来は指定が効かず余白が残っていた不具合を修正）</li>
+          <li>📐 測定の<b>「左クリックで点 B を配置」案内を全端末で非表示</b>に（点A配置後はバナーを出さない）</li>
+          <li>☀ スマホ: <b>日照パネルをさらに小さく</b>（文字・幅を縮小）</li>
+        </ul>
+        <ul class="cl-en">
+          <li>📱 Phone: <b>fixed the AR button becoming untappable when a panel (Sun / Measure / Camera Work …) covered it</b> (top button row now sits above panels)</li>
+          <li>📱 Phone: <b>top buttons simplified to icons only</b> (less clutter / overlap) and <b>moved flush under the top bar to remove the dead space above them</b> (fixes the prior rule that never took effect)</li>
+          <li>📐 Measure: <b>the “Left-click to place Point B” hint is now hidden on all devices</b> (no banner after Point A)</li>
+          <li>☀ Phone: <b>Sun panel made even smaller</b> (reduced font + width)</li>
+        </ul>
+      </div>
+      <div class="cl-entry">
+        <div class="cl-entry-head">
+          <span class="cl-ver">v 0.1.5-beta</span>
+          <span class="cl-date">2026-06-19</span>
+          <span class="cl-tag"><span class="cl-ja">操作性・モバイル</span><span class="cl-en">UX · Mobile</span></span>
+        </div>
+        <ul class="cl-ja">
+          <li>🎞 <b>アニメーションを上部UI群に移動</b>し、名称を<b>「カメラワーク」</b>に変更（英語 Camera Work）</li>
+          <li>☀📐 <b>日照と測定を排他化</b>：一方を開くともう一方は自動で閉じ、パネルがぶつからないように</li>
+          <li>📱 スマホ: 上部ボタンの<b>上の隙間を半分</b>に／日照・カメラツール・画質・測定の<b>各パネルを縮小＋文字サイズを統一</b>（被り・大きすぎを軽減）</li>
+        </ul>
+        <ul class="cl-en">
+          <li>🎞 <b>Moved Animation into the top button group</b> and renamed it <b>“Camera Work”</b> (JP カメラワーク)</li>
+          <li>☀📐 <b>Sun and Measure are now mutually exclusive</b>: opening one closes the other so their panels no longer collide</li>
+          <li>📱 Phone: <b>halved the gap above the top buttons</b>; <b>shrank the Sun / Camera-tool / Quality / Measure panels and unified their font size</b> (less overlap, less oversized)</li>
+        </ul>
+      </div>
+      <div class="cl-entry">
+        <div class="cl-entry-head">
+          <span class="cl-ver">v 0.1.4-beta</span>
+          <span class="cl-date">2026-06-19</span>
+          <span class="cl-tag"><span class="cl-ja">ベータ版・操作性・モバイル・英語</span><span class="cl-en">Beta · UX · Mobile · i18n</span></span>
+        </div>
+        <ul class="cl-ja">
+          <li>🛣 <b>パス</b>: 中央ラベルを<b>複数行＋自動可変サイズ</b>に（段落改行・長文折返しで文字切れ解消）。レイヤー名を「Path 1, 2…」英語表記に</li>
+          <li>📦 <b>Cube・イベント・フィギュア</b>を<b>左クリックした場所に配置</b>（長押しで位置を探り、離して確定。パス機能と同じ操作）</li>
+          <li>🎞 <b>カメラアニメーション</b>に<b>イージング／リニア</b>切替を追加</li>
+          <li>📱 <b>iPad対応</b>: レイヤー名の<b>キーボード編集</b>（✏️ボタン）／<b>ピボットのタッチドラッグ</b>で移動・回転・拡縮</li>
+          <li>🖱 オブジェクト・パス等の選択中、<b>空クリックで選択解除</b>を徹底。新規/インポートは既定で<b>ローカル座標</b></li>
+          <li>⚙️ <b>描画FPS上限を60</b>に統一（全デバイス）。画質/FPSモニターの数値を是正し、<b>スマホは確実に画質「低」</b>で起動</li>
+          <li>🌐 <b>英語化</b>: パスメニュー・実天気予報の読み出し・各UIラベルを翻訳。撮影バーンインのロゴ文字を<b>白</b>に、上部ロゴを<b>アイコン</b>化</li>
+          <li>📱 スマホ: 端スワイプでのページ移動を抑止／最新版チェックボタンを非表示。<b>FOV110°・録画・「ポリゴン1/4」・書き出しを廃止</b></li>
+          <li>↩ <b>Ctrl+Z でオブジェクトの追加・削除も取り消し</b>（やり直しはCtrl+Y）／画質チップが押すとサイズ変化する不具合を修正／上部ロゴをアイコン＋「ロケハン3D」表記に</li>
+          <li>🔒 <b>フォルダーの編集ロック</b>を追加（中身の移動・編集・削除を一括無効化）／🎬 カメラアニメのイージングを弱めに調整＋緩急/等速の切替</li>
+          <li>🧹 案内バナーを下部に統一して上部ボタンとの重なりを解消／日照パネルを簡潔化／<b>ユーザーマニュアルを現行情報で再整備</b>（わかりやすさ優先）</li>
+          <li>📱 iPadで日照パネルが下部ボタンに重なる問題を修正／<b>🎞 アニメーションボタンを下部バーに移動</b>（カメラ/日照/測定と並列）／測定パネルが右上の画質チップに重なる問題を修正</li>
+        </ul>
+        <ul class="cl-en">
+          <li>🛣 <b>Path</b>: center label now <b>multi-line + auto-sizing</b> (paragraph breaks + wrapping, no more clipping). Layers named “Path 1, 2…”</li>
+          <li>📦 <b>Cube / Event / Figure</b> are now <b>placed where you left-click</b> (long-press to aim, release to confirm — same as Path)</li>
+          <li>🎞 <b>Camera animation</b>: new <b>Ease in/out vs Linear</b> motion toggle</li>
+          <li>📱 <b>iPad</b>: layer-name <b>keyboard editing</b> (✏️ button) and <b>touch-drag the pivot</b> to move / rotate / scale</li>
+          <li>🖱 Empty-click <b>deselect</b> made thorough; new / imported objects default to <b>local</b> coordinates</li>
+          <li>⚙️ <b>60 FPS cap</b> on all devices; fixed the quality/FPS monitor readouts; phones now reliably start at the <b>低 (Low)</b> preset</li>
+          <li>🌐 <b>English</b> for the Path menu, live-weather readout and various labels; burn-in wordmark recolored <b>white</b>; top-bar logo is now an <b>icon</b></li>
+          <li>📱 Phones: edge-swipe page navigation blocked; update-check button hidden. <b>Removed FOV 110°, view recording, “1/4 polygon”, and Export</b></li>
+          <li>↩ <b>Ctrl+Z now also undoes object add / delete</b> (Ctrl+Y to redo); fixed the quality chip resizing when tapped; top-bar logo is now an icon + “LOCAHUN 3D”</li>
+          <li>🔒 <b>Folder edit-lock</b> added (disables moving / editing / deleting its contents); 🎬 camera-anim easing softened, with Ease/Linear toggle</li>
+          <li>🧹 Instruction banners unified to the bottom (no longer overlap the top buttons); sun panel simplified; <b>user manual rebuilt</b> with current, clearer content</li>
+          <li>📱 Fixed the Sun panel overlapping the bottom buttons on iPad; <b>moved the 🎞 Animation button to the bottom bar</b> (next to Camera / Sun / Measure); fixed the measure panel overlapping the top-right quality chip</li>
+        </ul>
+      </div>
+      <div class="cl-entry">
+        <div class="cl-entry-head">
+          <span class="cl-ver">v 0.0.4-alpha</span>
+          <span class="cl-date">2026-06-11</span>
+          <span class="cl-tag"><span class="cl-ja">日照・天気</span><span class="cl-en">Sun &amp; Weather</span></span>
+        </div>
+        <ul class="cl-ja">
+          <li>🌞 <b>日照モード</b>を追加: 日付・時刻・都道府県から太陽の位置と日の出 / 南中 / 日の入りを算出し、空とシーン全体の光のムードを疑似HDRIとして再現（朝・昼・夕・夜の明暗と色味、太陽ディスク）</li>
+          <li>🧭 ビュー内に<b>方位コンパス</b>と<b>一日の太陽軌道</b>を3D表示（北はシーンの固定軸）</li>
+          <li>🌤 <b>天気切替（晴れ / 曇り / 雨）</b>を疑似HDRIに連動</li>
+          <li>📅 日付は<b>カレンダー</b>から選択、📍 場所は<b>47都道府県</b>（デフォルト=東京）</li>
+          <li>🕐 時刻スライダーを<b>10分刻み</b>に</li>
+          <li>🗑 手動の「環境」ボタンを廃止し、背景は<b>日照＋天気に一本化</b>（日照OFFでも手動変更まで表示継続、再ONで前回設定を復元）</li>
+          <li>🚗 交差点デモシーンを方角に合わせて表示（Y −168° 回転）</li>
+        </ul>
+        <ul class="cl-en">
+          <li>🌞 Added <b>Sun / Daylight mode</b>: sun position + sunrise / solar-noon / sunset computed from date, time and prefecture; a pseudo-HDRI reproduces the sky and overall lighting mood (morning / day / evening / night, plus the sun disc)</li>
+          <li>🧭 In-view 3D <b>compass</b> + the <b>day's sun-path arc</b> (north = the scene's fixed axis)</li>
+          <li>🌤 <b>Weather toggle (clear / cloudy / rain)</b> linked to the pseudo-HDRI</li>
+          <li>📅 <b>Calendar</b> date picker; 📍 location is one of the <b>47 prefectures</b> (default: Tokyo)</li>
+          <li>🕐 Time slider now steps in <b>10-minute</b> increments</li>
+          <li>🗑 Removed the manual “Environment” button; the background is now driven <b>solely by Sun + Weather</b> (persists when Sun is off until a manual change; prior settings are recalled on re-enable)</li>
+          <li>🚗 Crossroads demo scene now opens aligned to its real bearing (Y −168° yaw)</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+  <a class="dz-back-site" id="dz-back-site" href="https://locahun3d.com/">
+    <span id="dz-back-site-lbl">← ロケハン3D サイトへ戻る</span>
+  </a>
+  <div class="dz-version-line">
+    <span id="tb-version">v 0.2.0-beta</span>
+  </div>
+</div>
+
+<!-- Loading -->
+<div id="ld" class="hidden">
+  <div class="lt" id="lt">読み込み中...</div>
+  <div class="bw"><div class="bar" id="bar"></div></div>
+  <div class="lpct" id="lpct" style="font-size:.95em;color:#ffb454;letter-spacing:.04em;font-family:ui-monospace,Consolas,monospace;font-variant-numeric:tabular-nums;margin-top:2px">0%</div>
+  <div class="lm" id="lm">初期化中</div>
+  <div class="lerr" id="lerr"></div>
+</div>
+
+<!-- HUD -->
+<div id="hud" style="opacity:0">
+  <!-- Top-left .ibox (FPS / 位置 / 角度 / FOV / 速度) removed: live FPS
+       is shown in the top-right #qi-badge, and pos/angle/FOV/speed are
+       not needed in the viewport. -->
+
+  <div class="cbar">
+    <button id="btnCamTool" onclick="toggleCamTool()">📷 <span id="lbl-camtool">カメラ</span></button>
+    <button id="btn-sun"    onclick="toggleSunMode()">☀ <span id="lbl-sun" data-i18n="lbl-sun">日照</span></button>
+    <button id="btnMeasure" onclick="toggleMeasure()">📐 <span id="lbl-measure">測定</span></button>
+    <!-- Camera animation (🎞 カメラワーク) MOVED to the top-row #view-tl-btns
+         group per user request 2026-06-19 (gather it with the other top
+         controls + renamed アニメーション→カメラワーク). See its markup there. -->
+    <!-- View recording (⏺ 録画) removed per user request (v0.0.40). -->
+
+    <!-- 画質 / 設定 buttons removed: quality is now an always-visible
+         indicator at the top-right of the view (#qi-badge); grid / FOV /
+         move-speed settings have been merged into the quality panel. -->
+    <button id="btnHelp"    onclick="openManual()" title="使い方"><span id="lbl-help">使い方</span></button>
+  </div>
+</div>
+
+<!-- (Help box removed — operation instructions live in the User Manual
+     modal accessible via the cbar "❓" button.) -->
+
+<!-- Settings panel removed — grid / FOV / move speed are now inside the
+     consolidated #quality-panel opened from the top-right quality badge. -->
+
+<!-- Always-visible quality indicator (top-right). Replaces the cbar 画質
+     button: clicking it opens the #quality-panel where the user can pick
+     the quality preset and also tweak grid / FOV / move speed. The badge
+     itself shows the CURRENT quality label + live FPS so the user always
+     sees "this is the quality I'm getting right now" at a glance. -->
+<!-- A real <button> (not a <div>): on iOS a generic <div onclick> is a
+     double-tap-zoom target and touch-action doesn't reach its child <span>s, so
+     tapping the 画質 chip used to zoom the whole top button row ("他のボタンが拡大").
+     Native <button>s don't double-tap-zoom and give a clean immediate tap — same
+     as every other control in this row. type="button" avoids any form submit. -->
+<button type="button" id="qi-badge" onclick="toggleQualityPanel()" title="画質と設定">
+  <span class="qib-icon">🖥</span>
+  <span id="qib-lvl" class="qib-lvl">高</span>
+  <span id="qib-fps" class="qib-fps">— fps</span>
+</button>
+
+<!-- Gizmo / Measure panel -->
+<div id="gizmo">
+  <!-- 右上の × で測定を閉じる（user 2026-06-28）。.gt は applyI18n が innerHTML を
+       書き換えるので、その外（パネル直下）に絶対配置で置く。 -->
+  <button id="msr-close-x" onclick="toggleMeasure()" ontouchend="if(event.cancelable)event.preventDefault(); toggleMeasure();"
+    title="測定を閉じる" aria-label="閉じる"
+    style="position:absolute;top:9px;right:11px;background:none;border:none;color:#9a9a9a;font-size:1.05em;line-height:1;cursor:pointer;padding:3px 5px;z-index:2">✕</button>
+  <div class="gt">📐 距離測定</div>
+
+  <!-- Point list (uniform rows). The per-point world-coordinate inputs and
+       the nudge "ステップ" selector were removed to simplify the tool: it now
+       just shows which of A / B / C are placed, and the measured values live
+       in the 距離 / 高さ rows below. Point C is added on demand via the
+       button (it used to be a checkbox). Order is fixed top-to-bottom: A → B → C. -->
+  <div class="msr-pt" id="msr-row-a">
+    <span class="msr-dot" style="background:#ffd84a"></span>
+    <span class="msr-nm" id="giz-pt-a">点 A</span>
+    <span class="msr-stat" id="msr-stat-a">—</span>
+  </div>
+  <div class="msr-pt" id="msr-row-b">
+    <span class="msr-dot" style="background:#ff8833"></span>
+    <span class="msr-nm" id="giz-pt-b">点 B</span>
+    <span class="msr-stat" id="msr-stat-b">—</span>
+  </div>
+  <div class="msr-pt" id="msr-row-c" style="display:none">
+    <span class="msr-dot" style="background:#66ddff"></span>
+    <span class="msr-nm" id="giz-pt-c">点 C</span>
+    <span class="msr-stat" id="msr-stat-c">—</span>
+  </div>
+
+  <button id="msr-add-c" class="msr-addc-btn" onclick="toggleHeightBtn()">
+    ＋ <span id="giz-height-lbl">高さを図る (点C追加)</span>
+  </button>
+
+  <!-- 距離の数値表示はパネルから非表示（user 2026-06-28・全端末）。#measDist は JS が
+       参照するので要素は残し display:none。 -->
+  <div class="dist-row" style="display:none"><span id="dist-l">距離</span>: <span id="measDist">-</span></div>
+  <div class="dist-components" id="distComp" style="display:none">
+    <span class="dc" style="color:#ff5566">ΔX <span id="dcX">-</span></span>
+    <span class="dc" style="color:#55ee66">ΔY <span id="dcY">-</span></span>
+    <span class="dc" style="color:#5599ff">ΔZ <span id="dcZ">-</span></span>
+  </div>
+  <div class="dist-row" id="heightRow" style="display:none;color:#aaddff">
+    <span id="height-l">高さ (A↔C)</span>: <span id="measHeight">-</span>
+  </div>
+
+  <div class="giz-btns">
+    <button onclick="clearMeasure()" id="msr-clear">🗑 クリア</button>
+    <!-- In-panel 「↩ 戻る」 removed (user 2026-06-28): the top-menu ↩ 戻る button
+         now also undoes measurement steps, so this was redundant. undoMeasure()
+         stays reachable via that button / Ctrl+Z / Z. -->
+    <button onclick="toggleMeasure()" id="btnMeasureEnd"><span id="msr-end-lbl-init">終了</span></button>
+  </div>
+</div>
+
+<!-- Measurement step hint (below gizmo) -->
+<div id="msr-hint" class="guide-banner" data-i18n="msr-h0">左クリックで点 A を配置</div>
+
+<!-- ══ Export / Save Modal ══ -->
+<div id="export-modal">
+  <div class="em-box">
+    <div class="em-title" id="em-h-title">📤 エクスポート / 保存</div>
+    <button id="em-export-splat" class="em-btn" onclick="exportSplat();closeExportModal()">
+      <span id="em-3dgs">✨ 3DGSエクスポート</span>
+      <span class="em-desc" id="em-3dgs-d">3D Gaussian Splatting ファイルをエクスポート (.splat/.ply/.spz)</span>
+    </button>
+    <button id="em-save-zip" class="em-btn" onclick="saveProjectZip();closeExportModal()">
+      <span id="em-zip-save">📦 プロジェクトZIP保存</span> <span style="color:#88ffaa;font-size:.8em" id="em-recommended">★推奨</span>
+      <span class="em-desc" id="em-zip-save-d">全ファイル（Splat・3Dモデル・キューブ）をZIPに完全保存</span>
+    </button>
+    <button class="em-btn" onclick="loadProjectZip();closeExportModal()">
+      <span id="em-zip-load">📂 プロジェクトZIP読込</span>
+      <span class="em-desc" id="em-zip-load-d">保存したZIPファイルからプロジェクトを完全復元</span>
+    </button>
+    <button class="em-btn" onclick="saveProject();closeExportModal()">
+      <span id="em-json">💾 JSONのみ保存 (.json)</span>
+      <span class="em-desc" id="em-json-d">軽量メタデータ保存（ファイル未キャッシュ分は除外）</span>
+    </button>
+    <hr style="border:none;border-top:1px solid rgba(255,255,255,.07);margin:6px 0">
+    <button class="em-btn" onclick="exportGLB();closeExportModal()">
+      <span id="em-glb">📦 GLBエクスポート</span>
+      <span class="em-desc" id="em-glb-d">OBJ/キューブレイヤーを .glb ファイルとして書き出す</span>
+    </button>
+    <button class="em-btn" onclick="exportOBJ();closeExportModal()">
+      <span id="em-obj">📐 OBJエクスポート</span>
+      <span class="em-desc" id="em-obj-d">OBJ/キューブレイヤーを .obj ファイルとして書き出す</span>
+    </button>
+    <button class="em-close" id="em-cancel" onclick="closeExportModal()">キャンセル</button>
+  </div>
+</div>
+
+<!-- Undo toast -->
+<div id="undo-toast"></div>
+
+<!-- Orientation notice ("シーンが逆さまですか？") removed per user request.
+     flipOrientation() remains exported for hotkey / programmatic use; the
+     toast just no longer pops up after each splat load. -->
+<div id="onote" style="display:none" aria-hidden="true"></div>
+
+<!-- Mobile joystick -->
+<div id="joy">
+  <div class="base"></div>
+  <div class="knob" id="jknob"></div>
+</div>
+<!-- Mobile up/down (right of the joystick — touch devices only) -->
+<div id="joy-vert" aria-hidden="true">
+  <button type="button" class="jv-btn" id="jv-up"   aria-label="Up">▲</button>
+  <button type="button" class="jv-btn" id="jv-down" aria-label="Down">▼</button>
+</div>
+
+<!-- MIXAMO_GLB_BEGIN -->
+{{include:src/assets/mixamo_glb_b64.html}}
+<!-- MIXAMO_GLB_END -->
+<script type="importmap">
+{{include:src/assets/importmap.json}}
+</script>
+<!-- 100 % offline imports — all dependencies live under ./vendor/:
+       three             → cdn.jsdelivr.net/npm/three@0.180.0
+       three/addons/     → cdn.jsdelivr.net/npm/three@0.180.0/examples/jsm/
+       @sparkjsdev/spark → cdn.jsdelivr.net/npm/@sparkjsdev/spark@2.0.0
+       fflate            → cdn.jsdelivr.net/npm/fflate@0.8.2 (Spark + ZIP both)
+
+     Versions are pinned so they match Spark 2.0.0's peerDependency
+     (three ^0.180) and the original vendor build. Don't bump three to
+     a major version Spark hasn't tested against, or splat rendering
+     will silently stop (mesh added to scene but invisible).
+     Single-file distribution: this HTML is now self-sufficient — no
+     companion ./vendor/ folder is needed. Just hand off this one .html
+     file and double-click to launch. An internet connection is required
+     on first launch so the browser can download the ESM modules above;
+     after that they are cached and subsequent launches work offline.
+     (Mixamo figure base GLB is already embedded inline in this HTML.)
+     To rebuild the fully-offline version, swap the URLs above back to the
+     original "./vendor/..." paths and place the vendor/ folder beside
+     the HTML. -->
+
+<script type="module">
+{{include:src/js/010_state.js}}
+{{include:src/js/020_splat_perf_tier_drives_spark_splat_tunin.js}}
+{{include:src/js/030_renderer_scene.js}}
+{{include:src/js/040_environment_procedural_sky_dome_pseudo_h.js}}
+{{include:src/js/050_sun_daylight_mode.js}}
+{{include:src/js/060_open_meteo_api_cors.js}}
+{{include:src/js/070_3d.js}}
+{{include:src/js/080_measurement_tool.js}}
+{{include:src/js/090_layer_pivot_gizmo_xyz_xz_handle_for_sele.js}}
+{{include:src/js/100_camera_tool_previz_style_virtual_camera_.js}}
+{{include:src/js/110_user_manual_modal_opened_from_dropzone_o.js}}
+{{include:src/js/111_camera_layer.js}}
+{{include:src/js/112_view_recording.js}}
+{{include:src/js/113_camera_animation.js}}
+{{include:src/js/113b_camera_animation_panel.js}}
+{{include:src/js/114_capture_render.js}}
+{{include:src/js/115_jpeg_metadata_burnin.js}}
+{{include:src/js/120_axis_handle_hit_detection_drag.js}}
+{{include:src/js/130_undo_system_z_key_max_10.js}}
+{{include:src/js/140_2d_overlay_ruler_point_labels.js}}
+{{include:src/js/150_pivot_hover_glow_2d_overlay.js}}
+{{include:src/js/160_loading_helpers.js}}
+{{include:src/js/170_scene_stats_for_camera_placement.js}}
+{{include:src/js/180_splat_decimation_user_toggled_low_poly_m.js}}
+{{include:src/js/190_orientation.js}}
+{{include:src/js/200_file_loading.js}}
+{{include:src/js/210_fly_camera_ue5_viewport_style.js}}
+{{include:src/js/211_fly_camera_google_earth_scheme.js}}
+{{include:src/js/212_fly_camera_walk_cycle_clip.js}}
+{{include:src/js/213_fly_camera_avatar_ground.js}}
+{{include:src/js/220_ar_mode_webgl_integrated_camera_passthro.js}}
+{{include:src/js/230_global_undo_layer_ops_measurement_max_10.js}}
+{{include:src/js/240_layer_manager.js}}
+{{include:src/js/250_i18n.js}}
+{{include:src/js/260_folder_system.js}}
+{{include:src/js/270_figure_humanoid_wooden_mannequin_with_ri.js}}
+{{include:src/js/271_figure_mixamo_loader_ik.js}}
+{{include:src/js/272_figure_bone_gizmo_hover.js}}
+{{include:src/js/273_figure_object_menu_stats.js}}
+{{include:src/js/280_main_loop_60fps_cap.js}}
+{{include:src/js/290_css_reprojection_input_canvas_runs_at_60.js}}
+{{include:src/js/291_render_loop.js}}
+{{include:src/js/292_demo_scene_showcase.js}}
+{{include:src/js/293_diag_instrumentation.js}}
+{{include:src/js/300_export_save_load.js}}
+{{include:src/js/310_zip_project_save_load_fflate.js}}
+{{include:src/js/311_zip_load_core.js}}
+{{include:src/js/312_project_load_helpers.js}}
+{{include:src/js/320_light_objects.js}}
+{{include:src/js/330_folder_color_picker.js}}
+{{include:src/js/340_event_object.js}}
+{{include:src/js/350_path_object_4_point_closed_region_center.js}}
+{{include:src/js/360_event_panel_hover_v26_viewport_hover_rep.js}}
+{{include:src/js/370_type_visibility_filter.js}}
+{{include:src/js/380_resizable_layer_panel.js}}
+{{include:src/js/390_i18n_extensions_home_screen_settings.js}}
+{{include:src/js/400_input.js}}
+{{include:src/js/401_input_mouse.js}}
+{{include:src/js/402_input_shared_drag_touch.js}}
+{{include:src/js/403_input_touch_elevation.js}}
+{{include:src/js/410_ui_controls.js}}
+{{include:src/js/420_auto_quality_probe_runs_once_after_each_.js}}
+{{include:src/js/430_changelog_toggle_home_screen_pulldown.js}}
+</script>
+</body>
+</html>

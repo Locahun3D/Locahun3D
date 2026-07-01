@@ -1,0 +1,713 @@
+*{margin:0;padding:0;box-sizing:border-box;}
+/* iOS Safari rubber-band / pull-to-refresh suppression.
+   - `position:fixed` on body locks the document to the viewport so a
+     swipe on the canvas can't bounce-scroll the page.
+   - `overscroll-behavior:none` kills rubber-band even when a scrollable
+     descendant (e.g. a long layer list) reaches its edge.
+   - `touch-action:none` on the canvas tells iOS to send all touches to
+     our JS handlers instead of treating them as scroll/zoom gestures
+     (the canvas handlers are registered passive:true, so they couldn't
+     preventDefault() even if they wanted to — this is the proper fix). */
+html,body{
+  width:100%;height:100%;overflow:hidden;background:#000;
+  font-family:system-ui,'Inter','Segoe UI',sans-serif;
+  overscroll-behavior:none;
+  /* `touch-action: manipulation` on the document root disables the 300 ms
+     double-tap-to-zoom gesture on iOS Safari WITHOUT killing scroll inside
+     scrollable descendants (the layer-panel list, modals etc.). Combined
+     with the explicit `touch-action: none` on #c / #overlay / #joy, this
+     gives us click responsiveness everywhere and zero accidental zoom. */
+  touch-action:manipulation;
+  -webkit-touch-callout:none;
+  -webkit-user-select:none;
+  user-select:none;
+  /* Stop iOS Safari from auto-inflating UI text (and therefore button sizes)
+     when it decides the layout is "narrow" — keeps the toolbars at the size we
+     set on every device. */
+  -webkit-text-size-adjust:100%;
+  text-size-adjust:100%;
+}
+body{position:fixed;top:0;left:0;}
+
+/* ══════════════════════════════════════════════════════════════════════════
+   FOCUS RING for non-pointer / no-hover devices (user 2026-06-28).
+   Smart TVs (remote D-pad), game consoles (controller), VR/MR headsets
+   (Vision Pro gaze, Quest), smart displays and car screens all navigate by
+   MOVING FOCUS between controls — and most report `hover:none`, so the app's
+   hover affordances are invisible to them. Without a focus ring the user can't
+   tell which control is selected.
+   :focus-visible only triggers for keyboard / D-pad / gaze focus (NOT mouse
+   clicks), so pointer users see no change. The ring is bright + has an offset
+   gap + a dark contrast halo (box-shadow) so it stays visible on both the dark
+   UI and bright splat backgrounds. !important re-asserts it over the various
+   `outline:none` rules on inputs/sliders.
+   ══════════════════════════════════════════════════════════════════════════ */
+:focus-visible{
+  outline: 3px solid #5aa9ff !important;
+  outline-offset: 2px !important;
+  box-shadow: 0 0 0 5px rgba(0,0,0,.55) !important;
+}
+/* Keep mouse focus quiet (some engines fall back to :focus): only the
+   :focus-visible heuristic should paint the ring. */
+:focus:not(:focus-visible){ outline: none; }
+/* The WebGL canvas itself never needs a ring even if focused for key input. */
+#c:focus-visible, #overlay:focus-visible{ outline: none !important; box-shadow: none !important; }
+
+/* ── Reduced motion (E-Ink readers, low-GPU TVs/consoles, motion-sensitive
+   users). Standard safe reset: collapse CSS transitions/animations so UI chrome
+   snaps instead of animating. Does NOT touch the WebGL 3D render (that's
+   JS-driven), only the DOM UI. user 2026-06-28. ── */
+@media (prefers-reduced-motion: reduce){
+  *, *::before, *::after{
+    animation-duration: .01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: .01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+/* ── No-hover devices: reinforce the focused control with a tinted background
+   (D-pad / gaze users never get :hover, so the ring alone can be easy to lose
+   against busy splat backgrounds). Only fires for real focus-navigation
+   (:focus-visible), so touch taps and mouse clicks are unaffected. ── */
+@media (hover: none){
+  button:focus-visible, a:focus-visible, [role="button"]:focus-visible, [tabindex]:focus-visible{
+    background: rgba(90,169,255,.20) !important;
+  }
+}
+/* 10-foot screens (TV / console / VR viewed from afar): a bolder ring. */
+@media (min-width:1600px) and (hover:none){
+  :focus-visible{ outline-width: 4px !important; outline-offset: 3px !important; }
+}
+/* ── TV / set-top D-pad: no pointing device at all → `pointer:none`. These fall
+   through to desktop sizing but are viewed from across a room, so enlarge the
+   controls for a legible 10-foot UI. Precise target — desktop is pointer:fine,
+   touch is pointer:coarse, so ONLY a pure remote/D-pad matches; nothing else is
+   affected. user 2026-06-28. ── */
+@media (pointer: none){
+  #view-tl-btns button{ font-size:.9em !important; padding:8px 16px !important; }
+  #hud .cbar button{ font-size:.92em !important; padding:11px 18px !important; }
+  #qi-badge{ font-size:.9em !important; }
+  #topbar .tb-home, #topbar .tb-update, #topbar .tb-lang,
+  #topbar #tb-save-btn, #topbar #tb-undo-btn{ font-size:.85em; padding:5px 12px; }
+  #quality-panel #qbtns button{ padding:10px 0 !important; font-size:1.05em !important; }
+  /* The bottom bar can sit a touch higher so it clears any TV bottom overscan. */
+  #hud .cbar{ bottom:28px; }
+}
+
+/* iPad/iPhone fix (2026-06): touch-action:manipulation on the document root does
+   NOT reliably propagate the "no double-tap-zoom" behaviour to individual elements
+   in iOS Safari — a touch that STARTS on an element uses that element's own (auto)
+   touch-action, so tapping a top toolbar control could trigger a double-tap zoom
+   (the whole top button block appeared to enlarge / shift up). Set it on the
+   interactive UI elements themselves so taps never zoom.
+   NOTE (2026-06): #qi-badge (the 画質/FPS chip) and the 📦オブジェクト追加 wrapper are
+   <div>s, not <button>s, so the earlier button-only list MISSED them — which is why
+   "tapping 画質 still made the other top buttons enlarge" (iOS double-tap-zoomed the
+   row off the un-guarded badge). Cover the containers + those divs explicitly. */
+#view-tl-btns,
+#view-tl-btns button,
+#view-tl-btns div,
+#qi-badge,
+#hud .cbar,
+#hud .cbar button,
+#topbar,
+#topbar button,
+#immersive-exit{ touch-action:manipulation; }
+#c{
+  display:block;width:100vw;height:100vh;touch-action:none;
+  /* will-change:transform promotes the canvas to its own compositor layer
+     so CSS reprojection (translate3d driven by touch events at 60 Hz)
+     runs on the GPU and stays smooth even while the rAF animate loop is
+     iPad-Safari-throttled to ~11 Hz. backface-visibility:hidden is the
+     classic Safari hint that pairs with it. */
+  will-change:transform;
+  backface-visibility:hidden;
+  -webkit-backface-visibility:hidden;
+}
+/* Belt-and-suspenders: also disable touch defaults on the joystick and
+   the canvas-level overlay so a stray finger never starts a page-scroll
+   from those regions. Do NOT add this to #hud — it contains scrollable
+   panels (settings modal, env picker etc.) that need their native pan. */
+#overlay,#joy{touch-action:none;}
+#overlay{display:block;}
+/* Motion edge vignette: very subtle feathered mask at the absolute viewport
+   rim only. Originally added to hide Spark sort-lag black gaps at new
+   frustum edges, but the dominant stall source turned out to be a synchronous
+   GPU readback in the minimap path (now deferred). With that fixed, this
+   vignette only needs to mask occasional 1-frame edge gaps — kept extremely
+   shallow (outer 3 % only) and slow-fading (.35 s) so it never reads as
+   "flicker" to the user. */
+#motion-vignette{
+  position:fixed;inset:0;pointer-events:none;z-index:50;
+  opacity:0;
+  transition:opacity .35s ease-out;
+  background:radial-gradient(
+    ellipse 100% 100% at center,
+    transparent 97%,
+    rgba(0,0,0,0.65) 100%
+  );
+  will-change:opacity;
+}
+
+/* ── Top navigation bar ── */
+#topbar{
+  position:fixed;top:0;left:0;right:0;height:45px;z-index:200;
+  background:rgba(18,18,20,.98);border-bottom:1px solid rgba(255,255,255,.08);
+  display:flex;align-items:center;padding:0 10px;gap:8px;pointer-events:all;
+}
+#topbar .tb-home{
+  background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.1);
+  color:rgba(200,200,200,.8);border-radius:5px;padding:2px 10px;font-size:.75em;
+  cursor:pointer;transition:all .15s;white-space:nowrap;
+}
+#topbar .tb-home:hover{background:rgba(255,255,255,.12);color:#D8D8D8;}
+/* Editable project-name chip: framed like a text input with a ✎ pencil in the
+   right gutter so it's obviously renameable (user 2026-06-27). The reserved
+   padding-right on the span keeps the name text from sliding under the icon. */
+#topbar .tb-pn{ position:relative; transition:border-color .15s, background .15s, color .15s; }
+#topbar .tb-pn::after{
+  content:'✎'; position:absolute; right:7px; top:50%; transform:translateY(-50%);
+  font-size:.92em; line-height:1; color:rgba(255,255,255,.45); pointer-events:none;
+}
+#topbar .tb-pn:hover{
+  border-color:rgba(255,200,120,.6) !important;
+  background:rgba(255,255,255,.1) !important;
+  color:#fff;
+}
+#topbar .tb-pn:hover::after{ color:rgba(255,200,120,.95); }
+#topbar .tb-sep{flex:1;}
+/* tb-version was previously in the topbar; moved to the home screen
+   (under the changelog) at the user's request. The element still
+   carries id="tb-version" so reportBug() / checkForUpdate() can read it. */
+#dz .dz-version-line{
+  margin-top:14px;text-align:center;
+  font-size:.7em;color:rgba(255,255,255,.28);letter-spacing:.08em;
+  font-family:ui-monospace,Consolas,"JetBrains Mono",monospace;
+  user-select:none;
+}
+#topbar .tb-lang{
+  background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.1);
+  color:rgba(160,160,160,.7);border-radius:4px;padding:2px 7px;font-size:.68em;
+  cursor:pointer;transition:all .15s;font-weight:600;letter-spacing:.05em;
+}
+#topbar .tb-lang:hover{background:rgba(255,255,255,.12);color:#D8D8D8;}
+#topbar .tb-update{
+  background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.08);
+  color:rgba(160,160,160,.55);border-radius:4px;padding:2px 8px;font-size:.66em;
+  cursor:pointer;transition:all .15s;letter-spacing:.04em;white-space:nowrap;
+}
+/* Error / bug report — standalone topbar button (was previously nested
+   INSIDE the update-check button, but the parent's state classes
+   (is-checking/.55 opacity, is-offline, has-update pulse) dimmed the icon
+   to near-invisible. Also: <span onclick> inside <button> is invalid HTML.
+   Now a separate sibling: its visibility never depends on update state.
+   PC only; hidden on touch devices (their native mail flow handles this). */
+#topbar .tb-bug{
+  background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.08);
+  color:rgba(220,220,220,.85);border-radius:4px;padding:2px 7px;font-size:.78em;
+  cursor:pointer;transition:all .15s;line-height:1;flex-shrink:0;
+}
+#topbar .tb-bug:hover{
+  background:rgba(255,90,80,.22);color:#ffd0cb;border-color:rgba(255,90,80,.45);
+}
+@media (pointer:coarse) and (any-hover:none){
+  #topbar .tb-bug{display:none !important;}
+}
+#topbar .tb-update:hover{background:rgba(255,255,255,.1);color:#D8D8D8;}
+#topbar .tb-update.is-latest{background:rgba(80,200,120,.06);border-color:rgba(80,200,120,.22);
+  color:rgba(140,220,170,.75);}
+#topbar .tb-update.is-latest:hover{background:rgba(80,200,120,.12);color:#cfeed8;}
+#topbar .tb-update.has-update{background:rgba(255,180,84,.12);border-color:rgba(255,180,84,.45);
+  color:#ffe4b3;animation:tb-update-pulse 1.6s ease-in-out infinite;}
+#topbar .tb-update.has-update:hover{background:rgba(255,180,84,.22);}
+#topbar .tb-update.is-checking{opacity:.55;cursor:default;}
+#topbar .tb-update.is-offline{background:rgba(255,255,255,.04);
+  border-color:rgba(255,180,84,.18);color:rgba(220,180,120,.55);}
+/* スマホ版では上部の「↩ 戻る」(Undo) ボタンを非表示（user 2026-06-30）。
+   狭い画面の上部を圧迫するため。タブレット(iPad)は対象外。 */
+@media (pointer:coarse) and (any-hover:none) and (max-width:600px),
+       (pointer:coarse) and (any-hover:none) and (max-height:500px){
+  #topbar #tb-undo-btn{ display:none !important; }
+}
+/* オンライン版経由(?protected=1)ではデータ保存/エクスポートを無効化。
+   ZIP保存ボタン・3DGSエクスポート・ZIP保存モーダル項目を非表示。 */
+body.protected-mode #tb-save-btn,
+body.protected-mode #em-export-splat,
+body.protected-mode #em-save-zip { display:none !important; }
+@keyframes tb-update-pulse{
+  0%,100%{box-shadow:0 0 0 0 rgba(255,180,84,.0);}
+  50%   {box-shadow:0 0 0 4px rgba(255,180,84,.18);}
+}
+#topbar .tb-integrity{
+  font-size:.7em;font-weight:700;letter-spacing:0;
+  padding:1px 5px;border-radius:3px;line-height:1;
+  font-family:ui-monospace,Consolas,monospace;
+  cursor:help;
+}
+#topbar .tb-integrity.ok{background:rgba(80,200,120,.14);color:rgba(170,235,190,.9);
+  border:1px solid rgba(80,200,120,.3);}
+#topbar .tb-integrity.bad{background:rgba(255,90,80,.18);color:#ffb4ae;
+  border:1px solid rgba(255,90,80,.45);
+  animation:tb-update-pulse 1.6s ease-in-out infinite;}
+
+/* ── Drop zone (REEL — ASPECT FRAMES) ── */
+#dz{
+  position:fixed;inset:0;display:flex;flex-direction:column;
+  align-items:center;justify-content:center;gap:18px;
+  background:#000;z-index:100;transition:opacity .5s;
+  font-family:'Noto Sans JP',ui-sans-serif,system-ui,sans-serif;
+  overflow:hidden;
+}
+#dz.fade{opacity:0;pointer-events:none;}
+/* Letterbox bars (top + bottom) */
+#dz::before,#dz::after{
+  content:'';position:absolute;left:0;right:0;height:48px;background:#000;
+  z-index:3;pointer-events:none;
+}
+#dz::before{top:0;border-bottom:1px solid rgba(255,255,255,.05);}
+#dz::after{bottom:0;border-top:1px solid rgba(255,255,255,.05);}
+/* Concentric aspect-ratio frames (1.85:1 outer + 2.39:1 inner) */
+#dz .dz-ar{
+  position:absolute !important;border:1px dashed rgba(255,255,255,.10);
+  pointer-events:none;z-index:1;
+}
+#dz .dz-ar.ar-outer{top:11%;bottom:11%;left:7%;right:7%;}
+#dz .dz-ar.ar-inner{top:20%;bottom:20%;left:12%;right:12%;border-color:rgba(255,255,255,.18);}
+#dz .dz-ar-label{
+  position:absolute !important;top:calc(20% - 14px);right:12.5%;
+  font-family:'JetBrains Mono',ui-monospace,Consolas,monospace;
+  font-size:.66em;letter-spacing:.3em;opacity:.55;
+  color:rgba(255,255,255,.7);text-transform:uppercase;
+  pointer-events:none;z-index:2;
+  background:#000;padding:0 6px;
+}
+/* Timecode corners — sit below topbar (45px) so they don't overlap */
+#dz .dz-tc{
+  position:absolute;font-family:'JetBrains Mono',ui-monospace,Consolas,monospace;
+  font-size:.65em;letter-spacing:.3em;opacity:.45;text-transform:uppercase;
+  color:rgba(255,255,255,.55);z-index:4;pointer-events:none;
+}
+#dz .dz-tc.tl{top:62px;left:48px;}
+#dz .dz-tc.tr{top:62px;right:48px;}
+#dz .dz-tc.bl{bottom:18px;left:48px;}
+#dz .dz-tc.br{bottom:18px;right:48px;}
+@media(max-width:760px){
+  #dz .dz-tc.tl,#dz .dz-tc.bl{left:18px;}
+  #dz .dz-tc.tr,#dz .dz-tc.br{right:18px;}
+}
+/* Small screens (smartphones, very short laptops): the home screen has
+   a lot of stacked content (title + dropzone + portalcam toggle + 3 demo
+   buttons + collapsible changelog). With `justify-content:center` and
+   `overflow:hidden`, content overflowing the viewport gets clipped at
+   the TOP — the user-reported "上部が見切れる" symptom.
+   Switch to a scroll-friendly top-anchored layout, leave room for the
+   45 px topbar, and tighten gaps so phones can show everything without
+   horizontal letterbox markings competing for space. */
+@media (max-width: 600px), (max-height: 720px){
+  #dz{
+    justify-content:flex-start;
+    overflow-y:auto;
+    padding:62px 12px 30px;   /* top: topbar(45) + breathing room(17) */
+    gap:12px;
+  }
+  /* Decorative letterbox bars + reel timecodes + aspect frames clutter
+     small screens; hide them so the content has room to breathe. */
+  #dz::before,#dz::after,
+  #dz .dz-tc,
+  #dz .dz-ar,#dz .dz-ar-label{display:none;}
+  #dz h1{font-size:clamp(1.6em,7vw,2.4em);}
+  #dz .zone{padding:20px 24px;}
+  #dz .demo-btn{padding:9px 18px;font-size:.82em;}
+}
+/* 横画面など「縦が短い」画面ではホーム画面の各要素をさらに小さく
+   （user request 2026-06-20「横画面でホーム画面が大きすぎて見切れる」）。
+   ロゴ/見出しは vw 基準で横が広い landscape では大きいまま＝短い縦幅で
+   はみ出す。高さ基準でさらに圧縮し、収まる範囲を広げる。 */
+@media (max-height:500px){
+  #dz{ padding:44px 12px 12px !important; gap:6px !important; }
+  #dz .dz-logo svg{ width:42px !important; }
+  #dz h1{ font-size:1.4em !important; }
+  #dz .sub{ font-size:.72em !important; }
+  #dz .zone{ padding:9px 22px !important; }
+  #dz .zone .ico{ font-size:1.4em !important; margin-bottom:3px !important; }
+  #dz .zone .fmt{ font-size:.6em !important; }
+  #dz .demo-btn{ padding:5px 18px !important; font-size:.74em !important; }
+  #dz .dz-changelog{ margin-top:6px !important; }
+}
+/* Stacking order: aspect frames behind, content above */
+#dz>h1,#dz>p,#dz>.zone,#dz>.demo-btn,#dz>.dz-head{position:relative;z-index:2;}
+/* ロゴはタイトルの左に横並び（[アイコン] ロケハン3D）。サブタイトルはタイトル直下に左揃え。 */
+#dz .dz-head{display:flex;align-items:center;gap:16px;}
+#dz .dz-titletext{display:flex;flex-direction:column;align-items:flex-start;}
+#dz .dz-titletext h1{margin:0;}
+#dz .dz-titletext .sub{margin:2px 0 0;text-align:left;}
+@media (pointer:coarse) and (any-hover:none){ #dz .dz-head{gap:12px;} }
+#dz h1{
+  font-family:'Noto Sans JP',sans-serif;font-weight:900;
+  font-size:clamp(2.2em,4.6vw,3.4em);
+  color:#fff;letter-spacing:.005em;line-height:1.1;
+  text-shadow:none;
+}
+#dz h1 em{font-style:normal;font-weight:900;color:#fff;}
+/* Home-screen brand logo (vector reproduction of the app icon: camera-frame
+   brackets + amber record-ring). Sits above the ロケハン3D wordmark. */
+#dz .dz-logo{position:relative;line-height:0;flex-shrink:0;}
+#dz .dz-logo svg{width:clamp(76px,9vw,104px);height:auto;display:block;
+  filter:drop-shadow(0 6px 18px rgba(0,0,0,.5));}
+@media (pointer:coarse) and (any-hover:none){
+  #dz .dz-logo svg{width:clamp(64px,16vw,92px);}
+}
+#dz .sub{
+  font-size:.92em;color:rgba(255,255,255,.5);letter-spacing:.04em;
+  font-weight:300;
+}
+#dz .zone{
+  border:1px solid rgba(255,255,255,.18);border-radius:6px;
+  padding:34px 60px;text-align:center;cursor:pointer;
+  color:rgba(255,255,255,.65);transition:border-color .2s,background .2s;
+  background:rgba(255,255,255,.02);
+}
+#dz .zone:hover,#dz .zone.over{
+  border-color:#ffb454;background:rgba(255,180,84,.06);color:#fff;
+}
+#dz .zone .ico{font-size:2.4em;margin-bottom:8px;opacity:.7;}
+#dz .zone .fmt{
+  font-size:.7em;color:rgba(255,255,255,.35);margin-top:8px;
+  letter-spacing:.16em;font-family:'JetBrains Mono',ui-monospace,Consolas,monospace;
+}
+#dz .demo-btn{
+  background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.18);
+  border-radius:0;padding:10px 26px;color:rgba(255,255,255,.85);
+  font-size:.84em;cursor:pointer;transition:all .2s;
+  font-family:'Noto Sans JP',sans-serif;font-weight:400;letter-spacing:.04em;
+}
+#dz .demo-btn:hover{
+  background:rgba(255,180,84,.08);border-color:#ffb454;color:#fff;
+}
+/* ── Changelog (bottom of home screen, collapsible) ── */
+#dz>.dz-changelog{position:relative;z-index:2;}
+#dz .dz-changelog{
+  width:min(640px, 88vw);
+  margin-top:14px;
+  font-family:ui-sans-serif,system-ui,sans-serif;
+  text-align:left;
+  letter-spacing:.02em;
+}
+/* Collapsed: only the header pill is visible */
+#dz .dz-changelog-head{
+  display:flex;align-items:center;gap:8px;width:100%;
+  background:rgba(20,20,22,.55);
+  backdrop-filter:blur(6px);
+  border:1px solid rgba(255,180,84,.18);
+  border-radius:6px;
+  padding:7px 14px;
+  color:rgba(255,200,140,.85);
+  font-family:inherit;
+  font-weight:600;
+  letter-spacing:.06em;
+  font-size:.78em;
+  cursor:pointer;
+  transition:background .15s, border-color .15s, color .15s;
+}
+#dz .dz-changelog-head:hover{
+  background:rgba(255,180,84,.08);
+  border-color:rgba(255,180,84,.45);
+  color:#ffe4b3;
+}
+#dz .dz-changelog-head .cl-chev{
+  margin-left:auto;font-size:.9em;color:rgba(255,180,84,.65);
+  transition:transform .2s;
+  display:inline-block;
+}
+#dz .dz-changelog.open .dz-changelog-head{
+  border-bottom-left-radius:0;border-bottom-right-radius:0;
+}
+#dz .dz-changelog.open .dz-changelog-head .cl-chev{
+  transform:rotate(180deg);
+}
+#dz .dz-changelog .cl-sub{
+  color:rgba(255,180,84,.5);font-size:.86em;font-weight:400;letter-spacing:.04em;
+}
+/* Expanded body */
+#dz .dz-changelog-body{
+  background:rgba(20,20,22,.55);
+  backdrop-filter:blur(6px);
+  border:1px solid rgba(255,180,84,.18);
+  border-top:none;
+  border-radius:0 0 6px 6px;
+  padding:10px 16px 12px;
+  max-height:min(160px, 22vh);
+  overflow-y:auto;
+  color:rgba(220,220,220,.78);
+  font-size:.78em;line-height:1.65;
+}
+#dz .dz-changelog-body::-webkit-scrollbar{width:6px;}
+#dz .dz-changelog-body::-webkit-scrollbar-thumb{background:rgba(255,180,84,.25);border-radius:3px;}
+#dz .dz-changelog .cl-entry{margin-bottom:10px;}
+#dz .dz-changelog .cl-entry:last-child{margin-bottom:0;}
+#dz .dz-changelog .cl-entry-head{
+  display:flex;align-items:center;gap:8px;flex-wrap:wrap;
+  margin-bottom:4px;
+}
+#dz .dz-changelog .cl-ver{
+  background:rgba(255,180,84,.15);color:#ffe4b3;
+  padding:1px 7px;border-radius:3px;
+  font-size:.86em;font-weight:600;letter-spacing:.04em;
+  font-family:ui-monospace,monospace;
+}
+#dz .dz-changelog .cl-date{
+  color:rgba(180,180,200,.45);font-size:.84em;
+  font-family:ui-monospace,monospace;
+}
+#dz .dz-changelog .cl-tag{
+  background:rgba(100,255,150,.1);color:rgba(140,220,170,.85);
+  padding:1px 6px;border-radius:3px;font-size:.74em;letter-spacing:.04em;
+}
+#dz .dz-changelog ul{
+  margin:2px 0 0;padding-left:18px;
+  color:rgba(210,210,215,.78);
+}
+#dz .dz-changelog ul li{margin:1px 0;}
+/* Toggle JA / EN entries via lang on root */
+:root[lang="en"] #dz .dz-changelog .cl-ja{display:none;}
+:root:not([lang="en"]) #dz .dz-changelog .cl-en{display:none;}
+/* 更新履歴の下: ロケハン3D サイトへ戻るリンク */
+#dz .dz-back-site{display:block;margin:10px auto 0;max-width:340px;width:100%;text-align:center;
+  padding:9px 14px;border-radius:8px;border:1px solid rgba(255,255,255,.12);
+  background:rgba(255,255,255,.03);color:rgba(220,220,220,.78);font-size:.82em;
+  text-decoration:none;cursor:pointer;transition:background .15s,color .15s,border-color .15s;}
+#dz .dz-back-site:hover{background:rgba(255,180,84,.1);border-color:rgba(255,180,84,.4);color:#ffd9a8;}
+
+/* ── Loading ── */
+#ld{
+  position:fixed;inset:0;display:flex;flex-direction:column;
+  align-items:center;justify-content:center;gap:16px;
+  background:rgba(22,22,24,.98);z-index:200;
+}
+#ld.hidden{display:none;}
+#ld .lt{font-size:1.05em;color:#C0C0C0;letter-spacing:.04em;font-weight:300;}
+#ld .bw{width:300px;height:3px;background:rgba(255,255,255,.07);border-radius:2px;}
+#ld .bar{height:100%;width:0%;background:linear-gradient(90deg,#484848,#D8D8D8);border-radius:2px;transition:width .2s;}
+#ld .lm{font-size:.8em;color:#484848;letter-spacing:.04em;}
+#ld .lerr{font-size:.8em;color:#ef4444;display:none;}
+
+/* ── HUD ── */
+#hud{position:fixed;inset:0;pointer-events:none;z-index:50;transition:opacity .5s;}
+
+/* Info box */
+#hud .ibox{
+  position:absolute;top:105px;left:295px;font-size:11px;color:rgba(200,200,200,.7);
+  background:rgba(28,28,30,.92);padding:9px 13px;border-radius:8px;
+  border:1px solid rgba(255,255,255,.07);line-height:1.9;min-width:170px;
+  pointer-events:auto;font-family:ui-monospace,Consolas,monospace;
+}
+#hud .ibox .ibv{
+  cursor:text;color:#e0e0e0;border-bottom:1px dotted rgba(255,255,255,.18);
+  padding:0 1px;transition:border-color .12s,color .12s;user-select:none;
+}
+#hud .ibox .ibv:hover{border-bottom-color:#ffb454;color:#fff;}
+#hud .ibox input.ibv-edit{
+  width:54px;background:#0e0e10;border:1px solid #ffb454;color:#fff;
+  font:inherit;padding:0 4px;border-radius:3px;outline:none;text-align:right;
+}
+
+/* Help box */
+#helpbox{
+  position:fixed;top:57px;right:14px;font-size:11px;color:rgba(200,200,200,.65);
+  background:rgba(28,28,30,.92);padding:10px 14px;border-radius:8px;
+  border:1px solid rgba(255,255,255,.07);line-height:1.9;min-width:200px;
+  z-index:50;pointer-events:none;transition:opacity .5s;
+}
+#helpbox .hb-title{
+  color:rgba(255,255,255,.2);font-size:10px;letter-spacing:.06em;
+  margin-bottom:2px;margin-top:7px;
+}
+#helpbox .hb-title:first-child{margin-top:0;}
+#helpbox kbd{
+  display:inline-block;background:#2A2A2C;border:1px solid rgba(255,255,255,.12);
+  border-radius:3px;padding:0 4px;font-size:10px;color:rgba(220,220,220,.8);
+  font-family:system-ui,monospace;line-height:1.6;
+}
+
+/* Centre the cbar at the FULL viewport centre (not the visible-canvas
+   centre). User feedback: the layer-panel-aware offset made the cbar feel
+   "off-centre" on PC because they perceive centre relative to the whole
+   browser window, not the canvas portion alone. On touch devices the
+   layer panel is hidden anyway so 50 % is the canvas centre too. */
+#hud .cbar{
+  position:absolute;bottom:14px;
+  left:50%;
+  transform:translateX(-50%);
+  display:flex;gap:8px;pointer-events:all;flex-wrap:wrap;justify-content:center;
+  overflow:visible;
+}
+#hud .cbar button{
+  background:rgba(28,28,30,.92);border:1px solid rgba(255,255,255,.1);color:#C0C0C0;
+  border-radius:8px;padding:8px 14px;font-size:.77em;cursor:pointer;
+  transition:all .2s;white-space:nowrap;
+}
+#hud .cbar button:hover,#hud .cbar button.on{
+  background:rgba(255,255,255,.08);border-color:rgba(255,255,255,.22);color:#D8D8D8;
+}
+/* Touch tap feedback (user 2026-06-27): on iOS the :hover / synthetic-mouseover
+   highlight STICKS after a tap and reads as "this is still active" even when the
+   action is finished. On touch we (a) neutralise the sticky :hover for buttons
+   that aren't in a persistent .on mode, and (b) show the press highlight only via
+   a brief `.tap-fx` class that JS removes after ~1s. */
+@media (pointer:coarse) and (any-hover:none){
+  #hud .cbar button:hover:not(.on):not(.tap-fx){
+    background:rgba(28,28,30,.92);border-color:rgba(255,255,255,.1);color:#C0C0C0;
+  }
+  #hud .cbar button.tap-fx,
+  #view-tl-btns button.tap-fx{
+    background:rgba(255,255,255,.16) !important;border-color:rgba(255,255,255,.32) !important;color:#fff !important;
+  }
+}
+/* カメラ／日照モード中は「📷カメラ」と「☀日照」の2つだけ残す（この2機能は同時に
+   使える関連ペアなので、どちらのモードでも互いに行き来できるようにする — user 2026-06-27）。
+   測定・使い方は隠してビューを広く保つ。 */
+body.cam-active #hud .cbar > button:not(#btnCamTool):not(#btn-sun){ display:none !important; }
+body.sun-active #hud .cbar > button:not(#btnCamTool):not(#btn-sun){ display:none !important; }
+/* 測定モード中は「📐測定」のみ（測定は日照と排他）。 */
+body.msr-active #hud .cbar > button:not(#btnMeasure){ display:none !important; }
+/* カメラモード中は上ボタン行も撮影に使うものだけに絞る：🎞カメラワーク / 📱AR /
+   🖥画質チップ のみ表示し、カメラリセット・オブジェクト追加・アバター歩行は隠す
+   （user 2026-06-27）。AR は元々タッチ端末でのみ表示。 */
+body.cam-active #view-tl-btns > *:not(#btnCamAnim):not(#btnAR):not(#qi-badge){ display:none !important; }
+/* 自由ゾーンが狭い（スマホ縦でカメラパネルが画面を占有）と上部ボタンがパネルに重なるため隠す。
+   _layoutCamMode() が body.cam-cramped を付与。横向き/iPad/PCでは余白が十分なので発火しない。 */
+body.cam-active.cam-cramped #view-tl-btns{ display:none !important; }
+/* カメラモード中：下ボタン群(cbar)と上ボタン群を、左の操作系(ジョイスティック or
+   レイヤーパネル)と右のカメラツール情報パネルの「あいだ」の中央へ寄せ直す。
+   --cam-cbar-left / --cam-top-left は _layoutCamMode() が実測して px で設定する
+   （iPad/スマホ縦でボタンが右パネルに隠れる問題の解消 — user 2026-06-27）。 */
+body.cam-active #hud .cbar{
+  left: var(--cam-cbar-left, 50%) !important;
+  right:auto !important;
+  transform: translateX(-50%) !important;
+}
+body.cam-active #view-tl-btns{
+  left: var(--cam-top-left, 50%) !important;
+  right:auto !important;
+  transform: translateX(-50%) !important;
+  max-width: var(--cam-top-maxw, none);
+  flex-wrap: wrap;
+  justify-content: center;
+  row-gap: 5px;
+}
+
+/* ── Settings panel ── */
+#qpanel{
+  position:fixed;bottom:60px;right:14px;
+  background:rgba(26,26,28,.97);border:1px solid rgba(255,255,255,.1);border-radius:10px;
+  padding:14px 18px;z-index:60;min-width:210px;display:none;
+}
+#qpanel.show{display:block;}
+#qpanel .qt{color:#C0C0C0;font-size:.85em;font-weight:600;margin-bottom:10px;letter-spacing:.03em;}
+#qpanel .qrow{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:6px;}
+#qpanel .qrow label{font-size:.78em;color:#686868;white-space:nowrap;}
+#qpanel .qbtns{display:flex;gap:4px;}
+#qpanel .qbtns button{
+  background:#2A2A2C;border:1px solid rgba(255,255,255,.1);color:#686868;
+  border-radius:5px;padding:4px 9px;font-size:.73em;cursor:pointer;transition:all .15s;
+}
+#qpanel .qbtns button.on{background:rgba(255,255,255,.1);border-color:rgba(255,255,255,.28);color:#D8D8D8;}
+
+/* Speed slider */
+#qpanel input[type=range]{
+  -webkit-appearance:none;width:100%;height:3px;border-radius:2px;
+  background:linear-gradient(90deg,#484848,#D8D8D8);outline:none;cursor:pointer;
+}
+#qpanel input[type=range]::-webkit-slider-thumb{
+  -webkit-appearance:none;width:13px;height:13px;border-radius:50%;
+  background:#D8D8D8;cursor:pointer;
+}
+
+/* ── Gizmo / Measure panel ── */
+#gizmo{
+  /* top:92px (was 57px) so the measure panel clears the always-on quality chip
+     (#qi-badge, top:54px ~28px tall) in the top-right corner — they used to
+     overlap (user report, esp. iPad). */
+  position:fixed;right:14px;top:92px;
+  background:rgba(26,26,28,.97);border:1px solid rgba(255,255,255,.1);border-radius:10px;
+  padding:14px 16px;z-index:60;width:256px;display:none;pointer-events:all;
+  max-height:calc(100vh - 108px);overflow-y:auto;
+}
+#gizmo .gt{color:#C0C0C0;font-size:.85em;font-weight:600;margin-bottom:6px;display:flex;align-items:center;gap:6px;}
+#gizmo .world-badge{
+  font-size:.65em;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.12);
+  color:rgba(255,255,255,.3);border-radius:4px;padding:1px 5px;font-weight:400;letter-spacing:.04em;
+}
+#gizmo .pt-label{font-size:.75em;color:#686868;margin-bottom:3px;margin-top:8px;display:flex;align-items:center;gap:5px;}
+#gizmo .pt-label:first-of-type{margin-top:0;}
+#gizmo .xyz-row{display:flex;gap:3px;align-items:center;margin-bottom:2px;}
+#gizmo .xyz-row .ax{font-size:.7em;font-weight:700;width:13px;text-align:center;}
+#gizmo .xyz-row input{
+  flex:1;background:#242426;border:1px solid rgba(255,255,255,.1);border-radius:4px;
+  color:#C0C0C0;font-size:.75em;padding:3px 5px;width:0;
+  outline:none;transition:border-color .15s;
+}
+#gizmo .xyz-row input:focus{border-color:rgba(255,255,255,.3);}
+#gizmo .xyz-row .nudge{
+  background:#2A2A2C;border:1px solid rgba(255,255,255,.1);color:#686868;
+  border-radius:3px;padding:1px 5px;font-size:.72em;cursor:pointer;
+  transition:all .12s;line-height:1.4;user-select:none;
+}
+#gizmo .xyz-row .nudge:hover{background:rgba(255,255,255,.08);color:#D8D8D8;border-color:rgba(255,255,255,.22);}
+#gizmo .step-row{
+  display:flex;align-items:center;gap:4px;margin-top:7px;padding-top:6px;
+  border-top:1px solid rgba(255,255,255,.07);
+}
+#gizmo .step-row .slabel{font-size:.68em;color:#404040;white-space:nowrap;}
+#gizmo .step-row button{
+  flex:1;background:#242426;border:1px solid rgba(255,255,255,.08);color:#404040;
+  border-radius:4px;padding:2px 0;font-size:.68em;cursor:pointer;transition:all .12s;
+}
+#gizmo .step-row button.on{background:rgba(255,255,255,.08);border-color:rgba(255,255,255,.3);color:#D8D8D8;}
+#gizmo .step-row button:hover{color:#C0C0C0;}
+/* Simplified measure point rows — uniform size for A / B / C */
+#gizmo .msr-pt{
+  display:flex;align-items:center;gap:8px;
+  background:#242426;border:1px solid rgba(255,255,255,.08);
+  border-radius:6px;padding:8px 10px;margin-bottom:5px;
+}
+#gizmo .msr-pt .msr-dot{width:9px;height:9px;border-radius:50%;flex-shrink:0;}
+#gizmo .msr-pt .msr-nm{font-size:.78em;color:#C0C0C0;font-weight:600;}
+#gizmo .msr-pt .msr-stat{margin-left:auto;font-size:.74em;color:#585858;}
+#gizmo .msr-pt.placed{border-color:rgba(122,199,122,.35);}
+#gizmo .msr-pt.placed .msr-stat{color:#7ac77a;}
+#gizmo .msr-addc-btn{
+  width:100%;background:#2A2A2C;border:1px solid rgba(255,255,255,.1);
+  color:#9fd0e0;border-radius:6px;padding:7px 0;font-size:.74em;cursor:pointer;
+  transition:all .15s;margin:2px 0 4px;
+}
+#gizmo .msr-addc-btn:hover{background:rgba(255,255,255,.08);border-color:rgba(255,255,255,.22);color:#cdeefa;}
+#gizmo .msr-addc-btn.on{background:rgba(255,255,255,.10);border-color:rgba(255,255,255,.25);color:#cdeefa;}
+#gizmo .dist-row{
+  margin-top:9px;padding-top:8px;border-top:1px solid rgba(255,255,255,.07);
+  font-size:.88em;color:#D8D8D8;font-weight:600;
+}
+#gizmo .dist-row span{color:#888888;font-weight:400;}
+#gizmo .dist-components{
+  display:flex;gap:8px;margin-top:4px;font-size:.72em;
+}
+/* Hide the ΔX/ΔY/ΔZ component breakdown in the measure panel — unnecessary info
+   (user 2026-06-28「不要な情報」). The JS still updates #dcX/#dcY/#dcZ harmlessly;
+   only the panel display is suppressed (the main 距離 / 高さ readouts stay). */
+#gizmo #distComp{ display:none !important; }
+#gizmo .dist-components .dc{color:#404040;}
+#gizmo .dist-components .dc span{font-size:.9em;}
+#gizmo .giz-btns{display:flex;gap:6px;margin-top:8px;}
+#gizmo .giz-btns button{
+  flex:1;background:#2A2A2C;border:1px solid rgba(255,255,255,.1);color:#686868;
+  border-radius:5px;padding:5px 0;font-size:.74em;cursor:pointer;transition:all .15s;
+}
+#gizmo .giz-btns button:hover{background:rgba(255,255,255,.08);color:#D8D8D8;}
+
+/* ── Measure hint ── removed per user request 2026-06-20 (独立ウィンドウが邪魔) */
+#msr-hint{
+  display:none!important;
+  z-index:59;display:none;line-height:1.6;
+}
+

@@ -1,0 +1,126 @@
+<!-- ══ View Top-Left Buttons (projection toggle + camera reset) ══ -->
+<div id="view-tl-btns" style="
+  position:fixed;top:57px;left:50%;transform:translateX(-50%);
+  display:none;flex-direction:row;gap:6px;z-index:60;pointer-events:all;
+  justify-content:center;">
+  <button id="btn-cam-reset" onclick="resetCameraToInitial()"
+    ontouchend="if(event.cancelable)event.preventDefault(); resetCameraToInitial();"
+    style="background:rgba(20,20,22,.88);border:1px solid rgba(255,255,255,.18);
+           color:rgba(200,200,200,.85);border-radius:6px;padding:5px 12px;
+           font-size:.72em;cursor:pointer;
+           transition:all .2s;letter-spacing:.02em;white-space:nowrap;"
+    onmouseover="this.style.background='rgba(80,200,120,.18)';this.style.borderColor='rgba(100,255,160,.45)'"
+    onmouseout="this.style.background='rgba(20,20,22,.88)';this.style.borderColor='rgba(255,255,255,.18)'"
+    title="カメラを初期位置にリセット">🏠 <span id="lbl-cam-reset">カメラリセット</span></button>
+  <div style="position:relative;display:inline-block;">
+    <button id="btnAddCubeTop" onclick="toggleObjTypeMenuTop(this)" style="background:rgba(20,20,22,.88);border:1px solid rgba(255,255,255,.18);color:rgba(200,200,200,.85);border-radius:6px;padding:5px 12px;font-size:.72em;cursor:pointer;transition:all .2s;letter-spacing:.02em;white-space:nowrap;" onmouseover="this.style.background='rgba(255,200,80,.18)';this.style.borderColor='rgba(255,220,100,.45)'" onmouseout="this.style.background='rgba(20,20,22,.88)';this.style.borderColor='rgba(255,255,255,.18)'" title="オブジェクト追加">📦 <span id="lbl-addobj-top">オブジェクト追加</span> ▾</button>
+    <div id="obj-type-menu-top" style="display:none;position:absolute;top:calc(100% + 6px);left:0;background:rgba(20,20,22,.97);border:1px solid rgba(255,255,255,.15);border-radius:8px;padding:5px;z-index:400;flex-direction:column;gap:4px;min-width:178px;box-shadow:0 4px 16px rgba(0,0,0,.5);">
+      <button onclick="_beginPlace('cube');window.closeObjTypeMenuTop()" style="background:rgba(255,221,68,.06);border:1px solid rgba(255,221,68,.15);color:#C0C0C0;border-radius:5px;padding:7px 14px;cursor:pointer;font-size:.8em;text-align:left;width:100%;white-space:nowrap;transition:background .15s;" onmouseover="this.style.background='rgba(255,221,68,.15)'" onmouseout="this.style.background='rgba(255,221,68,.06)'">📦 <span id="obj-add-cube">Cube (立方体)</span></button>
+      <div style="border-top:1px solid rgba(255,255,255,.07);margin:2px 0"></div>
+      <button onclick="_beginPlace('event');window.closeObjTypeMenuTop()" style="background:rgba(255,170,68,.06);border:1px solid rgba(255,170,68,.15);color:#C0C0C0;border-radius:5px;padding:7px 14px;cursor:pointer;font-size:.8em;text-align:left;width:100%;white-space:nowrap;transition:background .15s;" onmouseover="this.style.background='rgba(255,170,68,.18)'" onmouseout="this.style.background='rgba(255,170,68,.06)'">🟠 <span id="obj-add-event">Event (イベント)</span></button>
+      <div style="border-top:1px solid rgba(255,255,255,.07);margin:2px 0"></div>
+      <button onclick="_beginPlace('figure');window.closeObjTypeMenuTop()" style="background:rgba(255,140,200,.06);border:1px solid rgba(255,140,200,.18);color:#C0C0C0;border-radius:5px;padding:7px 14px;cursor:pointer;font-size:.8em;text-align:left;width:100%;white-space:nowrap;transition:background .15s;" onmouseover="this.style.background='rgba(255,140,200,.20)'" onmouseout="this.style.background='rgba(255,140,200,.06)'" title="フィギュア追加（リグ付き人型モデル・配置場所を左クリック）">👤 <span id="lbl-addfig-top">フィギュア (人型リグ)</span></button>
+      <div style="border-top:1px solid rgba(255,255,255,.07);margin:2px 0"></div>
+      <button onclick="addPathLayer();window.closeObjTypeMenuTop()" style="background:rgba(100,200,255,.06);border:1px solid rgba(100,200,255,.16);color:#C0C0C0;border-radius:5px;padding:7px 14px;cursor:pointer;font-size:.8em;text-align:left;width:100%;white-space:nowrap;transition:background .15s;" onmouseover="this.style.background='rgba(100,200,255,.18)'" onmouseout="this.style.background='rgba(100,200,255,.06)'" title="4点を左クリックで囲んで区画を作成（駐車スペース等）。中央にテキストを表示できます">🛣 <span id="obj-add-path">パス (区画＋ラベル)</span></button>
+      <!-- Sphere (球体) and Light (ライト) entries removed per user request.
+           addSphereLayer / addLightLayer remain as window.* functions for
+           programmatic use (e.g. ZIP project restore) but are no longer
+           reachable from the UI dropdown. -->
+    </div>
+  </div>
+  <!-- Camera work (🎞 カメラワーク) — was in the bottom cbar, moved up here
+       2026-06-19 per user request to gather it with the other top controls.
+       Renamed アニメーション→カメラワーク (i18n key lbl-cam-anim). Inline-styled
+       to match the sibling top-row buttons; active (.on) highlight is the
+       purple #btnCamAnim.on rule in CSS (the cbar's generic button.on no
+       longer applies now that it's out of the cbar). -->
+  <button id="btnCamAnim" onclick="toggleCamAnimPanel()"
+    style="background:rgba(20,20,22,.88);border:1px solid rgba(255,255,255,.18);
+           color:rgba(200,200,200,.85);border-radius:6px;padding:5px 12px;
+           font-size:.72em;cursor:pointer;transition:all .2s;letter-spacing:.02em;white-space:nowrap;"
+    onmouseover="this.style.background='rgba(170,120,255,.18)';this.style.borderColor='rgba(190,140,255,.45)'"
+    onmouseout="this.style.background='rgba(20,20,22,.88)';this.style.borderColor='rgba(255,255,255,.18)'"
+    title="カメラパスを定義してアニメーション動画を書き出し">🎞 <span id="lbl-cam-anim">カメラワーク</span></button>
+  <!-- Standalone #btnAddFigureTop merged into the オブジェクト追加 dropdown
+       above so all "add new layer" entries live in one menu. -->
+  <!-- Multi-camera placement (🎥 カメラ保存) relocated to the layer-panel
+       footer (right of 読み込み / 書き出し) per user request 2026-06. The
+       button keeps id="btnSaveCamera" / saveCameraLayer() so all JS refs
+       (phone-hide, tooltip map, i18n) are unchanged. -->
+
+  <!-- View recording (#btnViewRec) lives in the cbar (bottom-centre) to
+       the right of #btnMeasure — see the markup further down. On phones
+       there's still a sibling phone-only mirror button just left of the
+       AR button; see #btnViewRecPhone below. -->
+  <!-- Camera animation button MOVED to the bottom cbar (user request: gather it
+       at the bottom). See #btnCamAnim in the cbar markup. -->
+  <button id="btnAvatarWalk" onclick="toggleAvatarWalk()" style="background:rgba(20,20,22,.88);border:1px solid rgba(255,255,255,.18);color:rgba(200,200,200,.85);border-radius:6px;padding:5px 12px;font-size:.72em;cursor:pointer;transition:all .2s;letter-spacing:.02em;white-space:nowrap;" onmouseover="this.style.background='rgba(120,200,255,.18)';this.style.borderColor='rgba(140,210,255,.45)'" onmouseout="this.style.background='rgba(20,20,22,.88)';this.style.borderColor='rgba(255,255,255,.18)'" title="アバター歩行モード（WASDでアバターを動かす）">🚶 <span id="lbl-walk">アバター歩行</span></button>
+  <!-- AR mode (touch devices only — uses rear camera as backdrop + device
+       orientation for camera control). Hidden on desktop via the same media
+       query that hides other touch-only widgets. -->
+  <!-- Phone-only view-record button (sits to the LEFT of the AR button on
+       touch devices). On non-phones the equivalent control is #btnViewRec
+       above, hidden on phones by the same #view-tl-btns media query. -->
+  <!-- Phone-only view-record mirror removed per user request (v0.0.40). -->
+  <button id="btnAR" onclick="toggleARMode()" style="background:rgba(20,20,22,.88);border:1px solid rgba(255,255,255,.18);color:rgba(200,200,200,.85);border-radius:6px;padding:5px 12px;font-size:.72em;cursor:pointer;transition:all .2s;letter-spacing:.02em;white-space:nowrap;display:none;" title="AR モード（背面カメラ越しに 3DGS を重ねて表示）">📱 <span id="lbl-ar">AR</span></button>
+</div>
+<!-- AR mode: WebGL-integrated camera passthrough. The off-screen video
+     element used to feed Three.js VideoTexture is created on demand by
+     _arEnter() (no static DOM element needed) so it doesn't sit idle
+     when AR is off. Exit is triggered by tapping the #btnAR button —
+     toggleARMode() swaps its label to "AR 終了" + red state. -->
+<div id="topbar">
+  <div style="display:flex;align-items:center;gap:8px;flex:1;min-width:0">
+    <button id="tb-save-btn" onclick="saveProjectZip()" style="background:rgba(100,255,150,.08);border:1px solid rgba(100,255,150,.2);color:rgba(100,255,150,.7);border-radius:5px;padding:2px 8px;font-size:.72em;cursor:pointer;transition:all .15s;white-space:nowrap" onmouseover="this.style.background='rgba(100,255,150,.18)'" onmouseout="this.style.background='rgba(100,255,150,.08)'" title="ZIP Save">💾 <span id="tb-save-lbl">Zip保存</span></button>
+    <!-- 読込 (load project ZIP) button removed: project ZIPs are now imported
+         via the layer panel "📁 インポート" button (dispatchFiles routes
+         .zip → _loadProjectZipFromFile automatically) or via drag-and-drop. -->
+    <!-- Editable project name. Framed like a text input (border + subtle inset
+         bg + ✎ icon) so it's obvious it can be renamed — user 2026-06-27
+         "入力できることがわかるように枠で囲って". Single-click now also enters edit
+         (dblclick kept for habit). -->
+    <span id="tb-project-name" class="tb-pn"
+      style="font-size:.78em;color:rgba(200,200,200,.9);cursor:text;white-space:nowrap;max-width:280px;overflow:hidden;text-overflow:ellipsis;padding:2px 22px 2px 9px;border-radius:5px;border:1px solid rgba(255,255,255,.22);background:rgba(255,255,255,.05);user-select:none;letter-spacing:.02em;"
+      onclick="startEditProjectName()" ondblclick="startEditProjectName()"
+      title="クリックして名前を編集">Untitled Project</span>
+  </div>
+  <button class="tb-home" onclick="resetToHome()" id="tb-home-btn" title="ホームに戻る — ロケハン3D" aria-label="ロケハン3D — Home" style="display:inline-flex;align-items:center;justify-content:center;gap:6px;padding:2px 9px">
+    <svg width="18" height="18" viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg" style="display:block;flex-shrink:0">
+      <rect x="6" y="6" width="88" height="88" rx="22" fill="#141417" stroke="rgba(216,176,97,.9)" stroke-width="3"/>
+      <g stroke="#f3efe6" stroke-width="6" stroke-linecap="round" stroke-linejoin="round" fill="none">
+        <path d="M25 36 V25 H36"/><path d="M75 36 V25 H64"/>
+        <path d="M25 64 V75 H36"/><path d="M75 64 V75 H64"/>
+      </g>
+      <circle cx="50" cy="50" r="11" fill="#f3a02a"/>
+      <circle cx="50" cy="50" r="4.4" fill="#0c0c0d"/>
+    </svg><span id="tb-brand-text" data-i18n="tb-brand" style="font-weight:600;letter-spacing:.03em;white-space:nowrap;line-height:1;display:inline-flex;align-items:center">ロケハン3D</span></button>
+  <div style="display:flex;align-items:center;gap:8px;flex:1;min-width:0;justify-content:flex-end">
+    <!-- Undo (1 step). Mirrors Ctrl+Z: undoes the last measurement step while
+         measuring, otherwise the last scene action (move/add/delete/pose…).
+         Up to 20 steps are kept (≥10 as requested). user 2026-06-27. -->
+    <button class="tb-update" id="tb-undo-btn"
+      onclick="topbarUndo()"
+      title="一つ前に戻す (Ctrl+Z)">↩ <span id="tb-undo-lbl">戻る</span></button>
+    <button class="tb-bug" id="tb-report-btn" onclick="reportBug()"
+      title="エラー / 不具合を開発者に報告">❗</button>
+    <button class="tb-update" id="tb-update-btn" onclick="checkForUpdate(true)"
+      title="更新を確認">🔄 <span id="tb-update-lbl">更新確認</span></button>
+    <span class="tb-integrity" id="tb-integrity" hidden></span>
+    <!-- Browser fullscreen toggle (phone/tablet). Hidden by default; shown by
+         JS only when the Fullscreen API is actually available (iOS Safari
+         supports it on iPhone from 16.4) AND the device is touch — desktop
+         already has F11. See _initFullscreenButton(). -->
+    <button class="tb-lang" id="tb-fullscreen-btn" onclick="toggleAppFullscreen()"
+      style="display:none" title="全画面表示">⛶</button>
+    <button class="tb-lang" id="tb-lang-btn" onclick="toggleLang()">EN</button>
+  </div>
+</div>
+
+<!-- Floating "leave simple-fullscreen" button. Hidden unless body.immersive
+     (phone-only mode); sits at the top-right where the topbar used to be so the
+     user can always get the UI back. See toggleAppFullscreen(). -->
+<button id="immersive-exit" data-i18n="immersive-exit" onclick="toggleAppFullscreen()" title="全画面表示を終了">⤢ 表示</button>
+
+<canvas id="overlay"></canvas>
+<canvas id="c"></canvas>
+

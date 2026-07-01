@@ -1,0 +1,426 @@
+/* ══════ LAYER PANEL ══════ */
+#layer-panel{
+  position:fixed;left:0;top:45px;bottom:0;width:285px;
+  background:rgba(22,22,24,.96);display:flex;flex-direction:column;
+  z-index:55;pointer-events:all;transition:opacity .5s;opacity:0;
+  border-right:1px solid rgba(255,255,255,.07);
+  /* iOSで長押しすると選択ルーペ/コールアウトが出てページがずれるのを防ぐ */
+  -webkit-touch-callout:none;-webkit-user-select:none;user-select:none;
+}
+#layer-panel.visible{opacity:1;}
+.lp-head{
+  display:flex;align-items:center;justify-content:space-between;
+  padding:8px 10px;background:rgba(26,26,28,.96);border-bottom:1px solid rgba(255,255,255,.07);
+  font-size:.8em;color:rgba(200,200,200,.7);font-weight:600;flex-shrink:0;letter-spacing:.03em;
+  cursor:pointer;user-select:none;
+}
+.lp-head:hover{background:rgba(32,32,36,.96);}
+.lp-head .lp-chev{
+  display:inline-block;margin-right:4px;color:#888;font-size:.9em;
+  transition:transform .18s;transform:rotate(0deg);
+}
+#layer-panel.collapsed .lp-head .lp-chev{transform:rotate(-90deg);}
+#layer-panel.collapsed{bottom:auto;height:auto;}
+#layer-panel.collapsed #layer-list,
+#layer-panel.collapsed #lp-divider,
+#layer-panel.collapsed #layer-transform{display:none !important;}
+.lp-head select{
+  background:#2A2A2C;border:1px solid rgba(255,255,255,.12);color:#888888;
+  border-radius:4px;padding:1px 4px;font-size:.85em;cursor:pointer;
+}
+.lp-filter{
+  display:flex;gap:3px;padding:4px 6px;background:rgba(24,24,26,.92);
+  border-bottom:1px solid rgba(255,255,255,.05);flex-shrink:0;
+}
+.lp-filter button{
+  flex:1;background:#2A2A2C;border:1px solid rgba(255,255,255,.08);
+  color:#686868;border-radius:4px;padding:2px 0;font-size:.62em;
+  cursor:pointer;transition:all .15s;white-space:nowrap;
+}
+.lp-filter button:hover{background:rgba(255,255,255,.08);color:#D8D8D8;}
+.lp-filter button.flt-off{opacity:.35;}
+#layer-list{
+  flex:1 1 auto;overflow-y:auto;padding:5px;background:rgba(22,22,24,.82);
+  min-height:60px;
+  touch-action:pan-y;overscroll-behavior:contain;-webkit-touch-callout:none;
+}
+#layer-list::-webkit-scrollbar{width:4px;}
+#layer-list::-webkit-scrollbar-thumb{background:rgba(255,255,255,.1);border-radius:2px;}
+.lr{
+  display:flex;align-items:center;gap:5px;padding:5px 7px;
+  border-radius:6px;margin-bottom:3px;cursor:pointer;
+  background:rgba(40,40,42,.6);border:1px solid rgba(255,255,255,.06);transition:all .15s;
+}
+.lr:hover{background:rgba(48,48,50,.8);border-color:rgba(255,255,255,.14);}
+.lr.selected{background:rgba(255,255,255,.07);border-color:rgba(255,255,255,.18);}
+.lr .lr-eye{font-size:.9em;cursor:pointer;flex-shrink:0;color:#ffffff;opacity:.65;user-select:none;}
+.lr .lr-eye:hover{opacity:1;}
+.lr .lr-icon{font-size:.85em;flex-shrink:0;}
+.lr .lr-name{flex:1;font-size:.75em;color:#A0A0A0;overflow:hidden;
+  text-overflow:ellipsis;white-space:nowrap;}
+.lr .lr-del{font-size:.75em;color:#383838;cursor:pointer;flex-shrink:0;}
+.lr.lr-pivot-hover{background:rgba(255,180,60,.15);border-color:rgba(255,180,60,.4);}
+.color-preset-popup{
+  position:fixed;z-index:200;background:rgba(30,30,32,.96);border:1px solid rgba(255,255,255,.12);
+  border-radius:8px;padding:8px;display:flex;flex-direction:column;gap:6px;
+  box-shadow:0 4px 16px rgba(0,0,0,.5);
+}
+.color-preset-popup .cpr-native{display:flex;align-items:center;gap:6px;}
+.color-preset-popup .cpr-native label{font-size:.7em;color:#888;}
+.color-preset-popup .cpr-grid{display:flex;flex-wrap:wrap;gap:4px;}
+.color-preset-popup .cpr-swatch{
+  width:22px;height:22px;border-radius:4px;border:1px solid rgba(255,255,255,.15);
+  cursor:pointer;transition:transform .1s;
+}
+.color-preset-popup .cpr-swatch:hover{transform:scale(1.2);border-color:rgba(255,255,255,.4);}
+/* folder toggle chevron */
+.lr .lr-chevron{font-size:.72em;color:#686840;flex-shrink:0;cursor:pointer;padding:0 2px;user-select:none;}
+.lr .lr-chevron:hover{color:#ffdd66;}
+.lr .lr-del:hover{color:#ef4444;}
+#layer-transform{
+  background:rgba(22,22,24,.96);border-top:1px solid rgba(255,255,255,.07);
+  padding:8px 8px 60px 8px;
+  flex:1 1 0;min-height:0;overflow-y:auto;
+}
+#layer-transform .lt-title{font-size:.72em;color:rgba(200,200,200,.5);margin-bottom:6px;font-weight:600;}
+#layer-transform .lt-section{font-size:.68em;color:#404040;margin:5px 0 2px;}
+#layer-transform .lt-row{display:flex;gap:3px;margin-bottom:2px;}
+#layer-transform .lt-row .la{font-size:.68em;font-weight:700;width:13px;text-align:center;flex-shrink:0;}
+#layer-transform .lt-row input[type=number]{
+  flex:1;background:#242426;border:1px solid rgba(255,255,255,.1);
+  color:#C0C0C0;font-size:.72em;padding:2px 4px;border-radius:3px;
+  outline:none;width:0;
+}
+#layer-transform .lt-row input[type=number]:focus{border-color:rgba(255,255,255,.3);}
+#layer-transform .lt-wire{
+  display:flex;align-items:center;gap:5px;margin-top:5px;
+  font-size:.72em;color:#686868;cursor:pointer;user-select:none;
+}
+#layer-transform .lt-wire input{cursor:pointer;}
+.lp-footer{
+  display:grid;grid-template-columns:1fr 1fr;gap:6px;padding:6px;
+  background:rgba(26,26,28,.97);border-top:1px solid rgba(255,255,255,.12);
+  pointer-events:all;flex-shrink:0;
+}
+#layer-panel.collapsed .lp-footer{display:none !important;}
+.lp-footer button{
+  flex:1;min-width:50px;background:#2A2A2C;border:1px solid rgba(255,255,255,.1);
+  color:#686868;border-radius:5px;padding:4px 0;font-size:.68em;
+  cursor:pointer;transition:all .15s;white-space:nowrap;
+}
+.lp-footer button:hover{background:rgba(255,255,255,.08);color:#D8D8D8;}
+
+/* ══════ QUALITY PANEL ══════ */
+#quality-panel{
+  /* Anchored directly UNDER the #qi-badge (the FPS/画質 chip at
+     top:54px, ~28 px tall) so it reads as a proper dropdown from that
+     button rather than a disconnected panel floating up from the
+     bottom of the screen. top:88px ≈ badge top + badge height + a few
+     px gap; right edge shared with the badge so they line up. */
+  position:fixed;top:88px;right:14px;
+  background:rgba(26,26,28,.97);border:1px solid rgba(255,255,255,.1);border-radius:10px;
+  /* z-index 95 (was 60): at 60 it tied with the top action row / joystick /
+     gizmo (all 60), so on phones the 録画・AR buttons rendered THROUGH the
+     open panel (later-DOM wins a tie). A dropdown must cover the controls
+     beneath it — only true modals (z 6000+) stay above. */
+  /* Compact, fixed width on every device (user 2026-06 "左右に大きすぎる"): the
+     shrink-to-fit width was ~358px (the widest non-wrapping row). The content
+     reflows fine when constrained, so cap it to a tidy 220px (never wider than
+     the viewport on tiny phones). */
+  padding:10px 13px;z-index:95;width:min(220px, calc(100vw - 28px));display:none;
+  /* The full menu (画質プリセット + 設定 rows + 移動速度 + 処理能力
+     モニター + 解像度) is ~480 px tall — taller than phone-landscape's
+     usable height. Cap it just under the viewport and scroll internally
+     so EVERY item is reachable from the badge dropdown. dvh tracks the
+     mobile URL bar so the cap stays correct as Chrome's chrome shrinks. */
+  max-height:calc(100dvh - 100px);
+  overflow-y:auto;
+  overscroll-behavior:contain;
+  -webkit-overflow-scrolling:touch;
+}
+/* Always-visible quality / FPS indicator (replaces the cbar 画質 button).
+   Pinned just below the topbar at the right edge. Hover lifts it, click
+   opens the consolidated #quality-panel. Compact so it never blocks the
+   viewport; the FPS readout updates each performance sample. */
+#qi-badge{
+  position:fixed;top:54px;right:14px;z-index:60;
+  display:flex;align-items:center;gap:6px;
+  /* ── Unified with the sibling top-row buttons (#btn-cam-reset / #btnAddCubeTop
+     / #btnCamAnim …) so the 画質 chip is sized & styled IDENTICALLY and is no
+     longer "left behind" when the row's look is edited (user 2026-06-27).
+     Same background / border / colour / radius / padding / font-size as the
+     siblings' inline styles. All RESPONSIVE sizing now comes from the shared
+     `#view-tl-btns button` media rules (the badge IS a <button> in that row —
+     see _qiBadgeIntoActionRow), exactly like its neighbours, so there are NO
+     dedicated per-breakpoint #qi-badge sizing rules anymore. */
+  background:rgba(20,20,22,.88);
+  border:1px solid rgba(255,255,255,.18);
+  color:rgba(200,200,200,.85);
+  border-radius:6px;
+  padding:5px 12px;font-size:.72em;
+  cursor:pointer;pointer-events:all;
+  transition:background .15s,border-color .15s;
+  /* line-height:normal (was 1.2) so the 🖥 emoji's line box matches the other
+     action buttons — otherwise the chip rendered ~3px shorter than them. */
+  letter-spacing:.02em;line-height:normal;
+  white-space:nowrap;
+  user-select:none;
+  /* It's a <button> now — strip the native control chrome so it looks exactly
+     like the old <div>, and make sure no tap on it (or its child spans) can
+     trigger an iOS double-tap zoom of the toolbar. */
+  appearance:none;-webkit-appearance:none;margin:0;
+  touch-action:manipulation;
+}
+#qi-badge *{ touch-action:manipulation; }
+#qi-badge:hover{
+  background:rgba(255,255,255,.08);
+  border-color:rgba(255,255,255,.25);
+}
+/* "open" state: badge stays lit while its dropdown (#quality-panel) is
+   shown, and its bottom edge squares off so it visually fuses with the
+   panel hanging directly beneath it (the panel drops its top-right
+   radius to match). Makes the pair read as one dropdown control. */
+#qi-badge.qib-open{
+  /* Just a "lit" highlight while the (now centred) panel is open — no corner
+     squaring, since the panel no longer fuses to the chip's bottom edge. */
+  background:rgba(255,255,255,.10);
+  border-color:rgba(255,255,255,.28);
+}
+#qi-badge .qib-icon{opacity:.65;}
+#qi-badge .qib-lvl{color:#ffe4b3;font-weight:600;}
+#qi-badge .qib-fps{color:rgba(180,180,180,.65);
+  /* The number stays monospace + tabular so the chip width doesn't jitter as the
+     FPS readout changes (container font now matches the sibling buttons). */
+  font-family:ui-monospace,Consolas,monospace;
+  font-variant-numeric:tabular-nums;min-width:46px;text-align:right;
+  /* Never let the FPS read-out wrap to a 2nd line (that fattened the chip): keep
+     it on one line, and floor the width to the WIDEST value ("144 fps" ≈ 46px)
+     so the chip doesn't visibly grow when the readout flips from "— fps" (33px)
+     to "60 fps" (39px) the instant a tap/interaction starts rendering — the
+     "画質ボタンを触るとサイズが変わる" report. */
+  white-space:nowrap;flex-shrink:0;}
+/* When JS moves the badge into the camera action row (see _qiBadgeIntoActionRow)
+   it flows inline at the row's RIGHT END rather than being pinned to the corner.
+   This applies on every device. POSITIONING ONLY — sizing (font/padding) is
+   inherited from the shared `#view-tl-btns button` rules so the chip always
+   tracks its sibling buttons (no dedicated sizing here). */
+#view-tl-btns > #qi-badge{ position:static; top:auto; right:auto; align-self:center; }
+@media (pointer:coarse) and (any-hover:none) and (max-width:600px) and (orientation:portrait){
+  /* Phone PORTRAIT: keep the whole top group on ONE line (user request 2026-06
+     "縦画面の上UIを一列に"). On phones only 3 buttons survive (🏠リセット / ⏺録画 /
+     📱AR — 位置保存・アニメ・歩行・オブジェクト追加 are hidden), so the 🖥 badge now
+     fits INLINE at the row's right end instead of being pinned on a 2nd line.
+     Tighten the row gap a touch so reset/record/AR + badge clear ~360px widths. */
+  /* 🎞 camera-anim is now shown on phones too (user 2026-06), so the row carries
+     🏠 / 🎞 / ⏺ / 📱 + 🖥badge (~384px) — one line on ~390px phones. (flex-wrap is
+     NOT used here: the row is left:50%-anchored, so wrapping would clamp it to
+     half the viewport and stack 3 lines; the ≤384px breakpoint below handles
+     genuinely-narrow phones instead.) */
+  #view-tl-btns{ gap:4px !important; }
+  /* (画質チップの position:static は基底ルールで設定済み＝専用の再指定は不要。) */
+}
+@media (pointer:coarse) and (any-hover:none) and (orientation:portrait) and (max-width:384px){
+  /* Narrow phones (iPhone SE / mini, ≤375px): 5 top buttons can't fit one line,
+     so span the row full-width (drop the left:50% anchor) and let it wrap to a
+     tidy 2 lines centred, instead of clipping the edge buttons off-screen.
+     `body #view-tl-btns` (specificity 1-0-1) is needed to outrank the later
+     generic touch rule `#view-tl-btns{ left:calc(...) !important }` which would
+     otherwise keep the left:50% anchor and clamp the wrap to half the screen. */
+  body #view-tl-btns{ left:8px !important; right:8px !important; transform:none !important;
+    width:auto !important; justify-content:center; flex-wrap:wrap !important; row-gap:4px !important; }
+}
+#quality-panel .qt{color:#C0C0C0;font-size:.85em;font-weight:600;margin-bottom:10px;}
+#quality-panel .qp-divider{
+  border-top:1px solid rgba(255,255,255,.07);margin:10px 0 8px;
+}
+#quality-panel .qp-perf-title{
+  /* Brightened from rgba(255,255,255,.3) — the prior value failed
+     WCAG AA contrast on a dark panel and the user reported the labels
+     were "faded" / hard to read. */
+  font-size:.72em;color:rgba(220,220,220,.78);letter-spacing:.06em;margin-bottom:7px;
+}
+#quality-panel .qp-stat-row{
+  display:flex;align-items:center;justify-content:space-between;margin-bottom:4px;
+}
+/* Label colors bumped from #505050 / #404040 to ~#A8A8A8 for legible
+   contrast on the dark panel. Numbers (qp-value, qp-bar-pct) keep their
+   slightly brighter shade so the actual reading stands out from its label. */
+#quality-panel .qp-label{font-size:.7em;color:#A8A8A8;}
+#quality-panel .qp-value{font-size:.75em;color:#D0D0D0;font-variant-numeric:tabular-nums;}
+#quality-panel .qp-bar-label{
+  font-size:.68em;color:#A8A8A8;margin-bottom:2px;margin-top:5px;
+  display:flex;justify-content:space-between;align-items:center;
+}
+#quality-panel .qp-bar-bg{
+  width:100%;height:8px;background:rgba(255,255,255,.06);
+  border-radius:4px;overflow:hidden;position:relative;margin-bottom:1px;
+}
+#quality-panel .qp-bar-fill{
+  height:100%;border-radius:4px;transition:width .4s ease,background .4s;
+}
+#quality-panel .qp-bar-pct{
+  font-size:.65em;color:#B8B8B8;font-variant-numeric:tabular-nums;
+}
+/* Touch: the 低 / 中 / 高 quality buttons are too narrow to tap comfortably on
+   iPad / iPhone. Make the three share the panel width equally (≈1.5×+ wider)
+   and add vertical padding for a bigger hit target. user 2026-06-27. */
+@media (pointer:coarse) and (any-hover:none){
+  #quality-panel #qbtns{ gap:6px !important; }
+  #quality-panel #qbtns button{ flex:1 1 0 !important; min-width:0 !important;
+    padding-top:8px !important; padding-bottom:8px !important; }
+}
+
+/* ── Layer panel resize handle ── */
+#layer-panel .lp-resize{
+  position:absolute;right:-4px;top:0;bottom:0;
+  width:9px;cursor:col-resize;z-index:10;
+  background:transparent;transition:background .15s;
+}
+#layer-panel .lp-resize:hover{background:rgba(255,255,255,.12);}
+/* Touch: enlarge the divider / width handle hit areas so they're grabbable with
+   a finger on iPad / iPhone (user 2026-06-27). */
+@media (pointer:coarse) and (any-hover:none){
+  #lp-divider{ height:18px !important; }
+  #layer-panel .lp-resize{ width:18px !important; right:-9px !important; }
+}
+/* ── Light object visual ── */
+.light-gizmo{pointer-events:auto;}
+
+/* ── Minimap Expanded ── */
+#onote{
+  position:fixed;bottom:62px;left:14px;
+  background:rgba(40,28,20,.92);border:1px solid rgba(249,115,22,.28);border-radius:8px;
+  padding:8px 13px;font-size:.76em;color:#c2601c;
+  z-index:60;display:none;pointer-events:all;
+}
+#onote button{
+  background:rgba(249,115,22,.1);border:1px solid rgba(249,115,22,.35);border-radius:5px;
+  color:#ea580c;padding:3px 9px;cursor:pointer;font-size:.85em;margin-left:6px;
+}
+
+/* ── 2D Overlay ── */
+#overlay{
+  position:fixed;inset:0;pointer-events:none;z-index:48;
+}
+
+/* ── Undo toast ── */
+#undo-toast{
+  position:fixed;left:50%;transform:translateX(-50%);
+  bottom:70px;background:rgba(26,26,28,.95);border:1px solid rgba(255,255,255,.15);
+  border-radius:8px;padding:6px 18px;color:rgba(200,200,200,.6);font-size:.78em;
+  z-index:80;pointer-events:none;opacity:0;transition:opacity .3s;
+  white-space:nowrap;
+}
+/* Unified "guidance / instruction" banner position (user 2026-06: the various
+   hint banners were scattered at top:64px and overlapped the top button row).
+   All instruction banners (object placement, path, measure step) now sit in one
+   bottom-centre band ABOVE the cbar + undo-toast, and never collide with the
+   top UI. Background colour stays per-banner (set inline / by id). */
+.guide-banner{
+  position:fixed;left:50%;transform:translateX(-50%);
+  bottom:112px;color:#fff;padding:6px 16px;border-radius:20px;font-size:.78em;
+  z-index:6000;pointer-events:none;box-shadow:0 2px 12px rgba(0,0,0,.45);
+  white-space:nowrap;max-width:92vw;text-align:center;
+}
+@media (pointer:coarse){ .guide-banner{ bottom:124px; } }       /* iPad/tablet: cbar sits higher */
+@media (pointer:coarse) and (any-hover:none) and (max-width:600px),
+       (pointer:coarse) and (any-hover:none) and (max-height:500px){
+  .guide-banner{ bottom:270px; }                                /* phone: cbar lifted above joystick */
+}
+/* iPad/touch: the 日照 panel's inline bottom:64px sat ON the cbar (also bottom:64px),
+   so the panel's lower edge overlapped the bottom buttons (user report). Lift it
+   clear above the cbar. Phones lift further since their cbar is at bottom:212px. */
+@media (pointer:coarse){
+  #sun-panel{ bottom:120px !important; max-height:60vh; }
+  #cam-anim-panel{ width:260px !important; font-size:.72em !important; padding:10px !important; max-height:70vh !important; }
+}
+@media (pointer:coarse) and (any-hover:none) and (max-width:600px){
+  #sun-panel{ bottom:264px !important; max-height:46vh; left:auto !important; right:14px !important; }
+}
+@media (pointer:coarse) and (any-hover:none) and (orientation:landscape) and (max-height:500px){
+  #sun-panel{ bottom:80px !important; top:auto !important; left:auto !important; right:14px !important; max-height:calc(100vh - 96px); }
+  #cam-anim-panel{ top:46px !important; max-height:calc(100vh - 100px) !important; }
+  #gizmo{ max-height:calc(100vh - 100px) !important; }
+}
+
+/* ── スマホ専用: フローティングパネルを小さく＋文字サイズを統一 ──
+   user request 2026-06-19「そもそものサイズが大きい・文字も無駄にでかい」。
+   日照/カメラツール/画質/測定パネルは元々デスクトップ幅(256〜288px)＋.78em で、
+   390px級のスマホでは画面の3/4を覆い被って読みにくかった。phone専用ブロック
+   (pointer:coarse & any-hover:none & 幅600 or 高さ500以下)なので iPad/PC は不変。
+   子要素は em 基準ゆえ、ルートの font-size を下げると中身が比例縮小する。
+   width/font はインライン指定なので !important で上書きする。 */
+@media (pointer:coarse) and (any-hover:none) and (max-width:600px),
+       (pointer:coarse) and (any-hover:none) and (max-height:500px){
+  /* ★縮小対象は「ボタンを押して出るUI＝各パネル」（user 2026-06-20 明確化）。
+     ボタン本体・文字ではない。文字サイズを4パネルで統一して一段小さく（→.64em）。
+     子要素は em 基準なので全体が比例縮小する。 */
+  #sun-panel, #cam-panel, #quality-panel, #gizmo, #cam-anim-panel{ font-size:.58em !important; }
+  /* 横幅を画面に収まるよう縮小（端から最低24pxの余白を確保） */
+  #sun-panel{ width:min(190px, calc(100vw - 24px)) !important; padding:7px !important; }
+  #cam-panel{ width:min(210px, 75vw) !important; padding:8px 9px !important; }
+  #quality-panel{ width:min(190px, calc(100vw - 24px)) !important; padding:7px 9px !important; }
+  #gizmo{ width:min(200px, calc(100vw - 24px)) !important; padding:8px 10px !important; top:100px !important; max-height:min(50vh, calc(100vh - 130px)) !important; }
+  #cam-anim-panel{ width:min(210px, calc(100vw - 24px)) !important; padding:8px 10px !important; max-height:60vh !important; }
+  /* user 2026-06-28: スマホUIをさらに 2/3 に縮小（押して出るパネル＋上部カメラワーク/画質バッジ）。
+     パネルは右下/右上を基点に scale → 位置を保ったまま一回り小さく（日照パネルの上見切れも緩和）。 */
+  /* スマホ限定: 日照(#sun-panel)/測定(#gizmo) を カメラワーク(#cam-anim-panel) と同じ
+     「右上・同じ幅・同じ最大高」に統一（user 2026-06-28）。サイズは共有の .58em＋幅で合わせ、
+     位置は bottom 基点をやめて top:46px・right:14px に揃える。scale は使わない。 */
+  #sun-panel, #gizmo, #cam-anim-panel{
+    /* top は上UI(上部ボタン行)の下端を実測して JS が --m-panel-top に設定 → かぶらない。
+       未設定時は上ボタン行(top:57)＋約1.5行ぶんを見込んだ 96px をフォールバック。 */
+    top:var(--m-panel-top, 96px) !important; bottom:auto !important; left:auto !important; right:14px !important;
+    width:min(210px, calc(100vw - 24px)) !important;
+    max-height:calc(100vh - var(--m-panel-top, 96px) - 14px) !important;
+    transform:none !important;
+  }
+  /* 上部の カメラワーク(🎞) ボタンの行内サイズを 2/3 に詰める。
+     ※画質/FPSバッジ(#qi-badge)そのものは変更しない（縮小対象は低中高ボタン側）。 */
+  #view-tl-btns > #btnCamAnim{ font-size:.5em !important; padding:3px 7px !important; }
+  /* 画質「低 / 中 / 高」3ボタンを 2/3 に（タッチ用拡大で大きすぎたのを是正）。 */
+  #quality-panel #qbtns button{ padding-top:5px !important; padding-bottom:5px !important; font-size:.66em !important; }
+  /* スマホでは画質パネルの「処理能力モニター」を丸ごと非表示（user 2026-06-28）。 */
+  #qp-perf-section{ display:none !important; }
+}
+
+/* ── Axis pivot highlight ── */
+.ax-highlight{ outline:none; }
+
+/* ── Folder / Drag-and-Drop ── */
+.lr-folder{ background:rgba(255,220,80,.06)!important; border-color:rgba(255,220,80,.12)!important; }
+.lr-folder:hover,.lr-folder.selected{ background:rgba(255,220,80,.1)!important; border-color:rgba(255,220,80,.25)!important; }
+.lr.drag-before{ border-top:2px solid rgba(255,180,84,.8)!important; }
+.lr.drag-after { border-bottom:2px solid rgba(255,180,84,.8)!important; }
+.lr.drag-inside{ background:rgba(255,180,84,.12)!important; border-color:rgba(255,180,84,.5)!important; outline:1px solid rgba(255,180,84,.4); }
+
+/* ── Export/Save modal ── */
+#export-modal{
+  position:fixed;inset:0;background:rgba(0,0,0,.7);z-index:300;
+  display:none;align-items:center;justify-content:center;
+}
+#export-modal.show{display:flex;}
+#export-modal .em-box{
+  background:rgba(26,26,28,.98);border:1px solid rgba(255,255,255,.15);border-radius:12px;
+  padding:22px 26px;min-width:280px;max-width:360px;
+}
+#export-modal .em-title{font-size:.95em;color:#D0D0D0;font-weight:600;margin-bottom:14px;}
+#export-modal .em-btn{
+  display:block;width:100%;background:#2A2A2C;border:1px solid rgba(255,255,255,.12);
+  color:#C0C0C0;border-radius:7px;padding:10px 14px;font-size:.83em;cursor:pointer;
+  text-align:left;transition:all .15s;margin-bottom:8px;
+}
+#export-modal .em-btn:hover{background:rgba(255,255,255,.08);border-color:rgba(255,255,255,.25);color:#D8D8D8;}
+#export-modal .em-btn .em-desc{display:block;font-size:.72em;color:#484848;margin-top:2px;}
+#export-modal .em-close{
+  background:transparent;border:1px solid rgba(255,255,255,.1);color:#484848;
+  border-radius:5px;padding:5px 14px;cursor:pointer;font-size:.78em;width:100%;margin-top:4px;
+}
+#export-modal .em-close:hover{color:#C0C0C0;}
+
+/* ── Folder name input ── */
+.lr-name-input{
+  flex:1;background:transparent;border:none;border-bottom:1px solid rgba(255,255,255,.2);
+  color:#C0C0C0;font-size:.75em;padding:0 2px;outline:none;
+}
+

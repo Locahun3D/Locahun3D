@@ -1,0 +1,368 @@
+    <div class="m-old" style="display:none" aria-hidden="true">
+      <!-- ── QUICK START (EN) ── -->
+      <section>
+        <h2>🚀 5-Minute Quickstart</h2>
+        <p style="color:#aab">Bare minimum to get going. See each section below for details.</p>
+        <div class="m-steps">
+          <div class="m-step">
+            <div class="m-step-n">1</div>
+            <div>
+              <strong>Drop a PLY / SPLAT file</strong><br>
+              <span style="opacity:.75">Drag onto the "📂" zone on the home screen. Multiple files OK.</span>
+            </div>
+          </div>
+          <div class="m-step">
+            <div class="m-step-n">2</div>
+            <div>
+              <strong>WASD to move · <u>Right</u>-drag to look around</strong><br>
+              <span style="opacity:.75">If the scene is upside-down, select the layer → try the X / Y / Z axis flip buttons.</span>
+            </div>
+          </div>
+          <div class="m-step">
+            <div class="m-step-n">3</div>
+            <div>
+              <strong>📷 Camera button → 📸 Capture to JPEG</strong><br>
+              <span style="opacity:.75">Pick focal length / sensor, then "📸 Capture" in the bottom-left panel.</span>
+            </div>
+          </div>
+        </div>
+
+        <h3>First-time checklist</h3>
+        <ul class="m-check">
+          <li>Press <kbd>M</kbd> to enter measure mode</li>
+          <li>Manage the scene from the Layer panel (left)</li>
+          <li>All major features live in the bottom centre cbar</li>
+          <li>Lost? Hit the <kbd>❓</kbd> button to open this manual</li>
+        </ul>
+      </section>
+
+      <!-- ── LOAD ── -->
+      <section>
+        <h2>📂 Open a file</h2>
+        <p>The drop zone on the home screen (right after launch) is your entry point.</p>
+        <div class="m-grid2">
+          <div class="m-card">
+            <h4>📁 Supported formats</h4>
+            <ul>
+              <li>3D Gaussian Splatting: <code>.ply</code> <code>.splat</code> <code>.spz</code> <code>.ksplat</code> <code>.rad</code> <code>.sog</code></li>
+              <li>3D models: <code>.obj</code> <code>.glb</code> <code>.gltf</code> <code>.fbx</code></li>
+              <li>Project: <code>.zip</code> (saved from LOCAHUN 3D)</li>
+            </ul>
+          </div>
+          <div class="m-card">
+            <h4>📥 How to load</h4>
+            <ul>
+              <li>Click → file picker (Ctrl-click for multi-select)</li>
+              <li>Drag & drop (multiple files at once OK)</li>
+              <li>First file becomes the main scene; the rest are added as layers</li>
+            </ul>
+          </div>
+        </div>
+        <div class="m-tip">
+          <b>💡 Tip:</b> Large PLYs (100MB+) take tens of seconds to load. A progress bar appears while loading.
+        </div>
+      </section>
+
+      <!-- ── CAMERA ── -->
+      <section>
+        <h2>🎮 Move the camera</h2>
+        <p>Keyboard for forward/back/left/right/up/down · mouse to look around.</p>
+
+        <div class="m-fig">
+          <svg viewBox="0 0 320 200" style="width:100%;max-width:480px;height:auto">
+            <defs>
+              <linearGradient id="key-grad-en" x1="0" x2="0" y1="0" y2="1">
+                <stop offset="0" stop-color="#3a3a40"/>
+                <stop offset="1" stop-color="#1a1a1d"/>
+              </linearGradient>
+            </defs>
+            <g font-family="ui-monospace,monospace" font-size="14" fill="#ddd" text-anchor="middle">
+              <rect x="50"  y="20" width="40" height="40" rx="6" fill="url(#key-grad-en)" stroke="#555"/>
+              <text x="70" y="46">Q</text><text x="70" y="78" font-size="9" fill="#fff">DOWN</text>
+              <rect x="100" y="20" width="40" height="40" rx="6" fill="url(#key-grad-en)" stroke="#555"/>
+              <text x="120" y="46">W</text><text x="120" y="78" font-size="9" fill="#fff">FWD</text>
+              <rect x="150" y="20" width="40" height="40" rx="6" fill="url(#key-grad-en)" stroke="#555"/>
+              <text x="170" y="46">E</text><text x="170" y="78" font-size="9" fill="#fff">UP</text>
+              <rect x="100" y="90" width="40" height="40" rx="6" fill="url(#key-grad-en)" stroke="#555"/>
+              <text x="120" y="116">S</text><text x="120" y="148" font-size="9" fill="#fff">BACK</text>
+              <rect x="50"  y="90" width="40" height="40" rx="6" fill="url(#key-grad-en)" stroke="#555"/>
+              <text x="70" y="116">A</text><text x="70" y="148" font-size="9" fill="#fff">LEFT</text>
+              <rect x="150" y="90" width="40" height="40" rx="6" fill="url(#key-grad-en)" stroke="#555"/>
+              <text x="170" y="116">D</text><text x="170" y="148" font-size="9" fill="#fff">RIGHT</text>
+              <rect x="220" y="90" width="80" height="40" rx="6" fill="url(#key-grad-en)" stroke="#555"/>
+              <text x="260" y="116" font-size="13">Shift</text>
+              <text x="260" y="148" font-size="9" fill="#fc8">Hold for 5× speed</text>
+            </g>
+          </svg>
+        </div>
+
+        <h3>Speed</h3>
+        <ul>
+          <li>Hold <kbd>Shift</kbd> for 5× speed</li>
+          <li>Mouse wheel changes the cruise speed itself</li>
+          <li>Current speed is shown in the HUD (top-left)</li>
+        </ul>
+      </section>
+
+      <!-- ── MOUSE ── -->
+      <section>
+        <h2>🖱 Mouse controls</h2>
+        <div class="m-fig">
+          <svg viewBox="0 0 260 200" style="width:160px;height:auto">
+            <path d="M60,30 Q60,10 90,10 L170,10 Q200,10 200,30 L200,160 Q200,190 130,190 Q60,190 60,160 Z"
+              fill="#222" stroke="#555" stroke-width="1.5"/>
+            <path d="M60,30 Q60,10 90,10 L128,10 L128,90 L60,90 Z" fill="#fff" opacity=".25" stroke="#fff"/>
+            <path d="M132,10 L170,10 Q200,10 200,30 L200,90 L132,90 Z" fill="#ff8866" opacity=".55" stroke="#ff8866"/>
+            <rect x="120" y="35" width="20" height="40" rx="6" fill="#444" stroke="#777"/>
+            <text x="130" y="115" font-size="10" fill="#fff" text-anchor="middle">L = select</text>
+            <text x="130" y="130" font-size="10" fill="#ff8866" text-anchor="middle">R-drag = orbit</text>
+            <text x="130" y="145" font-size="10" fill="#ff8866" text-anchor="middle">R (measure) = place</text>
+            <text x="130" y="175" font-size="9"  fill="#aaa" text-anchor="middle">Wheel = FOV</text>
+          </svg>
+        </div>
+        <table class="m-tbl">
+          <tr><th>Action</th><th>Effect</th></tr>
+          <tr><td>Right-drag</td><td>Look around (pan/tilt)</td></tr>
+          <tr><td>Left-click hold (in measure)</td><td>Preview a placement point — release to commit</td></tr>
+          <tr><td>Wheel</td><td>Change FOV (zoom-in/out feel)</td></tr>
+          <tr><td>Left-click on object</td><td>Select layer</td></tr>
+          <tr><td>Left-drag on 3D handle</td><td>Move / rotate / scale via gizmo</td></tr>
+          <tr><td>Ctrl + click (Layer panel)</td><td>Multi-select</td></tr>
+        </table>
+      </section>
+
+      <!-- ── ORIENT ── -->
+      <section>
+        <h2>🔄 Fix scene orientation</h2>
+        <p>PLYs from different exporters may appear upside-down or rotated.</p>
+        <div class="m-grid2">
+          <div class="m-card">
+            <h4>🎯 Upside-down / sideways</h4>
+            <ol>
+              <li>Select the layer</li>
+              <li>In the right panel, try the <b>Flip X / Y / Z Axis</b> buttons</li>
+              <li>For finer control use the rotation number fields below</li>
+            </ol>
+          </div>
+          <div class="m-card">
+            <h4>🔁 Fine adjustment</h4>
+            <ul>
+              <li>Try the <b>X / Y / Z flip</b> toggles (3 axes, independent)</li>
+              <li>If still off, dial in <b>Position / Rotation / Size</b> manually</li>
+            </ul>
+          </div>
+        </div>
+      </section>
+
+      <!-- ── LAYERS ── -->
+      <section>
+        <h2>📁 Layer panel</h2>
+        <p>The "Scene Layers" sidebar on the left is the hub. Every loaded file or object lives here.</p>
+        <ul>
+          <li><b>👁</b> show / hide</li>
+          <li><b>🗑</b> delete (<kbd>Z</kbd> to undo, up to 10 steps)</li>
+          <li><b>Double-click</b> rename</li>
+          <li><b>Drag</b> reorder / nest into folders</li>
+          <li><b>Ctrl + click</b> multi-select → <kbd>Delete</kbd> to remove all</li>
+        </ul>
+      </section>
+
+      <!-- ── TRANSFORM ── -->
+      <section>
+        <h2>⇆ Position / Rotation / Scale</h2>
+        <p>Selecting a layer reveals the "Transform" panel at the bottom of the left sidebar.</p>
+        <ul>
+          <li>Numeric <b>X / Y / Z</b> input (position / rotation / scale)</li>
+          <li>Drag the <b>arrow handles</b> in the 3D view directly</li>
+          <li>Flat handle (□) for XZ-plane translation</li>
+          <li>Rotation rings (<b>↻ X/Y/Z</b>) for axis rotation</li>
+          <li>Cube handles for per-axis scaling</li>
+        </ul>
+        <div class="m-tip"><b>💡:</b> <kbd>Z</kbd> undoes up to 10 steps. <kbd>Y</kbd> redoes.</div>
+      </section>
+
+      <!-- ── ADD ── -->
+      <section>
+        <h2>＋ Add objects</h2>
+        <p>From the top-left "<b>Add Object ▾</b>" menu:</p>
+        <ul>
+          <li><b>＋ 3DGS</b> — additional splat file (PLY/SPLAT/SPZ/KSPLAT)</li>
+          <li><b>＋ OBJ/GLB</b> — 3D model (OBJ/GLTF/GLB/FBX)</li>
+          <li><b>📦 Cube / ⚽ Sphere / 📁 Folder / 💡 Light / 🟠 Event</b> — scene helpers</li>
+        </ul>
+      </section>
+
+      <!-- ── MEASURE ── -->
+      <section>
+        <h2>📐 Distance measure</h2>
+        <p>Measure the real distance between two points on a splat surface.</p>
+        <ol>
+          <li>Press <kbd>M</kbd> or click "📐 Measure" in the cbar to enter measure mode</li>
+          <li><b>Left-click hold</b> → a ghost marker tracks the cursor</li>
+          <li>Release to commit point A</li>
+          <li>Repeat to set point B → distance shown on screen</li>
+          <li>Drag the X/Y/Z arrows on each marker to fine-tune</li>
+        </ol>
+        <div class="m-tip">
+          <b>📏 Accuracy:</b> Snaps to the nearest splat surface point automatically. Up to 2 million points are cached for high-precision detection in large scenes.
+        </div>
+      </section>
+
+      <!-- ── CAMERA TOOL ── -->
+      <section>
+        <h2>📷 Camera tool (previz)</h2>
+        <p>Set lens / sensor like a real camera and export JPEGs. Blender Photographer-style.</p>
+
+        <h3>Panel layout</h3>
+        <div class="m-grid2">
+          <div class="m-card">
+            <h4>Right panel — technical settings</h4>
+            <ul>
+              <li>🔍 <b>Lens</b> focal length (14 / 35 / 50 / 85 / … presets)</li>
+              <li>⬛ <b>Sensor</b> FF / APS-C / MFT / S35 / 65mm / Custom</li>
+              <li>🎯 <b>Angle</b> pan / tilt / roll (Dutch angle)</li>
+              <li>☀ <b>WB</b> colour temperature K (2000–12000)</li>
+              <li>🎬 <b>Aspect</b> 16:9 / 2.39 / 1:1 / Custom</li>
+              <li># <b>Grid</b> rule-of-thirds / golden / safe / custom (multi-select OK)</li>
+            </ul>
+          </div>
+          <div class="m-card">
+            <h4>Bottom-left — shot info</h4>
+            <ul>
+              <li>📷 <b>Camera info</b> live readout</li>
+              <li>📝 <b>Meta</b> shot name / rig / env / notes</li>
+              <li>📸 <b>Capture</b> burn-in toggle + quality + shutter</li>
+              <li>📥 <b>Salvage</b> drop a past JPEG to restore camera state</li>
+            </ul>
+          </div>
+        </div>
+
+        <h3>Sensor & lens relation</h3>
+        <p>FOV is computed automatically from focal length + sensor (the same pinhole formula real cameras use):</p>
+        <ul>
+          <li>FF 36×24mm + 35mm lens → 54.4° H / 38.6° V</li>
+          <li>To match this on APS-C: 35÷1.5 ≈ 24mm</li>
+          <li>The HUD always shows the <b>35mm-equivalent</b> as well</li>
+        </ul>
+
+        <h3>Safe frame & margin</h3>
+        <p>The chosen aspect is drawn as a frame; the outside is masked dark. The "Outer margin" slider insets the frame.</p>
+      </section>
+
+      <!-- ── SALVAGE ── -->
+      <section>
+        <h2>📥 Salvage (restore camera state)</h2>
+        <p>JPEGs captured by LOCAHUN 3D embed full camera state into a <b>JPEG COM segment</b>.</p>
+        <ol>
+          <li>Open the camera tool</li>
+          <li>Drop a past JPEG onto the dashed area at the bottom of the bottom-left panel</li>
+          <li>Camera position / orientation / lens / WB / grid settings all restore</li>
+        </ol>
+        <div class="m-tip">
+          <b>⚠ Note:</b> Re-saving the JPEG in another app may strip the embedded data. Keep the original capture file.
+        </div>
+      </section>
+
+      <!-- ── ENVIRONMENT ── -->
+      <section>
+        <h2>🌅 Environment (pseudo HDRI)</h2>
+        <p>Toggle from "🌅 Env" in the cbar. Changes the sky colour and global tint at once.</p>
+        <ul>
+          <li><b>9 presets:</b> ☀ Day / 🌅 Morning / 🌇 Sunset / 🌃 Night / ☁ Overcast / ⛅ Hazy / 🌧 Rain / 🌌 Twilight / Off</li>
+          <li><b>Rotation slider</b> rotates the sky 0–360° (align light direction)</li>
+          <li><b>Intensity slider</b> 0–200% (100% standard, 200% emphasises lighting)</li>
+        </ul>
+        <p>Splats and models receive a multiplicative tint — night turns deep blue, sunset goes warm.</p>
+      </section>
+
+      <!-- ── MAP ── -->
+      <section>
+        <h2>🗺 Minimap</h2>
+        <p>Toggle the minimap from the cbar's "🗺 Map" button.</p>
+        <ul>
+          <li><b>Right-click hold</b> on the map → release to teleport</li>
+          <li>Range: <b>10 / 50 / 100 / 500 m</b> (default 100m)</li>
+          <li>Click to expand the minimap view</li>
+        </ul>
+      </section>
+
+      <!-- ── QUALITY ── -->
+      <section>
+        <h2>🖥 Quality & speed</h2>
+        <p>Toggle render quality from the cbar's "🖥 Quality" button.</p>
+        <ul>
+          <li>Low = fast (for big PLYs / weak GPUs)</li>
+          <li>Medium / High = normal use</li>
+          <li>While the camera moves, resolution drops to 65 % automatically and restores on idle (Spark sort-lag mitigation)</li>
+        </ul>
+      </section>
+
+      <!-- ── SAVE ── -->
+      <section>
+        <h2>💾 Save project</h2>
+        <ul>
+          <li>Top-left <b>📁 Save</b> button → ZIP download (full scene + camera state)</li>
+          <li><kbd>Ctrl</kbd>+<kbd>S</kbd> works too</li>
+          <li>Top-left <b>📥 Open</b> or the home screen "📦 Open project" to restore</li>
+          <li>"▶ Continue editing" (home screen) keeps your previous state</li>
+        </ul>
+      </section>
+
+      <!-- ── SHORTCUTS ── -->
+      <section>
+        <h2>⌨ Shortcuts cheatsheet</h2>
+        <table class="m-tbl">
+          <tr><th>Key</th><th>Action</th></tr>
+          <tr><td><kbd>↑</kbd> <kbd>↓</kbd> <kbd>←</kbd> <kbd>→</kbd> / <kbd>W</kbd> <kbd>A</kbd> <kbd>S</kbd> <kbd>D</kbd></td><td>Move (forward / back / left / right pan)</td></tr>
+          <tr><td><kbd>Ctrl</kbd> + <kbd>↑↓←→</kbd></td><td>Rotate / tilt the view</td></tr>
+          <tr><td><kbd>Page Up</kbd> / <kbd>Page Down</kbd> · <kbd>+</kbd> / <kbd>-</kbd></td><td>Zoom in / out</td></tr>
+          <tr><td><kbd>Q</kbd> / <kbd>E</kbd> · <kbd>R</kbd> / <kbd>F</kbd></td><td>Up / Down</td></tr>
+          <tr><td><kbd>Shift</kbd> (hold)</td><td>5× speed boost</td></tr>
+          <tr><td>Mouse wheel</td><td>Change cruise speed</td></tr>
+          <tr><td><kbd>M</kbd></td><td>Measure mode ON / OFF</td></tr>
+          <tr><td><kbd>Z</kbd></td><td>Undo (up to 10)</td></tr>
+          <tr><td><kbd>Y</kbd></td><td>Redo</td></tr>
+          <tr><td><kbd>Ctrl</kbd> + <kbd>S</kbd></td><td>Save project</td></tr>
+          <tr><td><kbd>Delete</kbd> / <kbd>Backspace</kbd></td><td>Delete selected layer</td></tr>
+          <tr><td><kbd>Esc</kbd></td><td>Exit measure mode</td></tr>
+          <tr><td>Right-drag (normal)</td><td>Look around</td></tr>
+          <tr><td>Left-click hold (measure)</td><td>Preview placement → release to commit</td></tr>
+          <tr><td>Ctrl + click (layer)</td><td>Multi-select</td></tr>
+        </table>
+      </section>
+
+      <!-- ── FAQ ── -->
+      <section>
+        <h2>❓ FAQ</h2>
+        <div class="m-faq">
+          <h4>Q. The loaded scene is upside down</h4>
+          <p>A. Select the layer → try the X / Y / Z axis flip buttons under "View adjust".</p>
+        </div>
+        <div class="m-faq">
+          <h4>Q. The screen edges go black / smear when I pan</h4>
+          <p>A. Spark sort-lag. Resolution drops automatically while moving and restores on idle. If it still bothers you, drop the cbar's "🖥 Quality" one notch.</p>
+        </div>
+        <div class="m-faq">
+          <h4>Q. The measure tool punches through the surface to the back</h4>
+          <p>A. Cache density is already maxed (2M points). If still off, verify the active layer actually contains the main splat.</p>
+        </div>
+        <div class="m-faq">
+          <h4>Q. Salvage doesn't restore my JPEG</h4>
+          <p>A. The image was likely re-encoded by another app. Only the original capture from LOCAHUN 3D is supported.</p>
+        </div>
+        <div class="m-faq">
+          <h4>Q. No aperture or ISO?</h4>
+          <p>A. This is a virtual camera — no DOF or exposure simulation. Only WB (colour temperature) affects the look.</p>
+        </div>
+        <div class="m-faq">
+          <h4>Q. How do I open the manual again?</h4>
+          <p>A. The "<kbd>❓</kbd>" button at the bottom-centre of the screen opens it any time.</p>
+        </div>
+      </section>
+
+      <div style="height:60px"></div>
+    </div><!-- /.m-en -->
+    </main>
+  </div>
+</div>
+

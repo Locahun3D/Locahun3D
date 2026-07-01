@@ -1,0 +1,469 @@
+/* ── Mobile joystick (touch devices) ──
+   Sized at 1.6× the original 110 px footprint so it falls comfortably under
+   the user's left thumb when holding an iPad two-handed. Knob and motion
+   radius are scaled the same factor so the analog feel is preserved.
+   Anchored low (bottom:24 px, near the iPadOS home bar) so it sits exactly
+   where the thumb naturally rests. */
+#joy{
+  position:fixed;bottom:24px;left:24px;width:176px;height:176px;
+  display:none;pointer-events:all;z-index:60;touch-action:none;
+}
+#joy .base{position:absolute;inset:0;border-radius:50%;background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.12);}
+#joy .knob{
+  position:absolute;width:70px;height:70px;
+  background:rgba(255,255,255,.15);border:2px solid rgba(255,255,255,.4);border-radius:50%;
+  top:50%;left:50%;transform:translate(-50%,-50%);
+}
+/* Touch-device elevation pad: two stacked round buttons sitting right of
+   the joystick. Hidden by default and shown alongside #joy in the
+   coarse-pointer media query below. Buttons drive `touchUpHeld` /
+   `touchDnHeld` (module-scope) which the per-frame fly-camera compositor
+   adds to camPos.y like Q/E keyboard input. Sized to match the joystick
+   knob (70 px) so the two controls feel like a single thumb-reachable
+   group. Drop-shadow on the glyphs keeps the ▲ ▼ legible against
+   bright splat scenes. */
+#joy-vert{
+  position:fixed;bottom:24px;left:208px;width:70px;height:176px;
+  display:none;pointer-events:all;z-index:60;touch-action:none;
+}
+#joy-vert .jv-btn{
+  position:absolute;width:70px;height:70px;
+  background:rgba(255,255,255,.10);border:2px solid rgba(255,255,255,.32);
+  border-radius:50%;color:rgba(255,255,255,.92);
+  font-size:1.4em;font-weight:bold;line-height:1;
+  display:flex;align-items:center;justify-content:center;
+  cursor:pointer;user-select:none;-webkit-user-select:none;
+  text-shadow:0 1px 2px rgba(0,0,0,.6);
+  transition:background .08s,transform .08s;
+  padding:0;
+}
+#joy-vert .jv-btn:active,
+#joy-vert .jv-btn.jv-held{
+  background:rgba(255,180,84,.28);
+  border-color:rgba(255,180,84,.65);
+  transform:scale(.94);
+}
+#joy-vert #jv-up   {top:0;}
+#joy-vert #jv-down {bottom:0;}
+/* Touch-device UI block. Originally guarded only by (pointer:coarse), which
+   misfires on touchscreen notebook PCs whenever the user's last input was
+   a tap — flipping the whole UI to mobile mode even though a mouse and
+   trackpad are present. Pairing with (any-hover:none) restricts this
+   block to true phone/tablet hardware (no hovering pointer at all), so
+   notebook PCs always render the desktop UI. */
+@media (pointer:coarse) and (any-hover:none){
+  #joy{display:block;}
+  #joy-vert{display:block;}
+  /* Drop the bottom UI group lower on touch devices — the cbar previously
+     sat at 190 px above the bottom (above the joystick), but the joystick
+     is on the left and the cbar is horizontally centred, so they don't
+     overlap. Pulling the cbar down to ~64 px puts it within easy thumb
+     reach near the bottom edge while leaving room for the iPadOS home bar. */
+  #hud .cbar{bottom:64px;}
+  /* The keyboard-shortcut helpbox (top-right "── カメラ操作 ──" / "距離測定")
+     is meaningless on touch devices that don't have WASD / Shift / M keys,
+     and just clutters the corner. Hide it on coarse-pointer devices. */
+  #helpbox{display:none !important;}
+  /* Hide the top-left HUD info statistics (FPS / 位置 / 角度 / FOV / 速度)
+     and the desktop-oriented action buttons (オブジェクト追加 dropdown,
+     フィギュア追加). カメラリセット (🏠) is NOW VISIBLE on touch too —
+     resetting the view from a stuck angle is just as useful on iPad /
+     iPhone as on desktop. アバター歩行 stays visible because it's the
+     only entry point for walk mode and it works fine via touch. */
+  #hud .ibox{display:none !important;}
+  #view-tl-btns > div:not(#qi-badge){display:none !important;}  /* オブジェクト追加 wrapper (but not the 画質 badge, which now lives in this row) */
+  #btnAddFigureTop{display:none !important;}
+  /* On touch devices the only visible child of #view-tl-btns is the
+     アバター歩行 button. Re-anchor the container to the horizontal centre
+     of the viewport so this single button is centred (instead of stuck
+     at left:295 px from the now-hidden layer-panel offset). */
+  #view-tl-btns{
+    left:50% !important;
+    transform:translateX(-50%);
+    justify-content:center;
+  }
+  /* Touch overrides for the former standalone #cam-shot-panel are no longer
+     needed — its content now lives inside #cam-panel (which already has its
+     own responsive layout). The stub div with id="cam-shot-panel" stays
+     in the DOM purely for back-compat with code that null-guards it via
+     getElementById, so we don't need to style it anymore. */
+  /* Touch-device cbar: 測定 is now visible on iPad / iPhone too (per
+     user request — tap-to-place + tap-to-place works fine without a
+     precision pointer). 🗺 マップ and ❓ マニュアル stay hidden:
+     the minimap is a desktop editing aid that doesn't fit a phone's
+     thumb-driven UX, and the full keyboard-shortcut manual is meant
+     for desktop. カメラ / 環境 / 画質 / 設定 stay visible. */
+  #btnHelp { display:none !important; }
+}
+
+/* Smartphone-only: hide the bottom action bar (📷 カメラ / 🌅 環境 /
+   📐 測定 / 🗺 マップ / 🖥 画質 / ⚙ 設定 / ❓). Phone screens can't
+   fit the buttons + joystick at usable sizes, and the typical phone flow
+   is just "view & look around". iPad stays unaffected (its viewport is
+   ≥ 744 px on the short side, ≥ 768 px on the long side).
+   ALSO hide the layer panel / transform sidebar / footer on phones — they
+   assume a wide screen. iPad (viewport ≥ 744 px) shows the panel and
+   keeps full layer-editing functionality. */
+@media (pointer:coarse) and (any-hover:none) and (max-width: 600px),
+       (pointer:coarse) and (any-hover:none) and (max-height: 500px){
+  /* Smartphone bottom bar: show 📷カメラ / ☀日照 / 📐測定 / ⏺録画.
+     Originally only カメラ/測定 survived because the cbar sat next to the
+     joystick with no horizontal room. Now the cbar is lifted ABOVE the
+     joystick group (bottom:212px, below), so the daylight + view-recording
+     tools the user works with on phone fit too — they wrap to a tidy 2nd row.
+     🗺マップ / 使い方 stay hidden to keep the bar to ≤2 rows (user choice). */
+  #hud .cbar > button:not(#btnMeasure):not(#btnCamTool):not(#btn-sun):not(#btnViewRec){display:none !important;}
+  /* Center the surviving buttons so they don't anchor to the cbar's
+     original (off-center) origin. */
+  #hud .cbar{justify-content:center !important;}
+  /* カメラ起動中(スマホ)は 日照ボタンを隠し、カメラ(終了)ボタンだけを
+     ジョイスティック上の空きスペース(青枠)へ寄せる(横位置は _layoutCamMode が設定)。 */
+  body.cam-active #btn-sun{ display:none !important; }
+  /* 対称: 日照起動中(スマホ)は カメラボタンを隠す（カメラ起動中に日照を隠すのと同様）。 */
+  body.sun-active #btnCamTool{ display:none !important; }
+  /* Phone fix (2026-06): on a ≤600px phone the 176px joystick (anchored
+     bottom-left, reaching the horizontal centre at x≈200) plus the elevation
+     arrows immediately to its right (x≈208–278) fill the ENTIRE bottom band.
+     The horizontally-centred cbar at bottom:64px therefore landed ON TOP of
+     both — 📷カメラ over the joystick base, 📐測定 over the ▼ down button.
+     (The earlier comment "joystick is on the left … so they don't overlap"
+     only held on wide iPad screens.) Lift the cbar clear above the joystick/
+     arrow group, whose top sits ≈200px from the bottom edge. iPad (≥600px)
+     keeps its bottom-anchored cbar via the wider media query above. */
+  #hud .cbar{bottom:212px !important;}
+  :root{ --lp-width: 0px !important; }
+  #layer-panel,
+  #lp-footer-bar,
+  #lp-divider,
+  #layer-transform { display:none !important; }
+  /* Smartphone-only: shrink top-row UI to ~½ size. iPhone screens are too
+     narrow for the desktop sizing. iPad and other touch devices with
+     viewport ≥ 600 px are unaffected by this block. */
+  #topbar{
+    height:30px;
+    padding:0 6px;gap:4px;
+  }
+  /* Phone fix (2026-06): bump the top-bar tap targets up a notch (taller hit
+     area + a hair more font) so they are easier to press, while staying within
+     the 30px bar and not overflowing the row at 360px. */
+  #topbar .tb-home{padding:4px 8px;font-size:.64em;}
+  #topbar .tb-save-btn,
+  #topbar #tb-save-btn{padding:4px 8px;font-size:.62em;}
+  /* Phone fix (2026-06): in the full ≤600px top bar this editable project-name
+     label flex-shrinks to ~20px and renders as a broken-looking "U…". Renaming
+     it (dbl-tap) is impractical at that size anyway, so hide it on phones — the
+     name is still editable on tablet/desktop where the bar has room. */
+  #topbar #tb-project-name{display:none !important;}
+  /* Phones: brand text is hidden to save the narrow bar — the logo icon alone
+     represents the brand there. Desktop/tablet keep the icon + "ロケハン3D". */
+  #topbar #tb-brand-text{display:none !important;}
+  #topbar .tb-update{padding:4px 6px;font-size:.58em;}
+  #topbar .tb-lang{padding:4px 8px;font-size:.60em;}
+  #topbar .tb-bug{padding:4px 6px;font-size:.64em;}
+  /* Action row (カメラリセット / アバター歩行 / AR). Smartphone gets a
+     special override below (in the iPhone-only block) that lifts the
+     row INSIDE the topbar; here we keep the generic "flush against
+     topbar bottom" placement so other small-screen devices still get
+     a sane fallback layout. */
+  /* 上のデッドスペースを解消（user request 2026-06-19）。
+     ★重要: #view-tl-btns はインラインに top:57px を持つ（specificity 1-0-0-0）。
+     !important 無しの `#view-tl-btns{top:..}`(0-1-0-0) はインラインに負けて
+     一切効かない＝以前の top:30/15px は反映されていなかった。スマホの #topbar は
+     高さ30px なので、トップバー直下に詰める top:34px を !important で適用する
+     （15px だと30pxのトップバーに被るため不可）。
+     ★z-index:98: 日照(91)/画質(95)/測定・カメラツール(60)パネルより上に出し、
+     パネルを開いても上部ボタン（特に AR）が常にタップできるようにする
+     （user report 2026-06: パネルに覆われて AR が押せない＝「使えなくなってる」）。
+     ただし**ホーム画面 #dz は z-index:100** なので、120 だとホーム上にボタンが
+     残ってしまう（user report 2026-06-20「ホームに戻っても上部ボタンがある」）。
+     → 98（パネル95より上・ホーム100より下）にして、ホームでは #dz の黒背景に
+     隠れ、シーン表示中（#dz は opacity:0 で透過）はパネルより前面に出る。 */
+  #view-tl-btns{top:34px !important;gap:5px;padding-top:2px;z-index:98 !important;}
+  /* （上部ボタンのラベルは表示のまま。アイコンのみ化は user の意図と違ったため撤回
+     2026-06-20: 縮小したいのは「ボタンを押して出るUI＝パネル」であって、ボタン自体や
+     その文字ではない。パネル縮小は上の #sun-panel/#cam-panel/#quality-panel/#gizmo
+     ルールで対応済み。） */
+  #view-tl-btns > button,
+  #view-tl-btns button{
+    padding:6px 8px !important;font-size:.57em !important;line-height:1.2 !important;
+  }
+  /* Bottom cbar — single row above joystick. */
+  #hud .cbar{gap:6px;flex-wrap:nowrap !important;}
+  #hud .cbar > button{
+    padding:7px 9px !important;font-size:.60em !important;line-height:1.2 !important;
+  }
+  /* (画質チップは上の #view-tl-btns button ルールで他ボタンと同じ .57em/6px8px に
+     縮む＝専用指定不要。) */
+}
+/* (Previous iPhone-only "hoist action row into topbar" override removed
+   because the buttons ended up overlapping the topbar widgets and the
+   user couldn't see them clearly. The action row now sits flush below
+   the 30 px topbar on iPhone via the smartphone-media-query rule above
+   — same placement as iPad / other touch devices.) */
+
+/* ══ iPad / medium-touch overlap fixes (2026-06) ══
+   The smartphone block above only matches phones (≤600px wide, or ≤500px tall).
+   iPad PORTRAIT (768–834px) is wider than a phone yet still narrow enough that
+   the full-viewport-centred controls collide with the LEFT-anchored chrome:
+     • the centred camera action row (#view-tl-btns) lands on the シーンレイヤー
+       panel title (the panel occupies the left var(--lp-width) px), and
+     • the centred 4-button cbar's left edge lands on the ▼ elevation arrow.
+   Desktop is unaffected (it has no coarse pointer). */
+@media (pointer:coarse) and (any-hover:none){
+  /* Centre the camera action row in the space to the RIGHT of the layer panel
+     instead of the whole viewport. On phones --lp-width is 0 so this stays a
+     plain centre (no change); on iPad it shifts right just enough to clear the
+     panel and still fits the row on screen. */
+  /* !important: the row is JS-positioned with an inline `left:50%` AND an
+     earlier touch rule sets `left:50% !important`, so we must outrank both. */
+  #view-tl-btns{ left: calc((100% + var(--lp-width, 0px)) / 2) !important; }
+}
+@media (pointer:coarse) and (any-hover:none) and (min-width:600px) and (min-height:600px){
+  /* (min-width AND min-height ≥600 = the device's SHORT edge is ≥600 = a tablet,
+     NOT a phone in landscape — a phone landscape is wide (≥600) but short (<600),
+     so gating on width alone wrongly pulled these iPad rules onto phone landscape.)
+     iPad / tablet: centre the cbar in the free space between the LEFT-hand
+     controls and the right edge (user request 2026-06: "ジョイスティックと右端の
+     間の左右中央"). The left boundary is whichever reaches further right:
+       • the シーンレイヤー panel (var(--lp-width)) when it's expanded, or
+       • the joystick + ▲▼ arrow group (≈296px from the left) when it's collapsed
+         and the joystick is showing.
+     max() of the two keeps the cbar centred in the genuinely-empty area and
+     clears BOTH at once. (Phones, where the joystick reaches centre, still lift
+     the cbar above it via the smartphone block above.) */
+  #hud .cbar{ left: calc((100% + max(var(--lp-width, 0px), 296px)) / 2) !important; }
+  /* iPad has the room (and the シーンレイヤー panel) to make adding objects
+     useful, so bring back the 📦 オブジェクト追加 dropdown (Cube / Event /
+     Figure) that the generic touch block hides. Phones (<600px) stay without
+     it — the top row is already tight there. */
+  #view-tl-btns > div:not(#qi-badge){ display:inline-block !important; }
+  /* When the layer panel is EXPANDED, keep the joystick + ▲▼ arrows USABLE (user
+     report 2026-06: "シーンレイヤーを出すとジョイスティックが触れなくなる" — the old rule
+     hid them with display:none, so they were gone/untouchable). Instead, STOP the
+     panel above the joystick zone so the panel and the joystick no longer fight for
+     the same bottom-left corner: the panel ends at bottom:208px and the joystick
+     (bottom:24, 176px tall → reaches ~200px up) + arrows now sit in the freed strip
+     BELOW it, fully touchable, while the panel content (incl. the figure bone
+     sliders that used to sit under the joystick) stays clear above. The collapsed
+     panel is height:auto so it's unaffected. */
+  #layer-panel:not(.collapsed){ bottom: 208px !important; }
+  /* iPad panel sizing: between desktop (.78em/256-288px) and phone (.58em/190-210px).
+     iPad mini (744px) and standard iPad (810-1024px) benefit from slightly smaller
+     panels than desktop — thumbs can't reach desktop-sized controls easily. */
+  #sun-panel, #quality-panel, #gizmo{ font-size:.68em !important; width:220px !important; padding:10px 12px !important; }
+  #cam-anim-panel{ font-size:.68em !important; }
+  /* (画質チップの専用サイズ指定は撤去。兄弟ボタンと同じ #view-tl-btns button
+     ルールでサイズが決まる＝iPadでは兄弟同様 .72em のまま統一される。) */
+  /* When camera tool is open, move ▲▼ beside the joystick (same as phone fix) so
+     the right-side cam-panel doesn't cover them. */
+  body.cam-active #joy-vert{ left:208px !important; right:auto !important; }
+}
+@media (pointer:coarse) and (any-hover:none) and (orientation:portrait) and (min-width:600px) and (max-width:900px){
+  /* iPad PORTRAIT (≤834px): the camera action row now carries 5 buttons
+     (🏠 / 📦オブジェクト追加 / 🎥 / 🎞 / 📱AR) and is centred in the canvas area to
+     the RIGHT of the layer panel, which is too narrow for one row here — wrap it
+     to two. Landscape and the 12.9" (1024px) portrait have room for a single row. */
+  #view-tl-btns{ flex-wrap:wrap; width: min(510px, calc(100% - var(--lp-width, 0px) - 24px)); row-gap:5px; }
+}
+@media (pointer:coarse) and (any-hover:none) and (orientation:landscape) and (max-height:500px){
+  /* Phone LANDSCAPE: the bottom band's LEFT side is taken by the joystick
+     (left:24, →200) + the ▲▼ elevation arrows (→≈278). Centre the cbar in the
+     FREE space between that group and the right edge (user request 2026-06:
+     "ジョイスティックと右端の間の左右中央") — same approach as the iPad rule.
+     296px clears the joystick/arrow group; bottom:24 keeps it on the shared
+     baseline with the joystick. */
+  #hud .cbar{ bottom:24px !important; left: calc((100% + 296px) / 2) !important; right:auto !important; transform:translateX(-50%) !important; }
+}
+@media (pointer:coarse) and (any-hover:none) and (orientation:portrait) and (max-width:600px){
+  /* Phone PORTRAIT declutter (2026-06): balance the bottom controls — joystick
+     (move) bottom-LEFT, the ▲▼ elevation arrows bottom-RIGHT (right thumb), tool
+     bar centred above. Previously the arrows sat right next to the joystick, so
+     every bottom control crowded the left half and the right side sat empty. */
+  #joy-vert{ left:auto !important; right:24px !important; }
+  /* When the camera tool panel (#cam-panel) is open it occupies the right
+     side (right:0, width ≈210px on phone) and completely covers the ▲▼
+     buttons. Move them back beside the joystick so they stay usable. */
+  body.cam-active #joy-vert{ left:208px !important; right:auto !important; }
+}
+/* Fullscreen top-overlap fix (2026-06): in fullscreen the browser status bar is
+   hidden, so the top UI (topbar / camera action row / perf badge) slides up under
+   the notch on notched phones ("全画面で上がかぶる"). Shift the top cluster down by
+   the device's top safe-area inset so it clears the notch. The inset is 0 on
+   non-notched devices and in normal (non-fullscreen) mode, so nothing else moves.
+   Separate :fullscreen / :-webkit-full-screen rules so an unknown pseudo on one
+   engine doesn't drop the rule for the other.
+   NOTE: the 画質 chip is a CHILD of #view-tl-btns now, so shifting the row already
+   moves the chip with it — a separate `#qi-badge` margin here would DOUBLE the
+   offset, so it's intentionally omitted (unified with the row). */
+:fullscreen #topbar,
+:fullscreen #view-tl-btns{ margin-top: env(safe-area-inset-top, 0px); }
+:-webkit-full-screen #topbar,
+:-webkit-full-screen #view-tl-btns{ margin-top: env(safe-area-inset-top, 0px); }
+
+/* ── Simple "fullscreen" for phones (2026-06) ──
+   iPhone Safari has NO Fullscreen API (only iPad/Android do), so the ⛶ button
+   can't request a true OS fullscreen there. Instead it toggles body.immersive,
+   which HIDES the viewer's own top chrome (topbar / camera action row / badge)
+   to maximise the 3D view — the Safari address bar itself can't be removed, but
+   the app's own UI gets out of the way. The bottom nav (joystick / ▲▼ / cbar)
+   stays so the user can still fly the camera, and a small floating ⤢ button
+   appears to leave the mode. (Phone-only: the ⛶ button is shown on phones only,
+   so iPad never enters this.) */
+body.immersive #topbar,
+body.immersive #view-tl-btns{ display:none !important; }  /* 画質チップは #view-tl-btns の子なので一緒に隠れる（専用ルール不要） */
+#immersive-exit{
+  display:none; position:fixed; z-index:90;
+  top: calc(8px + env(safe-area-inset-top, 0px)); right: 10px;
+  background:rgba(20,20,22,.62); border:1px solid rgba(255,255,255,.22);
+  color:rgba(225,225,225,.92); border-radius:8px; padding:7px 11px;
+  font-size:14px; line-height:1; cursor:pointer; pointer-events:all;
+  -webkit-backdrop-filter:blur(5px); backdrop-filter:blur(5px);
+  letter-spacing:.03em;
+}
+body.immersive #immersive-exit{ display:inline-block; }
+
+/* ══════════════════════════════════════════════════════════════════════
+   Large-screen / 4K scaling (2026-06)
+   On ≥1920px monitors the default UI is proportionally small — scale up
+   all interactive elements so buttons stay comfortably clickable and
+   panels remain readable without squinting. Touch devices never hit
+   these because phones/tablets max out at ~1400px CSS width.
+   ══════════════════════════════════════════════════════════════════════ */
+@media (min-width:1920px) and (pointer:fine){
+  /* Keep the topbar at its default 45px height so it never overlaps the layer
+     panel (which starts at top:45px). Only the horizontal padding/gap and the
+     button fonts grow on big monitors — NOT the bar height (user 2026-06-28
+     「一番上のメニューを上に縮小してかぶらないように」). */
+  #topbar{ padding:0 14px; gap:10px; }
+  #topbar .tb-home{ font-size:.82em; padding:3px 14px; }
+  #topbar .tb-save-btn,
+  #topbar #tb-save-btn{ font-size:.78em; padding:3px 12px; }
+  #topbar .tb-update{ font-size:.74em; padding:3px 10px; }
+  #topbar .tb-lang{ font-size:.76em; padding:3px 10px; }
+  #topbar .tb-bug{ font-size:.86em; }
+  #topbar .tb-integrity{ font-size:.76em; }
+
+  #view-tl-btns{ top:54px !important; }
+  /* 画質チップ含む全ボタンを一括拡大（バッジ専用ルールは廃止＝兄弟と完全統一）。 */
+  #view-tl-btns button{ font-size:.82em !important; padding:7px 16px !important; }
+
+  #hud .cbar button{ font-size:.86em; padding:10px 18px; border-radius:10px; }
+
+  #gizmo{ width:300px; top:100px; max-height:calc(100vh - 116px); }
+  #quality-panel{ width:min(260px, calc(100vw - 28px)); }
+  #sun-panel{ width:320px; }
+  #cam-panel{ width:330px !important; }
+  #cam-anim-panel{ width:300px !important; }
+
+  #layer-panel{ width:320px; }
+  :root{ --lp-width-default:320px; }
+
+  #helpbox{ font-size:12.5px; min-width:220px; top:66px; }
+  #hud .ibox{ top:116px; font-size:12px; }
+
+  #qpanel{ min-width:240px; }
+
+  #dz h1{ font-size:clamp(2.6em, 4vw, 4em); }
+  #dz .sub{ font-size:1em; }
+  #dz .zone{ padding:40px 80px; }
+  #dz .zone .ico{ font-size:2.8em; }
+  #dz .demo-btn{ padding:12px 30px; font-size:.92em; }
+  #dz .dz-changelog-head{ font-size:.86em; padding:9px 16px; }
+}
+@media (min-width:2560px) and (pointer:fine){
+  /* Same: bar height stays 45px (no overlap with the layer panel). */
+  #topbar{ padding:0 18px; gap:12px; }
+  #topbar .tb-home{ font-size:.88em; padding:4px 16px; }
+  #topbar .tb-update{ font-size:.80em; }
+  #topbar .tb-lang{ font-size:.82em; }
+
+  #view-tl-btns{ top:56px !important; }
+  #view-tl-btns button{ font-size:.88em !important; padding:8px 18px !important; }
+
+  #hud .cbar button{ font-size:.94em; padding:12px 22px; }
+
+  #gizmo{ width:340px; top:110px; }
+  #quality-panel{ width:min(300px, calc(100vw - 28px)); }
+  #sun-panel{ width:360px; }
+  #cam-panel{ width:380px !important; }
+  #cam-anim-panel{ width:340px !important; }
+
+  #layer-panel{ width:360px; }
+
+  #helpbox{ font-size:13.5px; min-width:240px; top:74px; }
+  #hud .ibox{ top:126px; font-size:13px; }
+
+  #dz h1{ font-size:clamp(3em, 3.8vw, 4.6em); }
+  #dz .zone{ padding:48px 100px; }
+  #dz .demo-btn{ padding:14px 36px; font-size:1em; }
+
+  #joy{ width:210px; height:210px; }
+  #joy .knob{ width:84px; height:84px; }
+  #joy-vert{ left:244px; width:84px; height:210px; }
+  #joy-vert .jv-btn{ width:84px; height:84px; font-size:1.6em; }
+}
+
+/* ══════════════════════════════════════════════════════════════════════
+   Panel max-height safeguards (all devices)
+   Prevent any floating panel from exceeding the viewport height.
+   Some panels already have max-height on specific breakpoints — these
+   rules provide a baseline for devices/orientations not covered.
+   ══════════════════════════════════════════════════════════════════════ */
+#sun-panel{ max-height:calc(100vh - 140px); max-height:calc(100dvh - 140px); overflow-y:auto; }
+#cam-anim-panel{ max-height:calc(100vh - 100px); max-height:calc(100dvh - 100px); overflow-y:auto; }
+
+/* ══════════════════════════════════════════════════════════════════════
+   iPad landscape panel overlap refinements (2026-06)
+   On iPad landscape (1024×768 / 1180×820) the right-anchored panels
+   (sun / quality / gizmo) can overlap each other or the cbar.
+   ══════════════════════════════════════════════════════════════════════ */
+@media (pointer:coarse) and (any-hover:none) and (orientation:landscape) and (min-width:600px) and (min-height:600px){
+  #sun-panel{ bottom:120px !important; max-height:calc(100vh - 186px); }
+  #gizmo{ max-height:calc(100vh - 160px); }
+  #cam-anim-panel{ max-height:calc(100vh - 160px) !important; }
+  #cam-panel{ max-height:calc(100vh - 52px); }
+}
+
+/* ══════════════════════════════════════════════════════════════════════
+   iPad portrait panel + cbar refinements (2026-06)
+   Portrait has less width — panels must not overflow horizontally.
+   ══════════════════════════════════════════════════════════════════════ */
+@media (pointer:coarse) and (any-hover:none) and (orientation:portrait) and (min-width:600px) and (min-height:600px){
+  #sun-panel{ max-height:calc(100vh - 250px); width:min(220px, calc(100vw - 28px)) !important; }
+  #gizmo{ max-height:calc(100vh - 160px); width:min(220px, calc(100vw - 28px)) !important; }
+  #cam-panel{ width:min(262px, 40vw) !important; }
+  #cam-anim-panel{ max-height:calc(100vh - 200px) !important; }
+}
+
+/* ══════════════════════════════════════════════════════════════════════
+   Phone landscape safeguards (2026-06)
+   Height ≤500px — the tightest layout. Ensure all panels fit within
+   the viewport and the cbar doesn't collide with joystick / panels.
+   ══════════════════════════════════════════════════════════════════════ */
+@media (pointer:coarse) and (any-hover:none) and (orientation:landscape) and (max-height:500px){
+  #hud .cbar > button{ padding:5px 8px !important; font-size:.56em !important; }
+  #sun-panel{ max-height:calc(100vh - 96px) !important; width:min(180px, 40vw) !important; }
+  #cam-panel{ width:min(200px, 38vw) !important; max-height:calc(100vh - 36px) !important; top:34px !important; }
+  #quality-panel{ width:min(180px, 40vw) !important; max-height:calc(100vh - 80px) !important; }
+  #gizmo{ width:min(190px, 40vw) !important; max-height:calc(100vh - 80px) !important; top:64px !important; }
+  #cam-anim-panel{ max-height:calc(100vh - 80px) !important; width:min(200px, 40vw) !important; }
+  #topbar{ height:28px !important; }
+  #view-tl-btns{ top:30px !important; }
+  /* 画質チップ含む全ボタンを一括縮小（バッジ専用ルールは廃止＝兄弟と完全統一）。 */
+  #view-tl-btns button{ padding:4px 6px !important; font-size:.52em !important; }
+}
+
+/* ══════════════════════════════════════════════════════════════════════
+   Phone portrait narrow (≤375px) — extra tightening
+   iPhone SE / mini has only ~375px width. Ensure cbar buttons and
+   panels don't overflow.
+   ══════════════════════════════════════════════════════════════════════ */
+@media (pointer:coarse) and (any-hover:none) and (orientation:portrait) and (max-width:375px){
+  #hud .cbar{ gap:4px !important; }
+  #hud .cbar > button{ padding:6px 7px !important; font-size:.55em !important; }
+  #sun-panel{ width:min(170px, calc(100vw - 16px)) !important; }
+  #cam-panel{ width:min(190px, 70vw) !important; }
+  #quality-panel{ width:min(170px, calc(100vw - 16px)) !important; }
+  #gizmo{ width:min(180px, calc(100vw - 16px)) !important; }
+}
+

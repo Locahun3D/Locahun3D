@@ -1,0 +1,20 @@
+#sun-panel .sun-sec-lbl{color:#9a9a9a;font-size:.92em;margin-bottom:4px;font-weight:600}
+#sun-panel .sun-mini{display:block;color:#777;font-size:.85em;margin-bottom:2px}
+#sun-panel .sun-inp{background:#1a1a1c;border:1px solid rgba(255,255,255,.12);color:#cfcfcf;
+  border-radius:4px;padding:4px 5px;font-size:.95em;font-family:inherit;width:100%;box-sizing:border-box}
+#sun-panel .sun-btn{background:rgba(255,170,80,.18);border:1px solid rgba(255,170,80,.4);color:#fc8;
+  border-radius:4px;padding:4px 8px;cursor:pointer;font-family:inherit;font-size:.95em;white-space:nowrap}
+#sun-panel .sun-rk{color:#888}
+#sun-panel .sun-wx-btn{background:#1a1a1c;border:1px solid rgba(255,255,255,.1);color:#999;
+  border-radius:4px;padding:6px 0;font-size:.9em;cursor:pointer;font-family:inherit}
+#sun-panel .sun-wx-btn:hover{background:#26262a}
+#sun-panel .sun-wx-btn.on{background:rgba(120,180,255,.22);border-color:rgba(120,180,255,.6);color:#bdf}
+#sun-panel #sun-date-btn{font-family:inherit}
+#sun-panel .sun-cal-nav{background:none;border:none;color:#aaa;font-size:1em;cursor:pointer;padding:0 6px}
+#sun-panel .sun-cal-nav:hover{color:#fff}
+#sun-panel .sun-cal-d{background:#1a1a1c;border:1px solid transparent;border-radius:3px;
+  padding:3px 0;font-size:.9em;cursor:pointer;font-family:inherit}
+#sun-panel .sun-cal-d:hover{background:#2a2a2e}
+#sun-panel .sun-cal-d.today{border-color:rgba(255,200,90,.5)}
+#sun-panel .sun-cal-d.sel{background:rgba(255,200,90,.28);border-color:rgba(255,200,90,.7);color:#fff!important}
+#btn-sun.on{background:rgba(255,200,90,.2);border-color:rgba(255,200,90,.55);color:#fd9;}

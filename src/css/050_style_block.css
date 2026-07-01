@@ -1,0 +1,76 @@
+/* Camera-tool section header. The collapse/expand feature was removed per
+   user request — sections are now always expanded. Header still shows a
+   coloured left accent bar for visual hierarchy, but no cursor:pointer /
+   hover (it's no longer interactive). */
+#cam-panel .cm-group{margin-bottom:8px;border-radius:5px;overflow:hidden;
+  background:rgba(255,255,255,.018);}
+#cam-panel .cm-group-head{display:flex;align-items:center;gap:6px;
+  padding:7px 9px 7px 11px;user-select:none;
+  font-size:.83em;color:#fff;letter-spacing:.04em;font-weight:700;
+  border-left:3px solid rgba(255,180,84,.55);
+  background:linear-gradient(to right, rgba(255,180,84,.06), transparent 60%);}
+#cam-panel .cm-group-body{padding:8px 10px 4px;}
+/* Legacy chev / collapse rules retained as no-ops for the rare case some
+   external script still adds .collapsed (it now has no visual effect).  */
+/* Legacy section header (kept for sub-headings inside groups) */
+#cam-panel .cm-sec{font-size:.72em;color:#aaa;letter-spacing:.06em;margin:10px 0 4px;
+  text-transform:uppercase;font-weight:600;}
+/* ボタン幅を詰めて右パネル全体を細く（段組み/セクション配置は不変）。 */
+#cam-panel .cm-row{display:flex;align-items:center;gap:5px;margin-bottom:5px;}
+#cam-panel .cm-lbl{font-size:.82em;color:#888;min-width:44px;}
+#cam-panel .cm-input{flex:1;background:#0e0e10;border:1px solid rgba(255,255,255,.1);
+  color:#ddd;border-radius:3px;padding:4px 5px;font-size:.92em;font-family:inherit;
+  min-width:0;}
+#cam-panel .cm-aspect,#cam-panel .cm-grid-btn{flex:1;background:#1a1a1c;
+  border:1px solid rgba(255,255,255,.1);color:#888;border-radius:3px;
+  padding:4px 4px;font-size:.78em;cursor:pointer;font-family:inherit;min-width:42px;}
+#cam-panel .cm-aspect.on,#cam-panel .cm-grid-btn.on{background:rgba(255,180,84,.18);
+  border-color:rgba(255,180,84,.5);color:#ffe4b3;}
+#cam-panel .cm-wb-btn{background:#1a1a1c;border:1px solid rgba(255,255,255,.1);
+  color:#aaa;border-radius:3px;padding:4px 6px;font-size:1em;cursor:pointer;}
+#cam-panel .cm-focal-btn{flex:0 0 auto;background:#1a1a1c;
+  border:1px solid rgba(255,255,255,.1);color:#888;border-radius:3px;
+  padding:3px 5px;font-size:.78em;cursor:pointer;font-family:inherit;min-width:29px;}
+#cam-panel .cm-focal-btn.on{background:rgba(255,180,84,.18);
+  border-color:rgba(255,180,84,.5);color:#ffe4b3;}
+#btnCamTool.on{background:rgba(255,180,84,.22);border-color:rgba(255,180,84,.55);
+  color:#ffe4b3;}
+#btnAvatarWalk.on{background:rgba(120,200,255,.22)!important;border-color:rgba(140,210,255,.6)!important;color:#cbe8ff!important;}
+/* カメラワーク (🎞) active highlight — it moved out of the cbar into the top
+   row, so the generic `.cbar button.on` rule no longer reaches it. Purple to
+   match the cam-anim panel. */
+#btnCamAnim.on{background:rgba(170,120,255,.22)!important;border-color:rgba(190,140,255,.6)!important;color:#e6d6ff!important;}
+/* Avatar walk button intentionally hidden — feature is being held back
+   for a follow-up revision. The element + JS handlers (toggleAvatarWalk,
+   walkMode state, animation clips, etc.) all stay in place so re-
+   enabling is a one-line CSS removal later. */
+#btnAvatarWalk{display:none !important;}
+/* AR button — only shown on actual touch hardware (phones & tablets);
+   desktop hides it because passthrough AR needs a rear camera + gyro. */
+@media (pointer:coarse) and (any-hover:none){
+  #btnAR{display:inline-block !important;}
+}
+/* AR-active state — clearly red so the user knows tapping it again will
+   EXIT AR (the floating top-right exit overlay was removed because it
+   overlapped the #qi-badge FPS readout). Pulses gently so it's easy to
+   find even with a busy camera-pass-through background. */
+#btnAR.on{
+  background:rgba(255,60,60,.92)!important;
+  border-color:rgba(255,120,120,.65)!important;
+  color:#fff!important;
+  font-weight:600;
+  box-shadow:0 0 0 0 rgba(255,90,80,0);
+  animation:btn-ar-pulse 1.8s ease-in-out infinite;
+}
+@keyframes btn-ar-pulse{
+  0%,100%{box-shadow:0 0 0 0 rgba(255,90,80,0);}
+  50%   {box-shadow:0 0 0 5px rgba(255,90,80,.22);}
+}
+/* AR mode (WebGL-integrated camera passthrough): the canvas is OPAQUE
+   because the camera feed is drawn inside the WebGL scene as a fullscreen
+   quad. We just need to hide the motion-vignette (which would fight the
+   gyro-rotated background) and the dropzone visuals (which would block
+   the camera feed). The canvas itself is left alone — no transparency
+   needed since composition happens in WebGL. */
+body.ar-active #motion-vignette{display:none !important;}
+body.ar-active #dz{display:none !important;}

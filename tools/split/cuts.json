@@ -1,0 +1,432 @@
+[
+ {
+  "out": "template",
+  "start": 1,
+  "end": 19
+ },
+ {
+  "out": "src/css/010_style_block.css",
+  "start": 20,
+  "end": 732
+ },
+ {
+  "out": "src/css/011_style_block_layer_panel.css",
+  "start": 733,
+  "end": 1158
+ },
+ {
+  "out": "src/css/012_style_block_mobile.css",
+  "start": 1159,
+  "end": 1627
+ },
+ {
+  "out": "template",
+  "start": 1628,
+  "end": 1638
+ },
+ {
+  "out": "src/css/020_style_block.css",
+  "start": 1639,
+  "end": 1660
+ },
+ {
+  "out": "template",
+  "start": 1661,
+  "end": 1853
+ },
+ {
+  "out": "src/css/030_style_block.css",
+  "start": 1854,
+  "end": 1873
+ },
+ {
+  "out": "template",
+  "start": 1874,
+  "end": 1874
+ },
+ {
+  "out": "src/html/010_quality_view_buttons.html",
+  "start": 1875,
+  "end": 1965
+ },
+ {
+  "out": "src/html/020_view_buttons_ar.html",
+  "start": 1966,
+  "end": 2091
+ },
+ {
+  "out": "src/html/030_manual_modal_ja.html",
+  "start": 2092,
+  "end": 2795
+ },
+ {
+  "out": "src/html/040_manual_modal_en.html",
+  "start": 2796,
+  "end": 3163
+ },
+ {
+  "out": "template",
+  "start": 3164,
+  "end": 3164
+ },
+ {
+  "out": "src/css/040_style_block.css",
+  "start": 3165,
+  "end": 3225
+ },
+ {
+  "out": "template",
+  "start": 3226,
+  "end": 3533
+ },
+ {
+  "out": "src/css/050_style_block.css",
+  "start": 3534,
+  "end": 3609
+ },
+ {
+  "out": "template",
+  "start": 3610,
+  "end": 3968
+ },
+ {
+  "out": "src/assets/mixamo_glb_b64.html",
+  "start": 3969,
+  "end": 3969
+ },
+ {
+  "out": "template",
+  "start": 3970,
+  "end": 3971
+ },
+ {
+  "out": "src/assets/importmap.json",
+  "start": 3972,
+  "end": 3979
+ },
+ {
+  "out": "template",
+  "start": 3980,
+  "end": 4001
+ },
+ {
+  "out": "src/js/010_state.js",
+  "start": 4002,
+  "end": 4362
+ },
+ {
+  "out": "src/js/020_splat_perf_tier_drives_spark_splat_tunin.js",
+  "start": 4363,
+  "end": 4411
+ },
+ {
+  "out": "src/js/030_renderer_scene.js",
+  "start": 4412,
+  "end": 4614
+ },
+ {
+  "out": "src/js/040_environment_procedural_sky_dome_pseudo_h.js",
+  "start": 4615,
+  "end": 4902
+ },
+ {
+  "out": "src/js/050_sun_daylight_mode.js",
+  "start": 4903,
+  "end": 5515
+ },
+ {
+  "out": "src/js/060_open_meteo_api_cors.js",
+  "start": 5516,
+  "end": 5773
+ },
+ {
+  "out": "src/js/070_3d.js",
+  "start": 5774,
+  "end": 6075
+ },
+ {
+  "out": "src/js/080_measurement_tool.js",
+  "start": 6076,
+  "end": 6281
+ },
+ {
+  "out": "src/js/090_layer_pivot_gizmo_xyz_xz_handle_for_sele.js",
+  "start": 6282,
+  "end": 6989
+ },
+ {
+  "out": "src/js/100_camera_tool_previz_style_virtual_camera_.js",
+  "start": 6990,
+  "end": 7686
+ },
+ {
+  "out": "src/js/110_user_manual_modal_opened_from_dropzone_o.js",
+  "start": 7687,
+  "end": 7858
+ },
+ {
+  "out": "src/js/111_camera_layer.js",
+  "start": 7859,
+  "end": 8105
+ },
+ {
+  "out": "src/js/112_view_recording.js",
+  "start": 8106,
+  "end": 8399
+ },
+ {
+  "out": "src/js/113_camera_animation.js",
+  "start": 8400,
+  "end": 8720
+ },
+ {
+  "out": "src/js/113b_camera_animation_panel.js",
+  "start": 8721,
+  "end": 9337
+ },
+ {
+  "out": "src/js/114_capture_render.js",
+  "start": 9338,
+  "end": 9596
+ },
+ {
+  "out": "src/js/115_jpeg_metadata_burnin.js",
+  "start": 9597,
+  "end": 10009
+ },
+ {
+  "out": "src/js/120_axis_handle_hit_detection_drag.js",
+  "start": 10010,
+  "end": 10125
+ },
+ {
+  "out": "src/js/130_undo_system_z_key_max_10.js",
+  "start": 10126,
+  "end": 10195
+ },
+ {
+  "out": "src/js/140_2d_overlay_ruler_point_labels.js",
+  "start": 10196,
+  "end": 10361
+ },
+ {
+  "out": "src/js/150_pivot_hover_glow_2d_overlay.js",
+  "start": 10362,
+  "end": 10544
+ },
+ {
+  "out": "src/js/160_loading_helpers.js",
+  "start": 10545,
+  "end": 10629
+ },
+ {
+  "out": "src/js/170_scene_stats_for_camera_placement.js",
+  "start": 10630,
+  "end": 10711
+ },
+ {
+  "out": "src/js/180_splat_decimation_user_toggled_low_poly_m.js",
+  "start": 10712,
+  "end": 11174
+ },
+ {
+  "out": "src/js/190_orientation.js",
+  "start": 11175,
+  "end": 11380
+ },
+ {
+  "out": "src/js/200_file_loading.js",
+  "start": 11381,
+  "end": 11648
+ },
+ {
+  "out": "src/js/210_fly_camera_ue5_viewport_style.js",
+  "start": 11649,
+  "end": 11738
+ },
+ {
+  "out": "src/js/211_fly_camera_google_earth_scheme.js",
+  "start": 11739,
+  "end": 11867
+ },
+ {
+  "out": "src/js/212_fly_camera_walk_cycle_clip.js",
+  "start": 11868,
+  "end": 12293
+ },
+ {
+  "out": "src/js/213_fly_camera_avatar_ground.js",
+  "start": 12294,
+  "end": 12698
+ },
+ {
+  "out": "src/js/220_ar_mode_webgl_integrated_camera_passthro.js",
+  "start": 12699,
+  "end": 13168
+ },
+ {
+  "out": "src/js/230_global_undo_layer_ops_measurement_max_10.js",
+  "start": 13169,
+  "end": 13478
+ },
+ {
+  "out": "src/js/240_layer_manager.js",
+  "start": 13479,
+  "end": 13976
+ },
+ {
+  "out": "src/js/250_i18n.js",
+  "start": 13977,
+  "end": 14503
+ },
+ {
+  "out": "src/js/260_folder_system.js",
+  "start": 14504,
+  "end": 15122
+ },
+ {
+  "out": "src/js/270_figure_humanoid_wooden_mannequin_with_ri.js",
+  "start": 15123,
+  "end": 15719
+ },
+ {
+  "out": "src/js/271_figure_mixamo_loader_ik.js",
+  "start": 15720,
+  "end": 16092
+ },
+ {
+  "out": "src/js/272_figure_bone_gizmo_hover.js",
+  "start": 16093,
+  "end": 16376
+ },
+ {
+  "out": "src/js/273_figure_object_menu_stats.js",
+  "start": 16377,
+  "end": 16782
+ },
+ {
+  "out": "src/js/280_main_loop_60fps_cap.js",
+  "start": 16783,
+  "end": 16860
+ },
+ {
+  "out": "src/js/290_css_reprojection_input_canvas_runs_at_60.js",
+  "start": 16861,
+  "end": 17025
+ },
+ {
+  "out": "src/js/291_render_loop.js",
+  "start": 17026,
+  "end": 17638
+ },
+ {
+  "out": "src/js/292_demo_scene_showcase.js",
+  "start": 17639,
+  "end": 18081
+ },
+ {
+  "out": "src/js/293_diag_instrumentation.js",
+  "start": 18082,
+  "end": 18552
+ },
+ {
+  "out": "src/js/300_export_save_load.js",
+  "start": 18553,
+  "end": 18673
+ },
+ {
+  "out": "src/js/310_zip_project_save_load_fflate.js",
+  "start": 18674,
+  "end": 19054
+ },
+ {
+  "out": "src/js/311_zip_load_core.js",
+  "start": 19055,
+  "end": 19346
+ },
+ {
+  "out": "src/js/312_project_load_helpers.js",
+  "start": 19347,
+  "end": 19702
+ },
+ {
+  "out": "src/js/320_light_objects.js",
+  "start": 19703,
+  "end": 19737
+ },
+ {
+  "out": "src/js/330_folder_color_picker.js",
+  "start": 19738,
+  "end": 19830
+ },
+ {
+  "out": "src/js/340_event_object.js",
+  "start": 19831,
+  "end": 19872
+ },
+ {
+  "out": "src/js/350_path_object_4_point_closed_region_center.js",
+  "start": 19873,
+  "end": 20253
+ },
+ {
+  "out": "src/js/360_event_panel_hover_v26_viewport_hover_rep.js",
+  "start": 20254,
+  "end": 20292
+ },
+ {
+  "out": "src/js/370_type_visibility_filter.js",
+  "start": 20293,
+  "end": 20311
+ },
+ {
+  "out": "src/js/380_resizable_layer_panel.js",
+  "start": 20312,
+  "end": 20345
+ },
+ {
+  "out": "src/js/390_i18n_extensions_home_screen_settings.js",
+  "start": 20346,
+  "end": 20886
+ },
+ {
+  "out": "src/js/400_input.js",
+  "start": 20887,
+  "end": 21254
+ },
+ {
+  "out": "src/js/401_input_mouse.js",
+  "start": 21255,
+  "end": 21444
+ },
+ {
+  "out": "src/js/402_input_shared_drag_touch.js",
+  "start": 21445,
+  "end": 21827
+ },
+ {
+  "out": "src/js/403_input_touch_elevation.js",
+  "start": 21828,
+  "end": 21876
+ },
+ {
+  "out": "src/js/410_ui_controls.js",
+  "start": 21877,
+  "end": 21951
+ },
+ {
+  "out": "src/js/420_auto_quality_probe_runs_once_after_each_.js",
+  "start": 21952,
+  "end": 22270
+ },
+ {
+  "out": "src/js/430_changelog_toggle_home_screen_pulldown.js",
+  "start": 22271,
+  "end": 22686
+ },
+ {
+  "out": "template",
+  "start": 22687,
+  "end": 22689
+ }
+]

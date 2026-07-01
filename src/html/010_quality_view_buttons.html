@@ -1,0 +1,91 @@
+
+<!-- ══ Quality Panel ══ -->
+<div id="quality-panel">
+  <div class="qt" id="qt-title">🖥 画質</div>
+  <!-- Quality presets redefined to three levels (低 / 中 / 高).
+       Mapping of scale values is shifted up — the old "低" (0.5) was
+       too coarse to look acceptable and is now reachable only via the
+       watchdog's emergency downstep, not as a user-pickable preset.
+         低 (0): qualScale 0.75  (was 中)
+         中 (1): qualScale 1.0   (was 高)
+         高 (2): qualScale 1.5   (was 最高)
+  -->
+  <div style="display:flex;gap:4px" id="qbtns">
+    <button onclick="setQuality(0.75,0)" id="qt-low">低</button>
+    <button onclick="setQuality(1.0,1)" class="on" id="qt-mid">中</button>
+    <button onclick="setQuality(1.5,2)" id="qt-high">高</button>
+  </div>
+
+  <!-- Settings merged here: グリッド / FOV / 移動速度. Previously these
+       lived in a separate #qpanel opened via the ⚙ 設定 cbar button; that
+       button was removed and the controls consolidated into this panel. -->
+  <div class="qp-divider"></div>
+  <div class="qp-perf-title" id="qp-settings-t">⚙ 設定</div>
+  <div class="qrow" style="display:flex;align-items:center;justify-content:space-between;gap:8px;margin:6px 0">
+    <label id="qp-lbl-grid" style="font-size:.78em;color:#686868">グリッド</label>
+    <label style="display:flex;align-items:center;gap:5px;cursor:pointer">
+      <input type="checkbox" id="grid-toggle" onchange="setGridVisible(this.checked)"
+        style="accent-color:#D8D8D8;cursor:pointer">
+      <span style="font-size:.75em;color:#686868" id="qp-lbl-show">表示</span>
+    </label>
+  </div>
+  <!-- Low-poly (ポリゴン 1/4) toggle removed per user request (v0.0.40):
+       the feature and its auto guide-popup are retired. -->
+  <div class="qrow" style="display:flex;align-items:center;gap:6px;margin:6px 0">
+    <label id="qp-lbl-fov" style="font-size:.78em;color:#686868;min-width:34px">FOV</label>
+    <div class="qbtns" id="fovbtns" style="display:flex;gap:4px;flex:1">
+      <button onclick="setFOV(50,0)">50°</button>
+      <button onclick="setFOV(70,1)">70°</button>
+      <button onclick="setFOV(90,2)" class="on">90°</button>
+    </div>
+  </div>
+  <div class="qrow" style="margin:6px 0 2px">
+    <label style="font-size:.78em;color:#686868"><span id="qp-lbl-spd">移動速度</span>
+      <span id="spdVal" style="color:#C0C0C0;margin-left:6px">5</span></label>
+  </div>
+  <div style="padding:0 2px;margin-bottom:6px">
+    <input type="range" id="spdSlider" min="0.5" max="20" step="0.5" value="5"
+           oninput="onSpeedSlider(this.value)" style="width:100%">
+  </div>
+
+  <!-- ── パフォーマンスメトリクス ── （スマホでは丸ごと非表示・user 2026-06-28） -->
+  <div id="qp-perf-section">
+  <div class="qp-divider"></div>
+  <div class="qp-perf-title" id="qp-perf-t">📊 処理能力モニター</div>
+
+  <div class="qp-stat-row">
+    <span class="qp-label">FPS</span>
+    <span id="qp-fps" class="qp-value" style="color:#C0C0C0">—</span>
+    <span class="qp-label" style="margin-left:8px" id="qp-l-frame">フレーム時間</span>
+    <span id="qp-frametime" class="qp-value">—</span>
+  </div>
+
+  <!-- 使用率バー -->
+  <div class="qp-bar-label">
+    <span id="qp-l-gpu">GPU 負荷</span>
+    <span id="qp-util-pct" class="qp-bar-pct">—</span>
+  </div>
+  <div class="qp-bar-bg">
+    <div id="qp-util-bar" class="qp-bar-fill" style="width:0%;background:#484848"></div>
+  </div>
+
+  <!-- 余剰バー -->
+  <div class="qp-bar-label">
+    <span id="qp-l-head">余剰 (ヘッドルーム)</span>
+    <span id="qp-surplus-pct" class="qp-bar-pct">—</span>
+  </div>
+  <div class="qp-bar-bg">
+    <div id="qp-surplus-bar" class="qp-bar-fill" style="width:100%;background:#2a5a2a"></div>
+  </div>
+
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:3px 10px;margin-top:8px">
+    <div class="qp-stat-row"><span class="qp-label" id="qp-l-dc">描画コール</span><span id="qp-dc" class="qp-value">—</span></div>
+    <div class="qp-stat-row"><span class="qp-label" id="qp-l-tris">ポリゴン</span><span id="qp-tris" class="qp-value">—</span></div>
+    <div class="qp-stat-row"><span class="qp-label" id="qp-l-geos">ジオメトリ</span><span id="qp-geos" class="qp-value">—</span></div>
+    <div class="qp-stat-row"><span class="qp-label" id="qp-l-texs">テクスチャ</span><span id="qp-texs" class="qp-value">—</span></div>
+  </div>
+
+  <div style="margin-top:7px;font-size:.62em;color:#303030;text-align:right" id="qp-resolution">—</div>
+  </div><!-- /qp-perf-section -->
+</div>
+

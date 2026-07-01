@@ -2,12 +2,15 @@
 # deploy-viewer.sh — ビューアーを Cloudflare Worker にデプロイ
 #
 # 使い方:
-#   cd "F:\UNDEFINED Dropbox\UNDEFINED\Works\MFF\01_ProjectFile\3DGS"
+#   cd "F:\Htlml\3DGS\Locahun3D"
 #   bash deploy-viewer.sh
 #
 set -e
 DIR="$(cd "$(dirname "$0")" && pwd)"
 DIST="$DIR/viewer-dist"
+
+echo "=== Building single-file viewer ==="
+node "$DIR/build.mjs"
 
 echo "=== Syncing viewer-dist ==="
 cp "$DIR/index.html"                       "$DIST/"
