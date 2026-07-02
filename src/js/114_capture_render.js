@@ -92,6 +92,10 @@ window.captureCamShot = async function(){
   const _boostPR = Math.min(Math.max(_needPR, PR), _tierCap, _dimCap);
   const capPR = (_boostPR > PR + 1e-3) ? _boostPR : PR;
   window._captureBusy = true;          // 294のLODプリフェッチを撮影中サスペンド
+  // img/ictx は try 内で代入するが、finally の後（env-tint/WB/グリッド焼込）でも
+  // 使うため宣言は try の外に置く（try内 const だと後続から見えず ictx is not
+  // defined で撮影全体が落ちる — 2026-07-03 実機検証で検出・修正）。
+  let img, ictx;
   try {
   if(capPR !== PR) renderer.setPixelRatio(capPR);
   // Use the camera's CURRENT vFOV (== what the live preview is rendering right
@@ -130,10 +134,10 @@ window.captureCamShot = async function(){
 
   // Crop the frame-rect region out of the live canvas (intrinsic px = CSS × PR)
   // and scale it to the delivery resolution.
-  const img = document.createElement('canvas');
+  img = document.createElement('canvas');
   img.width  = target.w;
   img.height = target.h;
-  const ictx = img.getContext('2d');
+  ictx = img.getContext('2d');
   ictx.imageSmoothingEnabled = true;
   ictx.imageSmoothingQuality = 'high';
   const _sx = Math.max(0, Math.round(fr.x * capPR));
