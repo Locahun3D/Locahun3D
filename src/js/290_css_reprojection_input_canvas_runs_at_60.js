@@ -116,6 +116,10 @@ function _queuePixelRatio(pr){
 }
 function _applyDeferredPixelRatio(now){
   if(_pendingPixelRatio == null) return;
+  // JPEG撮影中は絶対に適用しない: 撮影は「PRブースト→2回レンダー(90ms待ち込み)→
+  // crop」の間、crop座標を撮影開始時のPRで計算する。この待ちの間にキュー済みPRが
+  // 適用されるとバッファ解像度とcrop座標がズレ、切り出し範囲が壊れる。
+  if(window._captureBusy) return;
   // Defer while any input/motion is in flight
   const moving = dragOn || (typeof joyDX!=='undefined' && (joyDX!==0||joyDY!==0)) ||
                  (keys.KeyW||keys.KeyS||keys.KeyA||keys.KeyD||keys.KeyQ||keys.KeyE||keys.ShiftLeft||keys.ShiftRight) ||

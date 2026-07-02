@@ -77,6 +77,23 @@ window.captureCamShot = async function(){
   // is the preview, pixel for pixel.
   const fr = _camFrameRect();                 // CSS px; aspect === cam.aspect
   const PR = renderer.getPixelRatio();        // live buffer = CSS px × PR
+  // ── FHDブースト (2026-07-02) ──
+  // 従来は「ライブ画面の枠部分を切り出して1920幅へ拡大」だったため、枠が画面上で
+  // 小さいと実ソースピクセルが不足しぼやけた。撮影の間だけ pixelRatio を引き上げ、
+  // 枠の実ピクセルを target 以上にしてから切り出す（拡大コピーの根絶）。
+  // renderer.setSize による黒帯バグ経路(下コメント参照)は使わない — PRブーストは
+  // 望遠スーパサンプル(030 _camZoomResBoost, 2026-06-27)で実証済みの安全機構。
+  // 上限: desktop 4.0 / touch系は既存スーパサンプル上限(dPR×2.2)。さらに
+  // WebGL最大バッファ寸法(16384)でクランプ。
+  const _needPR = target.w / Math.max(1, fr.w);
+  const _tierCap = (typeof _qualTouchLike !== 'undefined' && _qualTouchLike)
+    ? (devicePixelRatio || 1) * 2.2 : 4.0;
+  const _dimCap = 16384 / Math.max(innerWidth, innerHeight);
+  const _boostPR = Math.min(Math.max(_needPR, PR), _tierCap, _dimCap);
+  const capPR = (_boostPR > PR + 1e-3) ? _boostPR : PR;
+  window._captureBusy = true;          // 294のLODプリフェッチを撮影中サスペンド
+  try {
+  if(capPR !== PR) renderer.setPixelRatio(capPR);
   // Use the camera's CURRENT vFOV (== what the live preview is rendering right
   // now), NOT a re-derived _camSensorVFovDeg(). captureCamShot() runs
   // _camPullFields() first, and if the UI fields are even slightly out of sync
@@ -119,11 +136,16 @@ window.captureCamShot = async function(){
   const ictx = img.getContext('2d');
   ictx.imageSmoothingEnabled = true;
   ictx.imageSmoothingQuality = 'high';
-  const _sx = Math.max(0, Math.round(fr.x * PR));
-  const _sy = Math.max(0, Math.round(fr.y * PR));
-  const _sw = Math.round(fr.w * PR);
-  const _sh = Math.round(fr.h * PR);
+  const _sx = Math.max(0, Math.round(fr.x * capPR));
+  const _sy = Math.max(0, Math.round(fr.y * capPR));
+  const _sw = Math.round(fr.w * capPR);
+  const _sh = Math.round(fr.h * capPR);
   ictx.drawImage(canvas, _sx, _sy, _sw, _sh, 0, 0, target.w, target.h);
+  } finally {
+    // PRは既存の復元部(下)でも戻すが、例外時にも画面解像度が壊れないよう二重化
+    if(capPR !== PR){ try{ renderer.setPixelRatio(PR); }catch(_){} }
+    window._captureBusy = false;
+  }
   // ── Environment scene-tint (matches live #env-tint overlay) ──
   // Applied BEFORE WB so the order is "scene lighting first, then camera correction".
   if(env.preset !== 'off' && ENV_PRESETS[env.preset] && ENV_PRESETS[env.preset].sceneTint){
