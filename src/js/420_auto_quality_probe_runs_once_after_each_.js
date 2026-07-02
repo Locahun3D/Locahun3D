@@ -29,17 +29,9 @@ let _qualityProbeScheduled = false;
 // own copy of the loop rather than reading the frame-local variable.
 function _sceneSettledForCalibration(){
   try{
-    if(typeof layers !== 'undefined' && layers && layers.length){
-      for(let i=0;i<layers.length;i++){
-        const _L = layers[i];
-        const _mesh = _L && _L.mesh;
-        const _pm = _mesh && _mesh.paged;
-        if(!_pm) continue;
-        const _target = _mesh._radTargetCount || 0;
-        // Still paging (target unknown yet, or below target) → not settled.
-        if(_target === 0 || (_pm.numSplats||0) < _target) return false;
-      }
-    }
+    // プラトー検出ベースの共有判定(291の_pagedStreamActive)を使う。旧「総数到達」
+    // 判定は大型RAD/URLストリームで永遠にfalseのままだった(2026-07-03修正)。
+    if(typeof _pagedStreamActive === 'function' && _pagedStreamActive(performance.now())) return false;
     // Also wait out the splat-active window (Spark's progressive re-sort tail).
     if(typeof _splatActiveUntil === 'number' && performance.now() <= _splatActiveUntil) return false;
     return true;
@@ -76,7 +68,7 @@ window._scheduleQualityProbe = function(){
       clearInterval(_iv);
       _qualityProbeScheduled = false; // allow re-schedule on next file load
       _openCalibrationWindow();
-    } else if(_polls >= 60){ // 60 × 500 ms = 30 s cap
+    } else if(_polls >= 240){ // 240 × 500 ms = 120 s cap (大型RADの初回ストリームは40-60s+かかる)
       clearInterval(_iv);
       _qualityProbeScheduled = false;
     }

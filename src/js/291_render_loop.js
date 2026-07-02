@@ -48,6 +48,31 @@ const _protected = /[?&]protected=1/.test(location.search);
 if(_protected){
   document.body.classList.add('protected-mode');
 }
+// ── Paged(RAD) ストリーム活動判定 ──
+// 旧判定「numSplats が総数(_radTargetCount)に達したらロード完了」は、ヘッダ総数
+// (交差点=19.8M)が LOD 予算(250万〜)を超える大型 RAD では永遠に到達せず、
+// ①アイドルでも描画が止まらない ②watchdogのストリーミングガードが永久凍結
+// (UP不能) ③較正/プリウォームが永遠に'wait'、を引き起こしていた。さらに URL
+// ストリーム読込(292)はヘッダbytesを持たず _radTargetCount 自体が undefined で
+// 同じ穴に落ちる。そこで「numSplats のプラトー検出」(1.5秒変化なし＝ストリーム
+// 収束)に置換。回転後のチャンク補充中は再び true になるので「読込/精細化が
+// 進行中」というセマンティクスは保たれる。総数到達できる小型RADは従来どおり
+// 即確定する。animate と 420 の較正ポーラーの両方から呼ばれる。
+function _pagedStreamActive(now){
+  if(typeof layers === 'undefined' || !layers || !layers.length) return false;
+  for(let i=0;i<layers.length;i++){
+    const _L = layers[i];
+    const _mesh = _L && _L.mesh;
+    const _pm = _mesh && _mesh.paged;
+    if(!_pm) continue;
+    const _n = _pm.numSplats || 0;
+    const _target = _mesh._radTargetCount || 0;
+    if(_target > 0 && _n >= _target) continue;          // 総数到達＝確定完了
+    if(_n !== _mesh._lastPagedN){ _mesh._lastPagedN = _n; _mesh._lastPagedNAt = now; }
+    if(_n === 0 || (now - (_mesh._lastPagedNAt || now)) < 1500) return true;
+  }
+  return false;
+}
 function animate(now) {
   if(_headless) setTimeout(()=>animate(performance.now()), 16);
   else          requestAnimationFrame(animate);
@@ -132,25 +157,12 @@ function animate(now) {
   // but never get consumed → record.rootPage is never set → next traversal
   // can't request more chunks → the scene shows zero splats forever.
   //
-  // We keep rendering as long as the paged splat hasn't reached its target
-  // splat count (`_radTargetCount`, stashed on the mesh at construction
-  // time from the RAD JSON header). After it does, we stop the continuous
-  // tick so the page goes idle; camera motion will wake it back up via
-  // the regular shouldRender path.
-  let hasPagedLoading = false;
-  if(typeof layers !== 'undefined' && layers && layers.length){
-    for(let i=0;i<layers.length;i++){
-      const _L = layers[i];
-      const _mesh = _L && _L.mesh;
-      const _pm = _mesh && _mesh.paged;
-      if(!_pm) continue;
-      const _target = _mesh._radTargetCount || 0;
-      if(_target === 0 || (_pm.numSplats||0) < _target){
-        hasPagedLoading = true;
-        break;
-      }
-    }
-  }
+  // We keep rendering as long as the paged stream is still ACTIVE (numSplats
+  // still changing — see _pagedStreamActive above; the old reach-the-target
+  // predicate never completed on big RADs / URL streams). After it plateaus,
+  // we stop the continuous tick so the page goes idle; camera motion wakes it
+  // back up via the regular shouldRender path.
+  const hasPagedLoading = _pagedStreamActive(now);
 
   const shouldRender = hasCamKey||hasDrag||hasJoy||hasMsrInteract||hasGamepad||
                        splatStreaming||_renderDirtyTimer>0||hasPagedLoading;
