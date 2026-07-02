@@ -26,19 +26,49 @@ function _updateQiBadgeLabel(idx){
   const labels = [T('qt-low'),T('qt-mid'),T('qt-high')];
   if(el) el.textContent = labels[idx] || '?';
 }
-window.setQuality=function(scale,idx){
-  const before = qualIdx;
-  qualScale=scale; qualIdx=idx;
-  // Manual user choice → apply immediately; cancel any deferred swap so the
-  // user's selection isn't overwritten when the next idle window opens.
-  _pendingPixelRatio = null;
-  renderer.setPixelRatio(Math.min(devicePixelRatio,_PR_CAP)*scale);
-  document.querySelectorAll('#quality-panel #qbtns button').forEach((b,i)=>b.classList.toggle('on',i===idx));
-  _updateQiBadgeLabel(idx);
-  // RAD scenes use a per-mesh `lodScale` to drive how aggressively Spark's
-  // LoD walker subdivides chunks. Updating it on the fly lets a quality
-  // preset change (低/中/高) raise or lower splat density in view without
-  // rebuilding the mesh. PLY/SPLAT ignore lodScale (geometry is baked).
+// The three user-pickable quality presets: 低 / 中 / 高.
+//   idx 0 → 0.75  (低)
+//   idx 1 → 1.0   (中)
+//   idx 2 → 1.5   (高)
+// Kept module-scope so the applier, the undo callback and the watchdog all
+// agree on one table (the old code duplicated `[0.75,1.0,1.5]` in three
+// places, which drifted).
+const _QUALITY_SCALES = [0.75, 1.0, 1.5];
+
+// ── Shared quality-tier applier ─────────────────────────────────────────
+// ONE place that mutates qualScale/qualIdx and reflects the change to the
+// renderer, RAD meshes, badge and panel. Every quality actor now routes
+// through here — manual clicks (setQuality), the continuous watchdog, the
+// post-load calibration path, and the battery one-shot — so those four
+// previously-divergent code paths can no longer disagree about pixel ratio
+// vs. RAD lodScale vs. badge (RC3). `opts`:
+//   • source:    'manual' | 'watchdog' | 'calibration' | 'battery'
+//   • immediate: true  → renderer.setPixelRatio() NOW (+ cancel pending swap)
+//                 false → _queuePixelRatio() (applied on the next idle window)
+// Only manual picks are immediate (the user expects instant feedback and no
+// mid-motion flash is acceptable for a deliberate click); everything else is
+// queued so the buffer reallocation lands between interactions.
+function applyQualityTier(idx, opts){
+  opts = opts || {};
+  const source = opts.source || 'watchdog';
+  const immediate = !!opts.immediate;
+  const i = Math.max(0, Math.min(2, idx|0));
+  qualIdx = i;
+  qualScale = _QUALITY_SCALES[i];
+  const pr = Math.min(devicePixelRatio, _PR_CAP) * qualScale;
+  if(immediate){
+    // Cancel any deferred swap so a queued change can't overwrite this one
+    // when the next idle window opens.
+    _pendingPixelRatio = null;
+    renderer.setPixelRatio(pr);
+  } else {
+    _queuePixelRatio(pr);
+  }
+  // ALWAYS reapply RAD lodScale. RAD scenes use a per-mesh `lodScale` to
+  // drive how aggressively Spark's LoD walker subdivides chunks; updating it
+  // on the fly lets a preset change raise/lower in-view splat density without
+  // rebuilding the mesh. PLY/SPLAT ignore lodScale (geometry is baked) — the
+  // `mesh.paged` guard keeps this a no-op for them.
   try {
     const newLod = _radEffectiveLodScale();
     if(typeof layers !== 'undefined' && layers){
@@ -49,27 +79,43 @@ window.setQuality=function(scale,idx){
       }
     }
   } catch(_){}
-  // The continuous watchdog stays ACTIVE even after a manual pick. The user's
-  // choice becomes the new "ceiling" the watchdog up-steps toward; if render
-  // time later threatens the 30 fps floor the watchdog will still drop
-  // quality below this level to defend the framerate. (Watchdog runs in
-  // the main animate loop, gated on _qualPreferred for its up-step path.)
-  _qualPreferred = scale;
-  // Reset streak counters so the watchdog re-evaluates against the new
-  // ceiling cleanly without immediately bouncing the user's pick.
+  _updateQiBadgeLabel(i);
+  document.querySelectorAll('#quality-panel #qbtns button').forEach((b,k)=>b.classList.toggle('on',k===i));
+  if(source === 'manual'){
+    // Manual pick = the new ceiling in BOTH directions (existing semantics):
+    // the watchdog may still drop below it to defend 30 fps, but never
+    // auto-climbs past the user's explicit choice.
+    _qualPreferred = qualScale;
+  }
+  const _lbl = ['低','中','高'][i] || '?';
+  console.info('[Locahun][Quality] ' + source + ' → ' + _lbl);
+  markDirty(8);
+}
+// Expose for the calibration/watchdog fragments (concatenated into the same
+// module scope, so a bare reference already resolves — this is just belt-and-
+// suspenders for any external caller / diag console poking).
+window._applyQualityTier = applyQualityTier;
+
+window.setQuality=function(scale,idx){
+  const before = qualIdx;
+  // Delegate to the shared applier so a manual click is byte-for-byte the
+  // same as before: immediate pixel-ratio, RAD lodScale reapply, badge +
+  // panel sync, and _qualPreferred := the picked scale (manual = ceiling).
+  applyQualityTier(idx, { source:'manual', immediate:true });
+  // Reset watchdog streaks so it re-evaluates against the new ceiling cleanly
+  // without immediately bouncing the user's pick. (manualOverride is NOT set
+  // here — that flag is reserved for the ?qual= diag pin, matching prior
+  // behavior; a normal manual click keeps the watchdog active as a floor
+  // defender.)
   if(window._gpuWatchdog){
     window._gpuWatchdog.slowStreak = 0;
     window._gpuWatchdog.fastStreak = 0;
     window._gpuWatchdog.lastStep = performance.now();
   }
-  markDirty(8);
-  const SCALES = [0.75, 1.0, 1.5];
   pushGenericUndo('quality', before, idx, val=>{
     const i = Math.max(0, Math.min(2, val|0));
-    qualIdx = i; qualScale = SCALES[i];
-    renderer.setPixelRatio(Math.min(devicePixelRatio,_PR_CAP)*qualScale);
-    document.querySelectorAll('#quality-panel #qbtns button').forEach((b,k)=>b.classList.toggle('on',k===i));
-    _updateQiBadgeLabel(i);
-    markDirty(8);
+    // Undo/redo of a quality pick is also a manual choice → immediate + resets
+    // the ceiling, identical to a fresh click on that preset.
+    applyQualityTier(i, { source:'manual', immediate:true });
   });
 };

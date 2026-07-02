@@ -104,6 +104,12 @@ async function loadFromURL(url, displayName){
       if(typeof showHUD === 'function') showHUD();
       if(typeof hideDZ === 'function') hideDZ();
       if(typeof showUndoToast === 'function') showUndoToast('📡 .RAD ストリーミング読込開始: ' + name);
+      // Demo/URL parity (RC2): the local-file load path schedules auto-quality
+      // calibration, but this URL/RAD-stream path never did — so ?demo=1 and
+      // ?autoload= scenes were stuck at the device-tier default and auto-quality
+      // could never climb. Schedule it here too (poller waits for the stream to
+      // finish paging before opening the calibration window).
+      if(typeof window._scheduleQualityProbe === 'function') window._scheduleQualityProbe();
       return;
     }
     // Non-RAD URL: fetch whole file, route by extension.
@@ -114,7 +120,13 @@ async function loadFromURL(url, displayName){
     const name = (displayName || url.split('/').pop().split('?')[0]) || 'autoload.ply';
     const file = new File([buf], name, {type:'application/octet-stream'});
     if(['obj','gltf','glb','fbx'].includes(ext)) await loadObjFile(file);
-    else await loadSplatFile(file);
+    else {
+      await loadSplatFile(file);
+      // Same parity: loadSplatFile already schedules calibration internally,
+      // but call it explicitly here too so the URL path is self-evidently
+      // covered. The _qualityProbeScheduled flag coalesces the double-call.
+      if(typeof window._scheduleQualityProbe === 'function') window._scheduleQualityProbe();
+    }
   }catch(e){
     console.warn('loadFromURL failed', e);
     if(typeof hideLd === 'function') hideLd();
@@ -439,5 +451,14 @@ window.__diagState = {
   get splatActiveUntil(){ return _splatActiveUntil; },
   get splatMesh(){ return splatMesh; },
   get renderer(){ return renderer; },
+  // ── Auto-quality governor internals (redesign 2026-07) ──
+  // budgetMs: computed identically to the watchdog's vsync-normalized budget.
+  get budgetMs(){ return 1000 / Math.min(Math.max(((typeof _refreshHz!=='undefined'&&_refreshHz)||60), 30), 240); },
+  // burned: JSON-safe shallow copy of the burn map (scale → expiry ts).
+  get burned(){ const w = window._gpuWatchdog; const o = {}; if(w && w.burned){ for(const k in w.burned) o[k] = w.burned[k]; } return o; },
+  get lastApply(){ const w = window._gpuWatchdog; return w ? (w.lastApply||0) : null; },
+  get slowStreak(){ const w = window._gpuWatchdog; return w ? (w.slowStreak||0) : null; },
+  get fastStreak(){ const w = window._gpuWatchdog; return w ? (w.fastStreak||0) : null; },
+  get calibrationUntil(){ const w = window._gpuWatchdog; return w ? (w.calibrationUntil||0) : null; },
 };
 

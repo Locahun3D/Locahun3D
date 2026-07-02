@@ -1,69 +1,86 @@
 // ══════════════════════════════════════════════════
-//  Auto quality probe (runs once after each file load)
+//  Auto-quality CALIBRATION (runs once after each file load)
 // ══════════════════════════════════════════════════
-// Samples the rolling render-time average (_ftAvg, maintained by the main
-// loop) a few seconds after a file finishes loading, then picks the
-// highest quality preset that still leaves enough frame-time headroom.
-// This way users land on an "optimal" preset matched to their actual
-// device + scene complexity, instead of always starting at the
-// device-tier default and discovering things are too slow only after
-// scrolling around for a while.
+// REDESIGN: the old one-shot "probe" read _ftAvg 3.5 s after load and directly
+// guessed a preset. That was unsound (RC5): _ftAvg is CPU *submit* time, which
+// is ~0.5 ms on big GPUs regardless of scene weight (so it always guessed 高),
+// yet spikes to ~49 ms mid-RAD-stream (so it could guess 低 on a monster GPU).
+// It also set pixel ratio directly, bypassing the applier (RC3), and never ran
+// for URL/demo loads (RC2).
 //
-// • Skipped entirely if the user already manually picked a quality
-//   (window._gpuWatchdog.manualOverride === true). The probe is meant
-//   for "first impression" tuning, not to override deliberate choice.
-// • Skipped if _ftAvg hasn't yet accumulated meaningful samples
-//   (the window is 60 render calls; pre-load it's noisy / zero).
-// • Picks based on render-call ms vs frame budget (3-preset system):
-//     <  8 ms  → 高 (preset 2, scale 1.5)
-//     <  12 ms → 中 (preset 1, scale 1.0)
-//     else    → 低 (preset 0, scale 0.75)
-//   Headroom values are chosen so 60 fps is sustained even when the
-//   scene gets busier (more layers, camera motion → more splat sorting).
-// • Does NOT push an undo entry — auto-tuning shouldn't clutter the
-//   undo stack. The user's first manual quality click after this still
-//   captures the auto-picked value as the "before" state correctly.
+// New behavior: we do NOT guess a tier here. Instead, once the scene has
+// SETTLED (all paged meshes reached their target splat count AND splat-active
+// window elapsed) we simply OPEN A 20 s CALIBRATION WINDOW: reset the watchdog
+// streaks and let the vsync-normalized closed-loop watchdog (in 291) climb to
+// the true sustainable tier on its own, using a faster UP streak (180 vs 600
+// frames) during the window. The watchdog measures real steady-state
+// frame-time, so it converges to the correct ceiling without a fragile guess.
+//
+// • Skipped entirely if the user already pinned quality
+//   (window._gpuWatchdog.manualOverride === true) — same as the old probe.
+// • Polls every 500 ms up to 30 s waiting for "settled"; if never settled
+//   (e.g. an endless stream), it just times out and does nothing.
+// • Multiple schedules coalesce via the _qualityProbeScheduled flag.
+// • Exported name `window._scheduleQualityProbe` is UNCHANGED so existing
+//   callers (200_file_loading.js, and now 292's loadFromURL) keep working.
 let _qualityProbeScheduled = false;
-function _probeOptimalQuality(){
+// "Settled" predicate — mirrors animate()'s `hasPagedLoading` check, but this
+// runs OUTSIDE the animate loop (from a setInterval poller) so it needs its
+// own copy of the loop rather than reading the frame-local variable.
+function _sceneSettledForCalibration(){
   try{
-    if(!_ftAvg || _ftAvg <= 0) return; // not enough samples yet — bail
-    const ms = _ftAvg;
-    let targetIdx;
-    if      (ms < 8)  targetIdx = 2;
-    else if (ms < 12) targetIdx = 1;
-    else              targetIdx = 0;
-    if(targetIdx === qualIdx) return; // already optimal — no-op
-    const SCALES = [0.75, 1.0, 1.5];
-    qualIdx   = targetIdx;
-    qualScale = SCALES[targetIdx];
-    // Also raise the watchdog's up-step ceiling to match: the probe just
-    // determined this preset is sustainable, so the continuous watchdog
-    // can use it as the "preferred" target after any temporary downstep.
-    _qualPreferred = qualScale;
-    _pendingPixelRatio = null;
-    renderer.setPixelRatio(Math.min(devicePixelRatio, _PR_CAP) * qualScale);
-    document.querySelectorAll('#quality-panel #qbtns button')
-      .forEach((b,i)=>b.classList.toggle('on', i === targetIdx));
-    _updateQiBadgeLabel(targetIdx);
-    markDirty(8);
-    console.info('[Locahun][AutoQuality] probe →', ['低','中','高'][targetIdx],
-                 `(scale ${qualScale}, render ~${ms.toFixed(1)} ms, new ceiling)`);
+    if(typeof layers !== 'undefined' && layers && layers.length){
+      for(let i=0;i<layers.length;i++){
+        const _L = layers[i];
+        const _mesh = _L && _L.mesh;
+        const _pm = _mesh && _mesh.paged;
+        if(!_pm) continue;
+        const _target = _mesh._radTargetCount || 0;
+        // Still paging (target unknown yet, or below target) → not settled.
+        if(_target === 0 || (_pm.numSplats||0) < _target) return false;
+      }
+    }
+    // Also wait out the splat-active window (Spark's progressive re-sort tail).
+    if(typeof _splatActiveUntil === 'number' && performance.now() <= _splatActiveUntil) return false;
+    return true;
+  } catch(_){ return true; } // on any error, don't block calibration forever
+}
+function _openCalibrationWindow(){
+  try{
+    if(window._gpuWatchdog && window._gpuWatchdog.manualOverride) return; // pinned
+    const wd = (window._gpuWatchdog = window._gpuWatchdog || { slowStreak:0, fastStreak:0, lastStep:0 });
+    const now = performance.now();
+    // Reset streaks + clear the step lockout so the watchdog can act promptly
+    // once the window opens, and give it a clean 20 s window during which the
+    // UP requirement is 180 frames instead of 600 (see 291).
+    wd.slowStreak = 0;
+    wd.fastStreak = 0;
+    wd.lastStep = 0;
+    wd.calibrationUntil = now + 20000;
+    console.info('[Locahun][AutoQuality] calibration window open (20s)');
   } catch(e){
-    console.warn('[Locahun][AutoQuality] probe failed:', e);
+    console.warn('[Locahun][AutoQuality] calibration failed:', e);
   }
 }
-// Schedule the probe ~3.5 s after the splat finishes loading. The delay
-// gives Spark's progressive sort time to stabilise so _ftAvg samples a
-// representative steady-state render cost, not the heavy first frames.
-// Safe to call multiple times — only the first scheduling per file
-// actually runs.
+// Schedule calibration after the splat finishes loading. Polls every 500 ms
+// (max 30 s) until the scene is settled, THEN opens the calibration window.
+// Safe to call multiple times — only the first scheduling per file runs.
 window._scheduleQualityProbe = function(){
   if(_qualityProbeScheduled) return;
+  if(window._gpuWatchdog && window._gpuWatchdog.manualOverride) return; // pinned → no-op
   _qualityProbeScheduled = true;
-  setTimeout(()=>{
-    _probeOptimalQuality();
-    _qualityProbeScheduled = false; // allow re-probe on next file load
-  }, 3500);
+  let _polls = 0;
+  const _iv = setInterval(()=>{
+    _polls++;
+    if(_sceneSettledForCalibration()){
+      clearInterval(_iv);
+      _qualityProbeScheduled = false; // allow re-schedule on next file load
+      _openCalibrationWindow();
+    } else if(_polls >= 60){ // 60 × 500 ms = 30 s cap
+      clearInterval(_iv);
+      _qualityProbeScheduled = false;
+    }
+  }, 500);
 };
 
 window.setFOV=function(degrees,idx){

@@ -130,6 +130,15 @@ function _applyDeferredPixelRatio(now){
   } catch(_){}
   _pendingPixelRatio = null;
   _pendingPRStableSince = 0;
+  // Apply-then-observe handshake: tell the watchdog a queued swap just LANDED.
+  // It stamps lastApply (the watchdog holds all decisions for 2 s after) and
+  // clears both streaks so the next evaluation starts fresh against the newly
+  // applied pixel ratio, instead of on stale pre-swap frame-time history (RC4).
+  if(window._gpuWatchdog){
+    window._gpuWatchdog.lastApply = now;
+    window._gpuWatchdog.slowStreak = 0;
+    window._gpuWatchdog.fastStreak = 0;
+  }
 }
 
 // ── WebGL context loss recovery ──

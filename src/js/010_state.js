@@ -247,12 +247,25 @@ const _qualTouchLike = (function(){
 })();
 let qualScale = _qualTouchLike ? 0.75 : 1.0;
 let qualIdx   = _qualTouchLike ? 0    : 1;
-// "Preferred" quality — the ceiling the continuous-watchdog up-steps toward
-// after a downgrade. Starts as the device-tier auto pick; setQuality()
-// updates it when the user manually picks a level (so the watchdog won't
+// "Preferred" quality — the CEILING the continuous-watchdog up-steps toward
+// after a downgrade. setQuality() (via applyQualityTier, source:'manual')
+// overwrites it when the user manually picks a level, so the watchdog won't
 // quietly raise quality above the user's explicit choice, but WILL still
-// drop quality below it whenever frame-time threatens to push below 30 fps).
-let _qualPreferred = qualScale;
+// drop quality below it whenever frame-time threatens the 30 fps floor.
+//
+// WHY the seed is the top preset, NOT the device-tier START value:
+// Previously this was seeded to `qualScale` (the conservative device-tier
+// START level — 中 on desktop, 低 on touch). That created the "default =
+// ceiling" trap: since the watchdog can never up-step past _qualPreferred,
+// an idle RTX 5090 could NEVER auto-climb above 中 even with 100+ fps of
+// headroom, because nothing ever raised the ceiling (RC2). The probe used
+// to bump it, but the probe never ran on URL/demo loads. We now seed the
+// ceiling at the tier MAXIMUM the auto-governor is allowed to reach on its
+// own — 高(1.5) for desktop/pointer:fine, 中(1.0) for touch-like devices
+// (phones/tablets can't sustain 高 comfortably) — so auto-quality can
+// actually exploit spare GPU headroom. Manual picks still overwrite this
+// (and become the new cap in both directions).
+let _qualPreferred = _qualTouchLike ? 1.0 : 1.5;
 // Sync the always-visible top-right quality badge to whichever preset we
 // just auto-selected. Runs once DOM is ready since the badge element is
 // emitted later in the body.

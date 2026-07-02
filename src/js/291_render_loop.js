@@ -1,16 +1,19 @@
 // ── Battery-aware quality (Mac laptops, when running unplugged + low battery) ──
-// One-shot reduction: if battery falls under 25 % and not charging, drop qualScale
-// to 0.7 (unless user already manually set quality). Logs to console for transparency.
+// One-shot reduction: if battery falls under 25 % and not charging, drop to the
+// lowest preset (低 / 0.75) unless the user already pinned quality. Routes
+// through the shared applier so the badge/panel/RAD lodScale all follow (the
+// old path set qualScale=0.7 + _queuePixelRatio directly, leaving the badge and
+// RAD density stale — RC3). 0.75 instead of the former 0.7 is an accepted
+// change: 0.7 wasn't a real preset, so the badge already showed 低 for it.
 if(typeof navigator.getBattery === 'function'){
   navigator.getBattery().then(bat => {
     function _checkBattery(){
       if(window._gpuWatchdog && window._gpuWatchdog.manualOverride) return;
-      if(!bat.charging && bat.level < 0.25 && qualScale > 0.7){
-        qualScale = 0.7;
-        // Defer the actual setPixelRatio swap to an idle window — applying it
-        // mid-interaction would cause a visible flash + low-res frame.
-        _queuePixelRatio(Math.min(devicePixelRatio, _PR_CAP) * qualScale);
-        console.info('[Locahun] Battery low (' + Math.round(bat.level*100) + '%) — quality queued at 0.7 (apply on idle)');
+      if(!bat.charging && bat.level < 0.25 && qualScale > 0.75){
+        // Deferred (immediate:false) — applying mid-interaction would flash a
+        // low-res frame; the applier queues the swap for the next idle window.
+        applyQualityTier(0, { source:'battery' });
+        console.info('[Locahun] Battery low (' + Math.round(bat.level*100) + '%) — quality queued at 低 (apply on idle)');
       }
     }
     bat.addEventListener('chargingchange', _checkBattery);
@@ -510,6 +513,9 @@ function animate(now) {
   //   respected as a cap; below it the watchdog still defends 30 fps.
   if(!window._gpuWatchdog) window._gpuWatchdog = { slowStreak:0, fastStreak:0, lastStep:0 };
   const _wd = window._gpuWatchdog;
+  if(!_wd.burned) _wd.burned = {};        // scale → expiry-timestamp burn map
+  if(!('lastApply' in _wd)) _wd.lastApply = 0;
+  if(!('calibrationUntil' in _wd)) _wd.calibrationUntil = 0;
   // STEPS_ALL matches the three user-pickable presets. The watchdog
   // normally doesn't go below 低 (0.75) — at that point the recommended
   // next step is the "ポリゴン半減" toggle. EXCEPTION: when wall time is
@@ -531,66 +537,115 @@ function animate(now) {
     if(s >= 0.95) return 1;
     return 0;
   };
-  if(_ftSamples.length >= 30 && (now - _wd.lastStep) > 4000){
-    // Trigger on either signal:
-    //   • _ftAvg > 28 ms : GPU-bound (render call itself is expensive)
-    //   • _wallMsAvg > 30 ms : CPU-bound (JS work between frames eats the
-    //     wall-clock budget). 30 ms wall = ~33 fps, leaving headroom
-    //     before we actually fall below the 30 fps user-facing target.
+  // Only the three real presets are routable through applyQualityTier (which
+  // owns badge/RAD/pixel-ratio). Emergency sub-0.75 Mac floors are NOT presets
+  // — they keep the legacy direct qualScale/_queuePixelRatio path (badge stays
+  // 低). This predicate decides which route a chosen step takes.
+  const _IS_PRESET = s => (s === 0.75 || s === 1.0 || s === 1.5);
+  // ── vsync-normalized budget ──
+  // One display frame in ms, clamped to a sane 30–240 Hz range. The old UP
+  // condition compared _wallMsAvg against a fixed 14 ms, which is impossible
+  // on a 60 Hz panel where wall-clock is vsync-locked to ~16.7 ms — so quality
+  // could only ever decay, never recover (RC1). Normalizing every threshold to
+  // the real refresh makes UP satisfiable on 60/90/120/144 Hz alike.
+  const budget = 1000 / Math.min(Math.max((_refreshHz||60), 30), 240);
+  // Lazily purge expired burn entries so the map can't grow unbounded.
+  for(const _k in _wd.burned){ if(_wd.burned[_k] <= now) delete _wd.burned[_k]; }
+  // ── Apply-then-observe gate ──
+  // A watchdog decision changes the pixel ratio, but the actual GPU buffer
+  // realloc is DEFERRED to the next idle window (_applyDeferredPixelRatio).
+  // If we kept deciding while a swap is still pending, one long camera motion
+  // could cascade several DOWN steps before ANY of them was observed (RC4).
+  // So: freeze streaks + skip all decisions while a swap is queued, and for
+  // 2 s after one finally lands (measured via _wd.lastApply, set in 290).
+  const _swapPending = (typeof _pendingPixelRatio !== 'undefined' && _pendingPixelRatio !== null);
+  const _settling    = (now - (_wd.lastApply || 0)) <= 2000;
+  // Honour the ?qual= diag pin (sets manualOverride) — freeze completely.
+  const _pinned = !!(_wd.manualOverride);
+  // Never re-evaluate during .RAD streaming: wall-clock spikes to ~49 ms while
+  // chunks decode, which would false-trigger DOWN (RC5). `hasPagedLoading` was
+  // computed earlier in this same function scope.
+  const _streaming = !!hasPagedLoading;
+  if(_swapPending || _settling){
+    // Freeze streaks so a queued/settling swap doesn't accrue phantom history.
+    _wd.slowStreak = 0;
+    _wd.fastStreak = 0;
+  } else if(_pinned || _streaming){
+    // Pinned or streaming: hold, don't accrue, don't act.
+  } else if(_ftSamples.length >= 30 && (now - _wd.lastStep) > 4000){
+    // Are we inside a post-load calibration window? During it, UP needs only
+    // 180 sustained frames (~3 s) instead of 600 (~10 s) so a fresh scene on a
+    // fast GPU climbs to its true ceiling quickly instead of crawling.
+    const _inCalib = now < (_wd.calibrationUntil || 0);
+    const _upStreakNeeded = _inCalib ? 180 : 600;
+    // Trigger DOWN on either signal (UNCHANGED thresholds):
+    //   • _ftAvg > 28 ms     : GPU-bound (render call itself is expensive)
+    //   • _wallMsAvg > 30 ms : CPU-bound (JS between frames eats the budget)
     if(_ftAvg > 28 || _wallMsAvg > 30){
       _wd.slowStreak++;
       _wd.fastStreak = 0;
-      // Three-tier down-step trigger:
-      //   • normal:    180 active frames (~3 s at 60 fps)
-      //   • severe:     60 active frames (~1 s)  when render > 45 ms OR
-      //                                          wall > 45 ms (~22 fps)
-      //   • dire:       12 active frames (~0.2 s) when wall > 80 ms
-      //                                          (~12 fps or worse)
-      // The "dire" tier catches Mac Chrome's compositor-throttled state
-      // where wall jumps to 100+ ms while GPU submit stays under 1 ms —
-      // waiting 60 active frames at 6 fps is 10 seconds of pain.
+      // Three-tier down-step trigger (UNCHANGED):
+      //   • normal: 180 frames (~3 s @60) ; severe: 60 (~1 s) when
+      //     ft>45||wall>45 ; dire: 12 (~0.2 s) when wall>80.
       const _severe = (_ftAvg > 45 || _wallMsAvg > 45);
-      // _dire is already declared in outer scope (same condition) —
-      // reuse it here rather than redeclaring.
       const _streakThreshold = _dire ? 12 : (_severe ? 60 : 180);
       if(_wd.slowStreak > _streakThreshold){
         const cur = qualScale;
         const next = STEPS_ALL.slice().reverse().find(s => s < cur - 0.001);
         if(next !== undefined && next < cur){
-          qualScale = next;
-          qualIdx = PRESET_FOR_SCALE(qualScale);
-          _queuePixelRatio(Math.min(devicePixelRatio, _PR_CAP) * qualScale);
-          if(typeof _updateQiBadgeLabel === 'function') _updateQiBadgeLabel(qualIdx);
-          document.querySelectorAll('#quality-panel #qbtns button')
-            .forEach((b,i)=>b.classList.toggle('on', i === qualIdx));
+          // ── Burn memory ──
+          // If this DOWN leaves a tier we UP-stepped INTO within the last 20 s,
+          // that tier is unstable for the current scene — mark it "burned" for
+          // 5 min so the UP path won't immediately re-select it and oscillate.
+          if((now - (_wd.lastStep || 0)) < 20000 && _wd.lastStepDir === 'up'){
+            _wd.burned[cur] = now + 300000;
+          }
+          if(_IS_PRESET(next)){
+            // Route real presets through the shared applier (badge/RAD/PR).
+            applyQualityTier(PRESET_FOR_SCALE(next), { source:'watchdog' });
+          } else {
+            // Emergency Mac sub-0.75 floor — legacy direct path, badge stays 低.
+            qualScale = next;
+            qualIdx = PRESET_FOR_SCALE(qualScale);
+            _queuePixelRatio(Math.min(devicePixelRatio, _PR_CAP) * qualScale);
+            if(typeof _updateQiBadgeLabel === 'function') _updateQiBadgeLabel(qualIdx);
+            document.querySelectorAll('#quality-panel #qbtns button')
+              .forEach((b,i)=>b.classList.toggle('on', i === qualIdx));
+          }
           _wd.lastStep = now;
+          _wd.lastStepDir = 'down';
           _wd.slowStreak = 0;
           console.info('[Locahun] Auto-quality DOWN →', qualScale.toFixed(2),
             `(render ~${_ftAvg.toFixed(1)} ms, wall ~${_wallMsAvg.toFixed(1)} ms, target 30 fps)`);
         }
       }
-    } else if(_ftAvg < 11 && _wallMsAvg < 14 && qualScale < _qualPreferred - 0.001 &&
+    } else if(_ftAvg < 0.6*budget && _wallMsAvg < 1.25*budget &&
+              qualScale < _qualPreferred - 0.001 &&
               !(typeof arMode !== 'undefined' && arMode && arMode.active)){
-      // While EITHER AR variant is active we intentionally hold the
-      // pixel-ratio at the AR-entry override so iOS Safari compositor /
-      // texImage2D cost stays manageable. Letting the watchdog up-step
-      // here would defeat the override and pull fps back down.
+      // UP: vsync-normalized headroom test (RC1). ft < 60 % of a frame AND
+      // wall < 125 % of a frame (wall is vsync-bound so it hugs the budget;
+      // 1.25× tolerates the occasional coalesced frame). Cap = _qualPreferred
+      // (tier max 高/中, or the user's manual pick). While AR is active we hold
+      // the AR-entry override — up-stepping would pull fps back down.
       _wd.fastStreak++;
       _wd.slowStreak = Math.max(0, _wd.slowStreak - 2);
-      if(_wd.fastStreak > 600){
+      if(_wd.fastStreak > _upStreakNeeded){
         const cur = qualScale;
-        const next = STEPS_ALL.find(s => s > cur + 0.001 && s <= _qualPreferred + 0.001);
+        // Highest non-burned preset step that's > cur and within the ceiling.
+        const _cap = _qualPreferred + 0.001;
+        let next;
+        for(let s = STEPS_ALL.length - 1; s >= 0; s--){
+          const cand = STEPS_ALL[s];
+          if(cand > cur + 0.001 && cand <= _cap && !(_wd.burned[cand] > now)){ next = cand; break; }
+        }
         if(next !== undefined && next > cur){
-          qualScale = next;
-          qualIdx = PRESET_FOR_SCALE(qualScale);
-          _queuePixelRatio(Math.min(devicePixelRatio, _PR_CAP) * qualScale);
-          if(typeof _updateQiBadgeLabel === 'function') _updateQiBadgeLabel(qualIdx);
-          document.querySelectorAll('#quality-panel #qbtns button')
-            .forEach((b,i)=>b.classList.toggle('on', i === qualIdx));
+          // UP always lands on a real preset (cap ≤ 1.5) → shared applier.
+          applyQualityTier(PRESET_FOR_SCALE(next), { source:'watchdog' });
           _wd.lastStep = now;
+          _wd.lastStepDir = 'up';
           _wd.fastStreak = 0;
           console.info('[Locahun] Auto-quality UP →', qualScale.toFixed(2),
-            `(render ~${_ftAvg.toFixed(1)} ms, plenty of headroom)`);
+            `(render ~${_ftAvg.toFixed(1)} ms, budget ${budget.toFixed(1)} ms, plenty of headroom)`);
         }
       }
     } else {
