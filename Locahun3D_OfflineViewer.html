@@ -9428,6 +9428,23 @@ window.captureCamShot = async function(){
   // is the preview, pixel for pixel.
   const fr = _camFrameRect();                 // CSS px; aspect === cam.aspect
   const PR = renderer.getPixelRatio();        // live buffer = CSS px × PR
+  // ── FHDブースト (2026-07-02) ──
+  // 従来は「ライブ画面の枠部分を切り出して1920幅へ拡大」だったため、枠が画面上で
+  // 小さいと実ソースピクセルが不足しぼやけた。撮影の間だけ pixelRatio を引き上げ、
+  // 枠の実ピクセルを target 以上にしてから切り出す（拡大コピーの根絶）。
+  // renderer.setSize による黒帯バグ経路(下コメント参照)は使わない — PRブーストは
+  // 望遠スーパサンプル(030 _camZoomResBoost, 2026-06-27)で実証済みの安全機構。
+  // 上限: desktop 4.0 / touch系は既存スーパサンプル上限(dPR×2.2)。さらに
+  // WebGL最大バッファ寸法(16384)でクランプ。
+  const _needPR = target.w / Math.max(1, fr.w);
+  const _tierCap = (typeof _qualTouchLike !== 'undefined' && _qualTouchLike)
+    ? (devicePixelRatio || 1) * 2.2 : 4.0;
+  const _dimCap = 16384 / Math.max(innerWidth, innerHeight);
+  const _boostPR = Math.min(Math.max(_needPR, PR), _tierCap, _dimCap);
+  const capPR = (_boostPR > PR + 1e-3) ? _boostPR : PR;
+  window._captureBusy = true;          // 294のLODプリフェッチを撮影中サスペンド
+  try {
+  if(capPR !== PR) renderer.setPixelRatio(capPR);
   // Use the camera's CURRENT vFOV (== what the live preview is rendering right
   // now), NOT a re-derived _camSensorVFovDeg(). captureCamShot() runs
   // _camPullFields() first, and if the UI fields are even slightly out of sync
@@ -9470,11 +9487,16 @@ window.captureCamShot = async function(){
   const ictx = img.getContext('2d');
   ictx.imageSmoothingEnabled = true;
   ictx.imageSmoothingQuality = 'high';
-  const _sx = Math.max(0, Math.round(fr.x * PR));
-  const _sy = Math.max(0, Math.round(fr.y * PR));
-  const _sw = Math.round(fr.w * PR);
-  const _sh = Math.round(fr.h * PR);
+  const _sx = Math.max(0, Math.round(fr.x * capPR));
+  const _sy = Math.max(0, Math.round(fr.y * capPR));
+  const _sw = Math.round(fr.w * capPR);
+  const _sh = Math.round(fr.h * capPR);
   ictx.drawImage(canvas, _sx, _sy, _sw, _sh, 0, 0, target.w, target.h);
+  } finally {
+    // PRは既存の復元部(下)でも戻すが、例外時にも画面解像度が壊れないよう二重化
+    if(capPR !== PR){ try{ renderer.setPixelRatio(PR); }catch(_){} }
+    window._captureBusy = false;
+  }
   // ── Environment scene-tint (matches live #env-tint overlay) ──
   // Applied BEFORE WB so the order is "scene lighting first, then camera correction".
   if(env.preset !== 'off' && ENV_PRESETS[env.preset] && ENV_PRESETS[env.preset].sceneTint){
@@ -10778,16 +10800,16 @@ function _radLodScaleForStride(stride){
 // splat 数は GPU 負荷に直結し、qualScale/PR は解像度しか下げず splat 数を減らせ
 // ないため、弱い端末で数百万 splat を出すと FPS を守れない。よって端末ティアで
 // 上限を調整する（desktop=5090級はほぼ全精細まで引き上げる）。
-//   desktop:     低0.8 / 中1.5 / 高2.2  (中≈2.4M, 高=cap~2.5M)
-//   laptop_ok:   低0.7 / 中1.1 / 高1.6
+//   desktop:     低0.8 / 中1.5 / 高3.0  (中≈2.4M, 高=Task2のlodSplatCount拡大とセットで飽和が外れる)
+//   laptop_ok:   低0.7 / 中1.1 / 高2.0  (高はTask2のlodSplatCount拡大とセットで飽和が外れる)
 //   laptop_weak: 低0.6 / 中0.9 / 高1.3
 //   tablet:      低0.5 / 中0.8 / 高1.2
 //   phone:       低0.45/ 中0.7 / 高1.0
 function _radLodScaleForQuality(idx){
   const tier = (typeof _splatPerfTier !== 'undefined') ? _splatPerfTier : 'laptop_ok';
   let lo, mid, hi;
-  if(tier === 'desktop')          { lo=0.8;  mid=1.5; hi=2.2; }
-  else if(tier === 'laptop_ok')   { lo=0.7;  mid=1.1; hi=1.6; }
+  if(tier === 'desktop')          { lo=0.8;  mid=1.5; hi=3.0; }
+  else if(tier === 'laptop_ok')   { lo=0.7;  mid=1.1; hi=2.0; }
   else if(tier === 'laptop_weak') { lo=0.6;  mid=0.9; hi=1.3; }
   else if(tier === 'tablet')      { lo=0.5;  mid=0.8; hi=1.2; }
   else /* phone */                { lo=0.45; mid=0.7; hi=1.0; }
@@ -16990,6 +17012,10 @@ function _queuePixelRatio(pr){
 }
 function _applyDeferredPixelRatio(now){
   if(_pendingPixelRatio == null) return;
+  // JPEG撮影中は絶対に適用しない: 撮影は「PRブースト→2回レンダー(90ms待ち込み)→
+  // crop」の間、crop座標を撮影開始時のPRで計算する。この待ちの間にキュー済みPRが
+  // 適用されるとバッファ解像度とcrop座標がズレ、切り出し範囲が壊れる。
+  if(window._captureBusy) return;
   // Defer while any input/motion is in flight
   const moving = dragOn || (typeof joyDX!=='undefined' && (joyDX!==0||joyDY!==0)) ||
                  (keys.KeyW||keys.KeyS||keys.KeyA||keys.KeyD||keys.KeyQ||keys.KeyE||keys.ShiftLeft||keys.ShiftRight) ||
@@ -18176,6 +18202,16 @@ window.__diagState = {
   get slowStreak(){ const w = window._gpuWatchdog; return w ? (w.slowStreak||0) : null; },
   get fastStreak(){ const w = window._gpuWatchdog; return w ? (w.fastStreak||0) : null; },
   get calibrationUntil(){ const w = window._gpuWatchdog; return w ? (w.calibrationUntil||0) : null; },
+  get lodPrefetch(){ return window.__lodPrefetch || null; },
+  get pagedNumSplats(){
+    try{
+      const L = (typeof layers!=='undefined') ? layers.find(l=>l&&l._isMain&&l.mesh&&l.mesh.paged) : null;
+      return L ? L.mesh.paged.numSplats : null;
+    }catch(_){ return null; }
+  },
+  get lodQuatOverrideSet(){
+    try{ return !!(typeof sparkRenderer!=='undefined' && sparkRenderer && sparkRenderer.lodQuatOverride); }catch(_){ return null; }
+  },
 };
 
 // ── Self-installing sampler ───────────────────────────────────────────────
@@ -18649,6 +18685,94 @@ function updateLightHalos(){
 // updateLightHalos() also caches its writes (skips DOM updates if values are unchanged)
 // to avoid forcing unnecessary repaints/reflows.
 
+// ══════════════════════════════════════════════════
+//  RAD LOD PREFETCH (2026-07-02, spec S3)
+//  1) 全方位プリウォーム: RADロード安定後に lodQuatOverride を12方位へ順に向け、
+//     周囲チャンクをページプール(LRU)へ常駐化 → 一度読んだ方向への回転は即精細。
+//     desktopのみ(モバイルは帯域配慮)。ユーザー操作で即中断、アイドル1秒で再開、
+//     1シーン1周で終了。
+//  2) 回転先読み: 慣性回転中は目標方向を override に先出し → 到達前にフェッチ開始。
+//  LODウォーカーは renderer.render() 内でしか回らないため、プリウォーム中は
+//  _splatActiveUntil を延長してレンダーを起こし続ける。
+//  安全規則: 撮影(window._captureBusy)・録画(camAnim._recCopyFn)・walk中は
+//  override を必ず null（実カメラのLODを最優先）。
+(function(){
+  const DIRS = 12;
+  const DWELL_MS = 500;               // 1方位あたりの滞在
+  const st = { phase:'wait', dir:0, dirAt:0, idleAt:0, mesh:null };
+  window.__lodPrefetch = st;          // diag可視化用
+  const _sr = () => (typeof sparkRenderer !== 'undefined' && sparkRenderer) ? sparkRenderer : null;
+  const _isDesktop = () => (typeof _splatPerfTier !== 'undefined' && _splatPerfTier === 'desktop');
+  const _mainPaged = () => {
+    if(typeof layers === 'undefined' || !layers) return null;
+    const L = layers.find(l => l && l._isMain && l.mesh && l.mesh.paged);
+    return L ? L.mesh : null;
+  };
+  // 撮影/録画/walk = override禁止（実カメラ優先）
+  const _mustReleaseOverride = () =>
+    !!window._captureBusy ||
+    (typeof camAnim !== 'undefined' && camAnim && !!camAnim._recCopyFn) ||
+    (typeof walkMode !== 'undefined' && walkMode && walkMode.active);
+  // ユーザーが今シーンを操作しているか（プリウォームは邪魔しない）
+  const _userActive = () =>
+    (typeof dragOn !== 'undefined' && dragOn) ||
+    (typeof joyDX !== 'undefined' && (joyDX !== 0 || joyDY !== 0)) ||
+    (typeof keys !== 'undefined' && !!(keys.KeyW||keys.KeyS||keys.KeyA||keys.KeyD||keys.KeyQ||keys.KeyE)) ||
+    (typeof yaw !== 'undefined' && (Math.abs(_yawTarget - yaw) > 1e-3 || Math.abs(_pitchTarget - pitch) > 1e-3));
+  // 現在ビューを world-Y 軸で dy 回した LOD 選択用クォータニオン（カメラ規約非依存）
+  const _qY = new THREE.Quaternion();
+  const _UP = new THREE.Vector3(0, 1, 0);
+  const _quatYawOffset = (dy) => _qY.setFromAxisAngle(_UP, dy).clone().multiply(camera.quaternion);
+
+  setInterval(() => {
+    const sr = _sr(); if(!sr) return;
+    const mesh = _mainPaged();
+    // シーン差し替え/破棄 → 状態リセット
+    if(mesh !== st.mesh){ st.mesh = mesh; st.phase = mesh ? 'wait' : 'off'; st.dir = 0; }
+    if(!mesh){ if(sr.lodQuatOverride) sr.lodQuatOverride = null; return; }
+    if(_mustReleaseOverride()){ if(sr.lodQuatOverride) sr.lodQuatOverride = null; st.idleAt = 0; return; }
+
+    // ── 2) 回転先読み（プリウォームより優先。全ティアで有効・コストほぼゼロ）──
+    const dy = (typeof _yawTarget !== 'undefined') ? (_yawTarget - yaw) : 0;
+    if(Math.abs(dy) > 0.05){
+      sr.lodQuatOverride = _quatYawOffset(dy);
+      st.idleAt = 0;
+      return;
+    }
+
+    // ── 1) 全方位プリウォーム（desktopのみ・1シーン1周）──
+    if(!_isDesktop()){ if(st.phase !== 'done' && sr.lodQuatOverride) sr.lodQuatOverride = null; return; }
+    const now = performance.now();
+    if(st.phase === 'wait'){
+      if(typeof _sceneSettledForCalibration === 'function' && _sceneSettledForCalibration()){
+        st.phase = 'sweep'; st.dir = 0; st.dirAt = 0;
+        console.info('[Locahun][Prefetch] 全方位プリウォーム開始 (' + DIRS + '方位)');
+      }
+      return;
+    }
+    if(st.phase !== 'sweep'){ if(sr.lodQuatOverride) sr.lodQuatOverride = null; return; }
+    if(_userActive()){
+      // 操作中は中断・override解放。アイドル1秒で再開。
+      if(sr.lodQuatOverride) sr.lodQuatOverride = null;
+      st.idleAt = now + 1000; st.dirAt = 0;
+      return;
+    }
+    if(now < st.idleAt) return;
+    if(st.dirAt === 0){ st.dirAt = now; }
+    sr.lodQuatOverride = _quatYawOffset(st.dir * Math.PI * 2 / DIRS);
+    // LODウォーカーを回すためレンダーを起こし続ける
+    if(typeof _splatActiveUntil !== 'undefined') _splatActiveUntil = now + DWELL_MS + 200;
+    if(typeof markDirty === 'function') markDirty(2);
+    if(now - st.dirAt >= DWELL_MS){
+      st.dir++; st.dirAt = 0;
+      if(st.dir >= DIRS){
+        st.phase = 'done';
+        sr.lodQuatOverride = null;
+        console.info('[Locahun][Prefetch] プリウォーム完了 — 周囲チャンク常駐化');
+      }
+    }
+  }, 100);
+})();
 // ══════════════════════════════════════════════════
 //  EXPORT / SAVE / LOAD
 // ══════════════════════════════════════════════════
@@ -22052,6 +22176,19 @@ function applyQualityTier(idx, opts){
           L.mesh.lodScale = newLod;
         }
       }
+    }
+  } catch(_){}
+  // ── 高画質時のLOD総予算拡大 (spec S2) ──
+  // lodScale を 2.0 超に上げても総予算 lodSplatCount(desktop既定250万)が先に
+  // 頭打ちになり広範囲が精細化しない(実測で飽和確認済み)。「高」の時だけ予算も
+  // 引き上げ、低/中では undefined に戻して Spark の端末別既定に委ねる。
+  // VRAM上限 maxPagedSplats(desktop 1677万) は別枠なので触らない。
+  try {
+    if(typeof sparkRenderer !== 'undefined' && sparkRenderer){
+      const _tier = (typeof _splatPerfTier !== 'undefined') ? _splatPerfTier : 'laptop_ok';
+      if(i === 2 && _tier === 'desktop')        sparkRenderer.lodSplatCount = 5000000;
+      else if(i === 2 && _tier === 'laptop_ok') sparkRenderer.lodSplatCount = 3000000;
+      else sparkRenderer.lodSplatCount = undefined;
     }
   } catch(_){}
   _updateQiBadgeLabel(i);

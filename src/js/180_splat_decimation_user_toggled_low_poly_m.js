@@ -53,16 +53,16 @@ function _radLodScaleForStride(stride){
 // splat 数は GPU 負荷に直結し、qualScale/PR は解像度しか下げず splat 数を減らせ
 // ないため、弱い端末で数百万 splat を出すと FPS を守れない。よって端末ティアで
 // 上限を調整する（desktop=5090級はほぼ全精細まで引き上げる）。
-//   desktop:     低0.8 / 中1.5 / 高2.2  (中≈2.4M, 高=cap~2.5M)
-//   laptop_ok:   低0.7 / 中1.1 / 高1.6
+//   desktop:     低0.8 / 中1.5 / 高3.0  (中≈2.4M, 高=Task2のlodSplatCount拡大とセットで飽和が外れる)
+//   laptop_ok:   低0.7 / 中1.1 / 高2.0  (高はTask2のlodSplatCount拡大とセットで飽和が外れる)
 //   laptop_weak: 低0.6 / 中0.9 / 高1.3
 //   tablet:      低0.5 / 中0.8 / 高1.2
 //   phone:       低0.45/ 中0.7 / 高1.0
 function _radLodScaleForQuality(idx){
   const tier = (typeof _splatPerfTier !== 'undefined') ? _splatPerfTier : 'laptop_ok';
   let lo, mid, hi;
-  if(tier === 'desktop')          { lo=0.8;  mid=1.5; hi=2.2; }
-  else if(tier === 'laptop_ok')   { lo=0.7;  mid=1.1; hi=1.6; }
+  if(tier === 'desktop')          { lo=0.8;  mid=1.5; hi=3.0; }
+  else if(tier === 'laptop_ok')   { lo=0.7;  mid=1.1; hi=2.0; }
   else if(tier === 'laptop_weak') { lo=0.6;  mid=0.9; hi=1.3; }
   else if(tier === 'tablet')      { lo=0.5;  mid=0.8; hi=1.2; }
   else /* phone */                { lo=0.45; mid=0.7; hi=1.0; }

@@ -460,5 +460,15 @@ window.__diagState = {
   get slowStreak(){ const w = window._gpuWatchdog; return w ? (w.slowStreak||0) : null; },
   get fastStreak(){ const w = window._gpuWatchdog; return w ? (w.fastStreak||0) : null; },
   get calibrationUntil(){ const w = window._gpuWatchdog; return w ? (w.calibrationUntil||0) : null; },
+  get lodPrefetch(){ return window.__lodPrefetch || null; },
+  get pagedNumSplats(){
+    try{
+      const L = (typeof layers!=='undefined') ? layers.find(l=>l&&l._isMain&&l.mesh&&l.mesh.paged) : null;
+      return L ? L.mesh.paged.numSplats : null;
+    }catch(_){ return null; }
+  },
+  get lodQuatOverrideSet(){
+    try{ return !!(typeof sparkRenderer!=='undefined' && sparkRenderer && sparkRenderer.lodQuatOverride); }catch(_){ return null; }
+  },
 };
 

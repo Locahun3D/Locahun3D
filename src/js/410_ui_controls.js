@@ -79,6 +79,19 @@ function applyQualityTier(idx, opts){
       }
     }
   } catch(_){}
+  // ── 高画質時のLOD総予算拡大 (spec S2) ──
+  // lodScale を 2.0 超に上げても総予算 lodSplatCount(desktop既定250万)が先に
+  // 頭打ちになり広範囲が精細化しない(実測で飽和確認済み)。「高」の時だけ予算も
+  // 引き上げ、低/中では undefined に戻して Spark の端末別既定に委ねる。
+  // VRAM上限 maxPagedSplats(desktop 1677万) は別枠なので触らない。
+  try {
+    if(typeof sparkRenderer !== 'undefined' && sparkRenderer){
+      const _tier = (typeof _splatPerfTier !== 'undefined') ? _splatPerfTier : 'laptop_ok';
+      if(i === 2 && _tier === 'desktop')        sparkRenderer.lodSplatCount = 5000000;
+      else if(i === 2 && _tier === 'laptop_ok') sparkRenderer.lodSplatCount = 3000000;
+      else sparkRenderer.lodSplatCount = undefined;
+    }
+  } catch(_){}
   _updateQiBadgeLabel(i);
   document.querySelectorAll('#quality-panel #qbtns button').forEach((b,k)=>b.classList.toggle('on',k===i));
   if(source === 'manual'){
