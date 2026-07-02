@@ -318,9 +318,9 @@ function renderTransformPanel(){
   ${coordToggle}
   <div class="lt-section">${T('lt-pos')} (${pivSp==='local'?T('lt-pos-local'):T('lt-pos-world')})</div>
   <div class="lt-row">
-    <span class="la" style="color:#ff5566">X</span><input type="number" id="lt-px" step="0.01" value="${p.x.toFixed(2)}" oninput="readTransformInputs(${L.id})">
-    <span class="la" style="color:#55ee66">Y</span><input type="number" id="lt-py" step="0.01" value="${p.y.toFixed(2)}" oninput="readTransformInputs(${L.id})">
-    <span class="la" style="color:#5599ff">Z</span><input type="number" id="lt-pz" step="0.01" value="${p.z.toFixed(2)}" oninput="readTransformInputs(${L.id})">
+    <span class="la" style="color:#ff5566">X</span><input type="number" id="lt-px" step="1" value="${p.x.toFixed(2)}" oninput="readTransformInputs(${L.id})">
+    <span class="la" style="color:#55ee66">Y</span><input type="number" id="lt-py" step="1" value="${p.y.toFixed(2)}" oninput="readTransformInputs(${L.id})">
+    <span class="la" style="color:#5599ff">Z</span><input type="number" id="lt-pz" step="1" value="${p.z.toFixed(2)}" oninput="readTransformInputs(${L.id})">
   </div>
   <div class="lt-section">${T('lt-rot')}</div>
   <div class="lt-row">
@@ -330,18 +330,18 @@ function renderTransformPanel(){
   </div>
   <div class="lt-section">${T('lt-scale')}</div>
   <div class="lt-row">
-    <span class="la" style="color:#ff6677">X</span><input type="number" id="lt-scx" step="0.01" min="0.01" value="${sc.x.toFixed(2)}" oninput="readTransformInputs(${L.id})">
-    <span class="la" style="color:#66ee88">Y</span><input type="number" id="lt-scy" step="0.01" min="0.01" value="${sc.y.toFixed(2)}" oninput="readTransformInputs(${L.id})">
-    <span class="la" style="color:#77aaff">Z</span><input type="number" id="lt-scz" step="0.01" min="0.01" value="${sc.z.toFixed(2)}" oninput="readTransformInputs(${L.id})">
+    <span class="la" style="color:#ff6677">X</span><input type="number" id="lt-scx" step="1" min="0.01" value="${sc.x.toFixed(2)}" oninput="readTransformInputs(${L.id})">
+    <span class="la" style="color:#66ee88">Y</span><input type="number" id="lt-scy" step="1" min="0.01" value="${sc.y.toFixed(2)}" oninput="readTransformInputs(${L.id})">
+    <span class="la" style="color:#77aaff">Z</span><input type="number" id="lt-scz" step="1" min="0.01" value="${sc.z.toFixed(2)}" oninput="readTransformInputs(${L.id})">
   </div>`;
   // ── Event: position-only panel (no rotation/scale) ──
   if(L.type==='event'){
     html=`<div class="lt-title">${LAYER_ICONS[L.type]} ${L.name}</div>
   <div class="lt-section">${T('lt-pos')}</div>
   <div class="lt-row">
-    <span class="la" style="color:#ff5566">X</span><input type="number" id="lt-px" step="0.01" value="${p.x.toFixed(2)}" oninput="readTransformInputs(${L.id})">
-    <span class="la" style="color:#55ee66">Y</span><input type="number" id="lt-py" step="0.01" value="${p.y.toFixed(2)}" oninput="readTransformInputs(${L.id})">
-    <span class="la" style="color:#5599ff">Z</span><input type="number" id="lt-pz" step="0.01" value="${p.z.toFixed(2)}" oninput="readTransformInputs(${L.id})">
+    <span class="la" style="color:#ff5566">X</span><input type="number" id="lt-px" step="1" value="${p.x.toFixed(2)}" oninput="readTransformInputs(${L.id})">
+    <span class="la" style="color:#55ee66">Y</span><input type="number" id="lt-py" step="1" value="${p.y.toFixed(2)}" oninput="readTransformInputs(${L.id})">
+    <span class="la" style="color:#5599ff">Z</span><input type="number" id="lt-pz" step="1" value="${p.z.toFixed(2)}" oninput="readTransformInputs(${L.id})">
   </div>`;
   }
   // ── Splat: 軸反転ボタン (X / Y / Z 180°回転) ──
@@ -465,9 +465,9 @@ function renderTransformPanel(){
     if(L.type==='sphere'){
     html+=`<div class="lt-section">${T('lt-size')}</div>
   <div class="lt-row">
-    <span class="la" style="color:#ff5566">W</span><input type="number" id="lt-sw" step="0.01" min="0.01" value="${s.x.toFixed(2)}" oninput="readTransformInputs(${L.id})">
-    <span class="la" style="color:#55ee66">H</span><input type="number" id="lt-sh" step="0.01" min="0.01" value="${s.y.toFixed(2)}" oninput="readTransformInputs(${L.id})">
-    <span class="la" style="color:#5599ff">D</span><input type="number" id="lt-sd" step="0.01" min="0.01" value="${s.z.toFixed(2)}" oninput="readTransformInputs(${L.id})">
+    <span class="la" style="color:#ff5566">W</span><input type="number" id="lt-sw" step="1" min="0.01" value="${s.x.toFixed(2)}" oninput="readTransformInputs(${L.id})">
+    <span class="la" style="color:#55ee66">H</span><input type="number" id="lt-sh" step="1" min="0.01" value="${s.y.toFixed(2)}" oninput="readTransformInputs(${L.id})">
+    <span class="la" style="color:#5599ff">D</span><input type="number" id="lt-sd" step="1" min="0.01" value="${s.z.toFixed(2)}" oninput="readTransformInputs(${L.id})">
   </div>`;
     }
     html+=`<div class="lt-section">${T('lt-appear')}</div>
