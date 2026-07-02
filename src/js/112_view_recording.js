@@ -288,6 +288,17 @@ window.stopViewRecording = function(){
 };
 
 window.toggleViewRecording = function(){
+  // カメラワークのクロップ録画(camAnim._recRec)は _viewRec と別レコーダー。
+  // 従来この分岐がなく、クロップ録画中に「停止」(赤ボタン)を押すと
+  // _viewRec.active=false のため誤って2本目の全画面録画が始まり、
+  // 「録画が終わらない・保存されない」に見えるバグだった(2026-07-03修正)。
+  // ウォームアップ中(warming)や非クロップのカメラワーク録画(_recFinish)も
+  // camAnimStopRecord が適切に中止/終了保存する。
+  if(typeof camAnim !== 'undefined' && camAnim &&
+     (camAnim._recRec || camAnim.warming || camAnim._recFinish)){
+    if(typeof window.camAnimStopRecord === 'function') window.camAnimStopRecord();
+    return;
+  }
   if(_viewRec.active) window.stopViewRecording();
   else                window.startViewRecording();
 };

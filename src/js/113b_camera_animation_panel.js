@@ -308,6 +308,18 @@ window.camAnimRecordExport = function(){
   // The recorder + animation start only after camAnim.warmupMs has elapsed.
   _camAnimApplySample(camAnim.keys[0]);
   camAnim.warming = true;
+  // ウォームアップ中の手動中止経路（録画ボタン→camAnimStopRecord から呼ばれる）。
+  // レコーダー起動前なのでファイルは作らず、隠したUIを復元して静かに戻るだけ。
+  camAnim._recAbort = () => {
+    if(camAnim.warmTimer){ clearTimeout(camAnim.warmTimer); camAnim.warmTimer = 0; }
+    if(camAnim.warmNudgeId){ clearInterval(camAnim.warmNudgeId); camAnim.warmNudgeId = 0; }
+    camAnim.warming = false;
+    if(p)  p.style.display  = prevDisplay;
+    if(cf) cf.style.display = prevCf;
+    if(camAnim.open) _camAnimSetVisualsVisible(true);
+    camAnim._recAbort = null;
+    _camAnimRenderPanel();
+  };
   const _warmMs = Math.max(0, camAnim.warmupMs || 0);
   // Keep the splat sort / LoD walker running across the whole warm-up so it
   // actually pages in higher detail (a single markDirty would only paint a
@@ -404,12 +416,15 @@ window.camAnimRecordExport = function(){
     // recording duration matches camAnim.totalSec even if Chrome throttles
     // rAF during the export. Same pattern as window.camAnimPreview.
     let recRafId = 0, recTimeoutId = 0, recDeadlineId = 0;
-    const finishRec = () => {
+    // manual=true は録画ボタンからの手動停止(camAnimStopRecord経由)。
+    // その場合は最終キーへカメラをジャンプさせない(今見ている画で止める)。
+    const finishRec = (manual) => {
       if(recRafId)     cancelAnimationFrame(recRafId);
       if(recTimeoutId) clearTimeout(recTimeoutId);
       if(recDeadlineId){ clearTimeout(recDeadlineId); recDeadlineId = 0; }
       recRafId = recTimeoutId = 0;
-      _camAnimApplySample(camAnim.keys[camAnim.keys.length - 1]);
+      camAnim._recFinish = null;   // 二重呼び出し防止(手動停止→直後にdeadline等)
+      if(!manual) _camAnimApplySample(camAnim.keys[camAnim.keys.length - 1]);
       camAnim.playing = false;
       setTimeout(() => {
         if(_useCamFrame){
@@ -444,12 +459,24 @@ window.camAnimRecordExport = function(){
     // the deadline.
     recDeadlineId = setTimeout(() => { if(camAnim.playing) finishRec(); },
                                Math.max(50, camAnim.totalSec * 1000 + 50));
+    // 録画が始まったので warm-up 中止経路は無効化し、手動停止経路を有効化。
+    camAnim._recAbort  = null;
+    camAnim._recFinish = finishRec;
     tickRec();
   };
 
   if(camAnim.warmTimer){ clearTimeout(camAnim.warmTimer); camAnim.warmTimer = 0; }
   if(_warmMs > 0) camAnim.warmTimer = setTimeout(_beginRecording, _warmMs);
   else            _beginRecording();
+};
+
+// カメラワーク録画の手動停止（録画ボタン=「停止」表示 から toggleViewRecording
+// 経由で呼ばれる）。録画中なら即座に終了して保存、ウォームアップ中ならレコーダー
+// 起動前なので中止のみ（ファイルは作られない）。従来はこの経路が存在せず、
+// クロップ録画中の「停止」クリックが2本目の全画面録画を誤起動していた。
+window.camAnimStopRecord = function(){
+  if(camAnim._recFinish){ camAnim._recFinish(true); return; }
+  if(camAnim._recAbort){ camAnim._recAbort(); }
 };
 
 // Render the active grids onto a 2D canvas of the cropped image. Mirrors the SVG
