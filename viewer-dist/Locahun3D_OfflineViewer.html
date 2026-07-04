@@ -11532,30 +11532,52 @@ async function loadSplatFile(file){
     // "ポリゴン 1/4" from the quality panel after observing slow FPS or
     // memory pressure.
 
-    // ── 常にバッファを読み込む（ZIP保存キャッシュ兼用）──
-    setMsg(T('loading-file')); setBar(15);
-    const rawBuf=await _readFileArrayBufferChunked(file, p => setBar(15 + Math.round(p*7)));
-
-    // Stats for camera placement + position cache for picking
+    // ── .RAD: never read the whole file into one buffer ──
+    // .RAD is Spark's OWN format for scans too large to hold as one buffer
+    // (that's the entire point of paged/streaming). Reading it upfront via
+    // _readFileArrayBufferChunked — like every other format below — would
+    // hit the exact >2GiB ceiling RAD exists to avoid, on a file that is
+    // BY DESIGN often the largest thing a user drops on this viewer. So:
+    // peek only the JSON header (first 1MB, plenty for `_parseRadHeaderCount`)
+    // and hand Spark a `blob:` URL instead of bytes — Chrome's blob: URLs
+    // DO honour Range requests against a local File (confirmed live: 206 +
+    // correct Content-Range past the 2GiB file-size mark), so Spark's normal
+    // url+paged Range-fetch path (identical to the online-demo/URL loader)
+    // streams it exactly like a real HTTP .rad, no matter how large the file.
+    let rawBuf = null, _splatBytes = null, blobUrl = null;
     let stats={center:new THREE.Vector3(),size:5,cache:null,cacheCount:0};
-    if(ext==='splat'||ext==='ply'){
-      setMsg(T('parsing')); setBar(22);
-      const flipYZ=(ext==='ply');
-      stats=(ext==='ply')?estimatePLYStats(rawBuf,flipYZ):estimateSplatStats(rawBuf);
-      msr.cachedPts   = stats.cache;
-      msr.cachedCount = stats.cacheCount;
-    } else {
+    if(ext === 'rad'){
+      setMsg(T('loading-file')); setBar(15);
+      const headBuf = await file.slice(0, 1024*1024).arrayBuffer();
+      var _radTargetCountLocal = _parseRadHeaderCount(new Uint8Array(headBuf));
       msr.cachedPts = null; msr.cachedCount = 0;
-    }
+      blobUrl = URL.createObjectURL(file);
+      setMsg(T('building-3dgs')); setBar(50);
+    } else {
+      // ── 常にバッファを読み込む（ZIP保存キャッシュ兼用）──
+      setMsg(T('loading-file')); setBar(15);
+      rawBuf=await _readFileArrayBufferChunked(file, p => setBar(15 + Math.round(p*7)));
 
-    setMsg(T('building-3dgs')); setBar(50);
+      // Stats for camera placement + position cache for picking
+      if(ext==='splat'||ext==='ply'){
+        setMsg(T('parsing')); setBar(22);
+        const flipYZ=(ext==='ply');
+        stats=(ext==='ply')?estimatePLYStats(rawBuf,flipYZ):estimateSplatStats(rawBuf);
+        msr.cachedPts   = stats.cache;
+        msr.cachedCount = stats.cacheCount;
+      } else {
+        msr.cachedPts = null; msr.cachedCount = 0;
+      }
+
+      setMsg(T('building-3dgs')); setBar(50);
+    }
 
     // Load-time decimation has been REMOVED across all device classes.
     // Every device — including iPhone — loads at full quality. The
     // "ポリゴン 1/4" toggle is now strictly OPT-IN: it only takes effect
     // when the user explicitly flips it (reloadAllSplatLayers continues
     // to honour _splatStride() so the manual toggle path still works).
-    const _splatBytes = rawBuf;
+    if(ext !== 'rad') _splatBytes = rawBuf;
     // Force-sync the persisted preference + every visible toggle to OFF
     // so a stale `locahun_splat_stride=4` entry from a previous session
     // (e.g. earlier iPhone build that seeded it on big files) doesn't
@@ -11568,12 +11590,19 @@ async function loadSplatFile(file){
       if(_hCb) _hCb.checked = false;
     }
 
-    // Spark 2.x: feed the loader the ArrayBuffer directly via `fileBytes`.
-    // Going through a blob: URL was observed to hang indefinitely
-    // ("pending" forever on large 3DGS PLY scans), and large buffers also
-    // round-trip badly through the loader's Worker fetch. fileBytes skips
-    // both. fileType + fileName let Spark pick the right parser.
-    const opts={fileBytes:_splatBytes, fileName:file.name, ...SPARK_QUALITY_OPTS};
+    // Spark 2.x: feed the loader the ArrayBuffer directly via `fileBytes`
+    // (PLY/SPLAT/SPZ/KSPLAT/OBJ — all read whole above) — EXCEPT .RAD,
+    // which gets `url:` + `paged:true` instead (see the ext==='rad' branch
+    // above: never materializes the whole file, streams via blob: Range
+    // fetches exactly like the online-demo/URL loader). Going through a
+    // blob: URL for the non-RAD *bytes* path was observed to hang
+    // indefinitely ("pending" forever on large 3DGS PLY scans) — that
+    // observation doesn't apply to RAD, whose Spark-internal paged reader
+    // already Range-fetches in bounded chunks rather than awaiting one
+    // whole-blob read.
+    const opts = (ext === 'rad')
+      ? { url: blobUrl, fileName: file.name, ...SPARK_QUALITY_OPTS }
+      : { fileBytes: _splatBytes, fileName: file.name, ...SPARK_QUALITY_OPTS };
     // ?lod=1 — allow Spark to build the SplatMesh with its runtime LOD
     // machinery ON (overrides SPARK_QUALITY_OPTS for this load only).
     if(/[?&]lod=1/.test(location.search)){
@@ -11593,36 +11622,22 @@ async function loadSplatFile(file){
         // .RAD is the streaming format from World Labs (Spark 2.x). If
         // this Spark build hasn't shipped SplatFileType.RAD yet, fail
         // loud rather than silently treating it as PLY.
+        if(blobUrl) try{ URL.revokeObjectURL(blobUrl); }catch(_){}
         throw new Error('このファイル形式は Spark が認識できませんでした。対応形式: PLY / SPLAT / SPZ / KSPLAT / RAD / SOG / PCSOGS');
       }
     }
-    // .RAD is built around LoD chunks (matsutomato Qiita 2026-05): we
-    // need Spark's PagedSplats reader, which is the only code path that
-    // handles RAD. The naive `opts.paged = true` shortcut DOES NOT WORK
-    // here: SplatMesh's constructor builds `new PagedSplats({ rootUrl })`
-    // in that case — it never forwards `fileBytes` or `fileType`, so
-    // PagedSplats then throws "Unable to determine file type". The only
-    // supported way to feed fileBytes through paged is to construct the
-    // PagedSplats ourselves and pass it as `options.paged`. Confirmed by
-    // source inspection of @sparkjsdev/spark@2.0.0 (2026-05).
+    // .RAD via url+paged:true (Spark builds its own url-backed PagedSplats
+    // internally — the SAME mechanism the online-demo/URL loader uses, just
+    // pointed at a blob: URL instead of an http(s) one). This is what makes
+    // local .rad loading actually stream instead of requiring one buffer.
     let _radTargetCount = 0;
     if(ext === 'rad'){
-      const _radBytes = _splatBytes instanceof ArrayBuffer
-        ? new Uint8Array(_splatBytes)
-        : _splatBytes;
-      _radTargetCount = _parseRadHeaderCount(_radBytes);
-      opts.paged = new PagedSplats({
-        fileBytes: _radBytes,
-        fileType: _splatFileTypeFor('rad'),
-      });
+      _radTargetCount = _radTargetCountLocal;
+      opts.paged = true;
       opts.lod = true;
       opts.enableLod = true;
       // Honour the "ポリゴン 1/4" toggle for RAD too — see _radLodScaleForStride.
       opts.lodScale = _radEffectiveLodScale();
-      // PagedSplats now owns the bytes; remove SplatMesh-level fileBytes
-      // so Spark doesn't try to double-parse.
-      delete opts.fileBytes;
-      delete opts.fileType;
       // .RAD streaming uses Spark's LoD walker, which relies on the cone
       // foveation parameters to decide which chunks to fetch. The defaults
       // in SPARK_QUALITY_OPTS (`coneFoveate:0`, `coneFov:π`) were tuned for
@@ -11638,7 +11653,14 @@ async function loadSplatFile(file){
     }
     // Remove previous main splat layer
     const _prevMain=layers.find(l=>l._isMain);
-    if(_prevMain){ scene.remove(_prevMain.mesh); const _i=layers.indexOf(_prevMain); if(_i>=0)layers.splice(_i,1); }
+    if(_prevMain){
+      scene.remove(_prevMain.mesh); const _i=layers.indexOf(_prevMain); if(_i>=0)layers.splice(_i,1);
+      // Local .rad layers own a blob: URL for their streamed lifetime —
+      // release it now that this layer is being replaced (real http(s)
+      // URLs on _prevMain._streamUrl are harmless no-ops here since
+      // revokeObjectURL only affects blob: URLs it created).
+      if(_prevMain._blobUrl){ try{ URL.revokeObjectURL(_prevMain._blobUrl); }catch(_){} }
+    }
     if(splatMesh && !layers.find(l=>l.mesh===splatMesh)) scene.remove(splatMesh);
     splatMesh=new SplatMesh(opts);
     // Stash target count for the render-loop streaming guard.
@@ -11661,6 +11683,16 @@ async function loadSplatFile(file){
     // desktop / iPad (stride=1) `_splatBytes === rawBuf` so this is a no-op.
     mainL._rawBuffer=_splatBytes;
     mainL._rawExt=ext;
+    if(ext === 'rad'){
+      // No _rawBuffer for a streamed local .rad (that's the whole point —
+      // never materialize the file). _streamUrl matches the existing
+      // ZIP-save contract for streamed splats (310_zip_project_save_load_
+      // fflate.js already knows how to handle a layer with _streamUrl and
+      // no _rawBuffer); _blobUrl additionally marks it for revocation when
+      // this layer is replaced (see the _prevMain._blobUrl cleanup above).
+      mainL._streamUrl = blobUrl;
+      mainL._blobUrl = blobUrl;
+    }
     // Explicitly release the reference to the (possibly huge) original so
     // GC can reclaim it now that Spark + cache no longer need it.
     if(_splatBytes !== rawBuf) { /* hint to GC — original Float buffer goes here */ }
@@ -18613,6 +18645,11 @@ setInterval(()=>{
 // File of arbitrary size (content doesn't matter — only the SIZE triggers
 // the Chrome blob-transfer limit) so the failure/fix can be verified without
 // transferring real multi-GB data over the network.
+// Exercise the real local-file drag-drop path (loadSplatFile is module-
+// scoped, not otherwise reachable from devtools) — lets a test pass a real
+// File object (e.g. wrapping fetched .rad bytes) through the exact same
+// code a drag-drop would run, including the new blob:-URL RAD streaming.
+window.__testLoadSplatFile = function(file){ return loadSplatFile(file); };
 window.__makeTestFile = function(sizeBytes, name){
   const buf = new ArrayBuffer(sizeBytes);
   return new File([buf], name || 'test.ply', { type: 'application/octet-stream' });

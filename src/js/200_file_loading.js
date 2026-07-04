@@ -174,7 +174,19 @@ async function loadSplatFile(file){
     let _radTargetCount = 0;
     if(ext === 'rad'){
       _radTargetCount = _radTargetCountLocal;
-      opts.paged = true;
+      // NOTE: `opts.paged = true` (the shortcut the demo/URL loader uses)
+      // does NOT work for a blob: URL — confirmed live ("エラー: Unable to
+      // determine file type"). SplatMesh's `paged:true` branch builds
+      // `new PagedSplats({ rootUrl })` internally and does NOT forward the
+      // outer opts.fileType to it; PagedSplats then falls back to sniffing
+      // the type from the rootUrl STRING's extension (SplatPager.ts:89-93
+      // `getSplatFileTypeFromPath`), which only works for real .rad URLs —
+      // a blob: URL has no extension to sniff. Building PagedSplats
+      // ourselves with an explicit fileType (same pattern the old fileBytes
+      // path used) sidesteps the sniffing entirely.
+      opts.paged = new PagedSplats({ rootUrl: blobUrl, fileType: _splatFileTypeFor('rad') });
+      delete opts.url;
+      delete opts.fileType;
       opts.lod = true;
       opts.enableLod = true;
       // Honour the "ポリゴン 1/4" toggle for RAD too — see _radLodScaleForStride.
