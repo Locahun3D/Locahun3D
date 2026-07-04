@@ -18559,6 +18559,24 @@ setInterval(()=>{
     }
   }catch(_){}
 }, 500);
+// Renderer-level pixelScaleLimit multiplier (distinct from mesh.lodScale —
+// this one scales the actual screen-space-error THRESHOLD Spark uses to
+// decide whether a splat needs finer LOD, per SparkRenderer.ts's own
+// `pixelScaleLimit *= this.lodRenderScale`). Lower = finer/more detail.
+window.__setLodRenderScale = function(n){
+  window.__lodRenderScalePin = (typeof n === 'number' && n > 0) ? n : null;
+  try{ if(typeof sparkRenderer !== 'undefined' && sparkRenderer && window.__lodRenderScalePin){
+    sparkRenderer.lodRenderScale = window.__lodRenderScalePin;
+    window.__lodRenderScaleReadback = sparkRenderer.lodRenderScale;
+  }}catch(e){ window.__lodRenderScaleErr = String(e && e.message || e); }
+};
+setInterval(()=>{
+  if(window.__lodRenderScalePin == null) return;
+  try{ if(typeof sparkRenderer !== 'undefined' && sparkRenderer){
+    sparkRenderer.lodRenderScale = window.__lodRenderScalePin;
+    window.__lodRenderScaleReadback = sparkRenderer.lodRenderScale;
+  }}catch(_){}
+}, 500);
 if(/[?&]stress=(\d+)/.test(location.search)){
   const stressLevel = parseInt(RegExp.$1, 10) || 1;
   setTimeout(()=>{
