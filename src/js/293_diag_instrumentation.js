@@ -234,16 +234,21 @@ if(/[?&]prof=1/.test(location.search)){
   }, 1000);
   console.info('[Locahun-diag] CPU profiler ENABLED — per-section averages logged');
 }
-// Manual quality override (?qual=N where N = 0.5/0.75/1.0/1.5/2.0) — bypasses
-// the _probeOptimalQuality + watchdog so we can sweep quality at the same load.
+// Manual quality override (?qual=N where N = 0.75/1.0/1.5, i.e. 低/中/高) —
+// bypasses calibration + watchdog so we can pin a preset during a test load.
+// FIX (2026-07-04): idx mapping was stale from a pre-redesign 4-preset scheme
+// (0.5→0,0.75→1,1.0→2,1.5→3) that no longer matches the current 3-preset
+// SCALES=[0.75,1.0,1.5] table (idx 低=0/中=1/高=2). Passing ?qual=1.0 silently
+// pinned idx=2 (高, 5M lodSplatCount on desktop) instead of idx=1 (中) — found
+// live while trying to pin a 500k budget for a real-file RAD test. Mapping now
+// matches PRESET_FOR_SCALE in 291_render_loop.js: s>=1.4→高, s>=0.95→中, else低.
 if(/[?&]qual=([\d.]+)/.test(location.search)){
   const q = parseFloat(RegExp.$1);
   if(q > 0 && q <= 3){
     setTimeout(()=>{
       try {
         if(typeof window.setQuality === 'function'){
-          // Map scale → idx best-effort: 0.5→0, 0.75→1, 1.0→2, 1.5→3, else 3
-          const idx = q < 0.6 ? 0 : q < 0.9 ? 1 : q < 1.2 ? 2 : 3;
+          const idx = q >= 1.4 ? 2 : q >= 0.95 ? 1 : 0;
           window.setQuality(q, idx);
           // Also pin the watchdog so it can't oscillate during the test
           window._gpuWatchdog = window._gpuWatchdog || {};
@@ -254,6 +259,21 @@ if(/[?&]qual=([\d.]+)/.test(location.search)){
     }, 6000);
   }
 }
+// Raw LOD-budget override (?diag=1 only) — lets a test pin
+// sparkRenderer.lodSplatCount to an arbitrary value, bypassing the 3-preset
+// table entirely (e.g. to compare a RAD scene at the same splat count a PLY
+// load would use). Re-applied every 500ms so calibration/watchdog quality
+// changes can't silently override it mid-test.
+window.__setLodBudget = function(n){
+  window.__lodBudgetPin = (typeof n === 'number' && n > 0) ? n : null;
+  window._gpuWatchdog = window._gpuWatchdog || {};
+  window._gpuWatchdog.manualOverride = true; // also freeze the watchdog/calibration
+  try{ if(typeof sparkRenderer !== 'undefined' && sparkRenderer && window.__lodBudgetPin) sparkRenderer.lodSplatCount = window.__lodBudgetPin; }catch(_){}
+};
+setInterval(()=>{
+  if(window.__lodBudgetPin == null) return;
+  try{ if(typeof sparkRenderer !== 'undefined' && sparkRenderer) sparkRenderer.lodSplatCount = window.__lodBudgetPin; }catch(_){}
+}, 500);
 if(/[?&]stress=(\d+)/.test(location.search)){
   const stressLevel = parseInt(RegExp.$1, 10) || 1;
   setTimeout(()=>{
