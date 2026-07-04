@@ -8,7 +8,7 @@ async function _loadProjectZipFromFile(file){
 
     setMsg(T('zip-decomp')); setBar(20);
     // Chunked read: single-call file.arrayBuffer() fails on files > ~2GiB
-    // (Chrome blob-transfer limit) — see 200_file_loading.js for details.
+    // (V8 ArrayBuffer size ceiling ~2GiB; unfixable in-browser past that — see 200_file_loading.js) —
     const zipBuf=new Uint8Array(await _readFileArrayBufferChunked(file, p => setBar(20 + Math.round(p*15))));
     let unzipped;
     try{ unzipped=fflate.unzipSync(zipBuf); }

@@ -4249,12 +4249,25 @@ const _qualTouchLike = (function(){
 })();
 let qualScale = _qualTouchLike ? 0.75 : 1.0;
 let qualIdx   = _qualTouchLike ? 0    : 1;
-// "Preferred" quality — the ceiling the continuous-watchdog up-steps toward
-// after a downgrade. Starts as the device-tier auto pick; setQuality()
-// updates it when the user manually picks a level (so the watchdog won't
+// "Preferred" quality — the CEILING the continuous-watchdog up-steps toward
+// after a downgrade. setQuality() (via applyQualityTier, source:'manual')
+// overwrites it when the user manually picks a level, so the watchdog won't
 // quietly raise quality above the user's explicit choice, but WILL still
-// drop quality below it whenever frame-time threatens to push below 30 fps).
-let _qualPreferred = qualScale;
+// drop quality below it whenever frame-time threatens the 30 fps floor.
+//
+// WHY the seed is the top preset, NOT the device-tier START value:
+// Previously this was seeded to `qualScale` (the conservative device-tier
+// START level — 中 on desktop, 低 on touch). That created the "default =
+// ceiling" trap: since the watchdog can never up-step past _qualPreferred,
+// an idle RTX 5090 could NEVER auto-climb above 中 even with 100+ fps of
+// headroom, because nothing ever raised the ceiling (RC2). The probe used
+// to bump it, but the probe never ran on URL/demo loads. We now seed the
+// ceiling at the tier MAXIMUM the auto-governor is allowed to reach on its
+// own — 高(1.5) for desktop/pointer:fine, 中(1.0) for touch-like devices
+// (phones/tablets can't sustain 高 comfortably) — so auto-quality can
+// actually exploit spare GPU headroom. Manual picks still overwrite this
+// (and become the new cap in both directions).
+let _qualPreferred = _qualTouchLike ? 1.0 : 1.5;
 // Sync the always-visible top-right quality badge to whichever preset we
 // just auto-selected. Runs once DOM is ready since the badge element is
 // emitted later in the body.
@@ -8394,6 +8407,17 @@ window.stopViewRecording = function(){
 };
 
 window.toggleViewRecording = function(){
+  // カメラワークのクロップ録画(camAnim._recRec)は _viewRec と別レコーダー。
+  // 従来この分岐がなく、クロップ録画中に「停止」(赤ボタン)を押すと
+  // _viewRec.active=false のため誤って2本目の全画面録画が始まり、
+  // 「録画が終わらない・保存されない」に見えるバグだった(2026-07-03修正)。
+  // ウォームアップ中(warming)や非クロップのカメラワーク録画(_recFinish)も
+  // camAnimStopRecord が適切に中止/終了保存する。
+  if(typeof camAnim !== 'undefined' && camAnim &&
+     (camAnim._recRec || camAnim.warming || camAnim._recFinish)){
+    if(typeof window.camAnimStopRecord === 'function') window.camAnimStopRecord();
+    return;
+  }
   if(_viewRec.active) window.stopViewRecording();
   else                window.startViewRecording();
 };
@@ -9029,6 +9053,18 @@ window.camAnimRecordExport = function(){
   // The recorder + animation start only after camAnim.warmupMs has elapsed.
   _camAnimApplySample(camAnim.keys[0]);
   camAnim.warming = true;
+  // ウォームアップ中の手動中止経路（録画ボタン→camAnimStopRecord から呼ばれる）。
+  // レコーダー起動前なのでファイルは作らず、隠したUIを復元して静かに戻るだけ。
+  camAnim._recAbort = () => {
+    if(camAnim.warmTimer){ clearTimeout(camAnim.warmTimer); camAnim.warmTimer = 0; }
+    if(camAnim.warmNudgeId){ clearInterval(camAnim.warmNudgeId); camAnim.warmNudgeId = 0; }
+    camAnim.warming = false;
+    if(p)  p.style.display  = prevDisplay;
+    if(cf) cf.style.display = prevCf;
+    if(camAnim.open) _camAnimSetVisualsVisible(true);
+    camAnim._recAbort = null;
+    _camAnimRenderPanel();
+  };
   const _warmMs = Math.max(0, camAnim.warmupMs || 0);
   // Keep the splat sort / LoD walker running across the whole warm-up so it
   // actually pages in higher detail (a single markDirty would only paint a
@@ -9125,12 +9161,15 @@ window.camAnimRecordExport = function(){
     // recording duration matches camAnim.totalSec even if Chrome throttles
     // rAF during the export. Same pattern as window.camAnimPreview.
     let recRafId = 0, recTimeoutId = 0, recDeadlineId = 0;
-    const finishRec = () => {
+    // manual=true は録画ボタンからの手動停止(camAnimStopRecord経由)。
+    // その場合は最終キーへカメラをジャンプさせない(今見ている画で止める)。
+    const finishRec = (manual) => {
       if(recRafId)     cancelAnimationFrame(recRafId);
       if(recTimeoutId) clearTimeout(recTimeoutId);
       if(recDeadlineId){ clearTimeout(recDeadlineId); recDeadlineId = 0; }
       recRafId = recTimeoutId = 0;
-      _camAnimApplySample(camAnim.keys[camAnim.keys.length - 1]);
+      camAnim._recFinish = null;   // 二重呼び出し防止(手動停止→直後にdeadline等)
+      if(!manual) _camAnimApplySample(camAnim.keys[camAnim.keys.length - 1]);
       camAnim.playing = false;
       setTimeout(() => {
         if(_useCamFrame){
@@ -9165,12 +9204,24 @@ window.camAnimRecordExport = function(){
     // the deadline.
     recDeadlineId = setTimeout(() => { if(camAnim.playing) finishRec(); },
                                Math.max(50, camAnim.totalSec * 1000 + 50));
+    // 録画が始まったので warm-up 中止経路は無効化し、手動停止経路を有効化。
+    camAnim._recAbort  = null;
+    camAnim._recFinish = finishRec;
     tickRec();
   };
 
   if(camAnim.warmTimer){ clearTimeout(camAnim.warmTimer); camAnim.warmTimer = 0; }
   if(_warmMs > 0) camAnim.warmTimer = setTimeout(_beginRecording, _warmMs);
   else            _beginRecording();
+};
+
+// カメラワーク録画の手動停止（録画ボタン=「停止」表示 から toggleViewRecording
+// 経由で呼ばれる）。録画中なら即座に終了して保存、ウォームアップ中ならレコーダー
+// 起動前なので中止のみ（ファイルは作られない）。従来はこの経路が存在せず、
+// クロップ録画中の「停止」クリックが2本目の全画面録画を誤起動していた。
+window.camAnimStopRecord = function(){
+  if(camAnim._recFinish){ camAnim._recFinish(true); return; }
+  if(camAnim._recAbort){ camAnim._recAbort(); }
 };
 
 // Render the active grids onto a 2D canvas of the cropped image. Mirrors the SVG
@@ -9415,6 +9466,27 @@ window.captureCamShot = async function(){
   // is the preview, pixel for pixel.
   const fr = _camFrameRect();                 // CSS px; aspect === cam.aspect
   const PR = renderer.getPixelRatio();        // live buffer = CSS px × PR
+  // ── FHDブースト (2026-07-02) ──
+  // 従来は「ライブ画面の枠部分を切り出して1920幅へ拡大」だったため、枠が画面上で
+  // 小さいと実ソースピクセルが不足しぼやけた。撮影の間だけ pixelRatio を引き上げ、
+  // 枠の実ピクセルを target 以上にしてから切り出す（拡大コピーの根絶）。
+  // renderer.setSize による黒帯バグ経路(下コメント参照)は使わない — PRブーストは
+  // 望遠スーパサンプル(030 _camZoomResBoost, 2026-06-27)で実証済みの安全機構。
+  // 上限: desktop 4.0 / touch系は既存スーパサンプル上限(dPR×2.2)。さらに
+  // WebGL最大バッファ寸法(16384)でクランプ。
+  const _needPR = target.w / Math.max(1, fr.w);
+  const _tierCap = (typeof _qualTouchLike !== 'undefined' && _qualTouchLike)
+    ? (devicePixelRatio || 1) * 2.2 : 4.0;
+  const _dimCap = 16384 / Math.max(innerWidth, innerHeight);
+  const _boostPR = Math.min(Math.max(_needPR, PR), _tierCap, _dimCap);
+  const capPR = (_boostPR > PR + 1e-3) ? _boostPR : PR;
+  window._captureBusy = true;          // 294のLODプリフェッチを撮影中サスペンド
+  // img/ictx は try 内で代入するが、finally の後（env-tint/WB/グリッド焼込）でも
+  // 使うため宣言は try の外に置く（try内 const だと後続から見えず ictx is not
+  // defined で撮影全体が落ちる — 2026-07-03 実機検証で検出・修正）。
+  let img, ictx;
+  try {
+  if(capPR !== PR) renderer.setPixelRatio(capPR);
   // Use the camera's CURRENT vFOV (== what the live preview is rendering right
   // now), NOT a re-derived _camSensorVFovDeg(). captureCamShot() runs
   // _camPullFields() first, and if the UI fields are even slightly out of sync
@@ -9451,17 +9523,22 @@ window.captureCamShot = async function(){
 
   // Crop the frame-rect region out of the live canvas (intrinsic px = CSS × PR)
   // and scale it to the delivery resolution.
-  const img = document.createElement('canvas');
+  img = document.createElement('canvas');
   img.width  = target.w;
   img.height = target.h;
-  const ictx = img.getContext('2d');
+  ictx = img.getContext('2d');
   ictx.imageSmoothingEnabled = true;
   ictx.imageSmoothingQuality = 'high';
-  const _sx = Math.max(0, Math.round(fr.x * PR));
-  const _sy = Math.max(0, Math.round(fr.y * PR));
-  const _sw = Math.round(fr.w * PR);
-  const _sh = Math.round(fr.h * PR);
+  const _sx = Math.max(0, Math.round(fr.x * capPR));
+  const _sy = Math.max(0, Math.round(fr.y * capPR));
+  const _sw = Math.round(fr.w * capPR);
+  const _sh = Math.round(fr.h * capPR);
   ictx.drawImage(canvas, _sx, _sy, _sw, _sh, 0, 0, target.w, target.h);
+  } finally {
+    // PRは既存の復元部(下)でも戻すが、例外時にも画面解像度が壊れないよう二重化
+    if(capPR !== PR){ try{ renderer.setPixelRatio(PR); }catch(_){} }
+    window._captureBusy = false;
+  }
   // ── Environment scene-tint (matches live #env-tint overlay) ──
   // Applied BEFORE WB so the order is "scene lighting first, then camera correction".
   if(env.preset !== 'off' && ENV_PRESETS[env.preset] && ENV_PRESETS[env.preset].sceneTint){
@@ -10765,16 +10842,16 @@ function _radLodScaleForStride(stride){
 // splat 数は GPU 負荷に直結し、qualScale/PR は解像度しか下げず splat 数を減らせ
 // ないため、弱い端末で数百万 splat を出すと FPS を守れない。よって端末ティアで
 // 上限を調整する（desktop=5090級はほぼ全精細まで引き上げる）。
-//   desktop:     低0.8 / 中1.5 / 高2.2  (中≈2.4M, 高=cap~2.5M)
-//   laptop_ok:   低0.7 / 中1.1 / 高1.6
+//   desktop:     低0.8 / 中1.5 / 高3.0  (中≈2.4M, 高=Task2のlodSplatCount拡大とセットで飽和が外れる)
+//   laptop_ok:   低0.7 / 中1.1 / 高2.0  (高はTask2のlodSplatCount拡大とセットで飽和が外れる)
 //   laptop_weak: 低0.6 / 中0.9 / 高1.3
 //   tablet:      低0.5 / 中0.8 / 高1.2
 //   phone:       低0.45/ 中0.7 / 高1.0
 function _radLodScaleForQuality(idx){
   const tier = (typeof _splatPerfTier !== 'undefined') ? _splatPerfTier : 'laptop_ok';
   let lo, mid, hi;
-  if(tier === 'desktop')          { lo=0.8;  mid=1.5; hi=2.2; }
-  else if(tier === 'laptop_ok')   { lo=0.7;  mid=1.1; hi=1.6; }
+  if(tier === 'desktop')          { lo=0.8;  mid=1.5; hi=3.0; }
+  else if(tier === 'laptop_ok')   { lo=0.7;  mid=1.1; hi=2.0; }
   else if(tier === 'laptop_weak') { lo=0.6;  mid=0.9; hi=1.3; }
   else if(tier === 'tablet')      { lo=0.5;  mid=0.8; hi=1.2; }
   else /* phone */                { lo=0.45; mid=0.7; hi=1.0; }
@@ -10789,6 +10866,7 @@ window.__loadRad = (url)=>{ try{ return loadFromURL(url,'RADtest'); }catch(e){ r
 window.__nSplat = ()=> (typeof splatMesh!=='undefined'&&splatMesh&&splatMesh.paged)?splatMesh.paged.numSplats:-1;
 window.__keepAlive = (ms)=>{ _splatActiveUntil=performance.now()+(ms||6000); markDirty(240); };
 window.__setCam = (y,p)=>{ if(typeof yaw!=='undefined'){yaw=_yawTarget=y;} if(typeof pitch!=='undefined'){pitch=_pitchTarget=(p||0);} _splatActiveUntil=performance.now()+8000; markDirty(240); };
+window.__setCamPos = (x,y,z)=>{ if(typeof camPos!=='undefined'){ camPos.set(x,y,z); } _splatActiveUntil=performance.now()+8000; markDirty(240); };
 // sparkRenderer のLOD関連プロパティをライブ設定（lodSplatCount/lodSplatScale/coneFov等）
 window.__setRenderer = (p)=>{ if(typeof sparkRenderer==='undefined') return 'no sr'; const out={}; for(const k in p){ sparkRenderer[k]=p[k]; out[k]=sparkRenderer[k]; } if(typeof markDirty==='function') markDirty(240); return out; };
 window.__srDump = ()=>{ if(typeof sparkRenderer==='undefined') return 'no sr'; const o={}; for(const k of ['lodSplatCount','lodSplatScale','lodRenderScale','coneFov','coneFov0','coneFoveate','behindFoveate','maxPagedSplats','numLodFetchers','enableLod','enableDriveLod']){ o[k]=sparkRenderer[k]; } return o; };
@@ -11382,6 +11460,31 @@ const SPARK_QUALITY_OPTS = {
 // ══════════════════════════════════════════════════
 //  FILE LOADING
 // ══════════════════════════════════════════════════
+// Chrome's File/Blob→ArrayBuffer transfer has a long-standing ~2GiB ceiling
+// for a SINGLE `file.arrayBuffer()` call (the underlying mojo blob-transfer
+// IPC uses a 32-bit size in places) — calling it on a file just over 2^31-1
+// bytes throws "The requested file could not be read, typically due to
+// permission problems that have occurred after a reference to a file was
+// acquired" partway through the read (2026-07-05: reproduced with a 2.36GB
+// local .ply — failed at exactly the point this call fires). The fix is to
+// read the file in <2GiB SLICES (each slice's own .arrayBuffer() call stays
+// under the limit) and copy them into one destination buffer — the
+// destination Uint8Array itself has no such ceiling on 64-bit V8.
+async function _readFileArrayBufferChunked(file, onProgress){
+  const CHUNK = 512 * 1024 * 1024; // 512MB — comfortably under the ~2GiB wall
+  const total = file.size;
+  if(total < CHUNK) return await file.arrayBuffer();
+  const out = new Uint8Array(total);
+  let offset = 0;
+  while(offset < total){
+    const end = Math.min(offset + CHUNK, total);
+    const chunkBuf = await file.slice(offset, end).arrayBuffer();
+    out.set(new Uint8Array(chunkBuf), offset);
+    offset = end;
+    if(typeof onProgress === 'function') onProgress(offset / total);
+  }
+  return out.buffer;
+}
 async function loadSplatFile(file){
   try{
     showLd(T('loading')); setBar(5); setMsg(T('preparing'));
@@ -11410,7 +11513,7 @@ async function loadSplatFile(file){
 
     // ── 常にバッファを読み込む（ZIP保存キャッシュ兼用）──
     setMsg(T('loading-file')); setBar(15);
-    const rawBuf=await file.arrayBuffer();
+    const rawBuf=await _readFileArrayBufferChunked(file, p => setBar(15 + Math.round(p*7)));
 
     // Stats for camera placement + position cache for picking
     let stats={center:new THREE.Vector3(),size:5,cache:null,cacheCount:0};
@@ -14822,9 +14925,9 @@ function renderTransformPanel(){
   ${coordToggle}
   <div class="lt-section">${T('lt-pos')} (${pivSp==='local'?T('lt-pos-local'):T('lt-pos-world')})</div>
   <div class="lt-row">
-    <span class="la" style="color:#ff5566">X</span><input type="number" id="lt-px" step="0.01" value="${p.x.toFixed(2)}" oninput="readTransformInputs(${L.id})">
-    <span class="la" style="color:#55ee66">Y</span><input type="number" id="lt-py" step="0.01" value="${p.y.toFixed(2)}" oninput="readTransformInputs(${L.id})">
-    <span class="la" style="color:#5599ff">Z</span><input type="number" id="lt-pz" step="0.01" value="${p.z.toFixed(2)}" oninput="readTransformInputs(${L.id})">
+    <span class="la" style="color:#ff5566">X</span><input type="number" id="lt-px" step="1" value="${p.x.toFixed(2)}" oninput="readTransformInputs(${L.id})">
+    <span class="la" style="color:#55ee66">Y</span><input type="number" id="lt-py" step="1" value="${p.y.toFixed(2)}" oninput="readTransformInputs(${L.id})">
+    <span class="la" style="color:#5599ff">Z</span><input type="number" id="lt-pz" step="1" value="${p.z.toFixed(2)}" oninput="readTransformInputs(${L.id})">
   </div>
   <div class="lt-section">${T('lt-rot')}</div>
   <div class="lt-row">
@@ -14834,18 +14937,18 @@ function renderTransformPanel(){
   </div>
   <div class="lt-section">${T('lt-scale')}</div>
   <div class="lt-row">
-    <span class="la" style="color:#ff6677">X</span><input type="number" id="lt-scx" step="0.01" min="0.01" value="${sc.x.toFixed(2)}" oninput="readTransformInputs(${L.id})">
-    <span class="la" style="color:#66ee88">Y</span><input type="number" id="lt-scy" step="0.01" min="0.01" value="${sc.y.toFixed(2)}" oninput="readTransformInputs(${L.id})">
-    <span class="la" style="color:#77aaff">Z</span><input type="number" id="lt-scz" step="0.01" min="0.01" value="${sc.z.toFixed(2)}" oninput="readTransformInputs(${L.id})">
+    <span class="la" style="color:#ff6677">X</span><input type="number" id="lt-scx" step="1" min="0.01" value="${sc.x.toFixed(2)}" oninput="readTransformInputs(${L.id})">
+    <span class="la" style="color:#66ee88">Y</span><input type="number" id="lt-scy" step="1" min="0.01" value="${sc.y.toFixed(2)}" oninput="readTransformInputs(${L.id})">
+    <span class="la" style="color:#77aaff">Z</span><input type="number" id="lt-scz" step="1" min="0.01" value="${sc.z.toFixed(2)}" oninput="readTransformInputs(${L.id})">
   </div>`;
   // ── Event: position-only panel (no rotation/scale) ──
   if(L.type==='event'){
     html=`<div class="lt-title">${LAYER_ICONS[L.type]} ${L.name}</div>
   <div class="lt-section">${T('lt-pos')}</div>
   <div class="lt-row">
-    <span class="la" style="color:#ff5566">X</span><input type="number" id="lt-px" step="0.01" value="${p.x.toFixed(2)}" oninput="readTransformInputs(${L.id})">
-    <span class="la" style="color:#55ee66">Y</span><input type="number" id="lt-py" step="0.01" value="${p.y.toFixed(2)}" oninput="readTransformInputs(${L.id})">
-    <span class="la" style="color:#5599ff">Z</span><input type="number" id="lt-pz" step="0.01" value="${p.z.toFixed(2)}" oninput="readTransformInputs(${L.id})">
+    <span class="la" style="color:#ff5566">X</span><input type="number" id="lt-px" step="1" value="${p.x.toFixed(2)}" oninput="readTransformInputs(${L.id})">
+    <span class="la" style="color:#55ee66">Y</span><input type="number" id="lt-py" step="1" value="${p.y.toFixed(2)}" oninput="readTransformInputs(${L.id})">
+    <span class="la" style="color:#5599ff">Z</span><input type="number" id="lt-pz" step="1" value="${p.z.toFixed(2)}" oninput="readTransformInputs(${L.id})">
   </div>`;
   }
   // ── Splat: 軸反転ボタン (X / Y / Z 180°回転) ──
@@ -14969,9 +15072,9 @@ function renderTransformPanel(){
     if(L.type==='sphere'){
     html+=`<div class="lt-section">${T('lt-size')}</div>
   <div class="lt-row">
-    <span class="la" style="color:#ff5566">W</span><input type="number" id="lt-sw" step="0.01" min="0.01" value="${s.x.toFixed(2)}" oninput="readTransformInputs(${L.id})">
-    <span class="la" style="color:#55ee66">H</span><input type="number" id="lt-sh" step="0.01" min="0.01" value="${s.y.toFixed(2)}" oninput="readTransformInputs(${L.id})">
-    <span class="la" style="color:#5599ff">D</span><input type="number" id="lt-sd" step="0.01" min="0.01" value="${s.z.toFixed(2)}" oninput="readTransformInputs(${L.id})">
+    <span class="la" style="color:#ff5566">W</span><input type="number" id="lt-sw" step="1" min="0.01" value="${s.x.toFixed(2)}" oninput="readTransformInputs(${L.id})">
+    <span class="la" style="color:#55ee66">H</span><input type="number" id="lt-sh" step="1" min="0.01" value="${s.y.toFixed(2)}" oninput="readTransformInputs(${L.id})">
+    <span class="la" style="color:#5599ff">D</span><input type="number" id="lt-sd" step="1" min="0.01" value="${s.z.toFixed(2)}" oninput="readTransformInputs(${L.id})">
   </div>`;
     }
     html+=`<div class="lt-section">${T('lt-appear')}</div>
@@ -16452,7 +16555,9 @@ async function loadAdditionalSplat(file){
     setMsg(T('preparing')); setBar(5);
     const ext=file.name.split('.').pop().toLowerCase();
     setMsg(T('loading-file')); setBar(15);
-    const rawBuf=await file.arrayBuffer();  // read for caching
+    // Chunked read: single-call file.arrayBuffer() fails on files > ~2GiB
+    // (Chrome blob-transfer limit) — see 200_file_loading.js for details.
+    const rawBuf=await _readFileArrayBufferChunked(file, p => setBar(15 + Math.round(p*30)));  // read for caching
     setBar(45);
     // Full-quality load on every device — load-time decimation removed
     // (per user direction 2026-05). Users opt in to "ポリゴン 1/4" via
@@ -16535,7 +16640,9 @@ async function loadObjFile(file){
     const ext=file.name.split('.').pop().toLowerCase();
     setMsg(T('loading-file')); setBar(15);
     let object3d;
-    const buf=await file.arrayBuffer();
+    // Chunked read: single-call file.arrayBuffer() fails on files > ~2GiB
+    // (Chrome blob-transfer limit) — see 200_file_loading.js for details.
+    const buf=await _readFileArrayBufferChunked(file, p => setBar(15 + Math.round(p*25)));
     setBar(40);
     setMsg(T('parsing'));
     if(ext==='obj'){
@@ -16977,6 +17084,10 @@ function _queuePixelRatio(pr){
 }
 function _applyDeferredPixelRatio(now){
   if(_pendingPixelRatio == null) return;
+  // JPEG撮影中は絶対に適用しない: 撮影は「PRブースト→2回レンダー(90ms待ち込み)→
+  // crop」の間、crop座標を撮影開始時のPRで計算する。この待ちの間にキュー済みPRが
+  // 適用されるとバッファ解像度とcrop座標がズレ、切り出し範囲が壊れる。
+  if(window._captureBusy) return;
   // Defer while any input/motion is in flight
   const moving = dragOn || (typeof joyDX!=='undefined' && (joyDX!==0||joyDY!==0)) ||
                  (keys.KeyW||keys.KeyS||keys.KeyA||keys.KeyD||keys.KeyQ||keys.KeyE||keys.ShiftLeft||keys.ShiftRight) ||
@@ -16991,6 +17102,15 @@ function _applyDeferredPixelRatio(now){
   } catch(_){}
   _pendingPixelRatio = null;
   _pendingPRStableSince = 0;
+  // Apply-then-observe handshake: tell the watchdog a queued swap just LANDED.
+  // It stamps lastApply (the watchdog holds all decisions for 2 s after) and
+  // clears both streaks so the next evaluation starts fresh against the newly
+  // applied pixel ratio, instead of on stale pre-swap frame-time history (RC4).
+  if(window._gpuWatchdog){
+    window._gpuWatchdog.lastApply = now;
+    window._gpuWatchdog.slowStreak = 0;
+    window._gpuWatchdog.fastStreak = 0;
+  }
 }
 
 // ── WebGL context loss recovery ──
@@ -17025,18 +17145,21 @@ document.addEventListener('visibilitychange', ()=>{
 }, false);
 
 // ── Battery-aware quality (Mac laptops, when running unplugged + low battery) ──
-// One-shot reduction: if battery falls under 25 % and not charging, drop qualScale
-// to 0.7 (unless user already manually set quality). Logs to console for transparency.
+// One-shot reduction: if battery falls under 25 % and not charging, drop to the
+// lowest preset (低 / 0.75) unless the user already pinned quality. Routes
+// through the shared applier so the badge/panel/RAD lodScale all follow (the
+// old path set qualScale=0.7 + _queuePixelRatio directly, leaving the badge and
+// RAD density stale — RC3). 0.75 instead of the former 0.7 is an accepted
+// change: 0.7 wasn't a real preset, so the badge already showed 低 for it.
 if(typeof navigator.getBattery === 'function'){
   navigator.getBattery().then(bat => {
     function _checkBattery(){
       if(window._gpuWatchdog && window._gpuWatchdog.manualOverride) return;
-      if(!bat.charging && bat.level < 0.25 && qualScale > 0.7){
-        qualScale = 0.7;
-        // Defer the actual setPixelRatio swap to an idle window — applying it
-        // mid-interaction would cause a visible flash + low-res frame.
-        _queuePixelRatio(Math.min(devicePixelRatio, _PR_CAP) * qualScale);
-        console.info('[Locahun] Battery low (' + Math.round(bat.level*100) + '%) — quality queued at 0.7 (apply on idle)');
+      if(!bat.charging && bat.level < 0.25 && qualScale > 0.75){
+        // Deferred (immediate:false) — applying mid-interaction would flash a
+        // low-res frame; the applier queues the swap for the next idle window.
+        applyQualityTier(0, { source:'battery' });
+        console.info('[Locahun] Battery low (' + Math.round(bat.level*100) + '%) — quality queued at 低 (apply on idle)');
       }
     }
     bat.addEventListener('chargingchange', _checkBattery);
@@ -17070,6 +17193,31 @@ const _headless = /[?&]headless=1/.test(location.search);
 const _protected = /[?&]protected=1/.test(location.search);
 if(_protected){
   document.body.classList.add('protected-mode');
+}
+// ── Paged(RAD) ストリーム活動判定 ──
+// 旧判定「numSplats が総数(_radTargetCount)に達したらロード完了」は、ヘッダ総数
+// (交差点=19.8M)が LOD 予算(250万〜)を超える大型 RAD では永遠に到達せず、
+// ①アイドルでも描画が止まらない ②watchdogのストリーミングガードが永久凍結
+// (UP不能) ③較正/プリウォームが永遠に'wait'、を引き起こしていた。さらに URL
+// ストリーム読込(292)はヘッダbytesを持たず _radTargetCount 自体が undefined で
+// 同じ穴に落ちる。そこで「numSplats のプラトー検出」(1.5秒変化なし＝ストリーム
+// 収束)に置換。回転後のチャンク補充中は再び true になるので「読込/精細化が
+// 進行中」というセマンティクスは保たれる。総数到達できる小型RADは従来どおり
+// 即確定する。animate と 420 の較正ポーラーの両方から呼ばれる。
+function _pagedStreamActive(now){
+  if(typeof layers === 'undefined' || !layers || !layers.length) return false;
+  for(let i=0;i<layers.length;i++){
+    const _L = layers[i];
+    const _mesh = _L && _L.mesh;
+    const _pm = _mesh && _mesh.paged;
+    if(!_pm) continue;
+    const _n = _pm.numSplats || 0;
+    const _target = _mesh._radTargetCount || 0;
+    if(_target > 0 && _n >= _target) continue;          // 総数到達＝確定完了
+    if(_n !== _mesh._lastPagedN){ _mesh._lastPagedN = _n; _mesh._lastPagedNAt = now; }
+    if(_n === 0 || (now - (_mesh._lastPagedNAt || now)) < 1500) return true;
+  }
+  return false;
 }
 function animate(now) {
   if(_headless) setTimeout(()=>animate(performance.now()), 16);
@@ -17155,25 +17303,12 @@ function animate(now) {
   // but never get consumed → record.rootPage is never set → next traversal
   // can't request more chunks → the scene shows zero splats forever.
   //
-  // We keep rendering as long as the paged splat hasn't reached its target
-  // splat count (`_radTargetCount`, stashed on the mesh at construction
-  // time from the RAD JSON header). After it does, we stop the continuous
-  // tick so the page goes idle; camera motion will wake it back up via
-  // the regular shouldRender path.
-  let hasPagedLoading = false;
-  if(typeof layers !== 'undefined' && layers && layers.length){
-    for(let i=0;i<layers.length;i++){
-      const _L = layers[i];
-      const _mesh = _L && _L.mesh;
-      const _pm = _mesh && _mesh.paged;
-      if(!_pm) continue;
-      const _target = _mesh._radTargetCount || 0;
-      if(_target === 0 || (_pm.numSplats||0) < _target){
-        hasPagedLoading = true;
-        break;
-      }
-    }
-  }
+  // We keep rendering as long as the paged stream is still ACTIVE (numSplats
+  // still changing — see _pagedStreamActive above; the old reach-the-target
+  // predicate never completed on big RADs / URL streams). After it plateaus,
+  // we stop the continuous tick so the page goes idle; camera motion wakes it
+  // back up via the regular shouldRender path.
+  const hasPagedLoading = _pagedStreamActive(now);
 
   const shouldRender = hasCamKey||hasDrag||hasJoy||hasMsrInteract||hasGamepad||
                        splatStreaming||_renderDirtyTimer>0||hasPagedLoading;
@@ -17536,6 +17671,9 @@ function animate(now) {
   //   respected as a cap; below it the watchdog still defends 30 fps.
   if(!window._gpuWatchdog) window._gpuWatchdog = { slowStreak:0, fastStreak:0, lastStep:0 };
   const _wd = window._gpuWatchdog;
+  if(!_wd.burned) _wd.burned = {};        // scale → expiry-timestamp burn map
+  if(!('lastApply' in _wd)) _wd.lastApply = 0;
+  if(!('calibrationUntil' in _wd)) _wd.calibrationUntil = 0;
   // STEPS_ALL matches the three user-pickable presets. The watchdog
   // normally doesn't go below 低 (0.75) — at that point the recommended
   // next step is the "ポリゴン半減" toggle. EXCEPTION: when wall time is
@@ -17557,66 +17695,115 @@ function animate(now) {
     if(s >= 0.95) return 1;
     return 0;
   };
-  if(_ftSamples.length >= 30 && (now - _wd.lastStep) > 4000){
-    // Trigger on either signal:
-    //   • _ftAvg > 28 ms : GPU-bound (render call itself is expensive)
-    //   • _wallMsAvg > 30 ms : CPU-bound (JS work between frames eats the
-    //     wall-clock budget). 30 ms wall = ~33 fps, leaving headroom
-    //     before we actually fall below the 30 fps user-facing target.
+  // Only the three real presets are routable through applyQualityTier (which
+  // owns badge/RAD/pixel-ratio). Emergency sub-0.75 Mac floors are NOT presets
+  // — they keep the legacy direct qualScale/_queuePixelRatio path (badge stays
+  // 低). This predicate decides which route a chosen step takes.
+  const _IS_PRESET = s => (s === 0.75 || s === 1.0 || s === 1.5);
+  // ── vsync-normalized budget ──
+  // One display frame in ms, clamped to a sane 30–240 Hz range. The old UP
+  // condition compared _wallMsAvg against a fixed 14 ms, which is impossible
+  // on a 60 Hz panel where wall-clock is vsync-locked to ~16.7 ms — so quality
+  // could only ever decay, never recover (RC1). Normalizing every threshold to
+  // the real refresh makes UP satisfiable on 60/90/120/144 Hz alike.
+  const budget = 1000 / Math.min(Math.max((_refreshHz||60), 30), 240);
+  // Lazily purge expired burn entries so the map can't grow unbounded.
+  for(const _k in _wd.burned){ if(_wd.burned[_k] <= now) delete _wd.burned[_k]; }
+  // ── Apply-then-observe gate ──
+  // A watchdog decision changes the pixel ratio, but the actual GPU buffer
+  // realloc is DEFERRED to the next idle window (_applyDeferredPixelRatio).
+  // If we kept deciding while a swap is still pending, one long camera motion
+  // could cascade several DOWN steps before ANY of them was observed (RC4).
+  // So: freeze streaks + skip all decisions while a swap is queued, and for
+  // 2 s after one finally lands (measured via _wd.lastApply, set in 290).
+  const _swapPending = (typeof _pendingPixelRatio !== 'undefined' && _pendingPixelRatio !== null);
+  const _settling    = (now - (_wd.lastApply || 0)) <= 2000;
+  // Honour the ?qual= diag pin (sets manualOverride) — freeze completely.
+  const _pinned = !!(_wd.manualOverride);
+  // Never re-evaluate during .RAD streaming: wall-clock spikes to ~49 ms while
+  // chunks decode, which would false-trigger DOWN (RC5). `hasPagedLoading` was
+  // computed earlier in this same function scope.
+  const _streaming = !!hasPagedLoading;
+  if(_swapPending || _settling){
+    // Freeze streaks so a queued/settling swap doesn't accrue phantom history.
+    _wd.slowStreak = 0;
+    _wd.fastStreak = 0;
+  } else if(_pinned || _streaming){
+    // Pinned or streaming: hold, don't accrue, don't act.
+  } else if(_ftSamples.length >= 30 && (now - _wd.lastStep) > 4000){
+    // Are we inside a post-load calibration window? During it, UP needs only
+    // 180 sustained frames (~3 s) instead of 600 (~10 s) so a fresh scene on a
+    // fast GPU climbs to its true ceiling quickly instead of crawling.
+    const _inCalib = now < (_wd.calibrationUntil || 0);
+    const _upStreakNeeded = _inCalib ? 180 : 600;
+    // Trigger DOWN on either signal (UNCHANGED thresholds):
+    //   • _ftAvg > 28 ms     : GPU-bound (render call itself is expensive)
+    //   • _wallMsAvg > 30 ms : CPU-bound (JS between frames eats the budget)
     if(_ftAvg > 28 || _wallMsAvg > 30){
       _wd.slowStreak++;
       _wd.fastStreak = 0;
-      // Three-tier down-step trigger:
-      //   • normal:    180 active frames (~3 s at 60 fps)
-      //   • severe:     60 active frames (~1 s)  when render > 45 ms OR
-      //                                          wall > 45 ms (~22 fps)
-      //   • dire:       12 active frames (~0.2 s) when wall > 80 ms
-      //                                          (~12 fps or worse)
-      // The "dire" tier catches Mac Chrome's compositor-throttled state
-      // where wall jumps to 100+ ms while GPU submit stays under 1 ms —
-      // waiting 60 active frames at 6 fps is 10 seconds of pain.
+      // Three-tier down-step trigger (UNCHANGED):
+      //   • normal: 180 frames (~3 s @60) ; severe: 60 (~1 s) when
+      //     ft>45||wall>45 ; dire: 12 (~0.2 s) when wall>80.
       const _severe = (_ftAvg > 45 || _wallMsAvg > 45);
-      // _dire is already declared in outer scope (same condition) —
-      // reuse it here rather than redeclaring.
       const _streakThreshold = _dire ? 12 : (_severe ? 60 : 180);
       if(_wd.slowStreak > _streakThreshold){
         const cur = qualScale;
         const next = STEPS_ALL.slice().reverse().find(s => s < cur - 0.001);
         if(next !== undefined && next < cur){
-          qualScale = next;
-          qualIdx = PRESET_FOR_SCALE(qualScale);
-          _queuePixelRatio(Math.min(devicePixelRatio, _PR_CAP) * qualScale);
-          if(typeof _updateQiBadgeLabel === 'function') _updateQiBadgeLabel(qualIdx);
-          document.querySelectorAll('#quality-panel #qbtns button')
-            .forEach((b,i)=>b.classList.toggle('on', i === qualIdx));
+          // ── Burn memory ──
+          // If this DOWN leaves a tier we UP-stepped INTO within the last 20 s,
+          // that tier is unstable for the current scene — mark it "burned" for
+          // 5 min so the UP path won't immediately re-select it and oscillate.
+          if((now - (_wd.lastStep || 0)) < 20000 && _wd.lastStepDir === 'up'){
+            _wd.burned[cur] = now + 300000;
+          }
+          if(_IS_PRESET(next)){
+            // Route real presets through the shared applier (badge/RAD/PR).
+            applyQualityTier(PRESET_FOR_SCALE(next), { source:'watchdog' });
+          } else {
+            // Emergency Mac sub-0.75 floor — legacy direct path, badge stays 低.
+            qualScale = next;
+            qualIdx = PRESET_FOR_SCALE(qualScale);
+            _queuePixelRatio(Math.min(devicePixelRatio, _PR_CAP) * qualScale);
+            if(typeof _updateQiBadgeLabel === 'function') _updateQiBadgeLabel(qualIdx);
+            document.querySelectorAll('#quality-panel #qbtns button')
+              .forEach((b,i)=>b.classList.toggle('on', i === qualIdx));
+          }
           _wd.lastStep = now;
+          _wd.lastStepDir = 'down';
           _wd.slowStreak = 0;
           console.info('[Locahun] Auto-quality DOWN →', qualScale.toFixed(2),
             `(render ~${_ftAvg.toFixed(1)} ms, wall ~${_wallMsAvg.toFixed(1)} ms, target 30 fps)`);
         }
       }
-    } else if(_ftAvg < 11 && _wallMsAvg < 14 && qualScale < _qualPreferred - 0.001 &&
+    } else if(_ftAvg < 0.6*budget && _wallMsAvg < 1.25*budget &&
+              qualScale < _qualPreferred - 0.001 &&
               !(typeof arMode !== 'undefined' && arMode && arMode.active)){
-      // While EITHER AR variant is active we intentionally hold the
-      // pixel-ratio at the AR-entry override so iOS Safari compositor /
-      // texImage2D cost stays manageable. Letting the watchdog up-step
-      // here would defeat the override and pull fps back down.
+      // UP: vsync-normalized headroom test (RC1). ft < 60 % of a frame AND
+      // wall < 125 % of a frame (wall is vsync-bound so it hugs the budget;
+      // 1.25× tolerates the occasional coalesced frame). Cap = _qualPreferred
+      // (tier max 高/中, or the user's manual pick). While AR is active we hold
+      // the AR-entry override — up-stepping would pull fps back down.
       _wd.fastStreak++;
       _wd.slowStreak = Math.max(0, _wd.slowStreak - 2);
-      if(_wd.fastStreak > 600){
+      if(_wd.fastStreak > _upStreakNeeded){
         const cur = qualScale;
-        const next = STEPS_ALL.find(s => s > cur + 0.001 && s <= _qualPreferred + 0.001);
+        // Highest non-burned preset step that's > cur and within the ceiling.
+        const _cap = _qualPreferred + 0.001;
+        let next;
+        for(let s = STEPS_ALL.length - 1; s >= 0; s--){
+          const cand = STEPS_ALL[s];
+          if(cand > cur + 0.001 && cand <= _cap && !(_wd.burned[cand] > now)){ next = cand; break; }
+        }
         if(next !== undefined && next > cur){
-          qualScale = next;
-          qualIdx = PRESET_FOR_SCALE(qualScale);
-          _queuePixelRatio(Math.min(devicePixelRatio, _PR_CAP) * qualScale);
-          if(typeof _updateQiBadgeLabel === 'function') _updateQiBadgeLabel(qualIdx);
-          document.querySelectorAll('#quality-panel #qbtns button')
-            .forEach((b,i)=>b.classList.toggle('on', i === qualIdx));
+          // UP always lands on a real preset (cap ≤ 1.5) → shared applier.
+          applyQualityTier(PRESET_FOR_SCALE(next), { source:'watchdog' });
           _wd.lastStep = now;
+          _wd.lastStepDir = 'up';
           _wd.fastStreak = 0;
           console.info('[Locahun] Auto-quality UP →', qualScale.toFixed(2),
-            `(render ~${_ftAvg.toFixed(1)} ms, plenty of headroom)`);
+            `(render ~${_ftAvg.toFixed(1)} ms, budget ${budget.toFixed(1)} ms, plenty of headroom)`);
         }
       }
     } else {
@@ -17743,6 +17930,12 @@ async function loadFromURL(url, displayName){
       if(typeof showHUD === 'function') showHUD();
       if(typeof hideDZ === 'function') hideDZ();
       if(typeof showUndoToast === 'function') showUndoToast('📡 .RAD ストリーミング読込開始: ' + name);
+      // Demo/URL parity (RC2): the local-file load path schedules auto-quality
+      // calibration, but this URL/RAD-stream path never did — so ?demo=1 and
+      // ?autoload= scenes were stuck at the device-tier default and auto-quality
+      // could never climb. Schedule it here too (poller waits for the stream to
+      // finish paging before opening the calibration window).
+      if(typeof window._scheduleQualityProbe === 'function') window._scheduleQualityProbe();
       return;
     }
     // Non-RAD URL: fetch whole file, route by extension.
@@ -17753,7 +17946,13 @@ async function loadFromURL(url, displayName){
     const name = (displayName || url.split('/').pop().split('?')[0]) || 'autoload.ply';
     const file = new File([buf], name, {type:'application/octet-stream'});
     if(['obj','gltf','glb','fbx'].includes(ext)) await loadObjFile(file);
-    else await loadSplatFile(file);
+    else {
+      await loadSplatFile(file);
+      // Same parity: loadSplatFile already schedules calibration internally,
+      // but call it explicitly here too so the URL path is self-evidently
+      // covered. The _qualityProbeScheduled flag coalesces the double-call.
+      if(typeof window._scheduleQualityProbe === 'function') window._scheduleQualityProbe();
+    }
   }catch(e){
     console.warn('loadFromURL failed', e);
     if(typeof hideLd === 'function') hideLd();
@@ -18078,6 +18277,25 @@ window.__diagState = {
   get splatActiveUntil(){ return _splatActiveUntil; },
   get splatMesh(){ return splatMesh; },
   get renderer(){ return renderer; },
+  // ── Auto-quality governor internals (redesign 2026-07) ──
+  // budgetMs: computed identically to the watchdog's vsync-normalized budget.
+  get budgetMs(){ return 1000 / Math.min(Math.max(((typeof _refreshHz!=='undefined'&&_refreshHz)||60), 30), 240); },
+  // burned: JSON-safe shallow copy of the burn map (scale → expiry ts).
+  get burned(){ const w = window._gpuWatchdog; const o = {}; if(w && w.burned){ for(const k in w.burned) o[k] = w.burned[k]; } return o; },
+  get lastApply(){ const w = window._gpuWatchdog; return w ? (w.lastApply||0) : null; },
+  get slowStreak(){ const w = window._gpuWatchdog; return w ? (w.slowStreak||0) : null; },
+  get fastStreak(){ const w = window._gpuWatchdog; return w ? (w.fastStreak||0) : null; },
+  get calibrationUntil(){ const w = window._gpuWatchdog; return w ? (w.calibrationUntil||0) : null; },
+  get lodPrefetch(){ return window.__lodPrefetch || null; },
+  get pagedNumSplats(){
+    try{
+      const L = (typeof layers!=='undefined') ? layers.find(l=>l&&l._isMain&&l.mesh&&l.mesh.paged) : null;
+      return L ? L.mesh.paged.numSplats : null;
+    }catch(_){ return null; }
+  },
+  get lodQuatOverrideSet(){
+    try{ return !!(typeof sparkRenderer!=='undefined' && sparkRenderer && sparkRenderer.lodQuatOverride); }catch(_){ return null; }
+  },
 };
 
 // ── Self-installing sampler ───────────────────────────────────────────────
@@ -18316,16 +18534,21 @@ if(/[?&]prof=1/.test(location.search)){
   }, 1000);
   console.info('[Locahun-diag] CPU profiler ENABLED — per-section averages logged');
 }
-// Manual quality override (?qual=N where N = 0.5/0.75/1.0/1.5/2.0) — bypasses
-// the _probeOptimalQuality + watchdog so we can sweep quality at the same load.
+// Manual quality override (?qual=N where N = 0.75/1.0/1.5, i.e. 低/中/高) —
+// bypasses calibration + watchdog so we can pin a preset during a test load.
+// FIX (2026-07-04): idx mapping was stale from a pre-redesign 4-preset scheme
+// (0.5→0,0.75→1,1.0→2,1.5→3) that no longer matches the current 3-preset
+// SCALES=[0.75,1.0,1.5] table (idx 低=0/中=1/高=2). Passing ?qual=1.0 silently
+// pinned idx=2 (高, 5M lodSplatCount on desktop) instead of idx=1 (中) — found
+// live while trying to pin a 500k budget for a real-file RAD test. Mapping now
+// matches PRESET_FOR_SCALE in 291_render_loop.js: s>=1.4→高, s>=0.95→中, else低.
 if(/[?&]qual=([\d.]+)/.test(location.search)){
   const q = parseFloat(RegExp.$1);
   if(q > 0 && q <= 3){
     setTimeout(()=>{
       try {
         if(typeof window.setQuality === 'function'){
-          // Map scale → idx best-effort: 0.5→0, 0.75→1, 1.0→2, 1.5→3, else 3
-          const idx = q < 0.6 ? 0 : q < 0.9 ? 1 : q < 1.2 ? 2 : 3;
+          const idx = q >= 1.4 ? 2 : q >= 0.95 ? 1 : 0;
           window.setQuality(q, idx);
           // Also pin the watchdog so it can't oscillate during the test
           window._gpuWatchdog = window._gpuWatchdog || {};
@@ -18336,6 +18559,71 @@ if(/[?&]qual=([\d.]+)/.test(location.search)){
     }, 6000);
   }
 }
+// Raw LOD-budget override (?diag=1 only) — lets a test pin
+// sparkRenderer.lodSplatCount to an arbitrary value, bypassing the 3-preset
+// table entirely (e.g. to compare a RAD scene at the same splat count a PLY
+// load would use). Re-applied every 500ms so calibration/watchdog quality
+// changes can't silently override it mid-test.
+window.__setLodBudget = function(n){
+  window.__lodBudgetPin = (typeof n === 'number' && n > 0) ? n : null;
+  window._gpuWatchdog = window._gpuWatchdog || {};
+  window._gpuWatchdog.manualOverride = true; // also freeze the watchdog/calibration
+  try{
+    if(typeof sparkRenderer !== 'undefined' && sparkRenderer && window.__lodBudgetPin){
+      sparkRenderer.lodSplatCount = window.__lodBudgetPin;
+      // Read back immediately — devtools console runs outside the module's
+      // lexical scope so it can't see `sparkRenderer` directly. Exposing the
+      // read-back value lets a test detect internal clamping (e.g. Spark
+      // silently capping an assigned value below what was set).
+      window.__lodBudgetReadback = sparkRenderer.lodSplatCount;
+    }
+  }catch(e){ window.__lodBudgetErr = String(e && e.message || e); }
+};
+setInterval(()=>{
+  if(window.__lodBudgetPin == null) return;
+  try{
+    if(typeof sparkRenderer !== 'undefined' && sparkRenderer){
+      sparkRenderer.lodSplatCount = window.__lodBudgetPin;
+      window.__lodBudgetReadback = sparkRenderer.lodSplatCount;
+    }
+  }catch(_){}
+}, 500);
+// Test helpers for the >2GiB file.arrayBuffer() fix (2026-07-05). Builds a
+// File of arbitrary size (content doesn't matter — only the SIZE triggers
+// the Chrome blob-transfer limit) so the failure/fix can be verified without
+// transferring real multi-GB data over the network.
+window.__makeTestFile = function(sizeBytes, name){
+  const buf = new ArrayBuffer(sizeBytes);
+  return new File([buf], name || 'test.ply', { type: 'application/octet-stream' });
+};
+window.__testRawArrayBuffer = async function(file){
+  const t0 = performance.now();
+  try{ const b = await file.arrayBuffer(); return { ok:true, byteLength:b.byteLength, ms:Math.round(performance.now()-t0) }; }
+  catch(e){ return { ok:false, err:String(e && e.message || e), ms:Math.round(performance.now()-t0) }; }
+};
+window.__testChunkedRead = async function(file){
+  const t0 = performance.now();
+  try{ const b = await _readFileArrayBufferChunked(file); return { ok:true, byteLength:b.byteLength, ms:Math.round(performance.now()-t0) }; }
+  catch(e){ return { ok:false, err:String(e && e.message || e), ms:Math.round(performance.now()-t0) }; }
+};
+// Renderer-level pixelScaleLimit multiplier (distinct from mesh.lodScale —
+// this one scales the actual screen-space-error THRESHOLD Spark uses to
+// decide whether a splat needs finer LOD, per SparkRenderer.ts's own
+// `pixelScaleLimit *= this.lodRenderScale`). Lower = finer/more detail.
+window.__setLodRenderScale = function(n){
+  window.__lodRenderScalePin = (typeof n === 'number' && n > 0) ? n : null;
+  try{ if(typeof sparkRenderer !== 'undefined' && sparkRenderer && window.__lodRenderScalePin){
+    sparkRenderer.lodRenderScale = window.__lodRenderScalePin;
+    window.__lodRenderScaleReadback = sparkRenderer.lodRenderScale;
+  }}catch(e){ window.__lodRenderScaleErr = String(e && e.message || e); }
+};
+setInterval(()=>{
+  if(window.__lodRenderScalePin == null) return;
+  try{ if(typeof sparkRenderer !== 'undefined' && sparkRenderer){
+    sparkRenderer.lodRenderScale = window.__lodRenderScalePin;
+    window.__lodRenderScaleReadback = sparkRenderer.lodRenderScale;
+  }}catch(_){}
+}, 500);
 if(/[?&]stress=(\d+)/.test(location.search)){
   const stressLevel = parseInt(RegExp.$1, 10) || 1;
   setTimeout(()=>{
@@ -18551,6 +18839,94 @@ function updateLightHalos(){
 // updateLightHalos() also caches its writes (skips DOM updates if values are unchanged)
 // to avoid forcing unnecessary repaints/reflows.
 
+// ══════════════════════════════════════════════════
+//  RAD LOD PREFETCH (2026-07-02, spec S3)
+//  1) 全方位プリウォーム: RADロード安定後に lodQuatOverride を12方位へ順に向け、
+//     周囲チャンクをページプール(LRU)へ常駐化 → 一度読んだ方向への回転は即精細。
+//     desktopのみ(モバイルは帯域配慮)。ユーザー操作で即中断、アイドル1秒で再開、
+//     1シーン1周で終了。
+//  2) 回転先読み: 慣性回転中は目標方向を override に先出し → 到達前にフェッチ開始。
+//  LODウォーカーは renderer.render() 内でしか回らないため、プリウォーム中は
+//  _splatActiveUntil を延長してレンダーを起こし続ける。
+//  安全規則: 撮影(window._captureBusy)・録画(camAnim._recCopyFn)・walk中は
+//  override を必ず null（実カメラのLODを最優先）。
+(function(){
+  const DIRS = 12;
+  const DWELL_MS = 500;               // 1方位あたりの滞在
+  const st = { phase:'wait', dir:0, dirAt:0, idleAt:0, mesh:null };
+  window.__lodPrefetch = st;          // diag可視化用
+  const _sr = () => (typeof sparkRenderer !== 'undefined' && sparkRenderer) ? sparkRenderer : null;
+  const _isDesktop = () => (typeof _splatPerfTier !== 'undefined' && _splatPerfTier === 'desktop');
+  const _mainPaged = () => {
+    if(typeof layers === 'undefined' || !layers) return null;
+    const L = layers.find(l => l && l._isMain && l.mesh && l.mesh.paged);
+    return L ? L.mesh : null;
+  };
+  // 撮影/録画/walk = override禁止（実カメラ優先）
+  const _mustReleaseOverride = () =>
+    !!window._captureBusy ||
+    (typeof camAnim !== 'undefined' && camAnim && !!camAnim._recCopyFn) ||
+    (typeof walkMode !== 'undefined' && walkMode && walkMode.active);
+  // ユーザーが今シーンを操作しているか（プリウォームは邪魔しない）
+  const _userActive = () =>
+    (typeof dragOn !== 'undefined' && dragOn) ||
+    (typeof joyDX !== 'undefined' && (joyDX !== 0 || joyDY !== 0)) ||
+    (typeof keys !== 'undefined' && !!(keys.KeyW||keys.KeyS||keys.KeyA||keys.KeyD||keys.KeyQ||keys.KeyE)) ||
+    (typeof yaw !== 'undefined' && (Math.abs(_yawTarget - yaw) > 1e-3 || Math.abs(_pitchTarget - pitch) > 1e-3));
+  // 現在ビューを world-Y 軸で dy 回した LOD 選択用クォータニオン（カメラ規約非依存）
+  const _qY = new THREE.Quaternion();
+  const _UP = new THREE.Vector3(0, 1, 0);
+  const _quatYawOffset = (dy) => _qY.setFromAxisAngle(_UP, dy).clone().multiply(camera.quaternion);
+
+  setInterval(() => {
+    const sr = _sr(); if(!sr) return;
+    const mesh = _mainPaged();
+    // シーン差し替え/破棄 → 状態リセット
+    if(mesh !== st.mesh){ st.mesh = mesh; st.phase = mesh ? 'wait' : 'off'; st.dir = 0; }
+    if(!mesh){ if(sr.lodQuatOverride) sr.lodQuatOverride = null; return; }
+    if(_mustReleaseOverride()){ if(sr.lodQuatOverride) sr.lodQuatOverride = null; st.idleAt = 0; return; }
+
+    // ── 2) 回転先読み（プリウォームより優先。全ティアで有効・コストほぼゼロ）──
+    const dy = (typeof _yawTarget !== 'undefined') ? (_yawTarget - yaw) : 0;
+    if(Math.abs(dy) > 0.05){
+      sr.lodQuatOverride = _quatYawOffset(dy);
+      st.idleAt = 0;
+      return;
+    }
+
+    // ── 1) 全方位プリウォーム（desktopのみ・1シーン1周）──
+    if(!_isDesktop()){ if(st.phase !== 'done' && sr.lodQuatOverride) sr.lodQuatOverride = null; return; }
+    const now = performance.now();
+    if(st.phase === 'wait'){
+      if(typeof _sceneSettledForCalibration === 'function' && _sceneSettledForCalibration()){
+        st.phase = 'sweep'; st.dir = 0; st.dirAt = 0;
+        console.info('[Locahun][Prefetch] 全方位プリウォーム開始 (' + DIRS + '方位)');
+      }
+      return;
+    }
+    if(st.phase !== 'sweep'){ if(sr.lodQuatOverride) sr.lodQuatOverride = null; return; }
+    if(_userActive()){
+      // 操作中は中断・override解放。アイドル1秒で再開。
+      if(sr.lodQuatOverride) sr.lodQuatOverride = null;
+      st.idleAt = now + 1000; st.dirAt = 0;
+      return;
+    }
+    if(now < st.idleAt) return;
+    if(st.dirAt === 0){ st.dirAt = now; }
+    sr.lodQuatOverride = _quatYawOffset(st.dir * Math.PI * 2 / DIRS);
+    // LODウォーカーを回すためレンダーを起こし続ける
+    if(typeof _splatActiveUntil !== 'undefined') _splatActiveUntil = now + DWELL_MS + 200;
+    if(typeof markDirty === 'function') markDirty(2);
+    if(now - st.dirAt >= DWELL_MS){
+      st.dir++; st.dirAt = 0;
+      if(st.dir >= DIRS){
+        st.phase = 'done';
+        sr.lodQuatOverride = null;
+        console.info('[Locahun][Prefetch] プリウォーム完了 — 周囲チャンク常駐化');
+      }
+    }
+  }, 100);
+})();
 // ══════════════════════════════════════════════════
 //  EXPORT / SAVE / LOAD
 // ══════════════════════════════════════════════════
@@ -19062,7 +19438,9 @@ async function _loadProjectZipFromFile(file){
     const fflate=await getFflate();
 
     setMsg(T('zip-decomp')); setBar(20);
-    const zipBuf=new Uint8Array(await file.arrayBuffer());
+    // Chunked read: single-call file.arrayBuffer() fails on files > ~2GiB
+    // (Chrome blob-transfer limit) — see 200_file_loading.js for details.
+    const zipBuf=new Uint8Array(await _readFileArrayBufferChunked(file, p => setBar(20 + Math.round(p*15))));
     let unzipped;
     try{ unzipped=fflate.unzipSync(zipBuf); }
     catch(zipErr){ hideLd(); showUndoToast((_en()?'⚠ ZIP decompress failed: ':'⚠ ZIP解凍失敗: ')+zipErr.message); return; }
@@ -21903,19 +22281,49 @@ function _updateQiBadgeLabel(idx){
   const labels = [T('qt-low'),T('qt-mid'),T('qt-high')];
   if(el) el.textContent = labels[idx] || '?';
 }
-window.setQuality=function(scale,idx){
-  const before = qualIdx;
-  qualScale=scale; qualIdx=idx;
-  // Manual user choice → apply immediately; cancel any deferred swap so the
-  // user's selection isn't overwritten when the next idle window opens.
-  _pendingPixelRatio = null;
-  renderer.setPixelRatio(Math.min(devicePixelRatio,_PR_CAP)*scale);
-  document.querySelectorAll('#quality-panel #qbtns button').forEach((b,i)=>b.classList.toggle('on',i===idx));
-  _updateQiBadgeLabel(idx);
-  // RAD scenes use a per-mesh `lodScale` to drive how aggressively Spark's
-  // LoD walker subdivides chunks. Updating it on the fly lets a quality
-  // preset change (低/中/高) raise or lower splat density in view without
-  // rebuilding the mesh. PLY/SPLAT ignore lodScale (geometry is baked).
+// The three user-pickable quality presets: 低 / 中 / 高.
+//   idx 0 → 0.75  (低)
+//   idx 1 → 1.0   (中)
+//   idx 2 → 1.5   (高)
+// Kept module-scope so the applier, the undo callback and the watchdog all
+// agree on one table (the old code duplicated `[0.75,1.0,1.5]` in three
+// places, which drifted).
+const _QUALITY_SCALES = [0.75, 1.0, 1.5];
+
+// ── Shared quality-tier applier ─────────────────────────────────────────
+// ONE place that mutates qualScale/qualIdx and reflects the change to the
+// renderer, RAD meshes, badge and panel. Every quality actor now routes
+// through here — manual clicks (setQuality), the continuous watchdog, the
+// post-load calibration path, and the battery one-shot — so those four
+// previously-divergent code paths can no longer disagree about pixel ratio
+// vs. RAD lodScale vs. badge (RC3). `opts`:
+//   • source:    'manual' | 'watchdog' | 'calibration' | 'battery'
+//   • immediate: true  → renderer.setPixelRatio() NOW (+ cancel pending swap)
+//                 false → _queuePixelRatio() (applied on the next idle window)
+// Only manual picks are immediate (the user expects instant feedback and no
+// mid-motion flash is acceptable for a deliberate click); everything else is
+// queued so the buffer reallocation lands between interactions.
+function applyQualityTier(idx, opts){
+  opts = opts || {};
+  const source = opts.source || 'watchdog';
+  const immediate = !!opts.immediate;
+  const i = Math.max(0, Math.min(2, idx|0));
+  qualIdx = i;
+  qualScale = _QUALITY_SCALES[i];
+  const pr = Math.min(devicePixelRatio, _PR_CAP) * qualScale;
+  if(immediate){
+    // Cancel any deferred swap so a queued change can't overwrite this one
+    // when the next idle window opens.
+    _pendingPixelRatio = null;
+    renderer.setPixelRatio(pr);
+  } else {
+    _queuePixelRatio(pr);
+  }
+  // ALWAYS reapply RAD lodScale. RAD scenes use a per-mesh `lodScale` to
+  // drive how aggressively Spark's LoD walker subdivides chunks; updating it
+  // on the fly lets a preset change raise/lower in-view splat density without
+  // rebuilding the mesh. PLY/SPLAT ignore lodScale (geometry is baked) — the
+  // `mesh.paged` guard keeps this a no-op for them.
   try {
     const newLod = _radEffectiveLodScale();
     if(typeof layers !== 'undefined' && layers){
@@ -21926,96 +22334,134 @@ window.setQuality=function(scale,idx){
       }
     }
   } catch(_){}
-  // The continuous watchdog stays ACTIVE even after a manual pick. The user's
-  // choice becomes the new "ceiling" the watchdog up-steps toward; if render
-  // time later threatens the 30 fps floor the watchdog will still drop
-  // quality below this level to defend the framerate. (Watchdog runs in
-  // the main animate loop, gated on _qualPreferred for its up-step path.)
-  _qualPreferred = scale;
-  // Reset streak counters so the watchdog re-evaluates against the new
-  // ceiling cleanly without immediately bouncing the user's pick.
+  // ── 高画質時のLOD総予算拡大 (spec S2) ──
+  // lodScale を 2.0 超に上げても総予算 lodSplatCount(desktop既定250万)が先に
+  // 頭打ちになり広範囲が精細化しない(実測で飽和確認済み)。「高」の時だけ予算も
+  // 引き上げ、低/中では undefined に戻して Spark の端末別既定に委ねる。
+  // VRAM上限 maxPagedSplats(desktop 1677万) は別枠なので触らない。
+  try {
+    if(typeof sparkRenderer !== 'undefined' && sparkRenderer){
+      const _tier = (typeof _splatPerfTier !== 'undefined') ? _splatPerfTier : 'laptop_ok';
+      if(i === 2 && _tier === 'desktop')        sparkRenderer.lodSplatCount = 5000000;
+      else if(i === 2 && _tier === 'laptop_ok') sparkRenderer.lodSplatCount = 3000000;
+      else sparkRenderer.lodSplatCount = undefined;
+    }
+  } catch(_){}
+  _updateQiBadgeLabel(i);
+  document.querySelectorAll('#quality-panel #qbtns button').forEach((b,k)=>b.classList.toggle('on',k===i));
+  if(source === 'manual'){
+    // Manual pick = the new ceiling in BOTH directions (existing semantics):
+    // the watchdog may still drop below it to defend 30 fps, but never
+    // auto-climbs past the user's explicit choice.
+    _qualPreferred = qualScale;
+  }
+  const _lbl = ['低','中','高'][i] || '?';
+  console.info('[Locahun][Quality] ' + source + ' → ' + _lbl);
+  markDirty(8);
+}
+// Expose for the calibration/watchdog fragments (concatenated into the same
+// module scope, so a bare reference already resolves — this is just belt-and-
+// suspenders for any external caller / diag console poking).
+window._applyQualityTier = applyQualityTier;
+
+window.setQuality=function(scale,idx){
+  const before = qualIdx;
+  // Delegate to the shared applier so a manual click is byte-for-byte the
+  // same as before: immediate pixel-ratio, RAD lodScale reapply, badge +
+  // panel sync, and _qualPreferred := the picked scale (manual = ceiling).
+  applyQualityTier(idx, { source:'manual', immediate:true });
+  // Reset watchdog streaks so it re-evaluates against the new ceiling cleanly
+  // without immediately bouncing the user's pick. (manualOverride is NOT set
+  // here — that flag is reserved for the ?qual= diag pin, matching prior
+  // behavior; a normal manual click keeps the watchdog active as a floor
+  // defender.)
   if(window._gpuWatchdog){
     window._gpuWatchdog.slowStreak = 0;
     window._gpuWatchdog.fastStreak = 0;
     window._gpuWatchdog.lastStep = performance.now();
   }
-  markDirty(8);
-  const SCALES = [0.75, 1.0, 1.5];
   pushGenericUndo('quality', before, idx, val=>{
     const i = Math.max(0, Math.min(2, val|0));
-    qualIdx = i; qualScale = SCALES[i];
-    renderer.setPixelRatio(Math.min(devicePixelRatio,_PR_CAP)*qualScale);
-    document.querySelectorAll('#quality-panel #qbtns button').forEach((b,k)=>b.classList.toggle('on',k===i));
-    _updateQiBadgeLabel(i);
-    markDirty(8);
+    // Undo/redo of a quality pick is also a manual choice → immediate + resets
+    // the ceiling, identical to a fresh click on that preset.
+    applyQualityTier(i, { source:'manual', immediate:true });
   });
 };
 // ══════════════════════════════════════════════════
-//  Auto quality probe (runs once after each file load)
+//  Auto-quality CALIBRATION (runs once after each file load)
 // ══════════════════════════════════════════════════
-// Samples the rolling render-time average (_ftAvg, maintained by the main
-// loop) a few seconds after a file finishes loading, then picks the
-// highest quality preset that still leaves enough frame-time headroom.
-// This way users land on an "optimal" preset matched to their actual
-// device + scene complexity, instead of always starting at the
-// device-tier default and discovering things are too slow only after
-// scrolling around for a while.
+// REDESIGN: the old one-shot "probe" read _ftAvg 3.5 s after load and directly
+// guessed a preset. That was unsound (RC5): _ftAvg is CPU *submit* time, which
+// is ~0.5 ms on big GPUs regardless of scene weight (so it always guessed 高),
+// yet spikes to ~49 ms mid-RAD-stream (so it could guess 低 on a monster GPU).
+// It also set pixel ratio directly, bypassing the applier (RC3), and never ran
+// for URL/demo loads (RC2).
 //
-// • Skipped entirely if the user already manually picked a quality
-//   (window._gpuWatchdog.manualOverride === true). The probe is meant
-//   for "first impression" tuning, not to override deliberate choice.
-// • Skipped if _ftAvg hasn't yet accumulated meaningful samples
-//   (the window is 60 render calls; pre-load it's noisy / zero).
-// • Picks based on render-call ms vs frame budget (3-preset system):
-//     <  8 ms  → 高 (preset 2, scale 1.5)
-//     <  12 ms → 中 (preset 1, scale 1.0)
-//     else    → 低 (preset 0, scale 0.75)
-//   Headroom values are chosen so 60 fps is sustained even when the
-//   scene gets busier (more layers, camera motion → more splat sorting).
-// • Does NOT push an undo entry — auto-tuning shouldn't clutter the
-//   undo stack. The user's first manual quality click after this still
-//   captures the auto-picked value as the "before" state correctly.
+// New behavior: we do NOT guess a tier here. Instead, once the scene has
+// SETTLED (all paged meshes reached their target splat count AND splat-active
+// window elapsed) we simply OPEN A 20 s CALIBRATION WINDOW: reset the watchdog
+// streaks and let the vsync-normalized closed-loop watchdog (in 291) climb to
+// the true sustainable tier on its own, using a faster UP streak (180 vs 600
+// frames) during the window. The watchdog measures real steady-state
+// frame-time, so it converges to the correct ceiling without a fragile guess.
+//
+// • Skipped entirely if the user already pinned quality
+//   (window._gpuWatchdog.manualOverride === true) — same as the old probe.
+// • Polls every 500 ms up to 30 s waiting for "settled"; if never settled
+//   (e.g. an endless stream), it just times out and does nothing.
+// • Multiple schedules coalesce via the _qualityProbeScheduled flag.
+// • Exported name `window._scheduleQualityProbe` is UNCHANGED so existing
+//   callers (200_file_loading.js, and now 292's loadFromURL) keep working.
 let _qualityProbeScheduled = false;
-function _probeOptimalQuality(){
+// "Settled" predicate — mirrors animate()'s `hasPagedLoading` check, but this
+// runs OUTSIDE the animate loop (from a setInterval poller) so it needs its
+// own copy of the loop rather than reading the frame-local variable.
+function _sceneSettledForCalibration(){
   try{
-    if(!_ftAvg || _ftAvg <= 0) return; // not enough samples yet — bail
-    const ms = _ftAvg;
-    let targetIdx;
-    if      (ms < 8)  targetIdx = 2;
-    else if (ms < 12) targetIdx = 1;
-    else              targetIdx = 0;
-    if(targetIdx === qualIdx) return; // already optimal — no-op
-    const SCALES = [0.75, 1.0, 1.5];
-    qualIdx   = targetIdx;
-    qualScale = SCALES[targetIdx];
-    // Also raise the watchdog's up-step ceiling to match: the probe just
-    // determined this preset is sustainable, so the continuous watchdog
-    // can use it as the "preferred" target after any temporary downstep.
-    _qualPreferred = qualScale;
-    _pendingPixelRatio = null;
-    renderer.setPixelRatio(Math.min(devicePixelRatio, _PR_CAP) * qualScale);
-    document.querySelectorAll('#quality-panel #qbtns button')
-      .forEach((b,i)=>b.classList.toggle('on', i === targetIdx));
-    _updateQiBadgeLabel(targetIdx);
-    markDirty(8);
-    console.info('[Locahun][AutoQuality] probe →', ['低','中','高'][targetIdx],
-                 `(scale ${qualScale}, render ~${ms.toFixed(1)} ms, new ceiling)`);
+    // プラトー検出ベースの共有判定(291の_pagedStreamActive)を使う。旧「総数到達」
+    // 判定は大型RAD/URLストリームで永遠にfalseのままだった(2026-07-03修正)。
+    if(typeof _pagedStreamActive === 'function' && _pagedStreamActive(performance.now())) return false;
+    // Also wait out the splat-active window (Spark's progressive re-sort tail).
+    if(typeof _splatActiveUntil === 'number' && performance.now() <= _splatActiveUntil) return false;
+    return true;
+  } catch(_){ return true; } // on any error, don't block calibration forever
+}
+function _openCalibrationWindow(){
+  try{
+    if(window._gpuWatchdog && window._gpuWatchdog.manualOverride) return; // pinned
+    const wd = (window._gpuWatchdog = window._gpuWatchdog || { slowStreak:0, fastStreak:0, lastStep:0 });
+    const now = performance.now();
+    // Reset streaks + clear the step lockout so the watchdog can act promptly
+    // once the window opens, and give it a clean 20 s window during which the
+    // UP requirement is 180 frames instead of 600 (see 291).
+    wd.slowStreak = 0;
+    wd.fastStreak = 0;
+    wd.lastStep = 0;
+    wd.calibrationUntil = now + 20000;
+    console.info('[Locahun][AutoQuality] calibration window open (20s)');
   } catch(e){
-    console.warn('[Locahun][AutoQuality] probe failed:', e);
+    console.warn('[Locahun][AutoQuality] calibration failed:', e);
   }
 }
-// Schedule the probe ~3.5 s after the splat finishes loading. The delay
-// gives Spark's progressive sort time to stabilise so _ftAvg samples a
-// representative steady-state render cost, not the heavy first frames.
-// Safe to call multiple times — only the first scheduling per file
-// actually runs.
+// Schedule calibration after the splat finishes loading. Polls every 500 ms
+// (max 30 s) until the scene is settled, THEN opens the calibration window.
+// Safe to call multiple times — only the first scheduling per file runs.
 window._scheduleQualityProbe = function(){
   if(_qualityProbeScheduled) return;
+  if(window._gpuWatchdog && window._gpuWatchdog.manualOverride) return; // pinned → no-op
   _qualityProbeScheduled = true;
-  setTimeout(()=>{
-    _probeOptimalQuality();
-    _qualityProbeScheduled = false; // allow re-probe on next file load
-  }, 3500);
+  let _polls = 0;
+  const _iv = setInterval(()=>{
+    _polls++;
+    if(_sceneSettledForCalibration()){
+      clearInterval(_iv);
+      _qualityProbeScheduled = false; // allow re-schedule on next file load
+      _openCalibrationWindow();
+    } else if(_polls >= 240){ // 240 × 500 ms = 120 s cap (大型RADの初回ストリームは40-60s+かかる)
+      clearInterval(_iv);
+      _qualityProbeScheduled = false;
+    }
+  }, 500);
 };
 
 window.setFOV=function(degrees,idx){

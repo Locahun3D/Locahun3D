@@ -76,7 +76,7 @@ async function loadAdditionalSplat(file){
     const ext=file.name.split('.').pop().toLowerCase();
     setMsg(T('loading-file')); setBar(15);
     // Chunked read: single-call file.arrayBuffer() fails on files > ~2GiB
-    // (Chrome blob-transfer limit) — see 200_file_loading.js for details.
+    // (V8 ArrayBuffer size ceiling ~2GiB; unfixable in-browser past that — see 200_file_loading.js) —
     const rawBuf=await _readFileArrayBufferChunked(file, p => setBar(15 + Math.round(p*30)));  // read for caching
     setBar(45);
     // Full-quality load on every device — load-time decimation removed
@@ -161,7 +161,7 @@ async function loadObjFile(file){
     setMsg(T('loading-file')); setBar(15);
     let object3d;
     // Chunked read: single-call file.arrayBuffer() fails on files > ~2GiB
-    // (Chrome blob-transfer limit) — see 200_file_loading.js for details.
+    // (V8 ArrayBuffer size ceiling ~2GiB; unfixable in-browser past that — see 200_file_loading.js) —
     const buf=await _readFileArrayBufferChunked(file, p => setBar(15 + Math.round(p*25)));
     setBar(40);
     setMsg(T('parsing'));

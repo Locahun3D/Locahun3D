@@ -1,18 +1,39 @@
 // ══════════════════════════════════════════════════
 //  FILE LOADING
 // ══════════════════════════════════════════════════
-// Chrome's File/Blob→ArrayBuffer transfer has a long-standing ~2GiB ceiling
-// for a SINGLE `file.arrayBuffer()` call (the underlying mojo blob-transfer
-// IPC uses a 32-bit size in places) — calling it on a file just over 2^31-1
-// bytes throws "The requested file could not be read, typically due to
-// permission problems that have occurred after a reference to a file was
-// acquired" partway through the read (2026-07-05: reproduced with a 2.36GB
-// local .ply — failed at exactly the point this call fires). The fix is to
-// read the file in <2GiB SLICES (each slice's own .arrayBuffer() call stays
-// under the limit) and copy them into one destination buffer — the
-// destination Uint8Array itself has no such ceiling on 64-bit V8.
+// A local PLY/SPLAT file over ~2 GiB throws "The requested file could not be
+// read, typically due to permission problems that have occurred after a
+// reference to a file was acquired" partway through `file.arrayBuffer()`
+// (2026-07-05: reproduced with a real 2.36GB .ply, failed exactly at that
+// call). Root cause confirmed live in this Chrome/V8 build (bisected in
+// devtools): a PLAIN `new ArrayBuffer(n)` itself throws "Array buffer
+// allocation failed" for any n at/above ~2,145,386,819 bytes — this is V8's
+// own single-ArrayBuffer size ceiling (~2^31-1), NOT a Blob-transfer-specific
+// bug. That means reading in chunks does NOT fix files past this ceiling —
+// the DESTINATION Uint8Array we'd assemble them into hits the exact same
+// wall. PLY/SPLAT/OBJ hand Spark one contiguous buffer by design (unlike
+// .rad, which streams via HTTP Range and never needs the whole file in one
+// buffer) — there is no in-browser workaround for a single PLY/SPLAT file
+// this large. We fail fast with a clear, actionable message instead of
+// letting the confusing native error surface, and point the user at RAD.
+const MAX_SINGLE_BUFFER_BYTES = 2_000_000_000; // safe margin under the ~2.145B wall
+function _assertReadableFileSize(file){
+  if(file.size >= MAX_SINGLE_BUFFER_BYTES){
+    const gb = (file.size / 1024 / 1024 / 1024).toFixed(2);
+    throw new Error(
+      `このファイルは${gb}GBあり、ブラウザの技術的な上限（単一バッファ約2GB）を超えているため ` +
+      `PLY/SPLAT/OBJ形式では読み込めません。.rad（ストリーミング形式）に変換してください — ` +
+      `RADは容量に依らず正常に読み込めます。`
+    );
+  }
+}
+// Reads the file in <512MB slices — this is NOT a >2GiB workaround (see
+// above), just a mitigation for a SEPARATE, smaller-scale Chromium
+// blob-transfer flakiness some builds show even under 2GB. Files at/above
+// the true ceiling are rejected up front by _assertReadableFileSize.
 async function _readFileArrayBufferChunked(file, onProgress){
-  const CHUNK = 512 * 1024 * 1024; // 512MB — comfortably under the ~2GiB wall
+  _assertReadableFileSize(file);
+  const CHUNK = 512 * 1024 * 1024; // 512MB
   const total = file.size;
   if(total < CHUNK) return await file.arrayBuffer();
   const out = new Uint8Array(total);
