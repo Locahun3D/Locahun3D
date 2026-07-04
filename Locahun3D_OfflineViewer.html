@@ -10866,6 +10866,7 @@ window.__loadRad = (url)=>{ try{ return loadFromURL(url,'RADtest'); }catch(e){ r
 window.__nSplat = ()=> (typeof splatMesh!=='undefined'&&splatMesh&&splatMesh.paged)?splatMesh.paged.numSplats:-1;
 window.__keepAlive = (ms)=>{ _splatActiveUntil=performance.now()+(ms||6000); markDirty(240); };
 window.__setCam = (y,p)=>{ if(typeof yaw!=='undefined'){yaw=_yawTarget=y;} if(typeof pitch!=='undefined'){pitch=_pitchTarget=(p||0);} _splatActiveUntil=performance.now()+8000; markDirty(240); };
+window.__setCamPos = (x,y,z)=>{ if(typeof camPos!=='undefined'){ camPos.set(x,y,z); } _splatActiveUntil=performance.now()+8000; markDirty(240); };
 // sparkRenderer のLOD関連プロパティをライブ設定（lodSplatCount/lodSplatScale/coneFov等）
 window.__setRenderer = (p)=>{ if(typeof sparkRenderer==='undefined') return 'no sr'; const out={}; for(const k in p){ sparkRenderer[k]=p[k]; out[k]=sparkRenderer[k]; } if(typeof markDirty==='function') markDirty(240); return out; };
 window.__srDump = ()=>{ if(typeof sparkRenderer==='undefined') return 'no sr'; const o={}; for(const k of ['lodSplatCount','lodSplatScale','lodRenderScale','coneFov','coneFov0','coneFoveate','behindFoveate','maxPagedSplats','numLodFetchers','enableLod','enableDriveLod']){ o[k]=sparkRenderer[k]; } return o; };
