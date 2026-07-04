@@ -75,7 +75,9 @@ async function loadAdditionalSplat(file){
     setMsg(T('preparing')); setBar(5);
     const ext=file.name.split('.').pop().toLowerCase();
     setMsg(T('loading-file')); setBar(15);
-    const rawBuf=await file.arrayBuffer();  // read for caching
+    // Chunked read: single-call file.arrayBuffer() fails on files > ~2GiB
+    // (Chrome blob-transfer limit) — see 200_file_loading.js for details.
+    const rawBuf=await _readFileArrayBufferChunked(file, p => setBar(15 + Math.round(p*30)));  // read for caching
     setBar(45);
     // Full-quality load on every device — load-time decimation removed
     // (per user direction 2026-05). Users opt in to "ポリゴン 1/4" via
@@ -158,7 +160,9 @@ async function loadObjFile(file){
     const ext=file.name.split('.').pop().toLowerCase();
     setMsg(T('loading-file')); setBar(15);
     let object3d;
-    const buf=await file.arrayBuffer();
+    // Chunked read: single-call file.arrayBuffer() fails on files > ~2GiB
+    // (Chrome blob-transfer limit) — see 200_file_loading.js for details.
+    const buf=await _readFileArrayBufferChunked(file, p => setBar(15 + Math.round(p*25)));
     setBar(40);
     setMsg(T('parsing'));
     if(ext==='obj'){

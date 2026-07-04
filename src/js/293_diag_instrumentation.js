@@ -288,6 +288,24 @@ setInterval(()=>{
     }
   }catch(_){}
 }, 500);
+// Test helpers for the >2GiB file.arrayBuffer() fix (2026-07-05). Builds a
+// File of arbitrary size (content doesn't matter — only the SIZE triggers
+// the Chrome blob-transfer limit) so the failure/fix can be verified without
+// transferring real multi-GB data over the network.
+window.__makeTestFile = function(sizeBytes, name){
+  const buf = new ArrayBuffer(sizeBytes);
+  return new File([buf], name || 'test.ply', { type: 'application/octet-stream' });
+};
+window.__testRawArrayBuffer = async function(file){
+  const t0 = performance.now();
+  try{ const b = await file.arrayBuffer(); return { ok:true, byteLength:b.byteLength, ms:Math.round(performance.now()-t0) }; }
+  catch(e){ return { ok:false, err:String(e && e.message || e), ms:Math.round(performance.now()-t0) }; }
+};
+window.__testChunkedRead = async function(file){
+  const t0 = performance.now();
+  try{ const b = await _readFileArrayBufferChunked(file); return { ok:true, byteLength:b.byteLength, ms:Math.round(performance.now()-t0) }; }
+  catch(e){ return { ok:false, err:String(e && e.message || e), ms:Math.round(performance.now()-t0) }; }
+};
 // Renderer-level pixelScaleLimit multiplier (distinct from mesh.lodScale —
 // this one scales the actual screen-space-error THRESHOLD Spark uses to
 // decide whether a splat needs finer LOD, per SparkRenderer.ts's own

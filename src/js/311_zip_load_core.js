@@ -7,7 +7,9 @@ async function _loadProjectZipFromFile(file){
     const fflate=await getFflate();
 
     setMsg(T('zip-decomp')); setBar(20);
-    const zipBuf=new Uint8Array(await file.arrayBuffer());
+    // Chunked read: single-call file.arrayBuffer() fails on files > ~2GiB
+    // (Chrome blob-transfer limit) — see 200_file_loading.js for details.
+    const zipBuf=new Uint8Array(await _readFileArrayBufferChunked(file, p => setBar(20 + Math.round(p*15))));
     let unzipped;
     try{ unzipped=fflate.unzipSync(zipBuf); }
     catch(zipErr){ hideLd(); showUndoToast((_en()?'⚠ ZIP decompress failed: ':'⚠ ZIP解凍失敗: ')+zipErr.message); return; }

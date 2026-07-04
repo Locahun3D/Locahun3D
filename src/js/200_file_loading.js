@@ -1,6 +1,31 @@
 // ══════════════════════════════════════════════════
 //  FILE LOADING
 // ══════════════════════════════════════════════════
+// Chrome's File/Blob→ArrayBuffer transfer has a long-standing ~2GiB ceiling
+// for a SINGLE `file.arrayBuffer()` call (the underlying mojo blob-transfer
+// IPC uses a 32-bit size in places) — calling it on a file just over 2^31-1
+// bytes throws "The requested file could not be read, typically due to
+// permission problems that have occurred after a reference to a file was
+// acquired" partway through the read (2026-07-05: reproduced with a 2.36GB
+// local .ply — failed at exactly the point this call fires). The fix is to
+// read the file in <2GiB SLICES (each slice's own .arrayBuffer() call stays
+// under the limit) and copy them into one destination buffer — the
+// destination Uint8Array itself has no such ceiling on 64-bit V8.
+async function _readFileArrayBufferChunked(file, onProgress){
+  const CHUNK = 512 * 1024 * 1024; // 512MB — comfortably under the ~2GiB wall
+  const total = file.size;
+  if(total < CHUNK) return await file.arrayBuffer();
+  const out = new Uint8Array(total);
+  let offset = 0;
+  while(offset < total){
+    const end = Math.min(offset + CHUNK, total);
+    const chunkBuf = await file.slice(offset, end).arrayBuffer();
+    out.set(new Uint8Array(chunkBuf), offset);
+    offset = end;
+    if(typeof onProgress === 'function') onProgress(offset / total);
+  }
+  return out.buffer;
+}
 async function loadSplatFile(file){
   try{
     showLd(T('loading')); setBar(5); setMsg(T('preparing'));
@@ -29,7 +54,7 @@ async function loadSplatFile(file){
 
     // ── 常にバッファを読み込む（ZIP保存キャッシュ兼用）──
     setMsg(T('loading-file')); setBar(15);
-    const rawBuf=await file.arrayBuffer();
+    const rawBuf=await _readFileArrayBufferChunked(file, p => setBar(15 + Math.round(p*7)));
 
     // Stats for camera placement + position cache for picking
     let stats={center:new THREE.Vector3(),size:5,cache:null,cacheCount:0};

@@ -11460,6 +11460,31 @@ const SPARK_QUALITY_OPTS = {
 // ══════════════════════════════════════════════════
 //  FILE LOADING
 // ══════════════════════════════════════════════════
+// Chrome's File/Blob→ArrayBuffer transfer has a long-standing ~2GiB ceiling
+// for a SINGLE `file.arrayBuffer()` call (the underlying mojo blob-transfer
+// IPC uses a 32-bit size in places) — calling it on a file just over 2^31-1
+// bytes throws "The requested file could not be read, typically due to
+// permission problems that have occurred after a reference to a file was
+// acquired" partway through the read (2026-07-05: reproduced with a 2.36GB
+// local .ply — failed at exactly the point this call fires). The fix is to
+// read the file in <2GiB SLICES (each slice's own .arrayBuffer() call stays
+// under the limit) and copy them into one destination buffer — the
+// destination Uint8Array itself has no such ceiling on 64-bit V8.
+async function _readFileArrayBufferChunked(file, onProgress){
+  const CHUNK = 512 * 1024 * 1024; // 512MB — comfortably under the ~2GiB wall
+  const total = file.size;
+  if(total < CHUNK) return await file.arrayBuffer();
+  const out = new Uint8Array(total);
+  let offset = 0;
+  while(offset < total){
+    const end = Math.min(offset + CHUNK, total);
+    const chunkBuf = await file.slice(offset, end).arrayBuffer();
+    out.set(new Uint8Array(chunkBuf), offset);
+    offset = end;
+    if(typeof onProgress === 'function') onProgress(offset / total);
+  }
+  return out.buffer;
+}
 async function loadSplatFile(file){
   try{
     showLd(T('loading')); setBar(5); setMsg(T('preparing'));
@@ -11488,7 +11513,7 @@ async function loadSplatFile(file){
 
     // ── 常にバッファを読み込む（ZIP保存キャッシュ兼用）──
     setMsg(T('loading-file')); setBar(15);
-    const rawBuf=await file.arrayBuffer();
+    const rawBuf=await _readFileArrayBufferChunked(file, p => setBar(15 + Math.round(p*7)));
 
     // Stats for camera placement + position cache for picking
     let stats={center:new THREE.Vector3(),size:5,cache:null,cacheCount:0};
@@ -16530,7 +16555,9 @@ async function loadAdditionalSplat(file){
     setMsg(T('preparing')); setBar(5);
     const ext=file.name.split('.').pop().toLowerCase();
     setMsg(T('loading-file')); setBar(15);
-    const rawBuf=await file.arrayBuffer();  // read for caching
+    // Chunked read: single-call file.arrayBuffer() fails on files > ~2GiB
+    // (Chrome blob-transfer limit) — see 200_file_loading.js for details.
+    const rawBuf=await _readFileArrayBufferChunked(file, p => setBar(15 + Math.round(p*30)));  // read for caching
     setBar(45);
     // Full-quality load on every device — load-time decimation removed
     // (per user direction 2026-05). Users opt in to "ポリゴン 1/4" via
@@ -16613,7 +16640,9 @@ async function loadObjFile(file){
     const ext=file.name.split('.').pop().toLowerCase();
     setMsg(T('loading-file')); setBar(15);
     let object3d;
-    const buf=await file.arrayBuffer();
+    // Chunked read: single-call file.arrayBuffer() fails on files > ~2GiB
+    // (Chrome blob-transfer limit) — see 200_file_loading.js for details.
+    const buf=await _readFileArrayBufferChunked(file, p => setBar(15 + Math.round(p*25)));
     setBar(40);
     setMsg(T('parsing'));
     if(ext==='obj'){
@@ -18559,6 +18588,24 @@ setInterval(()=>{
     }
   }catch(_){}
 }, 500);
+// Test helpers for the >2GiB file.arrayBuffer() fix (2026-07-05). Builds a
+// File of arbitrary size (content doesn't matter — only the SIZE triggers
+// the Chrome blob-transfer limit) so the failure/fix can be verified without
+// transferring real multi-GB data over the network.
+window.__makeTestFile = function(sizeBytes, name){
+  const buf = new ArrayBuffer(sizeBytes);
+  return new File([buf], name || 'test.ply', { type: 'application/octet-stream' });
+};
+window.__testRawArrayBuffer = async function(file){
+  const t0 = performance.now();
+  try{ const b = await file.arrayBuffer(); return { ok:true, byteLength:b.byteLength, ms:Math.round(performance.now()-t0) }; }
+  catch(e){ return { ok:false, err:String(e && e.message || e), ms:Math.round(performance.now()-t0) }; }
+};
+window.__testChunkedRead = async function(file){
+  const t0 = performance.now();
+  try{ const b = await _readFileArrayBufferChunked(file); return { ok:true, byteLength:b.byteLength, ms:Math.round(performance.now()-t0) }; }
+  catch(e){ return { ok:false, err:String(e && e.message || e), ms:Math.round(performance.now()-t0) }; }
+};
 // Renderer-level pixelScaleLimit multiplier (distinct from mesh.lodScale —
 // this one scales the actual screen-space-error THRESHOLD Spark uses to
 // decide whether a splat needs finer LOD, per SparkRenderer.ts's own
@@ -19391,7 +19438,9 @@ async function _loadProjectZipFromFile(file){
     const fflate=await getFflate();
 
     setMsg(T('zip-decomp')); setBar(20);
-    const zipBuf=new Uint8Array(await file.arrayBuffer());
+    // Chunked read: single-call file.arrayBuffer() fails on files > ~2GiB
+    // (Chrome blob-transfer limit) — see 200_file_loading.js for details.
+    const zipBuf=new Uint8Array(await _readFileArrayBufferChunked(file, p => setBar(20 + Math.round(p*15))));
     let unzipped;
     try{ unzipped=fflate.unzipSync(zipBuf); }
     catch(zipErr){ hideLd(); showUndoToast((_en()?'⚠ ZIP decompress failed: ':'⚠ ZIP解凍失敗: ')+zipErr.message); return; }
