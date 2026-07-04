@@ -268,11 +268,25 @@ window.__setLodBudget = function(n){
   window.__lodBudgetPin = (typeof n === 'number' && n > 0) ? n : null;
   window._gpuWatchdog = window._gpuWatchdog || {};
   window._gpuWatchdog.manualOverride = true; // also freeze the watchdog/calibration
-  try{ if(typeof sparkRenderer !== 'undefined' && sparkRenderer && window.__lodBudgetPin) sparkRenderer.lodSplatCount = window.__lodBudgetPin; }catch(_){}
+  try{
+    if(typeof sparkRenderer !== 'undefined' && sparkRenderer && window.__lodBudgetPin){
+      sparkRenderer.lodSplatCount = window.__lodBudgetPin;
+      // Read back immediately — devtools console runs outside the module's
+      // lexical scope so it can't see `sparkRenderer` directly. Exposing the
+      // read-back value lets a test detect internal clamping (e.g. Spark
+      // silently capping an assigned value below what was set).
+      window.__lodBudgetReadback = sparkRenderer.lodSplatCount;
+    }
+  }catch(e){ window.__lodBudgetErr = String(e && e.message || e); }
 };
 setInterval(()=>{
   if(window.__lodBudgetPin == null) return;
-  try{ if(typeof sparkRenderer !== 'undefined' && sparkRenderer) sparkRenderer.lodSplatCount = window.__lodBudgetPin; }catch(_){}
+  try{
+    if(typeof sparkRenderer !== 'undefined' && sparkRenderer){
+      sparkRenderer.lodSplatCount = window.__lodBudgetPin;
+      window.__lodBudgetReadback = sparkRenderer.lodSplatCount;
+    }
+  }catch(_){}
 }, 500);
 if(/[?&]stress=(\d+)/.test(location.search)){
   const stressLevel = parseInt(RegExp.$1, 10) || 1;
