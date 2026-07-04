@@ -18645,6 +18645,11 @@ setInterval(()=>{
 // File of arbitrary size (content doesn't matter — only the SIZE triggers
 // the Chrome blob-transfer limit) so the failure/fix can be verified without
 // transferring real multi-GB data over the network.
+// Exercise the real local-file drag-drop path (loadSplatFile is module-
+// scoped, not otherwise reachable from devtools) — lets a test pass a real
+// File object (e.g. wrapping fetched .rad bytes) through the exact same
+// code a drag-drop would run, including the new blob:-URL RAD streaming.
+window.__testLoadSplatFile = function(file){ return loadSplatFile(file); };
 window.__makeTestFile = function(sizeBytes, name){
   const buf = new ArrayBuffer(sizeBytes);
   return new File([buf], name || 'test.ply', { type: 'application/octet-stream' });
