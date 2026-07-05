@@ -470,5 +470,19 @@ window.__diagState = {
   get lodQuatOverrideSet(){
     try{ return !!(typeof sparkRenderer!=='undefined' && sparkRenderer && sparkRenderer.lodQuatOverride); }catch(_){ return null; }
   },
+  // ── RAD LODボトルネック特定用 (2026-07-06) ──
+  // lastTraverseTime: 直近の WASM traverseLodTrees 所要ms（SparkRendererが計測）。
+  // pagerQ/pagerActive: フェッチ待ち行列長と実行中フェッチ数。
+  // 「n の伸びが遅い」とき、pagerActive が張り付き → decode/fetch律速、
+  // 両方ゼロで n が伸びる待ち → ツリー更新/トラバース波の直列律速、と読み分ける。
+  get lastTraverseMs(){
+    try{ return (typeof sparkRenderer!=='undefined' && sparkRenderer) ? (sparkRenderer.lastTraverseTime||null) : null; }catch(_){ return null; }
+  },
+  get pagerQ(){
+    try{ return sparkRenderer.pager ? sparkRenderer.pager.fetchPriority.length : null; }catch(_){ return null; }
+  },
+  get pagerActive(){
+    try{ return sparkRenderer.pager ? sparkRenderer.pager.fetchers.length : null; }catch(_){ return null; }
+  },
 };
 
