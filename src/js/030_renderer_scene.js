@@ -80,7 +80,11 @@ scene = new THREE.Scene();
 // （実測: 120ms/chunk 模擬でフル解像 fetchers3=5.6s → 12=3.0s、本番R2の
 //  HTTP/2 多重化では更に効く）。共有 SplatPager に渡り全RADに適用される。
 // モバイルは従量/帯域に配慮して控えめ。
-const _numLodFetchers = isMobile ? 6 : 12;
+// 2026-07-05: 12→16。実効並列 = min(numFetchers, decodeワーカープール) で、
+// プールは vendored Spark (vendor/spark-2.0.0-workers16.module.js) により
+// 4固定→hardwareConcurrency-2(上限16)へ拡大済み。デスクトップはプールを
+// フルに使えるよう16に合わせる。
+const _numLodFetchers = isMobile ? 6 : 16;
 const sparkRenderer = new SparkRenderer({ renderer, numLodFetchers: _numLodFetchers });
 scene.add(sparkRenderer);
 

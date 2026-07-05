@@ -21,6 +21,10 @@ cp "$DIR/favicon.svg"                      "$DIST/"
 cp "$DIR/favicon.png"                      "$DIST/"
 cp "$DIR/apple-touch-icon.png"             "$DIST/"
 cp -r "$DIR/figures/"                      "$DIST/figures/"
+# vendored Spark（ワーカープールパッチ版）— importmap がここを指す。
+# 由来と更新手順は vendor/README.md 参照。
+mkdir -p "$DIST/vendor"
+cp "$DIR/vendor/spark-2.0.0-workers16.module.js" "$DIST/vendor/"
 
 echo "=== Deploying to Cloudflare ==="
 cd "$DIR"

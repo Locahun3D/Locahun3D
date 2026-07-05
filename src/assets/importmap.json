@@ -2,7 +2,7 @@
   "imports": {
     "three": "https://cdn.jsdelivr.net/npm/three@0.180.0/build/three.module.js",
     "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.180.0/examples/jsm/",
-    "@sparkjsdev/spark": "https://cdn.jsdelivr.net/npm/@sparkjsdev/spark@2.0.0/dist/spark.module.js",
+    "@sparkjsdev/spark": "https://viewer.locahun3d.com/vendor/spark-2.0.0-workers16.module.js",
     "fflate": "https://cdn.jsdelivr.net/npm/fflate@0.8.2/esm/browser.js"
   }
 }
