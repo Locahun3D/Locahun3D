@@ -484,5 +484,14 @@ window.__diagState = {
   get pagerActive(){
     try{ return sparkRenderer.pager ? sparkRenderer.pager.fetchers.length : null; }catch(_){ return null; }
   },
+  get lodSplatCount(){
+    try{ return (typeof sparkRenderer!=='undefined' && sparkRenderer) ? sparkRenderer.lodSplatCount : null; }catch(_){ return null; }
+  },
+  get splatPerfTier(){
+    try{ return (typeof _splatPerfTier!=='undefined') ? _splatPerfTier : null; }catch(_){ return null; }
+  },
+  get lastTraverseResumed(){
+    try{ return (typeof sparkRenderer!=='undefined' && sparkRenderer) ? !!sparkRenderer.lastTraverseResumed : null; }catch(_){ return null; }
+  },
 };
 
