@@ -1,5 +1,8 @@
 import * as THREE from 'three';
 import { SplatMesh, SplatFileType, SplatLoader, SparkRenderer, PagedSplats } from '@sparkjsdev/spark';
+// Used only by the camera-animation MP4 exporter (113b) to mux WebCodecs
+// VideoEncoder output into a playable MP4 with perfectly even frame timing.
+import { Muxer as Mp4Muxer, ArrayBufferTarget as Mp4ArrayBufferTarget } from 'mp4-muxer';
 // OBJLoader / GLTFLoader / FBXLoader are now LAZY-loaded on first use so
 // the splat viewer boots fully offline even when the addon CDN is down.
 // _addonLoader('OBJLoader') etc. resolves to the constructor or null on

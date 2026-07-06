@@ -166,12 +166,36 @@ function _camAnimSampleAt(t){
   // along the curve even though Catmull-Rom's native parameterisation is
   // not arc-length linear.
   let u     = t / camAnim.totalSec;
-  // Ease in/out (user-selectable). Smoothstep on the normalised progress so the
-  // shot accelerates from rest and decelerates to a stop; position AND every
-  // scalar field derive from the same eased u, so they stay in lockstep.
-  // Strength dialed to ~1/3 (user: "イージングが強すぎる") by blending the
-  // smoothstep result back toward linear: eased = lerp(u, smoothstep, 1/3).
-  if(camAnim.easing){ const _sm = u*u*(3 - 2*u); u = u + (_sm - u) * (1/3); }
+  // Ease in/out (user-selectable); position AND every scalar field derive
+  // from the same eased u, so they stay in lockstep.
+  //
+  // 2026-07-06 replacement: the previous version blended a full cubic
+  // smoothstep back toward linear (~1/3 strength) to soften an earlier
+  // "easing is too strong" complaint. That blend is mathematically unable to
+  // produce a true stop: smoothstep alone has zero derivative at u=0/1, but
+  // averaging ANY of it with linear (constant, nonzero derivative) leaves a
+  // nonzero residual velocity at the endpoints — the shot's motion gets cut
+  // off abruptly rather than decelerating to rest, exactly the "stops like
+  // linear at the end" symptom reported once real exports could finally be
+  // watched. Fixed with a quadratic ease-in / linear cruise / quadratic
+  // ease-out curve instead: C1-continuous at both internal seams, EXACTLY
+  // zero velocity at u=0 and u=1 (guaranteed true start/stop regardless of
+  // EASE_FRAC), and — because only the first/last EASE_FRAC of the duration
+  // is easing at all — the cruise speed is just 1/(1-EASE_FRAC) ≈ 1.25× the
+  // average (vs. 1.5× for a full cubic smoothstep), i.e. gentler throughout
+  // than before while still genuinely resting at both ends.
+  if(camAnim.easing){
+    const EASE_FRAC = 0.2;
+    const m = 1 / (1 - EASE_FRAC);
+    if(u <= EASE_FRAC){
+      u = (m / (2 * EASE_FRAC)) * u * u;
+    } else if(u >= 1 - EASE_FRAC){
+      const w = 1 - u;
+      u = 1 - (m / (2 * EASE_FRAC)) * w * w;
+    } else {
+      u = (m * EASE_FRAC) / 2 + m * (u - EASE_FRAC);
+    }
+  }
   // CRITICAL: getPointAt(u) is ARC-LENGTH parameterised, but _catRom1D()
   // below is parameterised UNIFORMLY in key index (f = param*(n-1)). Passing
   // the arc-length u straight into _catRom1D phase-shifts the ORIENTATION

@@ -93,6 +93,12 @@ function _camAnimRenderPanel(){
           style="accent-color:#b594ff;cursor:pointer"> ${t('Burn in grid / safe zone','グリッド/セーフ枠を焼き込み')}
       </label>
     </div>
+    <div style="margin-bottom:6px">
+      <label style="display:flex;align-items:center;gap:6px;font-size:.82em;cursor:pointer">
+        <input type="checkbox" id="ca-export-4k"
+          style="accent-color:#b594ff;cursor:pointer"> ${t('4K recording','4K 録画')}
+      </label>
+    </div>
     <div style="display:flex;gap:4px">
       <button onclick="window.camAnimPreview()" ${ready ? '' : 'disabled'}
         style="flex:1;padding:5px 6px;background:rgba(120,200,255,.18);
@@ -267,6 +273,135 @@ window.camAnimPreview = function(){
   _camAnimRenderPanel();
 };
 
+// Frame rate for camera-animation exports.
+const CAM_ANIM_REC_FPS = 30;
+// One keyframe per second of output — reasonable GOP size for a 30fps export.
+const CAM_ANIM_REC_KEYFRAME_INTERVAL = CAM_ANIM_REC_FPS;
+
+// 2026-07-06: WebCodecs rewrite. Two prior approaches were tried and both
+// have a fundamental ceiling that only shows up under a heavy scene:
+//  1) Real-time captureStream(60) + MediaRecorder — samples the canvas 60
+//     times/sec on ITS OWN clock, independent of how often content actually
+//     changed. Spark's real render rate rarely divides 60 evenly, so frames
+//     get duplicated unevenly → visible judder.
+//  2) captureStream(0) manual mode + track.requestFrame() — still routes
+//     through MediaRecorder, which timestamps each frame by the REAL
+//     wall-clock moment requestFrame() was called. Any render slowdown
+//     (exactly what happens on a heavy scene, the case this was supposed to
+//     fix) still shows up directly as an unevenly-held frame in the output,
+//     because the recorder has no concept of "this frame belongs at exactly
+//     t=i/30s" — only "this frame arrived at real time T".
+// Fix: bypass MediaRecorder/captureStream entirely. Each rendered pose is
+// wrapped in a VideoFrame with an EXPLICIT, mathematically even synthetic
+// timestamp (i * 1e6/FPS microseconds) and fed straight to a VideoEncoder;
+// mp4-muxer packages the encoded chunks into a real MP4. However long any
+// individual frame actually took to render in wall-clock time is now
+// irrelevant to the output — every frame's PRESENTATION timestamp is exactly
+// where it belongs, so the exported video is always perfectly even at
+// CAM_ANIM_REC_FPS. A slow render can only make the EXPORT (not the VIDEO)
+// take longer, which is the correct trade-off for an offline-style export.
+async function _camAnimMakeExporter(width, height){
+  if(typeof VideoEncoder === 'undefined' || typeof VideoFrame === 'undefined') return null;
+  // H.264 4:2:0 chroma subsampling requires even dimensions.
+  width  = Math.max(2, width  - (width  % 2));
+  height = Math.max(2, height - (height % 2));
+  const bitrate = 12_000_000;
+  const codecCandidates = [
+    'avc1.640034', // High Profile, Level 5.2 — best quality/size for large frames
+    'avc1.4d0034', // Main Profile, Level 5.2
+    'avc1.42001f', // Baseline Profile, Level 3.1 — widest-compatibility fallback
+  ];
+  let codec = null;
+  for(const c of codecCandidates){
+    try {
+      const support = await VideoEncoder.isConfigSupported({ codec: c, width, height, bitrate });
+      if(support && support.supported){ codec = c; break; }
+    } catch(_){}
+  }
+  if(!codec) return null;
+
+  const muxer = new Mp4Muxer({
+    target: new Mp4ArrayBufferTarget(),
+    video: { codec: 'avc', width, height, frameRate: CAM_ANIM_REC_FPS },
+    fastStart: 'in-memory',
+  });
+  // VideoEncoder reports encode-time failures (e.g. a misconfigured/odd
+  // frame size) ASYNCHRONOUSLY through this callback, not by throwing from
+  // encode() itself — a caller that only logs here and keeps pushing frames
+  // ends up feeding a doomed encoder for the rest of the export, producing a
+  // structurally-valid-looking MP4 container with no (or too few) actual
+  // samples once muxed. Surface it via `errored` so pushFrame can abort the
+  // export immediately instead of silently limping to a broken file.
+  let errored = null;
+  const encoder = new VideoEncoder({
+    output: (chunk, meta) => muxer.addVideoChunk(chunk, meta),
+    error: (e) => { errored = e; console.error('[Locahun][CamAnimRec] VideoEncoder error', e); },
+  });
+  encoder.configure({ codec, width, height, bitrate, framerate: CAM_ANIM_REC_FPS });
+
+  return {
+    width, height,
+    get errored(){ return errored; },
+    async pushFrame(source, timestampUs, keyFrame){
+      if(errored) throw errored;
+      // Backpressure — caps how many frames can be in flight so a slow
+      // encoder can't make memory grow unbounded on a long export. Bounded
+      // (2026-07-06): a genuinely slow-but-healthy encoder draining its
+      // queue is exactly what this loop is for and should keep waiting, but
+      // an encoder that's truly wedged (not erroring, just never advancing)
+      // must not be allowed to hang the export forever — the same class of
+      // bug already fixed once for the render-wait step (see stepFrame).
+      const backpressureStartedAt = performance.now();
+      while(encoder.encodeQueueSize > 8){
+        if(performance.now() - backpressureStartedAt > 10_000){
+          throw new Error('VideoEncoder queue did not drain (encoder appears stuck)');
+        }
+        await new Promise(r => setTimeout(r, 4));
+      }
+      if(errored) throw errored;
+      const frame = new VideoFrame(source, { timestamp: timestampUs });
+      try { encoder.encode(frame, { keyFrame: !!keyFrame }); }
+      finally { frame.close(); }
+    },
+    async finish(){
+      await encoder.flush();
+      encoder.close();
+      muxer.finalize();
+      // The exact codec string is REQUIRED here, not cosmetic: a bare
+      // 'video/mp4' MIME type makes Chrome's <video>/MSE demuxer fail with a
+      // generic "Format error" for less-common profile/level combinations
+      // like avc1.640034 (High Profile) when the file arrives via a blob:
+      // URL, even though the underlying H.264 stream decodes perfectly fine
+      // (confirmed directly with a standalone VideoDecoder, bypassing <video>
+      // entirely, while debugging this exact symptom on 2026-07-06) — the
+      // container and codec content were never the problem, only the missing
+      // codecs parameter that <video> needs to select a decoder path at all.
+      return new Blob([muxer.target.buffer], { type: `video/mp4; codecs="${codec}"` });
+    },
+  };
+}
+
+// Downloads `blob` as an MP4 using the same filename convention (project
+// name + timestamp) previously used by the MediaRecorder onstop handler.
+function _camAnimSaveBlob(blob){
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  const ts = new Date();
+  const pad = n => String(n).padStart(2, '0');
+  const stamp = ts.getFullYear() + pad(ts.getMonth()+1) + pad(ts.getDate())
+              + '_' + pad(ts.getHours()) + pad(ts.getMinutes()) + pad(ts.getSeconds());
+  const projectEl = document.getElementById('tb-project-name');
+  const proj = (projectEl && projectEl.textContent.trim()) || 'Untitled';
+  a.href = url;
+  a.download = `${proj}_${stamp}.mp4`;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 5000);
+  showUndoToast((window._lang === 'en')
+    ? `Saved ${a.download}` : `保存しました: ${a.download}`);
+}
+
 window.camAnimRecordExport = function(){
   if(camAnim.keys.length < 2) return;
   _camAnimRebuild();
@@ -284,6 +419,31 @@ window.camAnimRecordExport = function(){
   // captured MP4 — they're an editing aid, not part of the final shot.
   _camAnimSetVisualsVisible(false);
 
+  // ── 4K recording ─────────────────────────────────────────────────────
+  // Boosts the renderer's actual pixel ratio (not just an upscale after the
+  // fact) so the full-viewport path genuinely renders at ~3840px on the long
+  // side; the cropped path already derives its target from _camTargetResolution
+  // (2× applied below via the same cam.export4K flag the still-capture 4K
+  // toggle uses, so cropped recordings share that logic instead of duplicating
+  // it). Pins the auto-quality watchdog for the duration — otherwise it would
+  // see the sudden resolution jump as "too slow" and immediately reverse it.
+  const _export4K = !!(document.getElementById('ca-export-4k') || {}).checked;
+  const _prevExport4K = cam.export4K;
+  const _prevPixelRatio = renderer.getPixelRatio();
+  const _prevWatchdogPin = window._gpuWatchdog ? window._gpuWatchdog.manualOverride : undefined;
+  if(_export4K){
+    cam.export4K = true; // so _camTargetResolution() (cropped path) doubles its size too
+    if(window._gpuWatchdog) window._gpuWatchdog.manualOverride = true;
+    const cssLong = Math.max(innerWidth, innerHeight);
+    if(cssLong > 0) renderer.setPixelRatio(3840 / cssLong);
+  }
+  const _restore4K = () => {
+    if(!_export4K) return;
+    cam.export4K = _prevExport4K;
+    renderer.setPixelRatio(_prevPixelRatio);
+    if(window._gpuWatchdog) window._gpuWatchdog.manualOverride = _prevWatchdogPin;
+  };
+
   // ── Camera-frame cropped recording ─────────────────────────────────────
   // When the camera tool is active, record only the camera frame region
   // (matching the user's chosen aspect ratio) instead of the full viewport.
@@ -292,14 +452,39 @@ window.camAnimRecordExport = function(){
   const _useCamFrame = cam.active;
   const _recBurnGrid = _useCamFrame
     && !!(document.getElementById('ca-burnin-grid') || {}).checked;
+  // Always mirror into an offscreen 2D canvas (cropped to the camera frame,
+  // or a 1:1 full-viewport copy) rather than ever handing the live WebGL
+  // canvas straight to VideoFrame. The renderer runs with
+  // `preserveDrawingBuffer: false` (030_renderer_scene.js) — its drawing
+  // buffer content is only guaranteed valid immediately after a render, not
+  // whenever the exporter's async frame-push loop later gets around to
+  // reading it. Capturing the copy synchronously inside the render loop
+  // itself (via _recCopyFn, called right after renderer.render() — see
+  // 291_render_loop.js) sidesteps that entirely; a 2D canvas has no such
+  // buffer-clearing behavior.
+  // H.264 requires even width/height (4:2:0 chroma subsampling) — round DOWN
+  // here so _recCanvas, the VideoFrame built from it, and the VideoEncoder's
+  // own config (_camAnimMakeExporter applies the same rounding) always agree.
+  // A mismatch here — canvas at an odd size while only the encoder config
+  // gets rounded — makes VideoEncoder silently reject every frame ("H264
+  // only supports even sized frames", reported async via the encoder's
+  // `error` callback, never thrown at the encode() call site), which
+  // produces a structurally-valid-looking but sample-less/broken MP4: this
+  // was the actual cause of exported videos failing to play (2026-07-06).
+  const _evenFloor = (n) => Math.max(2, n - (n % 2));
   let _recCanvas = null, _recCtx = null, _recFr = null;
   if(_useCamFrame){
     const target = _camTargetResolution();
     _recCanvas = document.createElement('canvas');
-    _recCanvas.width  = target.w;
-    _recCanvas.height = target.h;
+    _recCanvas.width  = _evenFloor(target.w);
+    _recCanvas.height = _evenFloor(target.h);
     _recCtx = _recCanvas.getContext('2d');
     _recFr  = _camFrameRect();
+  } else {
+    _recCanvas = document.createElement('canvas');
+    _recCanvas.width  = _evenFloor(canvas.width);
+    _recCanvas.height = _evenFloor(canvas.height);
+    _recCtx = _recCanvas.getContext('2d');
   }
 
   // ── WARM-UP ────────────────────────────────────────────────────────────
@@ -314,6 +499,7 @@ window.camAnimRecordExport = function(){
     if(camAnim.warmTimer){ clearTimeout(camAnim.warmTimer); camAnim.warmTimer = 0; }
     if(camAnim.warmNudgeId){ clearInterval(camAnim.warmNudgeId); camAnim.warmNudgeId = 0; }
     camAnim.warming = false;
+    _restore4K();
     if(p)  p.style.display  = prevDisplay;
     if(cf) cf.style.display = prevCf;
     if(camAnim.open) _camAnimSetVisualsVisible(true);
@@ -336,51 +522,30 @@ window.camAnimRecordExport = function(){
   }
 
   // Everything that actually starts the recording + drives the fly-through,
-  // deferred until the warm-up window closes.
-  const _beginRecording = () => {
+  // deferred until the warm-up window closes. See the WebCodecs rewrite note
+  // above _camAnimMakeExporter for why this no longer uses MediaRecorder.
+  const _beginRecording = async () => {
     camAnim.warming = false;
     if(camAnim.warmNudgeId){ clearInterval(camAnim.warmNudgeId); camAnim.warmNudgeId = 0; }
 
+    // Restores the UI (+ 4K pixel-ratio boost) applied at the top of
+    // camAnimRecordExport. Used both by the unsupported-browser early-out
+    // below and by finishRec.
+    const _restoreUi = () => {
+      _restore4K();
+      if(p)  p.style.display  = prevDisplay;
+      if(cf) cf.style.display = prevCf;
+      if(camAnim.open) _camAnimSetVisualsVisible(true);
+      _camAnimRenderPanel();
+    };
+
+    // Both recording modes now feed the exporter from the same offscreen
+    // _recCanvas, kept in sync via _recCopyFn (see the comment above where
+    // it's created for why the live WebGL canvas is never read directly).
+    const source = _recCanvas;
+    const width   = _recCanvas.width;
+    const height  = _recCanvas.height;
     if(_useCamFrame){
-      // ── Cropped recorder on the offscreen canvas ──
-      const mime = _pickRecorderMime();
-      if(!mime){
-        showUndoToast((window._lang === 'en')
-          ? 'Recording not supported on this browser'
-          : 'このブラウザでは録画非対応');
-        return;
-      }
-      const stream = _recCanvas.captureStream(60);
-      const rec = new MediaRecorder(stream, {
-        mimeType: mime,
-        videoBitsPerSecond: 12_000_000,
-      });
-      const _chunks = [];
-      const _ext = mime.indexOf('mp4') !== -1 ? 'mp4' : 'webm';
-      rec.ondataavailable = (e) => { if(e.data && e.data.size > 0) _chunks.push(e.data); };
-      rec.onstop = () => {
-        const blob = new Blob(_chunks, { type: mime });
-        const url = URL.createObjectURL(blob);
-        const a = document.createElement('a');
-        const ts = new Date();
-        const pad = n => String(n).padStart(2, '0');
-        const stamp = ts.getFullYear() + pad(ts.getMonth()+1) + pad(ts.getDate())
-                    + '_' + pad(ts.getHours()) + pad(ts.getMinutes()) + pad(ts.getSeconds());
-        const projectEl = document.getElementById('tb-project-name');
-        const proj = (projectEl && projectEl.textContent.trim()) || 'Untitled';
-        a.href = url;
-        a.download = `${proj}_${stamp}.${_ext}`;
-        document.body.appendChild(a);
-        a.click();
-        a.remove();
-        setTimeout(() => URL.revokeObjectURL(url), 5000);
-        showUndoToast((window._lang === 'en')
-          ? `Saved ${a.download}` : `保存しました: ${a.download}`);
-      };
-      rec.start(1000);
-      camAnim._recRec = rec;
-      // Install the post-render copy hook so every animate-loop frame is
-      // mirrored to the offscreen canvas at the camera-frame crop.
       const PR = renderer.getPixelRatio();
       camAnim._recCopyFn = () => {
         try {
@@ -391,78 +556,147 @@ window.camAnimRecordExport = function(){
           if(_recBurnGrid) _drawGridOnCanvas(_recCtx, _recCanvas.width, _recCanvas.height);
         } catch(_){}
       };
-      _setCaptureUIHidden(true);
-      _setRecButtonState(true);
-      const el = _ensureRecTimerEl();
-      camAnim._recStart = performance.now();
-      const rtick = () => {
-        const sec = (performance.now() - camAnim._recStart) / 1000;
-        const t = document.getElementById('view-rec-time');
-        if(t) t.textContent = _fmtRecSeconds(sec);
-      };
-      rtick();
-      camAnim._recInterval = setInterval(rtick, 250);
     } else {
-      // Start the existing canvas recorder; it writes a file on stop().
-      window.startViewRecording();
+      camAnim._recCopyFn = () => {
+        try { _recCtx.drawImage(canvas, 0, 0); } catch(_){}
+      };
     }
+
+    const exporter = await _camAnimMakeExporter(width, height);
+    if(!exporter){
+      showUndoToast((window._lang === 'en')
+        ? 'Recording not supported on this browser'
+        : 'このブラウザでは録画非対応');
+      _restoreUi();
+      return;
+    }
+    camAnim._recRec = exporter;   // truthy marker read by 112_view_recording.js
+
+    _setCaptureUIHidden(true);
+    _setRecButtonState(true);
+    const el = _ensureRecTimerEl();
+    camAnim._recStart = performance.now();
+    const rtick = () => {
+      const sec = (performance.now() - camAnim._recStart) / 1000;
+      const t = document.getElementById('view-rec-time');
+      if(t) t.textContent = _fmtRecSeconds(sec);
+    };
+    rtick();
+    camAnim._recInterval = setInterval(rtick, 250);
 
     // Re-pin key 0 so frame 0 is exactly the start pose (warm-up nudges only
     // touched the splat sort, not the camera, but be explicit).
     _camAnimApplySample(camAnim.keys[0]);
     camAnim.playing   = true;
     camAnim.startedAt = performance.now();
-    // Dual-driver (rAF + setTimeout backup + hard-deadline watchdog) so
-    // recording duration matches camAnim.totalSec even if Chrome throttles
-    // rAF during the export. Same pattern as window.camAnimPreview.
-    let recRafId = 0, recTimeoutId = 0, recDeadlineId = 0;
+
+    const totalFrames = Math.max(1, Math.round(camAnim.totalSec * CAM_ANIM_REC_FPS));
+    const frameDurationUs = 1e6 / CAM_ANIM_REC_FPS;
+    let frameIdx = 0;
+    let stepTimeoutId = 0, stepDeadlineId = 0;
+    // Per-frame wait cap for a confirmed render (see stepFrame). Generous
+    // enough that a genuinely heavy frame still renders fresh (its content is
+    // still worth waiting for), but bounded so a single stalled frame can
+    // never hang the whole export — see the 2026-07-06 correction note below.
+    const FRAME_WAIT_MS = 300;
+
     // manual=true は録画ボタンからの手動停止(camAnimStopRecord経由)。
     // その場合は最終キーへカメラをジャンプさせない(今見ている画で止める)。
     const finishRec = (manual) => {
-      if(recRafId)     cancelAnimationFrame(recRafId);
-      if(recTimeoutId) clearTimeout(recTimeoutId);
-      if(recDeadlineId){ clearTimeout(recDeadlineId); recDeadlineId = 0; }
-      recRafId = recTimeoutId = 0;
+      if(stepTimeoutId) clearTimeout(stepTimeoutId);
+      if(stepDeadlineId){ clearTimeout(stepDeadlineId); stepDeadlineId = 0; }
+      stepTimeoutId = 0;
       camAnim._recFinish = null;   // 二重呼び出し防止(手動停止→直後にdeadline等)
       if(!manual) _camAnimApplySample(camAnim.keys[camAnim.keys.length - 1]);
       camAnim.playing = false;
-      setTimeout(() => {
-        if(_useCamFrame){
-          try { camAnim._recRec.stop(); } catch(_){}
-          if(camAnim._recInterval){ clearInterval(camAnim._recInterval); camAnim._recInterval = 0; }
-          camAnim._recCopyFn = null;
-          camAnim._recRec = null;
-          _setRecButtonState(false);
-          _hideRecTimer();
-          _setCaptureUIHidden(false);
-        } else {
-          window.stopViewRecording();
+      setTimeout(async () => {
+        try {
+          const blob = await exporter.finish();
+          _camAnimSaveBlob(blob);
+        } catch(e){
+          console.error('[Locahun][CamAnimRec] export finalize failed', e);
+          showUndoToast((window._lang === 'en') ? 'Export failed' : '書き出しに失敗しました');
         }
-        if(p)  p.style.display  = prevDisplay;
-        if(cf) cf.style.display = prevCf;
-        if(camAnim.open) _camAnimSetVisualsVisible(true);
-        _camAnimRenderPanel();
+        if(camAnim._recInterval){ clearInterval(camAnim._recInterval); camAnim._recInterval = 0; }
+        camAnim._recCopyFn = null;
+        camAnim._recRec = null;
+        _setRecButtonState(false);
+        _hideRecTimer();
+        _setCaptureUIHidden(false);
+        _restoreUi();
       }, 300);
     };
-    const tickRec = () => {
+
+    // 2026-07-06 correction: the first version of this stepper drove
+    // waitForRender purely via requestAnimationFrame with NO bound on how
+    // long it would wait for __riCounter to advance. rAF is suspended
+    // whenever the tab isn't the active/visible one — even a brief window
+    // switch, a modal grabbing focus, or any transient OS-level visibility
+    // hiccup during a long export — and with no other driver, that silently
+    // wedged the whole export (only the multi-minute hard-deadline watchdog
+    // would eventually cut it off mid-recording, which is exactly what
+    // looked like "recording never stops"). Fixed by driving every step via
+    // setTimeout (which keeps firing regardless of rAF suspension) AND
+    // bounding each frame's wait to FRAME_WAIT_MS — a real render is still
+    // awaited (so normal frames stay exactly as smooth as before), but a
+    // single frame can never block the exporter indefinitely.
+    const stepFrame = () => {
       if(!camAnim.playing) return;
-      if(recRafId)     { cancelAnimationFrame(recRafId); recRafId = 0; }
-      if(recTimeoutId) { clearTimeout(recTimeoutId);     recTimeoutId = 0; }
-      const tSec = (performance.now() - camAnim.startedAt) / 1000;
-      if(tSec >= camAnim.totalSec){ finishRec(); return; }
-      _camAnimApplySample(_camAnimSampleAt(tSec));
-      recRafId     = requestAnimationFrame(tickRec);
-      recTimeoutId = setTimeout(tickRec, 33);
+      try {
+        if(frameIdx >= totalFrames){ finishRec(); return; }
+        const t = frameIdx / CAM_ANIM_REC_FPS;
+        _camAnimApplySample(_camAnimSampleAt(t));
+        markDirty(4);
+        const targetRiCount = (window.__riCounter || 0) + 1;
+        const waitStartedAt = performance.now();
+        const thisFrameIdx = frameIdx;
+        const waitForRender = () => {
+          if(!camAnim.playing) return;
+          const rendered = (window.__riCounter || 0) >= targetRiCount;
+          const timedOut = (performance.now() - waitStartedAt) >= FRAME_WAIT_MS;
+          if(rendered || timedOut){
+            (async () => {
+              try {
+                await exporter.pushFrame(
+                  source,
+                  thisFrameIdx * frameDurationUs,
+                  thisFrameIdx % CAM_ANIM_REC_KEYFRAME_INTERVAL === 0,
+                );
+              } catch(e){
+                // A VideoEncoder failure (e.g. a misconfigured frame size)
+                // dooms every subsequent encode() too — limping through the
+                // remaining frames would just produce a broken file with a
+                // false "saved!" toast. Stop the export now instead.
+                console.error('[Locahun][CamAnimRec] pushFrame failed, aborting export', e);
+                showUndoToast((window._lang === 'en') ? 'Export failed' : '書き出しに失敗しました');
+                finishRec(true);
+                return;
+              }
+              frameIdx++;
+              stepTimeoutId = setTimeout(stepFrame, 0);
+            })();
+          } else {
+            stepTimeoutId = setTimeout(waitForRender, 16);
+          }
+        };
+        waitForRender();
+      } catch(e){
+        console.warn('[Locahun][CamAnimRec] frame step error, skipping frame', e);
+        frameIdx++;
+        stepTimeoutId = setTimeout(stepFrame, 0);
+      }
     };
-    // Watchdog: force-finish at totalSec + 50 ms in case both rAF and
-    // setTimeout are throttled deep enough that the tick never observes
-    // the deadline.
-    recDeadlineId = setTimeout(() => { if(camAnim.playing) finishRec(); },
-                               Math.max(50, camAnim.totalSec * 1000 + 50));
+    // Hard-deadline watchdog, now a true last-resort: with FRAME_WAIT_MS
+    // bounding every single frame, total export time is naturally capped at
+    // roughly totalFrames * FRAME_WAIT_MS in the worst case — this only
+    // needs to catch something outside that model entirely (e.g. finishRec
+    // itself throwing).
+    stepDeadlineId = setTimeout(() => { if(camAnim.playing) finishRec(); },
+                                Math.max(10000, totalFrames * FRAME_WAIT_MS + 10000));
     // 録画が始まったので warm-up 中止経路は無効化し、手動停止経路を有効化。
     camAnim._recAbort  = null;
     camAnim._recFinish = finishRec;
-    tickRec();
+    stepFrame();
   };
 
   if(camAnim.warmTimer){ clearTimeout(camAnim.warmTimer); camAnim.warmTimer = 0; }
