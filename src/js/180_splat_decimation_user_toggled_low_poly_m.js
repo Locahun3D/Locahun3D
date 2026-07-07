@@ -81,6 +81,17 @@ window.__setCamPos = (x,y,z)=>{ if(typeof camPos!=='undefined'){ camPos.set(x,y,
 // sparkRenderer のLOD関連プロパティをライブ設定（lodSplatCount/lodSplatScale/coneFov等）
 window.__setRenderer = (p)=>{ if(typeof sparkRenderer==='undefined') return 'no sr'; const out={}; for(const k in p){ sparkRenderer[k]=p[k]; out[k]=sparkRenderer[k]; } if(typeof markDirty==='function') markDirty(240); return out; };
 window.__srDump = ()=>{ if(typeof sparkRenderer==='undefined') return 'no sr'; const o={}; for(const k of ['lodSplatCount','lodSplatScale','lodRenderScale','coneFov','coneFov0','coneFoveate','behindFoveate','maxPagedSplats','numLodFetchers','enableLod','enableDriveLod']){ o[k]=sparkRenderer[k]; } return o; };
+// Deeper paging/streaming state than __srDump exposes — used by the online
+// SaaS's admin preview-capture flow to confirm a streamed RAD scene has
+// loaded enough splats before it starts recording. Harmless everywhere else
+// (just an inert debug getter, same as __srDump above).
+window.__srDeep = ()=>{
+  if(typeof sparkRenderer==='undefined') return 'no sr';
+  const sr = sparkRenderer;
+  const r = { hasPager:!!sr.pager, lodMeshes:sr.lodMeshes?.length, lastFrame:sr.lastFrame, activeSplats:sr.activeSplats };
+  if(typeof splatMesh!=='undefined' && splatMesh && splatMesh.paged) r.nSplat = splatMesh.paged.numSplats;
+  return r;
+};
 // 予算設定→再ウォーク→収束numSplats と FPS を返す
 window.__probeBudget = async function(lodSplatCount, settleMs){
   if(typeof sparkRenderer!=='undefined') sparkRenderer.lodSplatCount = lodSplatCount;
