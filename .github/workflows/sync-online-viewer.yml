@@ -1,0 +1,76 @@
+name: Sync viewer to locahun3d_online
+
+# Builds the online-variant viewer (node build.mjs --online) whenever
+# canonical viewer source changes land on main, and opens a PR against
+# locahun3d_online's morning-restored branch with the result. Never
+# auto-merges — a human reviews and merges the PR, same as running
+# sync-online-viewer.sh by hand used to require.
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'src/**'
+      - 'build.mjs'
+      - 'vendor/**'
+
+permissions:
+  contents: read
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Locahun3D
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Build online variant
+        run: node build.mjs --online
+
+      - name: Checkout locahun3d_online (morning-restored)
+        uses: actions/checkout@v4
+        with:
+          repository: Locahun3D/Locahun3DOnline
+          ref: morning-restored
+          token: ${{ secrets.LOCAHUN3D_ONLINE_TOKEN }}
+          path: online-repo
+
+      - name: Copy synced files
+        run: |
+          mkdir -p online-repo/public/viewer/vendor
+          cp Locahun3D_OfflineViewer.online.html online-repo/public/viewer/offline-viewer.html
+          cp vendor/spark-2.0.0-workers16-incrtraverse.module.js online-repo/public/viewer/vendor/
+
+      - name: Check for changes
+        id: diff
+        working-directory: online-repo
+        run: |
+          if git diff --quiet -- public/viewer; then
+            echo "changed=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "changed=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Create branch, commit, and open PR
+        if: steps.diff.outputs.changed == 'true'
+        working-directory: online-repo
+        env:
+          GH_TOKEN: ${{ secrets.LOCAHUN3D_ONLINE_TOKEN }}
+        run: |
+          git config user.name "locahun3d-viewer-sync[bot]"
+          git config user.email "actions@users.noreply.github.com"
+          BRANCH="auto-sync-viewer-${GITHUB_SHA:0:7}"
+          git checkout -b "$BRANCH"
+          git add public/viewer
+          git commit -m "Auto-sync viewer from canonical Locahun3D@${GITHUB_SHA:0:7}"
+          git push origin "$BRANCH"
+          gh pr create \
+            --repo Locahun3D/Locahun3DOnline \
+            --base morning-restored \
+            --head "$BRANCH" \
+            --title "Auto-sync viewer from canonical (Locahun3D@${GITHUB_SHA:0:7})" \
+            --body "Automated sync of \`public/viewer/offline-viewer.html\` + vendor Spark file from the canonical [Locahun3D](https://github.com/Locahun3D/Locahun3D) repo (commit \`${GITHUB_SHA}\`), built via the same logic as \`sync-online-viewer.sh\`. Review the diff before merging — this workflow never auto-merges."
