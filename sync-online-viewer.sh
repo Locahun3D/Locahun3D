@@ -5,6 +5,11 @@
 # repo — review the diff there and commit yourself.
 set -e
 DIR="$(cd "$(dirname "$0")" && pwd)"
+# Default assumes this script lives at the root of the main Locahun3D
+# checkout, where locahun3d_online is a real sibling directory. If you're
+# running this from a nested checkout (e.g. a git worktree under
+# .claude/worktrees/), that relative default won't resolve — pass the
+# real path explicitly: bash sync-online-viewer.sh /path/to/locahun3d_online
 ONLINE_REPO="${1:-$DIR/../locahun3d_online}"
 
 if [ ! -d "$ONLINE_REPO/.git" ]; then

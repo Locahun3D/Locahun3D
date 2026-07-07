@@ -19404,6 +19404,13 @@ function updateLightHalos(){
 //  rotates yaw a full turn over ~10 s. Stops on any pointer interaction so
 //  the user can take manual control. OFF by default — zero effect unless
 //  the URL explicitly requests it, so this is inert in the standalone app.
+//
+//  Known doc/code mismatch: despite the claim above, there is no pointer-
+//  event listener anywhere in this file — the orbit runs to completion
+//  regardless of user interaction. Verified pre-existing in the real
+//  production source this was ported from (not introduced by this port).
+//  Left uncorrected to keep the port verbatim; noted here so it isn't
+//  mistaken for something this port broke.
 // ══════════════════════════════════════════════════
 if(/[?&]orbit=1/.test(location.search)){
   (function(){
