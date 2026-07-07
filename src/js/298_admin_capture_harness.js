@@ -5,6 +5,14 @@
 //  default — zero effect unless the URL explicitly requests it, so this is
 //  inert in the standalone app.
 //
+//  Known trade-off: postMessage(...,'*') below is a wildcard-origin send,
+//  ported as-is from the online SaaS where both ends are first-party. In
+//  the standalone build this means whatever iframes/opens this page with
+//  ?capture=1 receives the rendered video blob. Not a live confidentiality
+//  hole in practice — the capturer never sees content it didn't itself
+//  supply via ?autoload=/local file selection — but flagged here so it
+//  isn't mistaken for an oversight if this file is read in isolation.
+//
 //  Flow: load scene → warmup (5s, GPU settles + splats stream in)
 //        → wait for orbit to be running → record for captureSec → post blob
 // ══════════════════════════════════════════════════
