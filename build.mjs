@@ -11,11 +11,12 @@ import { fileURLToPath } from 'node:url';
 const args = process.argv.slice(2);
 const opt = (name, dflt) => { const i = args.indexOf(name); return i >= 0 ? args[i + 1] : dflt; };
 const FORCE   = args.includes('--force');
+const ONLINE  = args.includes('--online');
 const ROOT    = path.dirname(fileURLToPath(import.meta.url));
 const SRC     = opt('--src', path.join(ROOT, 'src'));
 const BASE    = path.dirname(SRC);   // include相対パス(src/js/...)の基準 = srcの親
-const OUT     = opt('--out', path.join(ROOT, 'Locahun3D_OfflineViewer.html'));
-const HASHREC = path.join(ROOT, '.build-hash');
+const OUT     = opt('--out', path.join(ROOT, ONLINE ? 'Locahun3D_OfflineViewer.online.html' : 'Locahun3D_OfflineViewer.html'));
+const HASHREC = path.join(ROOT, ONLINE ? '.build-hash.online' : '.build-hash');
 
 const sha = (buf) => crypto.createHash('sha256').update(buf).digest('hex');
 
@@ -32,16 +33,35 @@ if (!FORCE && fs.existsSync(OUT) && fs.existsSync(HASHREC)) {
 
 const template = fs.readFileSync(path.join(SRC, 'template.html'), 'latin1');
 let missing = 0;
-const html = template.replace(/^\{\{include:(.+?)\}\}\n/gm, (_m, rel) => {
+
+const resolveInclude = (rel) => {
   const p = path.join(BASE, rel);
   if (!fs.existsSync(p)) { console.error(`FATAL: missing fragment ${rel}`); missing++; return ''; }
   const body = fs.readFileSync(p, 'latin1');
   if (body.length === 0) { console.error(`FATAL: empty fragment ${rel}`); missing++; return ''; }
   return body;
+};
+
+// {{include-variant:path/to/base.json}} resolves to base.json normally, or to
+// base.online.json (inserting ".online" before the extension) when --online
+// is passed. Currently only used for the importmap (Spark import path differs:
+// the standalone single-file download has no folder of its own so it needs an
+// absolute CDN URL, while the online SaaS serves its own vendor/ copy alongside
+// this file and can use a same-origin relative path — see sync-online-viewer.sh).
+let html = template.replace(/^\{\{include-variant:(.+?)\}\}\n/gm, (_m, rel) => {
+  if (!ONLINE) return resolveInclude(rel);
+  const dot = rel.lastIndexOf('.');
+  const variantRel = dot === -1 ? `${rel}.online` : `${rel.slice(0, dot)}.online${rel.slice(dot)}`;
+  return resolveInclude(variantRel);
 });
+html = html.replace(/^\{\{include:(.+?)\}\}\n/gm, (_m, rel) => resolveInclude(rel));
+
 if (missing) process.exit(1);
-if (html.includes('{{include:')) { console.error('FATAL: unresolved {{include:}} marker remains'); process.exit(1); }
+if (html.includes('{{include:') || html.includes('{{include-variant:')) {
+  console.error('FATAL: unresolved include marker remains');
+  process.exit(1);
+}
 
 fs.writeFileSync(OUT, html, 'latin1');
 fs.writeFileSync(HASHREC, sha(fs.readFileSync(OUT)) + '\n');
-console.log(`OK: built ${OUT} (${(html.length / 1024).toFixed(0)} KB)`);
+console.log(`OK: built ${OUT} (${(html.length / 1024).toFixed(0)} KB)${ONLINE ? ' [online variant]' : ''}`);
