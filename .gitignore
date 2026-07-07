@@ -45,3 +45,5 @@ __pycache__/
 
 # ── Build tool state ──────────────────────────────────────────────────────
 .build-hash
+.build-hash.online
+/Locahun3D_OfflineViewer.online.html
