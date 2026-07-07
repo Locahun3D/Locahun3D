@@ -28,8 +28,17 @@ const DEMO_SCENE_SIZE_MB = 357;
 
 async function loadFromURL(url, displayName){
   try{
-    // Show loader UI early so user sees feedback during the ~30s fetch
-    if(typeof showLd === 'function') showLd(`読み込み中: ${displayName || url}`);
+    // Show loader UI early so user sees feedback during the ~30s fetch.
+    // Never show the raw URL — presigned R2 URLs are hundreds of chars of
+    // query-string noise (and leak signature params on screen). Fall back
+    // to the path's filename, then to a plain label.
+    if(typeof showLd === 'function'){
+      let label = displayName;
+      if(!label){
+        try{ label = decodeURIComponent(new URL(url, location.href).pathname.split('/').pop()) || ''; }catch(_){ label = ''; }
+      }
+      showLd(label ? `読み込み中: ${label}` : '読み込み中...');
+    }
     if(typeof setBar === 'function') setBar(5);
     // .RAD URLs get a streaming path: Spark fetches via HTTP Range
     // Request internally, so we skip the whole-file ArrayBuffer fetch
