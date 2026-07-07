@@ -35,6 +35,89 @@ const DEMO_SCENE_URL = (typeof _protected !== 'undefined' && _protected)
 const DEMO_SCENE_LABEL = 'デモシーン(交差点)';
 const DEMO_SCENE_SIZE_MB = 357;
 
+// Fetches a URL as an ArrayBuffer with HTTP Range chunking + retry, instead
+// of a single whole-file fetch. A single fetch of a large file (e.g. an
+// online-SaaS property's zipped scene) through a same-origin Workers proxy
+// (/api/r2, /api/viewer-stream) was observed truncating mid-stream (a 116MB
+// zip arriving as 56MB, silently cached as if complete) — this function
+// exists specifically to make that failure mode impossible.
+async function _fetchBinaryChunked(url){
+  // blob: URL（親ページが先にダウンロード済み）はローカル読みなので一括で良い
+  if(url.startsWith('blob:')){
+    const r = await fetch(url);
+    if(!r.ok) throw new Error('blob fetch failed');
+    return await r.arrayBuffer();
+  }
+  // 切断バグは「このアプリ自身の Workers 経由プロキシ (/api/r2, /api/viewer-stream
+  // 等、同一オリジン)」で実測されたもので、R2 の署名付き直リンク（別オリジン、
+  // 例 *.r2.cloudflarestorage.com）は R2 が直接ストリーム配信するため対象外。
+  // 別オリジンの絶対URLは 1 本の fetch で取得し、チャンク分割によるリクエスト数
+  // の水増しを避ける（content-length で欠損だけは検証する）。
+  try{
+    const u = new URL(url, location.href);
+    if(u.origin !== location.origin){
+      const resp = await fetch(url, { cache:'no-store' });
+      if(!resp.ok) throw new Error('HTTP '+resp.status);
+      const buf = await resp.arrayBuffer();
+      const cl = parseInt(resp.headers.get('content-length') || '0', 10);
+      if(cl && buf.byteLength !== cl) throw new Error('通信が途中で切断されました ('+buf.byteLength+'/'+cl+' bytes)');
+      return buf;
+    }
+  }catch(e){
+    // URL 解析失敗等は下の同一オリジン想定チャンク経路にフォールバック
+    if(e instanceof Error && /切断/.test(e.message)) throw e;
+  }
+  // 8MB × リトライ5回。16MB 連投だと Workers 経由で「206 なのに body 0 byte」
+  // という一過性の切断が実測で出た（5 チャンク目以降）。小さめ＋間隔＋
+  // 粘り強いリトライで吸収する。
+  const CHUNK = 8 * 1024 * 1024;
+  const ATTEMPTS = 5;
+  // 1) probe: 先頭 1 byte の Range 応答から総サイズを取得
+  let total = 0;
+  let probe = null;
+  try { probe = await fetch(url, { cache:'no-store', headers:{ range:'bytes=0-0' } }); } catch(_){}
+  if(probe && probe.status === 206){
+    const cr = probe.headers.get('content-range') || '';
+    const m = cr.match(/\/(\d+)\s*$/);
+    if(m) total = parseInt(m[1], 10);
+    try { await probe.arrayBuffer(); } catch(_){}
+  }
+  if(!total){
+    // Range 非対応サーバ: 一括 fetch にフォールバック（content-length 検証付き）
+    const resp = await fetch(url, { cache:'no-store' });
+    if(!resp.ok) throw new Error('HTTP '+resp.status);
+    const buf = await resp.arrayBuffer();
+    const cl = parseInt(resp.headers.get('content-length') || '0', 10);
+    if(cl && buf.byteLength !== cl) throw new Error('通信が途中で切断されました ('+buf.byteLength+'/'+cl+' bytes)');
+    return buf;
+  }
+  const out = new Uint8Array(total);
+  let got = 0;
+  while(got < total){
+    const end = Math.min(got + CHUNK, total) - 1;
+    let ok = false, lastErr = null;
+    for(let attempt = 0; attempt < ATTEMPTS && !ok; attempt++){
+      try{
+        const r = await fetch(url, { cache:'no-store', headers:{ range:'bytes='+got+'-'+end } });
+        if(r.status !== 206 && r.status !== 200) throw new Error('HTTP '+r.status);
+        const part = new Uint8Array(await r.arrayBuffer());
+        if(r.status === 200){
+          // サーバが Range を無視して全量を返してきた場合
+          if(part.byteLength !== total) throw new Error('range ignored + truncated ('+part.byteLength+'/'+total+')');
+          out.set(part, 0); got = total; ok = true; break;
+        }
+        if(part.byteLength !== (end - got + 1)) throw new Error('chunk truncated ('+part.byteLength+'/'+(end - got + 1)+')');
+        out.set(part, got); got += part.byteLength; ok = true;
+      }catch(e){ lastErr = e; await new Promise(res=>setTimeout(res, 1200 * (attempt + 1))); }
+    }
+    if(!ok) throw new Error('チャンク取得失敗 @'+got+': '+(lastErr && lastErr.message ? lastErr.message : lastErr));
+    if(typeof setBar === 'function') setBar(5 + Math.round((got / total) * 35));
+    // Workers への連投を避ける小休止（一過性の空応答対策）
+    if(got < total) await new Promise(res=>setTimeout(res, 120));
+  }
+  return out.buffer;
+}
+
 async function loadFromURL(url, displayName){
   try{
     // Show loader UI early so user sees feedback during the ~30s fetch.
@@ -53,7 +136,15 @@ async function loadFromURL(url, displayName){
     // Request internally, so we skip the whole-file ArrayBuffer fetch
     // and hand the URL straight to SplatMesh. This is the entire point
     // of the .RAD format — chunked streaming with O(log N) LoD walk.
-    const ext = (url.split('?')[0].split('#')[0].split('.').pop() || '').toLowerCase();
+    let ext = (url.split('?')[0].split('#')[0].split('.').pop() || '').toLowerCase();
+    // blob: URL 等、URL から拡張子が取れない場合は displayName（?autoname= 経由）
+    // の拡張子で判定する。既知の拡張子が URL から取れているときは触らない
+    // （デモのラベル等、拡張子を持たない displayName で壊さないため）。
+    const _KNOWN_EXTS = ['zip','obj','gltf','glb','fbx','ply','splat','ksplat','rad','spz','sog'];
+    if(!_KNOWN_EXTS.includes(ext) && displayName){
+      const dnExt = (String(displayName).split('?')[0].split('#')[0].split('.').pop() || '').toLowerCase();
+      if(_KNOWN_EXTS.includes(dnExt)) ext = dnExt;
+    }
     const ft = _splatFileTypeFor(ext);
     if(ext === 'rad'){
       if(ft === undefined){
@@ -130,14 +221,23 @@ async function loadFromURL(url, displayName){
       if(typeof window._scheduleQualityProbe === 'function') window._scheduleQualityProbe();
       return;
     }
-    // Non-RAD URL: fetch whole file, route by extension.
-    const resp = await fetch(url);
-    if(!resp.ok) throw new Error('HTTP '+resp.status);
+    // Non-RAD URL: fetch whole file (Range チャンク + 検証つき), route by extension.
+    const buf = await _fetchBinaryChunked(url);
     if(typeof setBar === 'function') setBar(40);
-    const buf = await resp.arrayBuffer();
     const name = (displayName || url.split('/').pop().split('?')[0]) || 'autoload.ply';
     const file = new File([buf], name, {type:'application/octet-stream'});
-    if(['obj','gltf','glb','fbx'].includes(ext)) await loadObjFile(file);
+    if(ext === 'zip'){
+      // Zipped splat/mesh (e.g. a large .rad zipped for upload-size limits, or
+      // an online-SaaS stored property scene). _loadProjectZipFromFile already
+      // knows how to unzip + auto-detect a raw splat/mesh when there's no
+      // project.json, and fully owns the loading UI (showLd/setBar/hideLd)
+      // from here on — don't call hideLd ourselves before/after this, let it
+      // drive to completion. Without this branch, zip bytes were fed straight
+      // into loadSplatFile() (no zip-extraction logic) and silently failed to
+      // parse — every ?autoload=<zip-url> scene landed on a blank dropzone.
+      await _loadProjectZipFromFile(file);
+    }
+    else if(['obj','gltf','glb','fbx'].includes(ext)) await loadObjFile(file);
     else {
       await loadSplatFile(file);
       // Same parity: loadSplatFile already schedules calibration internally,
