@@ -3974,8 +3974,9 @@ body.ar-active #dz{display:none !important;}
   "imports": {
     "three": "https://cdn.jsdelivr.net/npm/three@0.180.0/build/three.module.js",
     "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.180.0/examples/jsm/",
-    "@sparkjsdev/spark": "https://viewer.locahun3d.com/vendor/spark-2.0.0-workers16.module.js",
-    "fflate": "https://cdn.jsdelivr.net/npm/fflate@0.8.2/esm/browser.js"
+    "@sparkjsdev/spark": "https://viewer.locahun3d.com/vendor/spark-2.0.0-workers16-incrtraverse.module.js",
+    "fflate": "https://cdn.jsdelivr.net/npm/fflate@0.8.2/esm/browser.js",
+    "mp4-muxer": "https://cdn.jsdelivr.net/npm/mp4-muxer@5.2.2/build/mp4-muxer.mjs"
   }
 }
 </script>
@@ -4002,6 +4003,9 @@ body.ar-active #dz{display:none !important;}
 <script type="module">
 import * as THREE from 'three';
 import { SplatMesh, SplatFileType, SplatLoader, SparkRenderer, PagedSplats } from '@sparkjsdev/spark';
+// Used only by the camera-animation MP4 exporter (113b) to mux WebCodecs
+// VideoEncoder output into a playable MP4 with perfectly even frame timing.
+import { Muxer as Mp4Muxer, ArrayBufferTarget as Mp4ArrayBufferTarget } from 'mp4-muxer';
 // OBJLoader / GLTFLoader / FBXLoader are now LAZY-loaded on first use so
 // the splat viewer boots fully offline even when the addon CDN is down.
 // _addonLoader('OBJLoader') etc. resolves to the constructor or null on
@@ -8594,12 +8598,36 @@ function _camAnimSampleAt(t){
   // along the curve even though Catmull-Rom's native parameterisation is
   // not arc-length linear.
   let u     = t / camAnim.totalSec;
-  // Ease in/out (user-selectable). Smoothstep on the normalised progress so the
-  // shot accelerates from rest and decelerates to a stop; position AND every
-  // scalar field derive from the same eased u, so they stay in lockstep.
-  // Strength dialed to ~1/3 (user: "イージングが強すぎる") by blending the
-  // smoothstep result back toward linear: eased = lerp(u, smoothstep, 1/3).
-  if(camAnim.easing){ const _sm = u*u*(3 - 2*u); u = u + (_sm - u) * (1/3); }
+  // Ease in/out (user-selectable); position AND every scalar field derive
+  // from the same eased u, so they stay in lockstep.
+  //
+  // 2026-07-06 replacement: the previous version blended a full cubic
+  // smoothstep back toward linear (~1/3 strength) to soften an earlier
+  // "easing is too strong" complaint. That blend is mathematically unable to
+  // produce a true stop: smoothstep alone has zero derivative at u=0/1, but
+  // averaging ANY of it with linear (constant, nonzero derivative) leaves a
+  // nonzero residual velocity at the endpoints — the shot's motion gets cut
+  // off abruptly rather than decelerating to rest, exactly the "stops like
+  // linear at the end" symptom reported once real exports could finally be
+  // watched. Fixed with a quadratic ease-in / linear cruise / quadratic
+  // ease-out curve instead: C1-continuous at both internal seams, EXACTLY
+  // zero velocity at u=0 and u=1 (guaranteed true start/stop regardless of
+  // EASE_FRAC), and — because only the first/last EASE_FRAC of the duration
+  // is easing at all — the cruise speed is just 1/(1-EASE_FRAC) ≈ 1.25× the
+  // average (vs. 1.5× for a full cubic smoothstep), i.e. gentler throughout
+  // than before while still genuinely resting at both ends.
+  if(camAnim.easing){
+    const EASE_FRAC = 0.2;
+    const m = 1 / (1 - EASE_FRAC);
+    if(u <= EASE_FRAC){
+      u = (m / (2 * EASE_FRAC)) * u * u;
+    } else if(u >= 1 - EASE_FRAC){
+      const w = 1 - u;
+      u = 1 - (m / (2 * EASE_FRAC)) * w * w;
+    } else {
+      u = (m * EASE_FRAC) / 2 + m * (u - EASE_FRAC);
+    }
+  }
   // CRITICAL: getPointAt(u) is ARC-LENGTH parameterised, but _catRom1D()
   // below is parameterised UNIFORMLY in key index (f = param*(n-1)). Passing
   // the arc-length u straight into _catRom1D phase-shifts the ORIENTATION
@@ -8842,6 +8870,12 @@ function _camAnimRenderPanel(){
           style="accent-color:#b594ff;cursor:pointer"> ${t('Burn in grid / safe zone','グリッド/セーフ枠を焼き込み')}
       </label>
     </div>
+    <div style="margin-bottom:6px">
+      <label style="display:flex;align-items:center;gap:6px;font-size:.82em;cursor:pointer">
+        <input type="checkbox" id="ca-export-4k"
+          style="accent-color:#b594ff;cursor:pointer"> ${t('4K recording','4K 録画')}
+      </label>
+    </div>
     <div style="display:flex;gap:4px">
       <button onclick="window.camAnimPreview()" ${ready ? '' : 'disabled'}
         style="flex:1;padding:5px 6px;background:rgba(120,200,255,.18);
@@ -9016,6 +9050,135 @@ window.camAnimPreview = function(){
   _camAnimRenderPanel();
 };
 
+// Frame rate for camera-animation exports.
+const CAM_ANIM_REC_FPS = 30;
+// One keyframe per second of output — reasonable GOP size for a 30fps export.
+const CAM_ANIM_REC_KEYFRAME_INTERVAL = CAM_ANIM_REC_FPS;
+
+// 2026-07-06: WebCodecs rewrite. Two prior approaches were tried and both
+// have a fundamental ceiling that only shows up under a heavy scene:
+//  1) Real-time captureStream(60) + MediaRecorder — samples the canvas 60
+//     times/sec on ITS OWN clock, independent of how often content actually
+//     changed. Spark's real render rate rarely divides 60 evenly, so frames
+//     get duplicated unevenly → visible judder.
+//  2) captureStream(0) manual mode + track.requestFrame() — still routes
+//     through MediaRecorder, which timestamps each frame by the REAL
+//     wall-clock moment requestFrame() was called. Any render slowdown
+//     (exactly what happens on a heavy scene, the case this was supposed to
+//     fix) still shows up directly as an unevenly-held frame in the output,
+//     because the recorder has no concept of "this frame belongs at exactly
+//     t=i/30s" — only "this frame arrived at real time T".
+// Fix: bypass MediaRecorder/captureStream entirely. Each rendered pose is
+// wrapped in a VideoFrame with an EXPLICIT, mathematically even synthetic
+// timestamp (i * 1e6/FPS microseconds) and fed straight to a VideoEncoder;
+// mp4-muxer packages the encoded chunks into a real MP4. However long any
+// individual frame actually took to render in wall-clock time is now
+// irrelevant to the output — every frame's PRESENTATION timestamp is exactly
+// where it belongs, so the exported video is always perfectly even at
+// CAM_ANIM_REC_FPS. A slow render can only make the EXPORT (not the VIDEO)
+// take longer, which is the correct trade-off for an offline-style export.
+async function _camAnimMakeExporter(width, height){
+  if(typeof VideoEncoder === 'undefined' || typeof VideoFrame === 'undefined') return null;
+  // H.264 4:2:0 chroma subsampling requires even dimensions.
+  width  = Math.max(2, width  - (width  % 2));
+  height = Math.max(2, height - (height % 2));
+  const bitrate = 12_000_000;
+  const codecCandidates = [
+    'avc1.640034', // High Profile, Level 5.2 — best quality/size for large frames
+    'avc1.4d0034', // Main Profile, Level 5.2
+    'avc1.42001f', // Baseline Profile, Level 3.1 — widest-compatibility fallback
+  ];
+  let codec = null;
+  for(const c of codecCandidates){
+    try {
+      const support = await VideoEncoder.isConfigSupported({ codec: c, width, height, bitrate });
+      if(support && support.supported){ codec = c; break; }
+    } catch(_){}
+  }
+  if(!codec) return null;
+
+  const muxer = new Mp4Muxer({
+    target: new Mp4ArrayBufferTarget(),
+    video: { codec: 'avc', width, height, frameRate: CAM_ANIM_REC_FPS },
+    fastStart: 'in-memory',
+  });
+  // VideoEncoder reports encode-time failures (e.g. a misconfigured/odd
+  // frame size) ASYNCHRONOUSLY through this callback, not by throwing from
+  // encode() itself — a caller that only logs here and keeps pushing frames
+  // ends up feeding a doomed encoder for the rest of the export, producing a
+  // structurally-valid-looking MP4 container with no (or too few) actual
+  // samples once muxed. Surface it via `errored` so pushFrame can abort the
+  // export immediately instead of silently limping to a broken file.
+  let errored = null;
+  const encoder = new VideoEncoder({
+    output: (chunk, meta) => muxer.addVideoChunk(chunk, meta),
+    error: (e) => { errored = e; console.error('[Locahun][CamAnimRec] VideoEncoder error', e); },
+  });
+  encoder.configure({ codec, width, height, bitrate, framerate: CAM_ANIM_REC_FPS });
+
+  return {
+    width, height,
+    get errored(){ return errored; },
+    async pushFrame(source, timestampUs, keyFrame){
+      if(errored) throw errored;
+      // Backpressure — caps how many frames can be in flight so a slow
+      // encoder can't make memory grow unbounded on a long export. Bounded
+      // (2026-07-06): a genuinely slow-but-healthy encoder draining its
+      // queue is exactly what this loop is for and should keep waiting, but
+      // an encoder that's truly wedged (not erroring, just never advancing)
+      // must not be allowed to hang the export forever — the same class of
+      // bug already fixed once for the render-wait step (see stepFrame).
+      const backpressureStartedAt = performance.now();
+      while(encoder.encodeQueueSize > 8){
+        if(performance.now() - backpressureStartedAt > 10_000){
+          throw new Error('VideoEncoder queue did not drain (encoder appears stuck)');
+        }
+        await new Promise(r => setTimeout(r, 4));
+      }
+      if(errored) throw errored;
+      const frame = new VideoFrame(source, { timestamp: timestampUs });
+      try { encoder.encode(frame, { keyFrame: !!keyFrame }); }
+      finally { frame.close(); }
+    },
+    async finish(){
+      await encoder.flush();
+      encoder.close();
+      muxer.finalize();
+      // The exact codec string is REQUIRED here, not cosmetic: a bare
+      // 'video/mp4' MIME type makes Chrome's <video>/MSE demuxer fail with a
+      // generic "Format error" for less-common profile/level combinations
+      // like avc1.640034 (High Profile) when the file arrives via a blob:
+      // URL, even though the underlying H.264 stream decodes perfectly fine
+      // (confirmed directly with a standalone VideoDecoder, bypassing <video>
+      // entirely, while debugging this exact symptom on 2026-07-06) — the
+      // container and codec content were never the problem, only the missing
+      // codecs parameter that <video> needs to select a decoder path at all.
+      return new Blob([muxer.target.buffer], { type: `video/mp4; codecs="${codec}"` });
+    },
+  };
+}
+
+// Downloads `blob` as an MP4 using the same filename convention (project
+// name + timestamp) previously used by the MediaRecorder onstop handler.
+function _camAnimSaveBlob(blob){
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  const ts = new Date();
+  const pad = n => String(n).padStart(2, '0');
+  const stamp = ts.getFullYear() + pad(ts.getMonth()+1) + pad(ts.getDate())
+              + '_' + pad(ts.getHours()) + pad(ts.getMinutes()) + pad(ts.getSeconds());
+  const projectEl = document.getElementById('tb-project-name');
+  const proj = (projectEl && projectEl.textContent.trim()) || 'Untitled';
+  a.href = url;
+  a.download = `${proj}_${stamp}.mp4`;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 5000);
+  showUndoToast((window._lang === 'en')
+    ? `Saved ${a.download}` : `保存しました: ${a.download}`);
+}
+
 window.camAnimRecordExport = function(){
   if(camAnim.keys.length < 2) return;
   _camAnimRebuild();
@@ -9033,6 +9196,31 @@ window.camAnimRecordExport = function(){
   // captured MP4 — they're an editing aid, not part of the final shot.
   _camAnimSetVisualsVisible(false);
 
+  // ── 4K recording ─────────────────────────────────────────────────────
+  // Boosts the renderer's actual pixel ratio (not just an upscale after the
+  // fact) so the full-viewport path genuinely renders at ~3840px on the long
+  // side; the cropped path already derives its target from _camTargetResolution
+  // (2× applied below via the same cam.export4K flag the still-capture 4K
+  // toggle uses, so cropped recordings share that logic instead of duplicating
+  // it). Pins the auto-quality watchdog for the duration — otherwise it would
+  // see the sudden resolution jump as "too slow" and immediately reverse it.
+  const _export4K = !!(document.getElementById('ca-export-4k') || {}).checked;
+  const _prevExport4K = cam.export4K;
+  const _prevPixelRatio = renderer.getPixelRatio();
+  const _prevWatchdogPin = window._gpuWatchdog ? window._gpuWatchdog.manualOverride : undefined;
+  if(_export4K){
+    cam.export4K = true; // so _camTargetResolution() (cropped path) doubles its size too
+    if(window._gpuWatchdog) window._gpuWatchdog.manualOverride = true;
+    const cssLong = Math.max(innerWidth, innerHeight);
+    if(cssLong > 0) renderer.setPixelRatio(3840 / cssLong);
+  }
+  const _restore4K = () => {
+    if(!_export4K) return;
+    cam.export4K = _prevExport4K;
+    renderer.setPixelRatio(_prevPixelRatio);
+    if(window._gpuWatchdog) window._gpuWatchdog.manualOverride = _prevWatchdogPin;
+  };
+
   // ── Camera-frame cropped recording ─────────────────────────────────────
   // When the camera tool is active, record only the camera frame region
   // (matching the user's chosen aspect ratio) instead of the full viewport.
@@ -9041,14 +9229,39 @@ window.camAnimRecordExport = function(){
   const _useCamFrame = cam.active;
   const _recBurnGrid = _useCamFrame
     && !!(document.getElementById('ca-burnin-grid') || {}).checked;
+  // Always mirror into an offscreen 2D canvas (cropped to the camera frame,
+  // or a 1:1 full-viewport copy) rather than ever handing the live WebGL
+  // canvas straight to VideoFrame. The renderer runs with
+  // `preserveDrawingBuffer: false` (030_renderer_scene.js) — its drawing
+  // buffer content is only guaranteed valid immediately after a render, not
+  // whenever the exporter's async frame-push loop later gets around to
+  // reading it. Capturing the copy synchronously inside the render loop
+  // itself (via _recCopyFn, called right after renderer.render() — see
+  // 291_render_loop.js) sidesteps that entirely; a 2D canvas has no such
+  // buffer-clearing behavior.
+  // H.264 requires even width/height (4:2:0 chroma subsampling) — round DOWN
+  // here so _recCanvas, the VideoFrame built from it, and the VideoEncoder's
+  // own config (_camAnimMakeExporter applies the same rounding) always agree.
+  // A mismatch here — canvas at an odd size while only the encoder config
+  // gets rounded — makes VideoEncoder silently reject every frame ("H264
+  // only supports even sized frames", reported async via the encoder's
+  // `error` callback, never thrown at the encode() call site), which
+  // produces a structurally-valid-looking but sample-less/broken MP4: this
+  // was the actual cause of exported videos failing to play (2026-07-06).
+  const _evenFloor = (n) => Math.max(2, n - (n % 2));
   let _recCanvas = null, _recCtx = null, _recFr = null;
   if(_useCamFrame){
     const target = _camTargetResolution();
     _recCanvas = document.createElement('canvas');
-    _recCanvas.width  = target.w;
-    _recCanvas.height = target.h;
+    _recCanvas.width  = _evenFloor(target.w);
+    _recCanvas.height = _evenFloor(target.h);
     _recCtx = _recCanvas.getContext('2d');
     _recFr  = _camFrameRect();
+  } else {
+    _recCanvas = document.createElement('canvas');
+    _recCanvas.width  = _evenFloor(canvas.width);
+    _recCanvas.height = _evenFloor(canvas.height);
+    _recCtx = _recCanvas.getContext('2d');
   }
 
   // ── WARM-UP ────────────────────────────────────────────────────────────
@@ -9063,6 +9276,7 @@ window.camAnimRecordExport = function(){
     if(camAnim.warmTimer){ clearTimeout(camAnim.warmTimer); camAnim.warmTimer = 0; }
     if(camAnim.warmNudgeId){ clearInterval(camAnim.warmNudgeId); camAnim.warmNudgeId = 0; }
     camAnim.warming = false;
+    _restore4K();
     if(p)  p.style.display  = prevDisplay;
     if(cf) cf.style.display = prevCf;
     if(camAnim.open) _camAnimSetVisualsVisible(true);
@@ -9085,51 +9299,30 @@ window.camAnimRecordExport = function(){
   }
 
   // Everything that actually starts the recording + drives the fly-through,
-  // deferred until the warm-up window closes.
-  const _beginRecording = () => {
+  // deferred until the warm-up window closes. See the WebCodecs rewrite note
+  // above _camAnimMakeExporter for why this no longer uses MediaRecorder.
+  const _beginRecording = async () => {
     camAnim.warming = false;
     if(camAnim.warmNudgeId){ clearInterval(camAnim.warmNudgeId); camAnim.warmNudgeId = 0; }
 
+    // Restores the UI (+ 4K pixel-ratio boost) applied at the top of
+    // camAnimRecordExport. Used both by the unsupported-browser early-out
+    // below and by finishRec.
+    const _restoreUi = () => {
+      _restore4K();
+      if(p)  p.style.display  = prevDisplay;
+      if(cf) cf.style.display = prevCf;
+      if(camAnim.open) _camAnimSetVisualsVisible(true);
+      _camAnimRenderPanel();
+    };
+
+    // Both recording modes now feed the exporter from the same offscreen
+    // _recCanvas, kept in sync via _recCopyFn (see the comment above where
+    // it's created for why the live WebGL canvas is never read directly).
+    const source = _recCanvas;
+    const width   = _recCanvas.width;
+    const height  = _recCanvas.height;
     if(_useCamFrame){
-      // ── Cropped recorder on the offscreen canvas ──
-      const mime = _pickRecorderMime();
-      if(!mime){
-        showUndoToast((window._lang === 'en')
-          ? 'Recording not supported on this browser'
-          : 'このブラウザでは録画非対応');
-        return;
-      }
-      const stream = _recCanvas.captureStream(60);
-      const rec = new MediaRecorder(stream, {
-        mimeType: mime,
-        videoBitsPerSecond: 12_000_000,
-      });
-      const _chunks = [];
-      const _ext = mime.indexOf('mp4') !== -1 ? 'mp4' : 'webm';
-      rec.ondataavailable = (e) => { if(e.data && e.data.size > 0) _chunks.push(e.data); };
-      rec.onstop = () => {
-        const blob = new Blob(_chunks, { type: mime });
-        const url = URL.createObjectURL(blob);
-        const a = document.createElement('a');
-        const ts = new Date();
-        const pad = n => String(n).padStart(2, '0');
-        const stamp = ts.getFullYear() + pad(ts.getMonth()+1) + pad(ts.getDate())
-                    + '_' + pad(ts.getHours()) + pad(ts.getMinutes()) + pad(ts.getSeconds());
-        const projectEl = document.getElementById('tb-project-name');
-        const proj = (projectEl && projectEl.textContent.trim()) || 'Untitled';
-        a.href = url;
-        a.download = `${proj}_${stamp}.${_ext}`;
-        document.body.appendChild(a);
-        a.click();
-        a.remove();
-        setTimeout(() => URL.revokeObjectURL(url), 5000);
-        showUndoToast((window._lang === 'en')
-          ? `Saved ${a.download}` : `保存しました: ${a.download}`);
-      };
-      rec.start(1000);
-      camAnim._recRec = rec;
-      // Install the post-render copy hook so every animate-loop frame is
-      // mirrored to the offscreen canvas at the camera-frame crop.
       const PR = renderer.getPixelRatio();
       camAnim._recCopyFn = () => {
         try {
@@ -9140,78 +9333,147 @@ window.camAnimRecordExport = function(){
           if(_recBurnGrid) _drawGridOnCanvas(_recCtx, _recCanvas.width, _recCanvas.height);
         } catch(_){}
       };
-      _setCaptureUIHidden(true);
-      _setRecButtonState(true);
-      const el = _ensureRecTimerEl();
-      camAnim._recStart = performance.now();
-      const rtick = () => {
-        const sec = (performance.now() - camAnim._recStart) / 1000;
-        const t = document.getElementById('view-rec-time');
-        if(t) t.textContent = _fmtRecSeconds(sec);
-      };
-      rtick();
-      camAnim._recInterval = setInterval(rtick, 250);
     } else {
-      // Start the existing canvas recorder; it writes a file on stop().
-      window.startViewRecording();
+      camAnim._recCopyFn = () => {
+        try { _recCtx.drawImage(canvas, 0, 0); } catch(_){}
+      };
     }
+
+    const exporter = await _camAnimMakeExporter(width, height);
+    if(!exporter){
+      showUndoToast((window._lang === 'en')
+        ? 'Recording not supported on this browser'
+        : 'このブラウザでは録画非対応');
+      _restoreUi();
+      return;
+    }
+    camAnim._recRec = exporter;   // truthy marker read by 112_view_recording.js
+
+    _setCaptureUIHidden(true);
+    _setRecButtonState(true);
+    const el = _ensureRecTimerEl();
+    camAnim._recStart = performance.now();
+    const rtick = () => {
+      const sec = (performance.now() - camAnim._recStart) / 1000;
+      const t = document.getElementById('view-rec-time');
+      if(t) t.textContent = _fmtRecSeconds(sec);
+    };
+    rtick();
+    camAnim._recInterval = setInterval(rtick, 250);
 
     // Re-pin key 0 so frame 0 is exactly the start pose (warm-up nudges only
     // touched the splat sort, not the camera, but be explicit).
     _camAnimApplySample(camAnim.keys[0]);
     camAnim.playing   = true;
     camAnim.startedAt = performance.now();
-    // Dual-driver (rAF + setTimeout backup + hard-deadline watchdog) so
-    // recording duration matches camAnim.totalSec even if Chrome throttles
-    // rAF during the export. Same pattern as window.camAnimPreview.
-    let recRafId = 0, recTimeoutId = 0, recDeadlineId = 0;
+
+    const totalFrames = Math.max(1, Math.round(camAnim.totalSec * CAM_ANIM_REC_FPS));
+    const frameDurationUs = 1e6 / CAM_ANIM_REC_FPS;
+    let frameIdx = 0;
+    let stepTimeoutId = 0, stepDeadlineId = 0;
+    // Per-frame wait cap for a confirmed render (see stepFrame). Generous
+    // enough that a genuinely heavy frame still renders fresh (its content is
+    // still worth waiting for), but bounded so a single stalled frame can
+    // never hang the whole export — see the 2026-07-06 correction note below.
+    const FRAME_WAIT_MS = 300;
+
     // manual=true は録画ボタンからの手動停止(camAnimStopRecord経由)。
     // その場合は最終キーへカメラをジャンプさせない(今見ている画で止める)。
     const finishRec = (manual) => {
-      if(recRafId)     cancelAnimationFrame(recRafId);
-      if(recTimeoutId) clearTimeout(recTimeoutId);
-      if(recDeadlineId){ clearTimeout(recDeadlineId); recDeadlineId = 0; }
-      recRafId = recTimeoutId = 0;
+      if(stepTimeoutId) clearTimeout(stepTimeoutId);
+      if(stepDeadlineId){ clearTimeout(stepDeadlineId); stepDeadlineId = 0; }
+      stepTimeoutId = 0;
       camAnim._recFinish = null;   // 二重呼び出し防止(手動停止→直後にdeadline等)
       if(!manual) _camAnimApplySample(camAnim.keys[camAnim.keys.length - 1]);
       camAnim.playing = false;
-      setTimeout(() => {
-        if(_useCamFrame){
-          try { camAnim._recRec.stop(); } catch(_){}
-          if(camAnim._recInterval){ clearInterval(camAnim._recInterval); camAnim._recInterval = 0; }
-          camAnim._recCopyFn = null;
-          camAnim._recRec = null;
-          _setRecButtonState(false);
-          _hideRecTimer();
-          _setCaptureUIHidden(false);
-        } else {
-          window.stopViewRecording();
+      setTimeout(async () => {
+        try {
+          const blob = await exporter.finish();
+          _camAnimSaveBlob(blob);
+        } catch(e){
+          console.error('[Locahun][CamAnimRec] export finalize failed', e);
+          showUndoToast((window._lang === 'en') ? 'Export failed' : '書き出しに失敗しました');
         }
-        if(p)  p.style.display  = prevDisplay;
-        if(cf) cf.style.display = prevCf;
-        if(camAnim.open) _camAnimSetVisualsVisible(true);
-        _camAnimRenderPanel();
+        if(camAnim._recInterval){ clearInterval(camAnim._recInterval); camAnim._recInterval = 0; }
+        camAnim._recCopyFn = null;
+        camAnim._recRec = null;
+        _setRecButtonState(false);
+        _hideRecTimer();
+        _setCaptureUIHidden(false);
+        _restoreUi();
       }, 300);
     };
-    const tickRec = () => {
+
+    // 2026-07-06 correction: the first version of this stepper drove
+    // waitForRender purely via requestAnimationFrame with NO bound on how
+    // long it would wait for __riCounter to advance. rAF is suspended
+    // whenever the tab isn't the active/visible one — even a brief window
+    // switch, a modal grabbing focus, or any transient OS-level visibility
+    // hiccup during a long export — and with no other driver, that silently
+    // wedged the whole export (only the multi-minute hard-deadline watchdog
+    // would eventually cut it off mid-recording, which is exactly what
+    // looked like "recording never stops"). Fixed by driving every step via
+    // setTimeout (which keeps firing regardless of rAF suspension) AND
+    // bounding each frame's wait to FRAME_WAIT_MS — a real render is still
+    // awaited (so normal frames stay exactly as smooth as before), but a
+    // single frame can never block the exporter indefinitely.
+    const stepFrame = () => {
       if(!camAnim.playing) return;
-      if(recRafId)     { cancelAnimationFrame(recRafId); recRafId = 0; }
-      if(recTimeoutId) { clearTimeout(recTimeoutId);     recTimeoutId = 0; }
-      const tSec = (performance.now() - camAnim.startedAt) / 1000;
-      if(tSec >= camAnim.totalSec){ finishRec(); return; }
-      _camAnimApplySample(_camAnimSampleAt(tSec));
-      recRafId     = requestAnimationFrame(tickRec);
-      recTimeoutId = setTimeout(tickRec, 33);
+      try {
+        if(frameIdx >= totalFrames){ finishRec(); return; }
+        const t = frameIdx / CAM_ANIM_REC_FPS;
+        _camAnimApplySample(_camAnimSampleAt(t));
+        markDirty(4);
+        const targetRiCount = (window.__riCounter || 0) + 1;
+        const waitStartedAt = performance.now();
+        const thisFrameIdx = frameIdx;
+        const waitForRender = () => {
+          if(!camAnim.playing) return;
+          const rendered = (window.__riCounter || 0) >= targetRiCount;
+          const timedOut = (performance.now() - waitStartedAt) >= FRAME_WAIT_MS;
+          if(rendered || timedOut){
+            (async () => {
+              try {
+                await exporter.pushFrame(
+                  source,
+                  thisFrameIdx * frameDurationUs,
+                  thisFrameIdx % CAM_ANIM_REC_KEYFRAME_INTERVAL === 0,
+                );
+              } catch(e){
+                // A VideoEncoder failure (e.g. a misconfigured frame size)
+                // dooms every subsequent encode() too — limping through the
+                // remaining frames would just produce a broken file with a
+                // false "saved!" toast. Stop the export now instead.
+                console.error('[Locahun][CamAnimRec] pushFrame failed, aborting export', e);
+                showUndoToast((window._lang === 'en') ? 'Export failed' : '書き出しに失敗しました');
+                finishRec(true);
+                return;
+              }
+              frameIdx++;
+              stepTimeoutId = setTimeout(stepFrame, 0);
+            })();
+          } else {
+            stepTimeoutId = setTimeout(waitForRender, 16);
+          }
+        };
+        waitForRender();
+      } catch(e){
+        console.warn('[Locahun][CamAnimRec] frame step error, skipping frame', e);
+        frameIdx++;
+        stepTimeoutId = setTimeout(stepFrame, 0);
+      }
     };
-    // Watchdog: force-finish at totalSec + 50 ms in case both rAF and
-    // setTimeout are throttled deep enough that the tick never observes
-    // the deadline.
-    recDeadlineId = setTimeout(() => { if(camAnim.playing) finishRec(); },
-                               Math.max(50, camAnim.totalSec * 1000 + 50));
+    // Hard-deadline watchdog, now a true last-resort: with FRAME_WAIT_MS
+    // bounding every single frame, total export time is naturally capped at
+    // roughly totalFrames * FRAME_WAIT_MS in the worst case — this only
+    // needs to catch something outside that model entirely (e.g. finishRec
+    // itself throwing).
+    stepDeadlineId = setTimeout(() => { if(camAnim.playing) finishRec(); },
+                                Math.max(10000, totalFrames * FRAME_WAIT_MS + 10000));
     // 録画が始まったので warm-up 中止経路は無効化し、手動停止経路を有効化。
     camAnim._recAbort  = null;
     camAnim._recFinish = finishRec;
-    tickRec();
+    stepFrame();
   };
 
   if(camAnim.warmTimer){ clearTimeout(camAnim.warmTimer); camAnim.warmTimer = 0; }
@@ -10874,6 +11136,17 @@ window.__setCamPos = (x,y,z)=>{ if(typeof camPos!=='undefined'){ camPos.set(x,y,
 // sparkRenderer のLOD関連プロパティをライブ設定（lodSplatCount/lodSplatScale/coneFov等）
 window.__setRenderer = (p)=>{ if(typeof sparkRenderer==='undefined') return 'no sr'; const out={}; for(const k in p){ sparkRenderer[k]=p[k]; out[k]=sparkRenderer[k]; } if(typeof markDirty==='function') markDirty(240); return out; };
 window.__srDump = ()=>{ if(typeof sparkRenderer==='undefined') return 'no sr'; const o={}; for(const k of ['lodSplatCount','lodSplatScale','lodRenderScale','coneFov','coneFov0','coneFoveate','behindFoveate','maxPagedSplats','numLodFetchers','enableLod','enableDriveLod']){ o[k]=sparkRenderer[k]; } return o; };
+// Deeper paging/streaming state than __srDump exposes — used by the online
+// SaaS's admin preview-capture flow to confirm a streamed RAD scene has
+// loaded enough splats before it starts recording. Harmless everywhere else
+// (just an inert debug getter, same as __srDump above).
+window.__srDeep = ()=>{
+  if(typeof sparkRenderer==='undefined') return 'no sr';
+  const sr = sparkRenderer;
+  const r = { hasPager:!!sr.pager, lodMeshes:sr.lodMeshes?.length, lastFrame:sr.lastFrame, activeSplats:sr.activeSplats };
+  if(typeof splatMesh!=='undefined' && splatMesh && splatMesh.paged) r.nSplat = splatMesh.paged.numSplats;
+  return r;
+};
 // 予算設定→再ウォーク→収束numSplats と FPS を返す
 window.__probeBudget = async function(lodSplatCount, settleMs){
   if(typeof sparkRenderer!=='undefined') sparkRenderer.lodSplatCount = lodSplatCount;
@@ -17917,14 +18190,32 @@ else          requestAnimationFrame(animate);
 // Absolute URL (not relative) so offline copies of this single-file
 // viewer — opened from file://, Dropbox, or any other origin — can still
 // stream the demo cross-origin thanks to the CORS headers above.
-const DEMO_SCENE_URL = 'https://viewer.locahun3d.com/api/demo-asset/Kousaten_ForDemo_point_cloud.rad';
+//
+// _protected (?protected=1, set by src/js/291_render_loop.js which loads
+// before this file) means we're embedded in the online SaaS, which proxies
+// this same route through its own Next.js API — use a same-origin relative
+// URL there instead of the public CDN Worker URL. The standalone/offline
+// download (opened via file://, Dropbox, etc.) has no such backend, so it
+// always needs the absolute URL.
+const DEMO_SCENE_URL = (typeof _protected !== 'undefined' && _protected)
+  ? '/api/demo-asset/Kousaten_ForDemo_point_cloud.rad'
+  : 'https://viewer.locahun3d.com/api/demo-asset/Kousaten_ForDemo_point_cloud.rad';
 const DEMO_SCENE_LABEL = 'デモシーン(交差点)';
 const DEMO_SCENE_SIZE_MB = 357;
 
 async function loadFromURL(url, displayName){
   try{
-    // Show loader UI early so user sees feedback during the ~30s fetch
-    if(typeof showLd === 'function') showLd(`読み込み中: ${displayName || url}`);
+    // Show loader UI early so user sees feedback during the ~30s fetch.
+    // Never show the raw URL — presigned R2 URLs are hundreds of chars of
+    // query-string noise (and leak signature params on screen). Fall back
+    // to the path's filename, then to a plain label.
+    if(typeof showLd === 'function'){
+      let label = displayName;
+      if(!label){
+        try{ label = decodeURIComponent(new URL(url, location.href).pathname.split('/').pop()) || ''; }catch(_){ label = ''; }
+      }
+      showLd(label ? `読み込み中: ${label}` : '読み込み中...');
+    }
     if(typeof setBar === 'function') setBar(5);
     // .RAD URLs get a streaming path: Spark fetches via HTTP Range
     // Request internally, so we skip the whole-file ArrayBuffer fetch
@@ -18045,7 +18336,25 @@ setTimeout(async ()=>{
   const m  = location.search.match(/[?&]autoload=([^&]+)/);
   const dm = /[?&]demo=1/.test(location.search);
   if(m){
-    await loadFromURL(decodeURIComponent(m[1]));
+    let autoUrl = decodeURIComponent(m[1]);
+    // Online SaaS only: stored asset URLs are the public R2-proxy path
+    // (e.g. /api/r2/assets/splat/foo.zip). Under ?protected=1 the
+    // authenticated same-origin stream lives at /api/viewer-stream/<r2key>,
+    // so reduce the value to the bare R2 object key (strip leading slashes
+    // and the /api/r2/ proxy prefix, matching toR2Key() in /api/viewer-asset
+    // on the online SaaS side) and route it through that endpoint instead.
+    // blob: URLs (local-file salvage flows) and already-absolute http(s)
+    // URLs are left untouched.
+    if(typeof _protected !== 'undefined' && _protected &&
+       !(/^https?:\/\//.test(autoUrl)) && !autoUrl.startsWith('blob:')){
+      const r2key = autoUrl.replace(/^\/+/, '').replace(/^api\/r2\//, '');
+      autoUrl = '/api/viewer-stream/' + r2key;
+    }
+    // ?autoname=<filename> — online SaaS admin preview-capture only: when a
+    // blob: URL is auto-loaded (no extension to sniff), this supplies a
+    // filename so format detection still works.
+    const an = location.search.match(/[?&]autoname=([^&]+)/);
+    await loadFromURL(autoUrl, an ? decodeURIComponent(an[1]) : undefined);
   } else if(dm && DEMO_SCENE_URL){
     await loadFromURL(DEMO_SCENE_URL, (typeof T==='function'?T('demo-btn-lbl'):DEMO_SCENE_LABEL));
   }
@@ -18378,6 +18687,15 @@ window.__diagState = {
   },
   get pagerActive(){
     try{ return sparkRenderer.pager ? sparkRenderer.pager.fetchers.length : null; }catch(_){ return null; }
+  },
+  get lodSplatCount(){
+    try{ return (typeof sparkRenderer!=='undefined' && sparkRenderer) ? sparkRenderer.lodSplatCount : null; }catch(_){ return null; }
+  },
+  get splatPerfTier(){
+    try{ return (typeof _splatPerfTier!=='undefined') ? _splatPerfTier : null; }catch(_){ return null; }
+  },
+  get lastTraverseResumed(){
+    try{ return (typeof sparkRenderer!=='undefined' && sparkRenderer) ? !!sparkRenderer.lastTraverseResumed : null; }catch(_){ return null; }
   },
 };
 
@@ -19080,6 +19398,266 @@ function updateLightHalos(){
     }
   }, 100);
 })();
+// ══════════════════════════════════════════════════
+//  ?orbit=1 — Slow 360° auto-orbit for inline preview embeds (online SaaS
+//  property listing pages). Waits for the scene to load, then gently
+//  rotates yaw a full turn over ~10 s. Stops on any pointer interaction so
+//  the user can take manual control. OFF by default — zero effect unless
+//  the URL explicitly requests it, so this is inert in the standalone app.
+//
+//  Known doc/code mismatch: despite the claim above, there is no pointer-
+//  event listener anywhere in this file — the orbit runs to completion
+//  regardless of user interaction. Verified pre-existing in the real
+//  production source this was ported from (not introduced by this port).
+//  Left uncorrected to keep the port verbatim; noted here so it isn't
+//  mistaken for something this port broke.
+// ══════════════════════════════════════════════════
+if(/[?&]orbit=1/.test(location.search)){
+  (function(){
+    // Preview mode: hide ALL UI, show only the rotating 3D scene
+    const style = document.createElement('style');
+    style.textContent = '#topbar,#hud,#layer-panel,#overlay,#dropzone,#orient-lock,#sun-panel,#immersive-exit,#env-tint,#light-halo-layer,#view-tl-btns,#qp-panel,[id^="lfi-"],[id^="obj-type-menu"]{display:none!important}body{overflow:hidden!important;margin:0!important}#c{position:fixed!important;inset:0!important;width:100vw!important;height:100vh!important;z-index:0!important}';
+    document.head.appendChild(style);
+
+    // When capture=1 is also active, capture code drives the orbit itself.
+    if(/[?&]capture=1/.test(location.search)) return;
+
+    const ORBIT_DURATION_S = 10;
+    const RAD_PER_S = (2 * Math.PI) / ORBIT_DURATION_S;
+    let orbitRaf = 0;
+    let baseYaw = 0;
+
+    const hasScene = ()=> (typeof layers!=='undefined' && layers.some(L=>L&&L.mesh&&L.type!=='camera'));
+
+    async function startOrbit(){
+      for(let i=0; i<160 && !hasScene(); i++) await new Promise(r=>setTimeout(r,500));
+      if(!hasScene()) return;
+      await new Promise(r=>setTimeout(r,1500));
+
+      baseYaw = yaw;
+      let prev = performance.now();
+
+      (function loop(now){
+        const dt = (now - prev) / 1000;
+        prev = now;
+        _yawTarget += RAD_PER_S * dt;
+        yaw = _yawTarget;
+        if(typeof markDirty === 'function') markDirty(2);
+        if(yaw - baseYaw >= 2 * Math.PI) return;
+        orbitRaf = requestAnimationFrame(loop);
+      })(performance.now());
+    }
+    setTimeout(startOrbit, 200);
+  })();
+}
+// ══════════════════════════════════════════════════
+//  ?capture=1 — Record the orbit as a video and postMessage the blob back
+//  to the parent window. Used by the online SaaS's admin editor to
+//  auto-generate lightweight preview videos after 3DGS upload. OFF by
+//  default — zero effect unless the URL explicitly requests it, so this is
+//  inert in the standalone app.
+//
+//  Known trade-off: postMessage(...,'*') below is a wildcard-origin send,
+//  ported as-is from the online SaaS where both ends are first-party. In
+//  the standalone build this means whatever iframes/opens this page with
+//  ?capture=1 receives the rendered video blob. Not a live confidentiality
+//  hole in practice — the capturer never sees content it didn't itself
+//  supply via ?autoload=/local file selection — but flagged here so it
+//  isn't mistaken for an oversight if this file is read in isolation.
+//
+//  Flow: load scene → warmup (5s, GPU settles + splats stream in)
+//        → wait for orbit to be running → record for captureSec → post blob
+// ══════════════════════════════════════════════════
+if(/[?&]capture=1/.test(location.search)){
+  (function(){
+    const params = new URLSearchParams(location.search);
+    const ORBIT_S = parseInt(params.get('orbitSec')||'20', 10);
+    const canvas = document.getElementById('c');
+    if(!canvas) return;
+
+    const target = window.opener || parent;
+    const msg = (type, extra)=> target.postMessage(Object.assign({type}, extra||{}), '*');
+
+    const hasScene = ()=> (typeof layers!=='undefined' && layers.some(L=>L&&L.mesh&&L.type!=='camera'));
+    const nSplat = ()=> typeof window.__nSplat==='function' ? window.__nSplat() : -1;
+
+    // ── フレーム待ち（hidden タブ対応）─────────────────────────────
+    // requestAnimationFrame はブラウザが「非表示/背面のタブ」で完全停止させる。
+    // キャプチャは右下に縮小表示された iframe 内で走るが、親タブが背面に回る
+    // （別ウィンドウに隠れる/別タブに切替）と rAF が止まり、解像度安定化ループが
+    // 永久にハングする（実測: visibilityState=hidden で rAF が 0 回/4秒）。
+    // headless モード（?headless=1、capture 時は必ず付与）では setTimeout で
+    // 待つ — こちらは hidden タブでも発火し続けるため確実に前進する。
+    // レンダーループ自体も headless では setTimeout 駆動なので、この待ちの間に
+    // Spark の sort/LoD/RAD ストリーミングは進む。
+    const _capHeadless = /[?&]headless=1/.test(location.search);
+    const nextFrame = ()=> _capHeadless
+      ? new Promise(r=>setTimeout(r, 16))
+      : new Promise(r=>requestAnimationFrame(r));
+
+    async function run(){
+      // Phase 1: wait for a renderable scene (up to 90s).
+      // hasScene() inspects layers[].mesh, but a streaming RAD keeps its data
+      // on the global splatMesh (not the layer ref) — so __nSplat()>0 ("splats
+      // are present & rendering") is an equally valid readiness signal. Accept
+      // either, else ZIP-restored streaming scenes hang here and time out.
+      const sceneReady = ()=> hasScene() || nSplat() > 0;
+      msg('capture-progress',{phase:'loading', text:'3DGS 読み込み中…'});
+      // 240s: 大きい ZIP はダウンロード＋解凍で 90s を超えることがある
+      for(let i=0; i<480 && !sceneReady(); i++) await new Promise(r=>setTimeout(r,500));
+      if(!sceneReady()){ msg('capture-error',{error:'no-scene'}); return; }
+
+      // Phase 2: readiness.
+      //  - Streaming RAD (__nSplat()>0): wait for splats to stream in & stabilise.
+      //  - Non-streaming ZIP/PLY/SPLAT: __nSplat (a RAD-only counter) stays 0/-1
+      //    even though geometry is fully baked & present once the scene layer
+      //    exists, so gate on hasScene() instead of forcing a 'no-splats' abort.
+      // ZIP から展開された RAD はストリーミング開始が遅れ、nSplat が「後から」
+      // >0 になる。即時判定すると非ストリーミング扱いになり、直後の重さ判定
+      // （_heavy）も 0 のまま誤判定する → 少し待ってから分岐し直す。
+      if(nSplat() <= 0){
+        msg('capture-progress',{phase:'loading', text:'シーン安定化中…', pct:20});
+        await new Promise(r=>setTimeout(r, 2500));
+      }
+      if(nSplat() > 0){
+        msg('capture-progress',{phase:'loading', text:'RAD データ読み込み中…'});
+        let lastCount = 0, stableMs = 0;
+        const STABLE_MS = 3000, POLL_MS = 500, MAX_MS = 60000;
+        let elapsed = 0;
+        while(elapsed < MAX_MS){
+          await new Promise(r=>setTimeout(r, POLL_MS));
+          elapsed += POLL_MS;
+          const c = nSplat();
+          if(c > 0 && c === lastCount){ stableMs += POLL_MS; if(stableMs >= STABLE_MS) break; }
+          else { stableMs = 0; lastCount = c; }
+          msg('capture-progress',{phase:'loading', text:'RAD 読み込み中… '+(c>0?c.toLocaleString()+' splats':'待機中'), pct:Math.min(30, Math.round(elapsed/MAX_MS*30))});
+        }
+        if(nSplat() <= 0){ msg('capture-error',{error:'no-splats'}); return; }
+      } else {
+        // Non-streaming scene (PLY / SPLAT): already settled above.
+        if(!hasScene()){ msg('capture-error',{error:'no-scene'}); return; }
+      }
+
+      // Phase 3: Lock resize handler and force 1280×720 (HD) capture resolution.
+      // プレビュー動画は物件ページで複数同時に自動再生されるため、画質より
+      // ファイルサイズ（ページの重さ）を優先し 1920×1080 から落としてある。
+      const CAP_W = 1280, CAP_H = 720;
+      const CAP_FOV = 90;   // 固定FOV（90）でキャプチャ
+      if(typeof _captureLock!=='undefined') _captureLock = true;
+      // 画質=高: RAD の LoD 密度を最大化。setQuality は pixelRatio を 1.5 に
+      // 上げてしまい VideoEncoder の 1280×720 と不整合になるため、ここでは
+      // 品質変数と RAD lodScale だけ高に寄せ、pixelRatio は下で 1 に固定する。
+      try {
+        if(typeof qualScale!=='undefined') qualScale = 1.5;
+        if(typeof qualIdx!=='undefined') qualIdx = 2;
+        if(typeof _qualPreferred!=='undefined') _qualPreferred = 1.5;
+        if(typeof _radEffectiveLodScale==='function' && typeof layers!=='undefined' && layers){
+          const hi = _radEffectiveLodScale();
+          for(const L of layers){
+            if(L && L.mesh && L.mesh.paged && typeof L.mesh.lodScale === 'number') L.mesh.lodScale = hi;
+          }
+        }
+      } catch(_){}
+      if(typeof renderer!=='undefined'){
+        renderer.setPixelRatio(1);          // キャプチャ backing を厳密に CAP_W×CAP_H に
+        renderer.setSize(CAP_W, CAP_H);
+      } else {
+        canvas.width = CAP_W; canvas.height = CAP_H;
+      }
+      if(typeof camera!=='undefined'){
+        camera.aspect = CAP_W / CAP_H;
+        if('fov' in camera) camera.fov = CAP_FOV;
+        camera.updateProjectionMatrix();
+      }
+      // Warm-up: let the viewer's render loop run for ~2s at capture resolution
+      // so Spark can re-sort splats and stabilise LOD at 1280×720.
+      if(typeof markDirty==='function') markDirty(120);
+      msg('capture-progress',{phase:'loading', text:'解像度安定化中…', pct:28});
+      for(let w=0; w<120; w++) await nextFrame();
+
+      // Phase 4: rAF-driven frame-by-frame capture.
+      // No setTimeout loop — tight for-loop with encoder backpressure yield.
+      const FPS = 24;
+      const TOTAL_FRAMES = FPS * ORBIT_S;
+      // 回転速度は ORBIT_S に連動させない — 常に「360° を FULL_ROTATION_SEC 秒で
+      // 一周する」一定ペースを保つ。ORBIT_S を短くしても等速のまま途中で止まる
+      // だけにして、短尺化のために早回しになるのを防ぐ（一周する必要はない）。
+      const FULL_ROTATION_SEC = 20;
+      const ANGLE_PER_FRAME = (2 * Math.PI) / (FPS * FULL_ROTATION_SEC);
+
+      // Reuse the module-wide Mp4Muxer/Mp4ArrayBufferTarget imported in
+      // 010_state.js (added for the camera-animation WebCodecs rewrite)
+      // instead of dynamically importing a second, different mp4-muxer
+      // version — same library, one fewer network fetch, one fewer version
+      // to keep in sync. (Original online-only code did
+      // `await import('https://cdn.jsdelivr.net/npm/mp4-muxer@5.1.3/+esm')`
+      // here — this is the one intentional deviation from the source.)
+      const muxTarget = new Mp4ArrayBufferTarget();
+      const muxer = new Mp4Muxer({
+        target: muxTarget,
+        video: { codec: 'avc', width: CAP_W, height: CAP_H },
+        fastStart: 'in-memory',
+        firstTimestampBehavior: 'offset',
+      });
+
+      const encoder = new VideoEncoder({
+        output: (chunk, meta) => muxer.addVideoChunk(chunk, meta),
+        error: e => msg('capture-error',{error:'VideoEncoder: '+e.message}),
+      });
+      encoder.configure({
+        codec: 'avc1.640028',
+        width: CAP_W, height: CAP_H,
+        bitrate: 4_000_000, // 720p 相当に下げたビットレート（旧 1080p 時は 8Mbps）
+        framerate: FPS,
+      });
+
+      msg('capture-started',{durationSec: ORBIT_S});
+
+      // Capture: set yaw → force render → GPU flush → capture.
+      // Direct renderer.render() guarantees the canvas is painted before
+      // VideoFrame reads it (rAF alone races with the viewer's own loop).
+      for(let f = 0; f < TOTAL_FRAMES; f++){
+        while(encoder.encodeQueueSize > 5){
+          await new Promise(r => setTimeout(r, 1));
+        }
+
+        if(typeof _yawTarget!=='undefined') _yawTarget += ANGLE_PER_FRAME;
+        if(typeof yaw!=='undefined') yaw = _yawTarget;
+        // FOV を毎フレーム固定（カメラモード等が触っても 90 を維持）。
+        if(typeof camera!=='undefined' && 'fov' in camera && camera.fov !== CAP_FOV){
+          camera.fov = CAP_FOV; camera.updateProjectionMatrix();
+        }
+        if(typeof markDirty==='function') markDirty(30);
+
+        // Spark needs multiple frames to process sort/LOD after yaw change.
+        // hidden タブでも進むよう nextFrame()（headless では setTimeout）を使う。
+        for(let w=0; w<3; w++) await nextFrame();
+        if(typeof renderer!=='undefined' && typeof scene!=='undefined' && typeof camera!=='undefined'){
+          renderer.render(scene, camera);
+          const gl = renderer.getContext();
+          if(gl) gl.finish();
+        }
+
+        const vf = new VideoFrame(canvas, { timestamp: f * (1_000_000 / FPS) });
+        encoder.encode(vf, { keyFrame: f % (FPS * 2) === 0 });
+        vf.close();
+
+        if(f % 24 === 0){
+          const pct = Math.round(f / TOTAL_FRAMES * 100);
+          msg('capture-progress',{phase:'recording', text:'録画中… '+pct+'%  ('+f+'/'+TOTAL_FRAMES+')', pct:30+Math.round(pct*0.7)});
+        }
+      }
+
+      // Finalize
+      await encoder.flush();
+      encoder.close();
+      muxer.finalize();
+      const blob = new Blob([muxTarget.buffer], {type:'video/mp4'});
+      msg('capture-done',{blob, mimeType:'video/mp4', ext:'mp4'});
+    }
+    setTimeout(run, 300);
+  })();
+}
 // ══════════════════════════════════════════════════
 //  EXPORT / SAVE / LOAD
 // ══════════════════════════════════════════════════
