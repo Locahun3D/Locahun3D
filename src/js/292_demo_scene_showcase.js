@@ -22,7 +22,16 @@
 // Absolute URL (not relative) so offline copies of this single-file
 // viewer — opened from file://, Dropbox, or any other origin — can still
 // stream the demo cross-origin thanks to the CORS headers above.
-const DEMO_SCENE_URL = 'https://viewer.locahun3d.com/api/demo-asset/Kousaten_ForDemo_point_cloud.rad';
+//
+// _protected (?protected=1, set by src/js/291_render_loop.js which loads
+// before this file) means we're embedded in the online SaaS, which proxies
+// this same route through its own Next.js API — use a same-origin relative
+// URL there instead of the public CDN Worker URL. The standalone/offline
+// download (opened via file://, Dropbox, etc.) has no such backend, so it
+// always needs the absolute URL.
+const DEMO_SCENE_URL = (typeof _protected !== 'undefined' && _protected)
+  ? '/api/demo-asset/Kousaten_ForDemo_point_cloud.rad'
+  : 'https://viewer.locahun3d.com/api/demo-asset/Kousaten_ForDemo_point_cloud.rad';
 const DEMO_SCENE_LABEL = 'デモシーン(交差点)';
 const DEMO_SCENE_SIZE_MB = 357;
 
@@ -159,7 +168,25 @@ setTimeout(async ()=>{
   const m  = location.search.match(/[?&]autoload=([^&]+)/);
   const dm = /[?&]demo=1/.test(location.search);
   if(m){
-    await loadFromURL(decodeURIComponent(m[1]));
+    let autoUrl = decodeURIComponent(m[1]);
+    // Online SaaS only: stored asset URLs are the public R2-proxy path
+    // (e.g. /api/r2/assets/splat/foo.zip). Under ?protected=1 the
+    // authenticated same-origin stream lives at /api/viewer-stream/<r2key>,
+    // so reduce the value to the bare R2 object key (strip leading slashes
+    // and the /api/r2/ proxy prefix, matching toR2Key() in /api/viewer-asset
+    // on the online SaaS side) and route it through that endpoint instead.
+    // blob: URLs (local-file salvage flows) and already-absolute http(s)
+    // URLs are left untouched.
+    if(typeof _protected !== 'undefined' && _protected &&
+       !(/^https?:\/\//.test(autoUrl)) && !autoUrl.startsWith('blob:')){
+      const r2key = autoUrl.replace(/^\/+/, '').replace(/^api\/r2\//, '');
+      autoUrl = '/api/viewer-stream/' + r2key;
+    }
+    // ?autoname=<filename> — online SaaS admin preview-capture only: when a
+    // blob: URL is auto-loaded (no extension to sniff), this supplies a
+    // filename so format detection still works.
+    const an = location.search.match(/[?&]autoname=([^&]+)/);
+    await loadFromURL(autoUrl, an ? decodeURIComponent(an[1]) : undefined);
   } else if(dm && DEMO_SCENE_URL){
     await loadFromURL(DEMO_SCENE_URL, (typeof T==='function'?T('demo-btn-lbl'):DEMO_SCENE_LABEL));
   }
