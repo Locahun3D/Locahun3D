@@ -3,10 +3,15 @@
 // ══════════════════════════════════════════════════
 const PRESET_COLORS=['#e8a838','#ff4444','#ff8844','#ffcc00','#44cc44','#2299dd','#6644cc','#cc44aa','#888888','#44ffcc'];
 
+let _colorPopupCloseHandler = null;
 function _showColorPopup(x, y, currentColor, onChange, onClose){
   // Remove any existing popup
   const old=document.getElementById('color-preset-popup');
   if(old) old.remove();
+  // 前回popupの outside-click リスナーを確実に外す。旧popupのDOMを消すだけでは
+  // document に張った closeHandler が残り、detachedノードに対して contains() が常に
+  // false になるため以後のクリック毎に発火し続ける(リスナーリーク)。
+  if(_colorPopupCloseHandler){ document.removeEventListener('mousedown', _colorPopupCloseHandler, true); _colorPopupCloseHandler = null; }
 
   const popup=document.createElement('div');
   popup.id='color-preset-popup';
@@ -50,10 +55,12 @@ function _showColorPopup(x, y, currentColor, onChange, onClose){
     if(!popup.contains(e.target)){
       popup.remove();
       document.removeEventListener('mousedown', closeHandler, true);
+      if(_colorPopupCloseHandler === closeHandler) _colorPopupCloseHandler = null;
       if(onClose) onClose();
     }
   }
   setTimeout(function(){ document.addEventListener('mousedown', closeHandler, true); }, 50);
+  _colorPopupCloseHandler = closeHandler;
   return popup;
 }
 

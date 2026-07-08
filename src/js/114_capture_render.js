@@ -48,8 +48,11 @@ window.captureCamShot = async function(){
   // (the actual lighting) live on env.mesh and stay visible.
   const _sunVizWasVisible = (typeof sunViz !== 'undefined' && sunViz.group) ? sunViz.group.visible : null;
   if(_sunVizWasVisible) sunViz.group.visible = false;
-  // 区画パス・イベントアイコン — チェックON時のみ非表示
-  const _chkHideOverlays = !!(document.getElementById('cm-hide-overlays') ||{}).checked;
+  // 区画パス・イベントアイコン — チェックON時のみ非表示。カメラツール側(cm-)と
+  // カメラアニメ側(ca-)の同一ラベル「区画パス・イベントを非表示」チェックを両方
+  // 尊重する(録画パス 112 と同じ扱い。片方だけ見て静止画に写り込む不一致を防ぐ)。
+  const _chkHideOverlays = !!(document.getElementById('cm-hide-overlays') ||{}).checked
+                        || !!(document.getElementById('ca-hide-overlays') ||{}).checked;
   const _capHiddenLayers = [];
   if(_chkHideOverlays && typeof layers !== 'undefined'){
     for(const L of layers){

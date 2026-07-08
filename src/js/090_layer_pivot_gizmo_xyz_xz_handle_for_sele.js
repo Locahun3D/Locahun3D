@@ -171,7 +171,7 @@ function startLpvDrag(hit,clientX,clientY){
   const dp=new THREE.Plane();
   const rect=canvas.getBoundingClientRect();
   _lpvV2.set(((clientX-rect.left)/rect.width)*2-1,-((clientY-rect.top)/rect.height)*2+1);
-  _lpvRay.setFromCamera(_lpvV2,camera);
+  _lpvRay.setFromCamera(_lpvV2, _useOrtho ? _orthoCamera : camera);
   const startHit=new THREE.Vector3();
   pushGlobalUndo({type:'layer-transform',id:L.id,pos:{...L.pos},rot:{...L.rot},size:{...L.size},scale:{...L.scale}});
 
@@ -228,7 +228,7 @@ function updateLpvDrag(clientX,clientY){
   const L=findLayer(lpv.dragging.layerId); if(!L) return;
   const rect=canvas.getBoundingClientRect();
   _lpvV2.set(((clientX-rect.left)/rect.width)*2-1,-((clientY-rect.top)/rect.height)*2+1);
-  _lpvRay.setFromCamera(_lpvV2,camera);
+  _lpvRay.setFromCamera(_lpvV2, _useOrtho ? _orthoCamera : camera);
 
   if(lpv.dragging.isRot){
     const hit=new THREE.Vector3();
@@ -328,7 +328,7 @@ function pickWorldPos(clientX, clientY) {
     ((clientX - rect.left) / rect.width) * 2 - 1,
     -((clientY - rect.top) / rect.height) * 2 + 1
   );
-  _ray.setFromCamera(_v2, camera);
+  _ray.setFromCamera(_v2, _useOrtho ? _orthoCamera : camera);
   const origin = _ray.ray.origin;
   const dir    = _ray.ray.direction;
 
@@ -343,7 +343,7 @@ function pickWorldPos(clientX, clientY) {
   {
     if(!pickWorldPos._raycaster) pickWorldPos._raycaster = new THREE.Raycaster();
     const rc = pickWorldPos._raycaster;
-    rc.setFromCamera(_v2, camera);
+    rc.setFromCamera(_v2, _useOrtho ? _orthoCamera : camera);
     const splatMeshes = [];
     for(const L of layers){
       if(L && L.visible && L.type === 'splat' && L.mesh) splatMeshes.push(L.mesh);

@@ -133,6 +133,12 @@ function _camAnimReposition(){
   }
 }
 window.toggleCamAnimPanel = function(){
+  // 録画(プリロール〜書き出し中)はパネル/パスマーカーの再表示が録画映像に写り込むため
+  // トグルを無効化する。warming/_recRec/_recFinish は録画固有(プレビューでは立たない)。
+  if(camAnim.warming || camAnim._recRec || camAnim._recFinish){
+    if(typeof showUndoToast === 'function') showUndoToast(window._lang === 'en' ? 'Recording — panel locked' : '録画中はパネルを操作できません');
+    return;
+  }
   let p = document.getElementById('cam-anim-panel');
   if(!p){
     p = document.createElement('div');

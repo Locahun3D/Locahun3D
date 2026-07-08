@@ -32,7 +32,7 @@ function checkXZHandle(clientX, clientY) {
 function checkAxisHandle(clientX, clientY) {
   const rect = canvas.getBoundingClientRect();
   _v2.set(((clientX-rect.left)/rect.width)*2-1, -((clientY-rect.top)/rect.height)*2+1);
-  _ray.setFromCamera(_v2, camera);
+  _ray.setFromCamera(_v2, _useOrtho ? _orthoCamera : camera);
   // Only raycast xyz arrows (NOT xz — that uses screen-space check)
   const allMeshes = [];
   for (const pt of _msrActivePoints()) {
@@ -89,7 +89,7 @@ function startAxisDrag(axisData, clientX, clientY) {
   const dp = new THREE.Plane();
   const rect = canvas.getBoundingClientRect();
   _v2.set(((clientX-rect.left)/rect.width)*2-1, -((clientY-rect.top)/rect.height)*2+1);
-  _ray.setFromCamera(_v2, camera);
+  _ray.setFromCamera(_v2, _useOrtho ? _orthoCamera : camera);
   const startHit = new THREE.Vector3();
 
   if (isXZ) {

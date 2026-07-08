@@ -131,7 +131,7 @@ function _updateAxisDragAt(clientX, clientY){
   const rect=canvas.getBoundingClientRect();
   _v2.set(((clientX-rect.left)/rect.width)*2-1,
           -((clientY-rect.top)/rect.height)*2+1);
-  _ray.setFromCamera(_v2,camera);
+  _ray.setFromCamera(_v2, _useOrtho ? _orthoCamera : camera);
   const hit=new THREE.Vector3();
   if(_ray.ray.intersectPlane(msr.axisDragging.dragPlane, hit)){
     let newPos;
@@ -164,7 +164,7 @@ function _updateMarkerDragAt(clientX, clientY){
   const rect=canvas.getBoundingClientRect();
   _v2.set(((clientX-rect.left)/rect.width)*2-1,
           -((clientY-rect.top)/rect.height)*2+1);
-  _ray.setFromCamera(_v2,camera);
+  _ray.setFromCamera(_v2, _useOrtho ? _orthoCamera : camera);
   const hit=new THREE.Vector3();
   if(_ray.ray.intersectPlane(msr.dragPlane,hit)){
     if(msr.dragging==='A'){msr.ptA.copy(hit);msr.markerA.position.copy(hit);}
