@@ -4,7 +4,68 @@
 // camPos 中心の半径 R 球面上に、地平コンパス円・N/E/S/W ラベル・太陽軌道
 // （全周=薄/地平線上=明）・日の出/南中/日の入り/現在のマーカーを配置。
 // depthTest 無効でビュー上に常に重畳。group は render loop で camPos 追従。
-const sunViz = { group:null, ring:null, path:null, arc:null, cur:null, mRise:null, mNoon:null, mSet:null, moon:null, labels:[], built:false, R:400 };
+const sunViz = { group:null, ring:null, path:null, arc:null, cur:null, mRise:null, mNoon:null, mSet:null, labels:[], built:false, R:400 };
+
+// ── 空に浮かぶ月ビルボード（満ち欠けの形が見えるムーンフェイス）──
+// コンパスの点(sunViz)とは別に、日照モードの空が出ている間ずっとビュー上に表示する。
+// 明部だけを不透明で描き暗部は透明にするので、三日月〜満月の形がそのまま夜空に浮かぶ。
+let skyMoon = null;
+const _SKY_MOON_DIST = 380;   // camPos からの距離（sunViz 球面のすぐ内側）
+// 現在の phase(満ち欠け位相) / fraction(照度) から月面 canvas を描く。
+function _drawMoonFace(phase, fraction){
+  const S=128, cx=S/2, cy=S/2, R=S*0.42;
+  const cv=document.createElement('canvas'); cv.width=cv.height=S;
+  const x=cv.getContext('2d'); x.clearRect(0,0,S,S);
+  const waxing=(phase<0.5), f=Math.max(0,Math.min(1,fraction)), t=1-2*f;  // t: 明暗境界(ターミネータ)係数
+  // 明部をスキャンラインで塗る（明=不透明 / 暗=透明）。ターミネータは楕円になる。
+  x.fillStyle='#eef1f8';
+  for(let yy=-R; yy<=R; yy+=1){
+    const w=Math.sqrt(Math.max(0,R*R-yy*yy));
+    let x0,x1;
+    if(waxing){ x0=t*w; x1=w; }    // 上弦へ向かう=右側が光る
+    else      { x0=-w;  x1=-t*w; } // 下弦へ向かう=左側が光る
+    if(x1>x0) x.fillRect(cx+x0, cy+yy, (x1-x0)+0.6, 1.2);
+  }
+  // 明部の上にだけ球面陰影(左上ハイライト→周縁減光)を source-atop で乗せて立体感を出す。
+  x.globalCompositeOperation='source-atop';
+  const g=x.createRadialGradient(cx-R*0.28, cy-R*0.28, R*0.1, cx, cy, R*1.15);
+  g.addColorStop(0,'rgba(255,255,255,0.18)');
+  g.addColorStop(0.7,'rgba(205,215,240,0)');
+  g.addColorStop(1,'rgba(120,140,180,0.40)');
+  x.fillStyle=g; x.fillRect(0,0,S,S);
+  x.globalCompositeOperation='source-over';
+  return cv;
+}
+function _ensureSkyMoon(){
+  if(skyMoon) return;
+  const tex=new THREE.CanvasTexture(_drawMoonFace(0.5,1));
+  tex.minFilter=THREE.LinearFilter;
+  const sp=new THREE.Sprite(new THREE.SpriteMaterial({map:tex, transparent:true, depthTest:false, depthWrite:false}));
+  sp.renderOrder=-9999;               // ドーム(-10000)の手前・シーンの奥（＝空の一部）
+  sp.frustumCulled=false;
+  sp.scale.setScalar(_SKY_MOON_DIST*0.075);   // 見やすいよう実際の月より少し大きめ
+  sp.visible=false;
+  sp.userData.dir=new THREE.Vector3(0,1,0);
+  sp.userData.up=false;
+  sp.userData.phaseKey='';
+  scene.add(sp); skyMoon=sp;
+}
+// updateSunMode から呼ぶ: sun._moon(位置・満ち欠け)を月ビルボードへ反映。
+function _updateSkyMoon(){
+  _ensureSkyMoon();
+  const mo=(typeof sun!=='undefined')?sun._moon:null;
+  if(!mo || !mo.dir){ skyMoon.userData.up=false; skyMoon.visible=false; return; }
+  skyMoon.userData.dir.copy(mo.dir);
+  skyMoon.userData.up=(mo.altDeg>-1.0);
+  // phase/fraction が変わったときだけテクスチャを描き直す(0.5%刻み)。
+  const key=Math.round(mo.phase*200)+'/'+Math.round(mo.fraction*200);
+  if(key!==skyMoon.userData.phaseKey){
+    skyMoon.userData.phaseKey=key;
+    const m=skyMoon.material.map;
+    m.image=_drawMoonFace(mo.phase, mo.fraction);
+    m.needsUpdate=true;
+  }
+}
 function _sunMakeLabel(text,color){
   const cv=document.createElement('canvas'); cv.width=cv.height=64; const x=cv.getContext('2d');
   x.fillStyle=color; x.font='bold 46px sans-serif'; x.textAlign='center'; x.textBaseline='middle';
@@ -42,9 +103,7 @@ function _sunVizBuild(){
   // マーカー
   sunViz.mRise=_sunMakeDot('#ffd49a'); sunViz.mNoon=_sunMakeDot('#fff0b0');
   sunViz.mSet=_sunMakeDot('#ff9a6a'); sunViz.cur=_sunMakeDot('#ffffff',1.7);
-  // 月マーカー（寒色の白）— 現在の月の位置を示す。地平線下では隠す。
-  sunViz.moon=_sunMakeDot('#cdd8ff',1.35); sunViz.moon.visible=false;
-  g.add(sunViz.mRise); g.add(sunViz.mNoon); g.add(sunViz.mSet); g.add(sunViz.cur); g.add(sunViz.moon);
+  g.add(sunViz.mRise); g.add(sunViz.mNoon); g.add(sunViz.mSet); g.add(sunViz.cur);
   g.visible=false; scene.add(g); sunViz.group=g; sunViz.built=true;
 }
 function _sunVizSetVisible(v){ if(sunViz.group){ sunViz.group.visible=v; markDirty(6); } }
@@ -70,12 +129,6 @@ function _sunVizUpdate(curDir, times){
   place(sunViz.mNoon, times&&times.solarNoon);
   place(sunViz.mSet,  times&&times.sunset);
   if(sunViz.cur && curDir){ sunViz.cur.visible=true; sunViz.cur.position.copy(curDir.clone().multiplyScalar(R)); }
-  // 月マーカー: sun._moon(updateSunModeで算出)から。地平線上のときだけ表示。
-  if(sunViz.moon){
-    const mo = (typeof sun!=='undefined') ? sun._moon : null;
-    if(mo && mo.dir && mo.altDeg > -0.5){ sunViz.moon.visible=true; sunViz.moon.position.copy(mo.dir.clone().multiplyScalar(R)); }
-    else sunViz.moon.visible=false;
-  }
 }
 
 // ── Orthographic camera ──

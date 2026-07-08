@@ -293,6 +293,13 @@ function animate(now) {
   if(env.mesh && env.mesh.visible) env.mesh.position.copy(camPos);
   // 日照3D可視化(コンパス/太陽軌道)も camPos 追従させ、常にビュー中心の球面に保つ
   if(typeof sunViz !== 'undefined' && sunViz.group && sunViz.group.visible) sunViz.group.position.copy(camPos);
+  // 月ビルボード(満ち欠けの形): 日照モードの空が出ている間、月が地平線上なら常に表示。
+  // ドームと同じく camPos 追従で「無限遠の空」に固定する。
+  if(typeof skyMoon !== 'undefined' && skyMoon){
+    const show = (typeof env !== 'undefined' && env.preset === '__sun') && skyMoon.userData.up;
+    skyMoon.visible = show;
+    if(show) skyMoon.position.copy(camPos).addScaledVector(skyMoon.userData.dir, _SKY_MOON_DIST);
+  }
 
   // -- Billboard (event objects face camera) --
   // Gated on a counter that's only > 0 when an event-layer with isBillboard

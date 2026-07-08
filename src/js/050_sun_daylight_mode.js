@@ -569,6 +569,8 @@ function updateSunMode(){
     u.uMoonGlow.value = (_moonAltDeg < 8) ? 1.2 : 0.7;   // 低い月ほどにじみを強める
   }
   _cloudAnimEnsure();
+  // 満ち欠けの形が見える月ビルボード(skyMoon)を sun._moon から更新。
+  if(typeof _updateSkyMoon === 'function') _updateSkyMoon();
   // 降水の表現: 手動でも予報でも、雨/雪を選べば降る。雹は予報(雷雨96/99)時のみ。夜(高度<-6)は止める。
   let _pType='none', _pLv=0;
   if(altDeg > -6){

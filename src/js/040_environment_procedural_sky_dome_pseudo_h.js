@@ -162,15 +162,14 @@ function _envBuildMesh(){
           float sun = clamp((disc + glow * uSunGlow), 0.0, 1.0);
           col = mix(col, uSunColor, sun);
         }
-        // ── 月: 寒色のディスク＋淡いグロー（月相 uMoonPhase で明るさを減衰） ──
+        // ── 月: 柔らかいハロー(にじみ)のみ。月本体の満ち欠けの形は別のビルボード
+        //    スプライト(skyMoon)で描くので、ここではディスクは描かず淡い光暈だけ。 ──
         if(uShowMoon > 0.5){
           vec3  mdir = normalize(uMoonDir);
           float mdt  = max(dot(normalize(vDir), mdir), 0.0);
-          float mdisc = smoothstep(0.99955, 0.99988, mdt);       // 月の視半径は太陽とほぼ同じ
-          float mglow = pow(mdt, 300.0) * 0.5 + pow(mdt, 13.0) * 0.12;
-          float bright = 0.12 + 0.88 * clamp(uMoonPhase, 0.0, 1.0); // 新月=ほぼ不可視 / 満月=最大
-          float moon = clamp(mdisc + mglow * uMoonGlow, 0.0, 1.0) * bright;
-          col = mix(col, uMoonColor, moon);
+          float mglow = pow(mdt, 70.0) * 0.10 + pow(mdt, 12.0) * 0.05;
+          float bright = 0.25 + 0.75 * clamp(uMoonPhase, 0.0, 1.0); // 満ち欠けでハローも増減
+          col = mix(col, uMoonColor, clamp(mglow * uMoonGlow, 0.0, 1.0) * bright);
         }
         gl_FragColor = vec4(col * uIntensity, 1.0);
       }
