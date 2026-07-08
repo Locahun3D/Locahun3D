@@ -4,7 +4,7 @@
 // camPos 中心の半径 R 球面上に、地平コンパス円・N/E/S/W ラベル・太陽軌道
 // （全周=薄/地平線上=明）・日の出/南中/日の入り/現在のマーカーを配置。
 // depthTest 無効でビュー上に常に重畳。group は render loop で camPos 追従。
-const sunViz = { group:null, ring:null, path:null, arc:null, cur:null, mRise:null, mNoon:null, mSet:null, labels:[], built:false, R:400 };
+const sunViz = { group:null, ring:null, path:null, arc:null, cur:null, mRise:null, mNoon:null, mSet:null, moon:null, labels:[], built:false, R:400 };
 function _sunMakeLabel(text,color){
   const cv=document.createElement('canvas'); cv.width=cv.height=64; const x=cv.getContext('2d');
   x.fillStyle=color; x.font='bold 46px sans-serif'; x.textAlign='center'; x.textBaseline='middle';
@@ -42,7 +42,9 @@ function _sunVizBuild(){
   // マーカー
   sunViz.mRise=_sunMakeDot('#ffd49a'); sunViz.mNoon=_sunMakeDot('#fff0b0');
   sunViz.mSet=_sunMakeDot('#ff9a6a'); sunViz.cur=_sunMakeDot('#ffffff',1.7);
-  g.add(sunViz.mRise); g.add(sunViz.mNoon); g.add(sunViz.mSet); g.add(sunViz.cur);
+  // 月マーカー（寒色の白）— 現在の月の位置を示す。地平線下では隠す。
+  sunViz.moon=_sunMakeDot('#cdd8ff',1.35); sunViz.moon.visible=false;
+  g.add(sunViz.mRise); g.add(sunViz.mNoon); g.add(sunViz.mSet); g.add(sunViz.cur); g.add(sunViz.moon);
   g.visible=false; scene.add(g); sunViz.group=g; sunViz.built=true;
 }
 function _sunVizSetVisible(v){ if(sunViz.group){ sunViz.group.visible=v; markDirty(6); } }
@@ -68,6 +70,12 @@ function _sunVizUpdate(curDir, times){
   place(sunViz.mNoon, times&&times.solarNoon);
   place(sunViz.mSet,  times&&times.sunset);
   if(sunViz.cur && curDir){ sunViz.cur.visible=true; sunViz.cur.position.copy(curDir.clone().multiplyScalar(R)); }
+  // 月マーカー: sun._moon(updateSunModeで算出)から。地平線上のときだけ表示。
+  if(sunViz.moon){
+    const mo = (typeof sun!=='undefined') ? sun._moon : null;
+    if(mo && mo.dir && mo.altDeg > -0.5){ sunViz.moon.visible=true; sunViz.moon.position.copy(mo.dir.clone().multiplyScalar(R)); }
+    else sunViz.moon.visible=false;
+  }
 }
 
 // ── Orthographic camera ──

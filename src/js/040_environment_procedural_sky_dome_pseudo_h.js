@@ -59,6 +59,12 @@ function _envBuildMesh(){
       uSunDir:    { value: new THREE.Vector3(0, 1, 0) },       // WORLD direction toward the sun
       uSunColor:  { value: new THREE.Color(1.0, 0.95, 0.85) }, // disc + glow tint
       uSunGlow:   { value: 1.0 },                              // glow strength (fades near/below horizon)
+      // ── Moon disc (日照 mode) ──
+      uShowMoon:  { value: 0.0 },                              // 0 = no moon, 1 = draw
+      uMoonDir:   { value: new THREE.Vector3(0, 1, 0) },       // WORLD direction toward the moon
+      uMoonColor: { value: new THREE.Color(0.82, 0.87, 1.0) }, // cool white disc + glow
+      uMoonGlow:  { value: 1.0 },                              // glow strength
+      uMoonPhase: { value: 1.0 },                              // illuminated fraction 0..1 (dims new moon)
       // ── Procedural clouds (日照モードのみ) ──
       uCloudAmt:  { value: 0.0 },                              // 0 = clear sky, 1 = full overcast (coverage)
       uCloudTime: { value: 0.0 },                              // drift animation seconds
@@ -85,6 +91,11 @@ function _envBuildMesh(){
       uniform vec3  uSunDir;
       uniform vec3  uSunColor;
       uniform float uSunGlow;
+      uniform float uShowMoon;
+      uniform vec3  uMoonDir;
+      uniform vec3  uMoonColor;
+      uniform float uMoonGlow;
+      uniform float uMoonPhase;
       uniform float uCloudAmt;
       uniform float uCloudTime;
       uniform float uCloudLight;
@@ -150,6 +161,16 @@ function _envBuildMesh(){
           glow *= (0.55 + 0.85 * lowSun);
           float sun = clamp((disc + glow * uSunGlow), 0.0, 1.0);
           col = mix(col, uSunColor, sun);
+        }
+        // ── 月: 寒色のディスク＋淡いグロー（月相 uMoonPhase で明るさを減衰） ──
+        if(uShowMoon > 0.5){
+          vec3  mdir = normalize(uMoonDir);
+          float mdt  = max(dot(normalize(vDir), mdir), 0.0);
+          float mdisc = smoothstep(0.99955, 0.99988, mdt);       // 月の視半径は太陽とほぼ同じ
+          float mglow = pow(mdt, 300.0) * 0.5 + pow(mdt, 13.0) * 0.12;
+          float bright = 0.12 + 0.88 * clamp(uMoonPhase, 0.0, 1.0); // 新月=ほぼ不可視 / 満月=最大
+          float moon = clamp(mdisc + mglow * uMoonGlow, 0.0, 1.0) * bright;
+          col = mix(col, uMoonColor, moon);
         }
         gl_FragColor = vec4(col * uIntensity, 1.0);
       }

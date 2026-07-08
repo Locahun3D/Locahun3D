@@ -28,6 +28,13 @@ const SunCalc = (function(){
   const hourAngle    = (h,phi,d)=>Math.acos((Math.sin(h)-Math.sin(phi)*Math.sin(d))/(Math.cos(phi)*Math.cos(d)));
   const fromJulian   = j=>new Date((j+0.5-J1970)*dayMs);
   const TIMES=[[-0.833,'sunrise','sunset'],[-6,'dawn','dusk'],[-12,'nauticalDawn','nauticalDusk'],[-18,'nightEnd','night'],[6,'goldenHourEnd','goldenHour']];
+  // ── 月 (mourner/suncalc, http://aa.quae.nl/en/reken/hemelpositie.html) ──
+  const moonCoords = d => {
+    const L=rad*(218.316+13.176396*d), M=rad*(134.963+13.064993*d), F=rad*(93.272+13.229350*d),
+          l=L+rad*6.289*Math.sin(M), b=rad*5.128*Math.sin(F), dt=385001-20905*Math.cos(M);
+    return { ra:rightAscension(l,b), dec:declination(l,b), dist:dt };
+  };
+  const astroRefraction = h => { if(h<0) h=0; return 0.0002967/Math.tan(h+0.00312536/(h+0.08901179)); };
   return {
     getPosition(date,lat,lng){
       const lw=rad*-lng, phi=rad*lat, d=toDays(date), c=sunCoords(d), H=siderealTime(d,lw)-c.ra;
@@ -42,6 +49,32 @@ const SunCalc = (function(){
         res[t[2]]=fromJulian(Jset); res[t[1]]=fromJulian(Jnoon-(Jset-Jnoon));
       }
       return res;
+    },
+    getMoonPosition(date,lat,lng){
+      const lw=rad*-lng, phi=rad*lat, d=toDays(date), c=moonCoords(d), H=siderealTime(d,lw)-c.ra;
+      let h=altitude(H,phi,c.dec); h=h+astroRefraction(h);   // 大気差補正
+      return { azimuth:azimuth(H,phi,c.dec), altitude:h, distance:c.dist };
+    },
+    getMoonIllumination(date){
+      const d=toDays(date||new Date()), s=sunCoords(d), m=moonCoords(d), sdist=149598000,
+            phi=Math.acos(Math.sin(s.dec)*Math.sin(m.dec)+Math.cos(s.dec)*Math.cos(m.dec)*Math.cos(s.ra-m.ra)),
+            inc=Math.atan2(sdist*Math.sin(phi), m.dist-sdist*Math.cos(phi)),
+            angle=Math.atan2(Math.cos(s.dec)*Math.sin(s.ra-m.ra), Math.sin(s.dec)*Math.cos(m.dec)-Math.cos(s.dec)*Math.sin(m.dec)*Math.cos(s.ra-m.ra));
+      // fraction=照らされた割合(0..1), phase=満ち欠け(0=新月,0.25=上弦,0.5=満月,0.75=下弦)
+      return { fraction:(1+Math.cos(inc))/2, phase:0.5+0.5*inc*(angle<0?-1:1)/Math.PI, angle };
+    },
+    getMoonTimes(startDate,lat,lng){
+      // startDate を「その日の 0:00」として 24h を 10分刻みで高度サンプリングし、
+      // 高度が負→正=月の出 / 正→負=月の入り。呼び出し側が JST 0時を渡す前提
+      // （ブラウザのTZに依存しないよう setHours は使わない）。
+      let rise=null, set=null, prevH=null;
+      for(let mm=0; mm<=1440; mm+=10){
+        const dt=new Date(startDate.getTime()+mm*60000);
+        const h=this.getMoonPosition(dt,lat,lng).altitude;
+        if(prevH!=null){ if(prevH<0 && h>=0 && !rise) rise=dt; if(prevH>=0 && h<0 && !set) set=dt; }
+        prevH=h;
+      }
+      return { rise, set };
     }
   };
 })();
@@ -225,6 +258,25 @@ function _sunWorldDir(date){
   const ca = Math.cos(pos.altitude);
   return { dir:new THREE.Vector3(Math.sin(worldAz)*ca, Math.sin(pos.altitude), -Math.cos(worldAz)*ca),
            alt:pos.altitude, az:pos.azimuth };
+}
+
+// 指定時刻の月ワールド方向（_sunWorldDir と同じ座標系）。
+function _moonWorldDir(date){
+  const pos = SunCalc.getMoonPosition(date, sun.lat, sun.lng);
+  const worldAz = pos.azimuth + Math.PI;
+  const ca = Math.cos(pos.altitude);
+  return { dir:new THREE.Vector3(Math.sin(worldAz)*ca, Math.sin(pos.altitude), -Math.cos(worldAz)*ca),
+           alt:pos.altitude, az:pos.azimuth };
+}
+// 月相 phase(0..1: 0=新月,0.25=上弦,0.5=満月,0.75=下弦) → 名称＋絵文字
+function _moonPhaseInfo(phase){
+  const en = window._lang === 'en';
+  const names = en
+    ? ['New Moon','Waxing Crescent','First Quarter','Waxing Gibbous','Full Moon','Waning Gibbous','Last Quarter','Waning Crescent']
+    : ['新月','三日月','上弦の月','十三夜月','満月','十六夜月','下弦の月','有明月'];
+  const emoji = ['🌑','🌒','🌓','🌔','🌕','🌖','🌗','🌘'];
+  const idx = Math.round((phase % 1) * 8) % 8;
+  return { name:names[idx], emoji:emoji[idx] };
 }
 
 // 天気(疑似HDRI)変換: 晴天パレットを曇り/雨向けに変換。
@@ -470,6 +522,26 @@ function updateSunMode(){
 
   // 晴天パレット → 天気変換 → __sun プリセット書き換え → ドーム uniform + sceneTint
   const pal = _applyWeather(_sunPalette(altDeg, isEvening), sun.weather);
+
+  // ── 月: 位置・満ち欠けを算出し、夜間は月明かりでパレットをわずかに持ち上げる ──
+  const _moon = _moonWorldDir(date);
+  const _moonAltDeg = _moon.alt * 180/Math.PI;
+  let _moonIll = { fraction:0.5, phase:0.5 };
+  try { _moonIll = SunCalc.getMoonIllumination(date); } catch(_){}
+  sun._moon = { dir:_moon.dir, altDeg:_moonAltDeg, az:_moon.az, fraction:_moonIll.fraction, phase:_moonIll.phase };
+  // 月明かり: 太陽が地平線下(夜)で月が昇っているとき、夜度×月高度×満ち欠け×晴れ度に比例した
+  // 寒色の淡い持ち上げ。満月・快晴・天頂付近で最大でも控えめ(現実の月明かりは弱い)。
+  const _night   = THREE.MathUtils.clamp((-altDeg - 2) / 8, 0, 1);                 // 薄明で 0→1
+  const _moonUpF = THREE.MathUtils.clamp(_moonAltDeg / 25, 0, 1);                  // 月高度 0..25°で 0→1
+  const _skyClear = 1.0 - THREE.MathUtils.clamp(_sunCloudParams().amt, 0, 1) * 0.85;
+  const _moonLight = _night * _moonUpF * _moonIll.fraction * _skyClear;            // 0..1
+  if(_moonLight > 0.001){
+    const ml = _moonLight * 0.16;          // 最大 +0.16 程度の控えめな寒色リフト
+    const cool = [0.55, 0.72, 1.0];        // 青白い月明かりの色味
+    const lift = c => [ Math.min(1, c[0]+ml*cool[0]), Math.min(1, c[1]+ml*cool[1]), Math.min(1, c[2]+ml*cool[2]) ];
+    pal.zenith = lift(pal.zenith); pal.horizon = lift(pal.horizon); pal.tint = lift(pal.tint);
+  }
+
   const clear = (sun.weather === 'clear');
   const P = ENV_PRESETS.__sun;
   P.zenith=pal.zenith; P.horizon=pal.horizon; P.ground=pal.ground; P.sceneTint=pal.tint; P.int=1.0;
@@ -489,6 +561,12 @@ function updateSunMode(){
     const nightFade = THREE.MathUtils.clamp((altDeg + 6.0) / 8.0, 0.0, 1.0); // 薄明で雲をフェードアウト
     u.uCloudAmt.value = cp.amt;
     u.uCloudLight.value = cp.light * (0.25 + 0.75 * nightFade);
+    // 月ディスク: 月が地平線上＆空が晴れ〜薄曇りのときだけ描く（本曇り/雨は雲に隠れる）。
+    const _skyClearish = clear || (cp.amt < 0.6);
+    u.uShowMoon.value = (_moonAltDeg > -0.5 && _skyClearish) ? 1.0 : 0.0;
+    u.uMoonDir.value.copy(_moon.dir);
+    u.uMoonPhase.value = _moonIll.fraction;
+    u.uMoonGlow.value = (_moonAltDeg < 8) ? 1.2 : 0.7;   // 低い月ほどにじみを強める
   }
   _cloudAnimEnsure();
   // 降水の表現: 手動でも予報でも、雨/雪を選べば降る。雹は予報(雷雨96/99)時のみ。夜(高度<-6)は止める。
@@ -530,6 +608,32 @@ function _sunUpdateReadout(altDeg, azRad, times){
   // 時刻ラベル
   const hh=Math.floor(sun.timeMin/60), mm=sun.timeMin%60;
   set('sun-time-val', String(hh).padStart(2,'0')+':'+String(mm).padStart(2,'0'));
+
+  // ── 月相・月の出/月の入り ──
+  const en = window._lang==='en';
+  const mo = sun._moon;
+  if(mo && typeof _moonPhaseInfo==='function'){
+    const ph = _moonPhaseInfo(mo.phase);
+    const pct = Math.round(mo.fraction*100);
+    set('sun-r-moonphase', en
+      ? `${ph.emoji} ${ph.name} · ${pct}% lit · alt ${mo.altDeg.toFixed(0)}°`
+      : `${ph.emoji} ${ph.name}・照度${pct}%・高度${mo.altDeg.toFixed(0)}°`);
+  } else set('sun-r-moonphase','—');
+  const rlmr=document.getElementById('sun-rl-moonrise'); if(rlmr) rlmr.textContent = en?'🌘 Moonrise':'🌘 月の出';
+  const rlms=document.getElementById('sun-rl-moonset');  if(rlms) rlms.textContent = en?'🌗 Moonset':'🌗 月の入り';
+  // 月の出/入りは日付/場所が変わったときだけ再計算（時刻スクラブでは不変）。JST 0時基準。
+  const mkey = `${sun.y}-${sun.mo}-${sun.d}-${sun.lat}-${sun.lng}`;
+  if(mkey !== sun._moonTimesKey){
+    sun._moonTimesKey = mkey;
+    try {
+      const dayStart = new Date(Date.UTC(sun.y, sun.mo-1, sun.d, 0, 0) - sun.tz*3600000);
+      sun._moonTimes = SunCalc.getMoonTimes(dayStart, sun.lat, sun.lng);
+    } catch(_){ sun._moonTimes = { rise:null, set:null }; }
+  }
+  const mt = sun._moonTimes || { rise:null, set:null };
+  set('sun-r-moonrise', mt.rise ? _sunFmtHM(mt.rise) : '—');
+  set('sun-r-moonset',  mt.set  ? _sunFmtHM(mt.set)  : '—');
+
   // 日の出/日の入りスライダーマーカー
   _sunUpdateScrubMarks(times);
 }
