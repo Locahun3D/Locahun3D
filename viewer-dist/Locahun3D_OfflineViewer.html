@@ -4801,15 +4801,14 @@ function _envBuildMesh(){
           float sun = clamp((disc + glow * uSunGlow), 0.0, 1.0);
           col = mix(col, uSunColor, sun);
         }
-        // ── 月: 寒色のディスク＋淡いグロー（月相 uMoonPhase で明るさを減衰） ──
+        // ── 月: 柔らかいハロー(にじみ)のみ。月本体の満ち欠けの形は別のビルボード
+        //    スプライト(skyMoon)で描くので、ここではディスクは描かず淡い光暈だけ。 ──
         if(uShowMoon > 0.5){
           vec3  mdir = normalize(uMoonDir);
           float mdt  = max(dot(normalize(vDir), mdir), 0.0);
-          float mdisc = smoothstep(0.99955, 0.99988, mdt);       // 月の視半径は太陽とほぼ同じ
-          float mglow = pow(mdt, 300.0) * 0.5 + pow(mdt, 13.0) * 0.12;
-          float bright = 0.12 + 0.88 * clamp(uMoonPhase, 0.0, 1.0); // 新月=ほぼ不可視 / 満月=最大
-          float moon = clamp(mdisc + mglow * uMoonGlow, 0.0, 1.0) * bright;
-          col = mix(col, uMoonColor, moon);
+          float mglow = pow(mdt, 70.0) * 0.10 + pow(mdt, 12.0) * 0.05;
+          float bright = 0.25 + 0.75 * clamp(uMoonPhase, 0.0, 1.0); // 満ち欠けでハローも増減
+          col = mix(col, uMoonColor, clamp(mglow * uMoonGlow, 0.0, 1.0) * bright);
         }
         gl_FragColor = vec4(col * uIntensity, 1.0);
       }
@@ -5517,6 +5516,8 @@ function updateSunMode(){
     u.uMoonGlow.value = (_moonAltDeg < 8) ? 1.2 : 0.7;   // 低い月ほどにじみを強める
   }
   _cloudAnimEnsure();
+  // 満ち欠けの形が見える月ビルボード(skyMoon)を sun._moon から更新。
+  if(typeof _updateSkyMoon === 'function') _updateSkyMoon();
   // 降水の表現: 手動でも予報でも、雨/雪を選べば降る。雹は予報(雷雨96/99)時のみ。夜(高度<-6)は止める。
   let _pType='none', _pLv=0;
   if(altDeg > -6){
@@ -5923,7 +5924,68 @@ function _sunApplyCityI18n(){
 // camPos 中心の半径 R 球面上に、地平コンパス円・N/E/S/W ラベル・太陽軌道
 // （全周=薄/地平線上=明）・日の出/南中/日の入り/現在のマーカーを配置。
 // depthTest 無効でビュー上に常に重畳。group は render loop で camPos 追従。
-const sunViz = { group:null, ring:null, path:null, arc:null, cur:null, mRise:null, mNoon:null, mSet:null, moon:null, labels:[], built:false, R:400 };
+const sunViz = { group:null, ring:null, path:null, arc:null, cur:null, mRise:null, mNoon:null, mSet:null, labels:[], built:false, R:400 };
+
+// ── 空に浮かぶ月ビルボード（満ち欠けの形が見えるムーンフェイス）──
+// コンパスの点(sunViz)とは別に、日照モードの空が出ている間ずっとビュー上に表示する。
+// 明部だけを不透明で描き暗部は透明にするので、三日月〜満月の形がそのまま夜空に浮かぶ。
+let skyMoon = null;
+const _SKY_MOON_DIST = 380;   // camPos からの距離（sunViz 球面のすぐ内側）
+// 現在の phase(満ち欠け位相) / fraction(照度) から月面 canvas を描く。
+function _drawMoonFace(phase, fraction){
+  const S=128, cx=S/2, cy=S/2, R=S*0.42;
+  const cv=document.createElement('canvas'); cv.width=cv.height=S;
+  const x=cv.getContext('2d'); x.clearRect(0,0,S,S);
+  const waxing=(phase<0.5), f=Math.max(0,Math.min(1,fraction)), t=1-2*f;  // t: 明暗境界(ターミネータ)係数
+  // 明部をスキャンラインで塗る（明=不透明 / 暗=透明）。ターミネータは楕円になる。
+  x.fillStyle='#eef1f8';
+  for(let yy=-R; yy<=R; yy+=1){
+    const w=Math.sqrt(Math.max(0,R*R-yy*yy));
+    let x0,x1;
+    if(waxing){ x0=t*w; x1=w; }    // 上弦へ向かう=右側が光る
+    else      { x0=-w;  x1=-t*w; } // 下弦へ向かう=左側が光る
+    if(x1>x0) x.fillRect(cx+x0, cy+yy, (x1-x0)+0.6, 1.2);
+  }
+  // 明部の上にだけ球面陰影(左上ハイライト→周縁減光)を source-atop で乗せて立体感を出す。
+  x.globalCompositeOperation='source-atop';
+  const g=x.createRadialGradient(cx-R*0.28, cy-R*0.28, R*0.1, cx, cy, R*1.15);
+  g.addColorStop(0,'rgba(255,255,255,0.18)');
+  g.addColorStop(0.7,'rgba(205,215,240,0)');
+  g.addColorStop(1,'rgba(120,140,180,0.40)');
+  x.fillStyle=g; x.fillRect(0,0,S,S);
+  x.globalCompositeOperation='source-over';
+  return cv;
+}
+function _ensureSkyMoon(){
+  if(skyMoon) return;
+  const tex=new THREE.CanvasTexture(_drawMoonFace(0.5,1));
+  tex.minFilter=THREE.LinearFilter;
+  const sp=new THREE.Sprite(new THREE.SpriteMaterial({map:tex, transparent:true, depthTest:false, depthWrite:false}));
+  sp.renderOrder=-9999;               // ドーム(-10000)の手前・シーンの奥（＝空の一部）
+  sp.frustumCulled=false;
+  sp.scale.setScalar(_SKY_MOON_DIST*0.075);   // 見やすいよう実際の月より少し大きめ
+  sp.visible=false;
+  sp.userData.dir=new THREE.Vector3(0,1,0);
+  sp.userData.up=false;
+  sp.userData.phaseKey='';
+  scene.add(sp); skyMoon=sp;
+}
+// updateSunMode から呼ぶ: sun._moon(位置・満ち欠け)を月ビルボードへ反映。
+function _updateSkyMoon(){
+  _ensureSkyMoon();
+  const mo=(typeof sun!=='undefined')?sun._moon:null;
+  if(!mo || !mo.dir){ skyMoon.userData.up=false; skyMoon.visible=false; return; }
+  skyMoon.userData.dir.copy(mo.dir);
+  skyMoon.userData.up=(mo.altDeg>-1.0);
+  // phase/fraction が変わったときだけテクスチャを描き直す(0.5%刻み)。
+  const key=Math.round(mo.phase*200)+'/'+Math.round(mo.fraction*200);
+  if(key!==skyMoon.userData.phaseKey){
+    skyMoon.userData.phaseKey=key;
+    const m=skyMoon.material.map;
+    m.image=_drawMoonFace(mo.phase, mo.fraction);
+    m.needsUpdate=true;
+  }
+}
 function _sunMakeLabel(text,color){
   const cv=document.createElement('canvas'); cv.width=cv.height=64; const x=cv.getContext('2d');
   x.fillStyle=color; x.font='bold 46px sans-serif'; x.textAlign='center'; x.textBaseline='middle';
@@ -5961,9 +6023,7 @@ function _sunVizBuild(){
   // マーカー
   sunViz.mRise=_sunMakeDot('#ffd49a'); sunViz.mNoon=_sunMakeDot('#fff0b0');
   sunViz.mSet=_sunMakeDot('#ff9a6a'); sunViz.cur=_sunMakeDot('#ffffff',1.7);
-  // 月マーカー（寒色の白）— 現在の月の位置を示す。地平線下では隠す。
-  sunViz.moon=_sunMakeDot('#cdd8ff',1.35); sunViz.moon.visible=false;
-  g.add(sunViz.mRise); g.add(sunViz.mNoon); g.add(sunViz.mSet); g.add(sunViz.cur); g.add(sunViz.moon);
+  g.add(sunViz.mRise); g.add(sunViz.mNoon); g.add(sunViz.mSet); g.add(sunViz.cur);
   g.visible=false; scene.add(g); sunViz.group=g; sunViz.built=true;
 }
 function _sunVizSetVisible(v){ if(sunViz.group){ sunViz.group.visible=v; markDirty(6); } }
@@ -5989,12 +6049,6 @@ function _sunVizUpdate(curDir, times){
   place(sunViz.mNoon, times&&times.solarNoon);
   place(sunViz.mSet,  times&&times.sunset);
   if(sunViz.cur && curDir){ sunViz.cur.visible=true; sunViz.cur.position.copy(curDir.clone().multiplyScalar(R)); }
-  // 月マーカー: sun._moon(updateSunModeで算出)から。地平線上のときだけ表示。
-  if(sunViz.moon){
-    const mo = (typeof sun!=='undefined') ? sun._moon : null;
-    if(mo && mo.dir && mo.altDeg > -0.5){ sunViz.moon.visible=true; sunViz.moon.position.copy(mo.dir.clone().multiplyScalar(R)); }
-    else sunViz.moon.visible=false;
-  }
 }
 
 // ── Orthographic camera ──
@@ -17942,6 +17996,13 @@ function animate(now) {
   if(env.mesh && env.mesh.visible) env.mesh.position.copy(camPos);
   // 日照3D可視化(コンパス/太陽軌道)も camPos 追従させ、常にビュー中心の球面に保つ
   if(typeof sunViz !== 'undefined' && sunViz.group && sunViz.group.visible) sunViz.group.position.copy(camPos);
+  // 月ビルボード(満ち欠けの形): 日照モードの空が出ている間、月が地平線上なら常に表示。
+  // ドームと同じく camPos 追従で「無限遠の空」に固定する。
+  if(typeof skyMoon !== 'undefined' && skyMoon){
+    const show = (typeof env !== 'undefined' && env.preset === '__sun') && skyMoon.userData.up;
+    skyMoon.visible = show;
+    if(show) skyMoon.position.copy(camPos).addScaledVector(skyMoon.userData.dir, _SKY_MOON_DIST);
+  }
 
   // -- Billboard (event objects face camera) --
   // Gated on a counter that's only > 0 when an event-layer with isBillboard
