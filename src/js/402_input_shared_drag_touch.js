@@ -17,6 +17,29 @@ function _cancelMsrLongPress(){
   _msrLongPressId = -1;
 }
 
+// ── Long-press placement for object (Cube/Event/Figure) & path draw modes ──
+// Mirrors the measure-mode long-press idiom above. In _placeMode / _pathMode a
+// finger held still ~350 ms enters placement preview (matches the desktop
+// press-hold-release flow the hint banners literally describe), sliding aims,
+// lifting commits. Moving >12 px before the timer fires falls back to camera-
+// rotate. Previously these two modes had NO touch wiring — touch users saw the
+// "長押しで配置" hint but tapping the canvas only rotated the camera, so adding
+// Cube/Event/Figure objects and drawing parking-lot paths was mouse-only. We do
+// NOT touch the desktop-only _placeProbing/_pathProbing flags here; the touch
+// path is driven entirely by _plcPlacingId and the 350 probe/commit helpers.
+let _plcLongPressTimer = null;
+let _plcLongPressId = -1;
+let _plcLongPressX = 0, _plcLongPressY = 0;
+let _plcPlacingId = -1;
+function _cancelPlcLongPress(){
+  if(_plcLongPressTimer){ clearTimeout(_plcLongPressTimer); _plcLongPressTimer = null; }
+  _plcLongPressId = -1;
+}
+function _plcModeActive(){
+  return (typeof _placeMode !== 'undefined' && _placeMode) ||
+         (typeof _pathMode  !== 'undefined' && _pathMode);
+}
+
 canvas.addEventListener('touchstart',e=>{
   // ── Figure bone-rotation ring / IK handle touch-drag (highest priority) ──
   // Mirrors the desktop mousedown order (bone ring → IK → lpv). Only outside
@@ -129,6 +152,30 @@ canvas.addEventListener('touchstart',e=>{
       markDirty(6);
     }, _MSR_LONG_PRESS_MS);
   }
+  // ── Object/path placement long-press arm (mirrors the measure block above) ──
+  // Only when a placement mode is active, measure is off, and nothing else has
+  // grabbed a finger. On timer fire, enter placement: show the probe preview and
+  // release the touch-rotate finger so aiming doesn't also spin the camera.
+  if(_plcModeActive() && !(msr && msr.active) && _handleTouchId === -1 && _lpvTouchId === -1
+     && _plcPlacingId === -1 && _plcLongPressId === -1 && e.changedTouches.length){
+    const t0 = e.changedTouches[0];
+    _plcLongPressId = t0.identifier;
+    _plcLongPressX = t0.clientX; _plcLongPressY = t0.clientY;
+    _plcLongPressTimer = setTimeout(() => {
+      _plcLongPressTimer = null;
+      if(_plcLongPressId === -1) return;
+      _plcPlacingId = _plcLongPressId;
+      _plcLongPressId = -1;
+      if(tlId === _plcPlacingId) tlId = -1;   // release look-rotate finger
+      if(typeof _pathMode !== 'undefined' && _pathMode && typeof _pathUpdateProbe === 'function'){
+        _pathUpdateProbe(_plcLongPressX, _plcLongPressY);
+      } else if(typeof _placeMode !== 'undefined' && _placeMode && typeof _placeUpdateProbe === 'function'){
+        _placeUpdateProbe(_plcLongPressX, _plcLongPressY);
+      }
+      try { if(navigator.vibrate) navigator.vibrate(15); } catch(_){}
+      markDirty(6);
+    }, _MSR_LONG_PRESS_MS);
+  }
   // Camera look-around (touch-drag rotate) activates on the RIGHT part of the
   // screen; the left strip is a dead zone so a look-drag doesn't fight the
   // joystick / ▲▼ arrows in the bottom-left. Widened the active zone leftward
@@ -182,6 +229,29 @@ canvas.addEventListener('touchmove',e=>{
       if(t.identifier === _msrLongPressId){
         if(Math.hypot(t.clientX - _msrLongPressX, t.clientY - _msrLongPressY) > _MSR_LONG_PRESS_MOVE_PX){
           _cancelMsrLongPress();
+        }
+        break;
+      }
+    }
+  }
+  // ── Object/path placement preview update (active long-press) ──
+  if(_plcPlacingId !== -1){
+    for(const t of e.changedTouches){
+      if(t.identifier === _plcPlacingId){
+        if(typeof _pathMode !== 'undefined' && _pathMode && typeof _pathUpdateProbe === 'function') _pathUpdateProbe(t.clientX, t.clientY);
+        else if(typeof _placeMode !== 'undefined' && _placeMode && typeof _placeUpdateProbe === 'function') _placeUpdateProbe(t.clientX, t.clientY);
+        if(t.identifier === tlId){ tlX = t.clientX; tlY = t.clientY; }  // suppress look-rotate for this finger
+        markDirty(3);
+        return;
+      }
+    }
+  }
+  // ── Placement long-press arm-cancel: finger moved too far → rotate instead ──
+  if(_plcLongPressId !== -1){
+    for(const t of e.changedTouches){
+      if(t.identifier === _plcLongPressId){
+        if(Math.hypot(t.clientX - _plcLongPressX, t.clientY - _plcLongPressY) > _MSR_LONG_PRESS_MOVE_PX){
+          _cancelPlcLongPress();
         }
         break;
       }
@@ -264,6 +334,30 @@ canvas.addEventListener('touchend',e=>{
       if(t.identifier === _msrLongPressId){ _cancelMsrLongPress(); break; }
     }
   }
+  // Commit an object/path placement if the placing finger lifts (mirrors the
+  // desktop mouseup: path places one point + hides the probe, place creates the
+  // object; both helpers reset their own mode/probe state).
+  if(_plcPlacingId !== -1){
+    for(const t of e.changedTouches){
+      if(t.identifier === _plcPlacingId){
+        _plcPlacingId = -1;
+        if(typeof _pathMode !== 'undefined' && _pathMode && typeof _placePathPoint === 'function'){
+          _placePathPoint(t.clientX, t.clientY);
+          if(typeof _pathHideProbe === 'function') _pathHideProbe();
+        } else if(typeof _placeMode !== 'undefined' && _placeMode && typeof _commitPlace === 'function'){
+          _commitPlace(t.clientX, t.clientY);
+        }
+        markDirty(6);
+        break;
+      }
+    }
+  }
+  // Cancel a pending placement long-press when its finger lifts.
+  if(_plcLongPressId !== -1){
+    for(const t of e.changedTouches){
+      if(t.identifier === _plcLongPressId){ _cancelPlcLongPress(); break; }
+    }
+  }
   for(const t of e.changedTouches)if(t.identifier===tlId){ tlId=-1; markDirty(6); }
 });
 canvas.addEventListener('touchcancel',e=>{
@@ -290,6 +384,14 @@ canvas.addEventListener('touchcancel',e=>{
     markDirty(6);
   }
   _cancelMsrLongPress();
+  // Abort an in-progress object/path placement (e.g. iOS palm rejection).
+  if(_plcPlacingId !== -1){
+    _plcPlacingId = -1;
+    if(typeof _pathHideProbe === 'function') _pathHideProbe();
+    if(typeof _placeHideProbe === 'function') _placeHideProbe();
+    markDirty(6);
+  }
+  _cancelPlcLongPress();
 },{passive:true});
 
 // Joystick

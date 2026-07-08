@@ -53,19 +53,23 @@ async function _fetchBinaryChunked(url){
   // 例 *.r2.cloudflarestorage.com）は R2 が直接ストリーム配信するため対象外。
   // 別オリジンの絶対URLは 1 本の fetch で取得し、チャンク分割によるリクエスト数
   // の水増しを避ける（content-length で欠損だけは検証する）。
-  try{
-    const u = new URL(url, location.href);
-    if(u.origin !== location.origin){
-      const resp = await fetch(url, { cache:'no-store' });
-      if(!resp.ok) throw new Error('HTTP '+resp.status);
-      const buf = await resp.arrayBuffer();
-      const cl = parseInt(resp.headers.get('content-length') || '0', 10);
-      if(cl && buf.byteLength !== cl) throw new Error('通信が途中で切断されました ('+buf.byteLength+'/'+cl+' bytes)');
-      return buf;
-    }
-  }catch(e){
-    // URL 解析失敗等は下の同一オリジン想定チャンク経路にフォールバック
-    if(e instanceof Error && /切断/.test(e.message)) throw e;
+  // オリジン判定のみ try で囲う（URL 解析失敗＝相対URL等は同一オリジン扱いにして
+  // 下のチャンク経路へ）。fetch 自体の失敗はここでは握り潰さない。
+  let _crossOrigin = false;
+  try {
+    _crossOrigin = (new URL(url, location.href).origin !== location.origin);
+  } catch(_){ _crossOrigin = false; }
+  if(_crossOrigin){
+    // 別オリジンは 1 本の fetch で取得。ここでの失敗(404/403/CORS/切断)はそのまま
+    // 投げる — 別オリジンURLを同一オリジン想定の Range チャンク経路へ落としても無意味で、
+    // 数十秒かけて誤ったエラーで失敗したり、200 を返すエラーページを正データと誤認する
+    // 恐れがあるため（かつては /切断/ 以外を握り潰して落下していた）。
+    const resp = await fetch(url, { cache:'no-store' });
+    if(!resp.ok) throw new Error('HTTP '+resp.status);
+    const buf = await resp.arrayBuffer();
+    const cl = parseInt(resp.headers.get('content-length') || '0', 10);
+    if(cl && buf.byteLength !== cl) throw new Error('通信が途中で切断されました ('+buf.byteLength+'/'+cl+' bytes)');
+    return buf;
   }
   // 8MB × リトライ5回。16MB 連投だと Workers 経由で「206 なのに body 0 byte」
   // という一過性の切断が実測で出た（5 チャンク目以降）。小さめ＋間隔＋

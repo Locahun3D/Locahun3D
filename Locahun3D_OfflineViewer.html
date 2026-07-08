@@ -5636,8 +5636,16 @@ function _sunFcDetailForNow(){
 function _sunFcApplyAuto(){
   if(!sun._fcAuto) return;
   const d=_sunFcDetailForNow();
-  if(!d || !d.wx) return;
-  // 強度は予報の現在時刻の値に毎回更新（該当しない時刻は null に戻す）。
+  if(!d || !d.wx){
+    // 現在の日付/場所/時刻に対応する予報が無い（範囲外へスクラブ／別都市へ変更）。
+    // 予報由来の強度をすべて null に戻し、天気も無データの既定(clear)へ。こうしないと
+    // 直前まで表示していた豪雨/雪/雹の空・降水が「範囲外」表示のまま残り続け、読み出し
+    // パネルの「範囲外です」表示と 3D の見た目が矛盾する（範囲内へ戻せば下で再適用）。
+    sun._fcCloudAmt = null; sun._fcRainLevel = null; sun._fcSnowLevel = null; sun._fcPrecip = null;
+    if(sun.weather !== 'clear'){ sun.weather = 'clear'; _sunFcSyncButtons(); }
+    return;
+  }
+  // 強度は予報の現在時刻の値に毎回更新。
   sun._fcCloudAmt  = d.cloudAmt;
   sun._fcRainLevel = d.rainLevel;
   sun._fcSnowLevel = d.snowLevel;
@@ -8220,18 +8228,17 @@ function _setCaptureUIHidden(hide){
         if(hide){
           if(L.mesh.userData._capPrevVis === undefined) L.mesh.userData._capPrevVis = L.mesh.visible;
           L.mesh.visible = false;
-          if(L.labelMesh){
-            if(L.labelMesh.userData._capPrevVis === undefined) L.labelMesh.userData._capPrevVis = L.labelMesh.visible;
-            L.labelMesh.visible = false;
-          }
-          if(L.eventGuide){
-            if(L.eventGuide.userData._capPrevVis === undefined) L.eventGuide.userData._capPrevVis = L.eventGuide.visible;
-            L.eventGuide.visible = false;
+          // パスの中央ラベルは pathLabelSprite（labelMesh というプロパティは実在しない）。
+          // eventGuide は 3D メッシュではなくガイド"文字列"なので .visible 操作は不正
+          // （文字列に .userData を触ると TypeError）。イベントの見た目は L.mesh 側で
+          // 既に隠れており、ガイド文字は 2D ホバー表示なのでキャプチャには写らない。
+          if(L.pathLabelSprite){
+            if(L.pathLabelSprite.userData._capPrevVis === undefined) L.pathLabelSprite.userData._capPrevVis = L.pathLabelSprite.visible;
+            L.pathLabelSprite.visible = false;
           }
         } else {
           if(L.mesh.userData._capPrevVis !== undefined){ L.mesh.visible = L.mesh.userData._capPrevVis; delete L.mesh.userData._capPrevVis; }
-          if(L.labelMesh && L.labelMesh.userData._capPrevVis !== undefined){ L.labelMesh.visible = L.labelMesh.userData._capPrevVis; delete L.labelMesh.userData._capPrevVis; }
-          if(L.eventGuide && L.eventGuide.userData._capPrevVis !== undefined){ L.eventGuide.visible = L.eventGuide.userData._capPrevVis; delete L.eventGuide.userData._capPrevVis; }
+          if(L.pathLabelSprite && L.pathLabelSprite.userData._capPrevVis !== undefined){ L.pathLabelSprite.visible = L.pathLabelSprite.userData._capPrevVis; delete L.pathLabelSprite.userData._capPrevVis; }
         }
       }
     }
@@ -9712,8 +9719,9 @@ window.captureCamShot = async function(){
       if(L.type === 'path' || L.type === 'event'){
         const prev = { layer: L, mesh: L.mesh.visible };
         L.mesh.visible = false;
-        if(L.labelMesh){ prev.label = L.labelMesh.visible; L.labelMesh.visible = false; }
-        if(L.eventGuide){ prev.guide = L.eventGuide.visible; L.eventGuide.visible = false; }
+        // パスの中央ラベルは pathLabelSprite（labelMesh は実在しない）。eventGuide は
+        // 3Dメッシュでなくガイド"文字列"なので .visible 操作は不正（触ると壊れる）。
+        if(L.pathLabelSprite){ prev.label = L.pathLabelSprite.visible; L.pathLabelSprite.visible = false; }
         _capHiddenLayers.push(prev);
       }
     }
@@ -9805,6 +9813,11 @@ window.captureCamShot = async function(){
     if(capPR !== PR){ try{ renderer.setPixelRatio(PR); }catch(_){} }
     window._captureBusy = false;
   }
+  // 撮影の仕上げ(tint/grid/バーンイン合成)から UI/renderer 復元までを try/finally で
+  // 囲う。composeBurnInFrame 等が例外を投げても finally で必ず画面状態を元に戻し、
+  // canvas 非表示や renderer サイズ崩れでビューアが操作不能になるのを防ぐ(2026-07 検出)。
+  let out = null, _composeErr = null;
+  try {
   // ── Environment scene-tint (matches live #env-tint overlay) ──
   // Applied BEFORE WB so the order is "scene lighting first, then camera correction".
   if(env.preset !== 'off' && ENV_PRESETS[env.preset] && ENV_PRESETS[env.preset].sceneTint){
@@ -9845,13 +9858,9 @@ window.captureCamShot = async function(){
   const imgFinal = img;
 
   // Build final canvas: image alone, OR image + metadata border frame.
-  let out;
-  if(cam.burnin){
-    out = composeBurnInFrame(imgFinal);
-  } else {
-    out = imgFinal;
-  }
-
+  out = cam.burnin ? composeBurnInFrame(imgFinal) : imgFinal;
+  } catch(_ce){ _composeErr = _ce; }
+  finally {
   // Restore live HUD / left info / vignette
   hud.style.display = hudWasShown || 'block';
   if(info) info.style.display = infoWasShown || 'block';
@@ -9861,8 +9870,7 @@ window.captureCamShot = async function(){
   // Restore path/event layers hidden for the capture.
   for(const p of _capHiddenLayers){
     p.layer.mesh.visible = p.mesh;
-    if(p.label !== undefined && p.layer.labelMesh) p.layer.labelMesh.visible = p.label;
-    if(p.guide !== undefined && p.layer.eventGuide) p.layer.eventGuide.visible = p.guide;
+    if(p.label !== undefined && p.layer.pathLabelSprite) p.layer.pathLabelSprite.visible = p.label;
   }
   // Restore camera intrinsics (aspect, fov) for live preview
   camera.aspect = oldAspect;
@@ -9883,6 +9891,12 @@ window.captureCamShot = async function(){
   // Re-apply live camera math so the safe-frame keeps its sensor-native vertical FOV
   if(typeof applyCamSettings === 'function'){ try{ applyCamSettings(); }catch(_){} }
   markDirty(8);
+  }
+  if(_composeErr || !out){
+    console.error('[capture] finish/compose failed:', _composeErr);
+    showUndoToast(window._lang==='en' ? '⚠ Capture finishing failed' : '⚠ 撮影の仕上げに失敗しました');
+    return;
+  }
 
   const blob0 = await new Promise(r2=>out.toBlob(r2, 'image/jpeg', cam.jpegQ));
   // Inject our camera-state JSON into a JPEG COM segment so the file can be
@@ -18221,19 +18235,23 @@ async function _fetchBinaryChunked(url){
   // 例 *.r2.cloudflarestorage.com）は R2 が直接ストリーム配信するため対象外。
   // 別オリジンの絶対URLは 1 本の fetch で取得し、チャンク分割によるリクエスト数
   // の水増しを避ける（content-length で欠損だけは検証する）。
-  try{
-    const u = new URL(url, location.href);
-    if(u.origin !== location.origin){
-      const resp = await fetch(url, { cache:'no-store' });
-      if(!resp.ok) throw new Error('HTTP '+resp.status);
-      const buf = await resp.arrayBuffer();
-      const cl = parseInt(resp.headers.get('content-length') || '0', 10);
-      if(cl && buf.byteLength !== cl) throw new Error('通信が途中で切断されました ('+buf.byteLength+'/'+cl+' bytes)');
-      return buf;
-    }
-  }catch(e){
-    // URL 解析失敗等は下の同一オリジン想定チャンク経路にフォールバック
-    if(e instanceof Error && /切断/.test(e.message)) throw e;
+  // オリジン判定のみ try で囲う（URL 解析失敗＝相対URL等は同一オリジン扱いにして
+  // 下のチャンク経路へ）。fetch 自体の失敗はここでは握り潰さない。
+  let _crossOrigin = false;
+  try {
+    _crossOrigin = (new URL(url, location.href).origin !== location.origin);
+  } catch(_){ _crossOrigin = false; }
+  if(_crossOrigin){
+    // 別オリジンは 1 本の fetch で取得。ここでの失敗(404/403/CORS/切断)はそのまま
+    // 投げる — 別オリジンURLを同一オリジン想定の Range チャンク経路へ落としても無意味で、
+    // 数十秒かけて誤ったエラーで失敗したり、200 を返すエラーページを正データと誤認する
+    // 恐れがあるため（かつては /切断/ 以外を握り潰して落下していた）。
+    const resp = await fetch(url, { cache:'no-store' });
+    if(!resp.ok) throw new Error('HTTP '+resp.status);
+    const buf = await resp.arrayBuffer();
+    const cl = parseInt(resp.headers.get('content-length') || '0', 10);
+    if(cl && buf.byteLength !== cl) throw new Error('通信が途中で切断されました ('+buf.byteLength+'/'+cl+' bytes)');
+    return buf;
   }
   // 8MB × リトライ5回。16MB 連投だと Workers 経由で「206 なのに body 0 byte」
   // という一過性の切断が実測で出た（5 チャンク目以降）。小さめ＋間隔＋
@@ -22671,6 +22689,29 @@ function _cancelMsrLongPress(){
   _msrLongPressId = -1;
 }
 
+// ── Long-press placement for object (Cube/Event/Figure) & path draw modes ──
+// Mirrors the measure-mode long-press idiom above. In _placeMode / _pathMode a
+// finger held still ~350 ms enters placement preview (matches the desktop
+// press-hold-release flow the hint banners literally describe), sliding aims,
+// lifting commits. Moving >12 px before the timer fires falls back to camera-
+// rotate. Previously these two modes had NO touch wiring — touch users saw the
+// "長押しで配置" hint but tapping the canvas only rotated the camera, so adding
+// Cube/Event/Figure objects and drawing parking-lot paths was mouse-only. We do
+// NOT touch the desktop-only _placeProbing/_pathProbing flags here; the touch
+// path is driven entirely by _plcPlacingId and the 350 probe/commit helpers.
+let _plcLongPressTimer = null;
+let _plcLongPressId = -1;
+let _plcLongPressX = 0, _plcLongPressY = 0;
+let _plcPlacingId = -1;
+function _cancelPlcLongPress(){
+  if(_plcLongPressTimer){ clearTimeout(_plcLongPressTimer); _plcLongPressTimer = null; }
+  _plcLongPressId = -1;
+}
+function _plcModeActive(){
+  return (typeof _placeMode !== 'undefined' && _placeMode) ||
+         (typeof _pathMode  !== 'undefined' && _pathMode);
+}
+
 canvas.addEventListener('touchstart',e=>{
   // ── Figure bone-rotation ring / IK handle touch-drag (highest priority) ──
   // Mirrors the desktop mousedown order (bone ring → IK → lpv). Only outside
@@ -22783,6 +22824,30 @@ canvas.addEventListener('touchstart',e=>{
       markDirty(6);
     }, _MSR_LONG_PRESS_MS);
   }
+  // ── Object/path placement long-press arm (mirrors the measure block above) ──
+  // Only when a placement mode is active, measure is off, and nothing else has
+  // grabbed a finger. On timer fire, enter placement: show the probe preview and
+  // release the touch-rotate finger so aiming doesn't also spin the camera.
+  if(_plcModeActive() && !(msr && msr.active) && _handleTouchId === -1 && _lpvTouchId === -1
+     && _plcPlacingId === -1 && _plcLongPressId === -1 && e.changedTouches.length){
+    const t0 = e.changedTouches[0];
+    _plcLongPressId = t0.identifier;
+    _plcLongPressX = t0.clientX; _plcLongPressY = t0.clientY;
+    _plcLongPressTimer = setTimeout(() => {
+      _plcLongPressTimer = null;
+      if(_plcLongPressId === -1) return;
+      _plcPlacingId = _plcLongPressId;
+      _plcLongPressId = -1;
+      if(tlId === _plcPlacingId) tlId = -1;   // release look-rotate finger
+      if(typeof _pathMode !== 'undefined' && _pathMode && typeof _pathUpdateProbe === 'function'){
+        _pathUpdateProbe(_plcLongPressX, _plcLongPressY);
+      } else if(typeof _placeMode !== 'undefined' && _placeMode && typeof _placeUpdateProbe === 'function'){
+        _placeUpdateProbe(_plcLongPressX, _plcLongPressY);
+      }
+      try { if(navigator.vibrate) navigator.vibrate(15); } catch(_){}
+      markDirty(6);
+    }, _MSR_LONG_PRESS_MS);
+  }
   // Camera look-around (touch-drag rotate) activates on the RIGHT part of the
   // screen; the left strip is a dead zone so a look-drag doesn't fight the
   // joystick / ▲▼ arrows in the bottom-left. Widened the active zone leftward
@@ -22836,6 +22901,29 @@ canvas.addEventListener('touchmove',e=>{
       if(t.identifier === _msrLongPressId){
         if(Math.hypot(t.clientX - _msrLongPressX, t.clientY - _msrLongPressY) > _MSR_LONG_PRESS_MOVE_PX){
           _cancelMsrLongPress();
+        }
+        break;
+      }
+    }
+  }
+  // ── Object/path placement preview update (active long-press) ──
+  if(_plcPlacingId !== -1){
+    for(const t of e.changedTouches){
+      if(t.identifier === _plcPlacingId){
+        if(typeof _pathMode !== 'undefined' && _pathMode && typeof _pathUpdateProbe === 'function') _pathUpdateProbe(t.clientX, t.clientY);
+        else if(typeof _placeMode !== 'undefined' && _placeMode && typeof _placeUpdateProbe === 'function') _placeUpdateProbe(t.clientX, t.clientY);
+        if(t.identifier === tlId){ tlX = t.clientX; tlY = t.clientY; }  // suppress look-rotate for this finger
+        markDirty(3);
+        return;
+      }
+    }
+  }
+  // ── Placement long-press arm-cancel: finger moved too far → rotate instead ──
+  if(_plcLongPressId !== -1){
+    for(const t of e.changedTouches){
+      if(t.identifier === _plcLongPressId){
+        if(Math.hypot(t.clientX - _plcLongPressX, t.clientY - _plcLongPressY) > _MSR_LONG_PRESS_MOVE_PX){
+          _cancelPlcLongPress();
         }
         break;
       }
@@ -22918,6 +23006,30 @@ canvas.addEventListener('touchend',e=>{
       if(t.identifier === _msrLongPressId){ _cancelMsrLongPress(); break; }
     }
   }
+  // Commit an object/path placement if the placing finger lifts (mirrors the
+  // desktop mouseup: path places one point + hides the probe, place creates the
+  // object; both helpers reset their own mode/probe state).
+  if(_plcPlacingId !== -1){
+    for(const t of e.changedTouches){
+      if(t.identifier === _plcPlacingId){
+        _plcPlacingId = -1;
+        if(typeof _pathMode !== 'undefined' && _pathMode && typeof _placePathPoint === 'function'){
+          _placePathPoint(t.clientX, t.clientY);
+          if(typeof _pathHideProbe === 'function') _pathHideProbe();
+        } else if(typeof _placeMode !== 'undefined' && _placeMode && typeof _commitPlace === 'function'){
+          _commitPlace(t.clientX, t.clientY);
+        }
+        markDirty(6);
+        break;
+      }
+    }
+  }
+  // Cancel a pending placement long-press when its finger lifts.
+  if(_plcLongPressId !== -1){
+    for(const t of e.changedTouches){
+      if(t.identifier === _plcLongPressId){ _cancelPlcLongPress(); break; }
+    }
+  }
   for(const t of e.changedTouches)if(t.identifier===tlId){ tlId=-1; markDirty(6); }
 });
 canvas.addEventListener('touchcancel',e=>{
@@ -22944,6 +23056,14 @@ canvas.addEventListener('touchcancel',e=>{
     markDirty(6);
   }
   _cancelMsrLongPress();
+  // Abort an in-progress object/path placement (e.g. iOS palm rejection).
+  if(_plcPlacingId !== -1){
+    _plcPlacingId = -1;
+    if(typeof _pathHideProbe === 'function') _pathHideProbe();
+    if(typeof _placeHideProbe === 'function') _placeHideProbe();
+    markDirty(6);
+  }
+  _cancelPlcLongPress();
 },{passive:true});
 
 // Joystick
@@ -23960,6 +24080,9 @@ window.addEventListener('online', ()=>{
 if(_protected){
   window.saveProjectZip = ()=>{ showUndoToast('オンライン閲覧モードではデータ保存できません'); };
   window.exportSplat    = ()=>{ showUndoToast('オンライン閲覧モードではデータ保存できません'); };
+  // JSON保存(saveProject)も splat/モデルの生バッファを base64 で丸ごと埋め込むため、
+  // ZIP保存・3DGSエクスポートと同様に閲覧専用モードでは塞ぐ(データ流出防止)。
+  window.saveProject    = ()=>{ showUndoToast('オンライン閲覧モードではデータ保存できません'); };
 }
 
 </script>

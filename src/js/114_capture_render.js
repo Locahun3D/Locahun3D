@@ -57,8 +57,9 @@ window.captureCamShot = async function(){
       if(L.type === 'path' || L.type === 'event'){
         const prev = { layer: L, mesh: L.mesh.visible };
         L.mesh.visible = false;
-        if(L.labelMesh){ prev.label = L.labelMesh.visible; L.labelMesh.visible = false; }
-        if(L.eventGuide){ prev.guide = L.eventGuide.visible; L.eventGuide.visible = false; }
+        // パスの中央ラベルは pathLabelSprite（labelMesh は実在しない）。eventGuide は
+        // 3Dメッシュでなくガイド"文字列"なので .visible 操作は不正（触ると壊れる）。
+        if(L.pathLabelSprite){ prev.label = L.pathLabelSprite.visible; L.pathLabelSprite.visible = false; }
         _capHiddenLayers.push(prev);
       }
     }
@@ -150,6 +151,11 @@ window.captureCamShot = async function(){
     if(capPR !== PR){ try{ renderer.setPixelRatio(PR); }catch(_){} }
     window._captureBusy = false;
   }
+  // 撮影の仕上げ(tint/grid/バーンイン合成)から UI/renderer 復元までを try/finally で
+  // 囲う。composeBurnInFrame 等が例外を投げても finally で必ず画面状態を元に戻し、
+  // canvas 非表示や renderer サイズ崩れでビューアが操作不能になるのを防ぐ(2026-07 検出)。
+  let out = null, _composeErr = null;
+  try {
   // ── Environment scene-tint (matches live #env-tint overlay) ──
   // Applied BEFORE WB so the order is "scene lighting first, then camera correction".
   if(env.preset !== 'off' && ENV_PRESETS[env.preset] && ENV_PRESETS[env.preset].sceneTint){
@@ -190,13 +196,9 @@ window.captureCamShot = async function(){
   const imgFinal = img;
 
   // Build final canvas: image alone, OR image + metadata border frame.
-  let out;
-  if(cam.burnin){
-    out = composeBurnInFrame(imgFinal);
-  } else {
-    out = imgFinal;
-  }
-
+  out = cam.burnin ? composeBurnInFrame(imgFinal) : imgFinal;
+  } catch(_ce){ _composeErr = _ce; }
+  finally {
   // Restore live HUD / left info / vignette
   hud.style.display = hudWasShown || 'block';
   if(info) info.style.display = infoWasShown || 'block';
@@ -206,8 +208,7 @@ window.captureCamShot = async function(){
   // Restore path/event layers hidden for the capture.
   for(const p of _capHiddenLayers){
     p.layer.mesh.visible = p.mesh;
-    if(p.label !== undefined && p.layer.labelMesh) p.layer.labelMesh.visible = p.label;
-    if(p.guide !== undefined && p.layer.eventGuide) p.layer.eventGuide.visible = p.guide;
+    if(p.label !== undefined && p.layer.pathLabelSprite) p.layer.pathLabelSprite.visible = p.label;
   }
   // Restore camera intrinsics (aspect, fov) for live preview
   camera.aspect = oldAspect;
@@ -228,6 +229,12 @@ window.captureCamShot = async function(){
   // Re-apply live camera math so the safe-frame keeps its sensor-native vertical FOV
   if(typeof applyCamSettings === 'function'){ try{ applyCamSettings(); }catch(_){} }
   markDirty(8);
+  }
+  if(_composeErr || !out){
+    console.error('[capture] finish/compose failed:', _composeErr);
+    showUndoToast(window._lang==='en' ? '⚠ Capture finishing failed' : '⚠ 撮影の仕上げに失敗しました');
+    return;
+  }
 
   const blob0 = await new Promise(r2=>out.toBlob(r2, 'image/jpeg', cam.jpegQ));
   // Inject our camera-state JSON into a JPEG COM segment so the file can be

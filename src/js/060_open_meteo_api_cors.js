@@ -99,8 +99,16 @@ function _sunFcDetailForNow(){
 function _sunFcApplyAuto(){
   if(!sun._fcAuto) return;
   const d=_sunFcDetailForNow();
-  if(!d || !d.wx) return;
-  // 強度は予報の現在時刻の値に毎回更新（該当しない時刻は null に戻す）。
+  if(!d || !d.wx){
+    // 現在の日付/場所/時刻に対応する予報が無い（範囲外へスクラブ／別都市へ変更）。
+    // 予報由来の強度をすべて null に戻し、天気も無データの既定(clear)へ。こうしないと
+    // 直前まで表示していた豪雨/雪/雹の空・降水が「範囲外」表示のまま残り続け、読み出し
+    // パネルの「範囲外です」表示と 3D の見た目が矛盾する（範囲内へ戻せば下で再適用）。
+    sun._fcCloudAmt = null; sun._fcRainLevel = null; sun._fcSnowLevel = null; sun._fcPrecip = null;
+    if(sun.weather !== 'clear'){ sun.weather = 'clear'; _sunFcSyncButtons(); }
+    return;
+  }
+  // 強度は予報の現在時刻の値に毎回更新。
   sun._fcCloudAmt  = d.cloudAmt;
   sun._fcRainLevel = d.rainLevel;
   sun._fcSnowLevel = d.snowLevel;

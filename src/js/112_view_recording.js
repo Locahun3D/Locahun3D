@@ -93,18 +93,17 @@ function _setCaptureUIHidden(hide){
         if(hide){
           if(L.mesh.userData._capPrevVis === undefined) L.mesh.userData._capPrevVis = L.mesh.visible;
           L.mesh.visible = false;
-          if(L.labelMesh){
-            if(L.labelMesh.userData._capPrevVis === undefined) L.labelMesh.userData._capPrevVis = L.labelMesh.visible;
-            L.labelMesh.visible = false;
-          }
-          if(L.eventGuide){
-            if(L.eventGuide.userData._capPrevVis === undefined) L.eventGuide.userData._capPrevVis = L.eventGuide.visible;
-            L.eventGuide.visible = false;
+          // パスの中央ラベルは pathLabelSprite（labelMesh というプロパティは実在しない）。
+          // eventGuide は 3D メッシュではなくガイド"文字列"なので .visible 操作は不正
+          // （文字列に .userData を触ると TypeError）。イベントの見た目は L.mesh 側で
+          // 既に隠れており、ガイド文字は 2D ホバー表示なのでキャプチャには写らない。
+          if(L.pathLabelSprite){
+            if(L.pathLabelSprite.userData._capPrevVis === undefined) L.pathLabelSprite.userData._capPrevVis = L.pathLabelSprite.visible;
+            L.pathLabelSprite.visible = false;
           }
         } else {
           if(L.mesh.userData._capPrevVis !== undefined){ L.mesh.visible = L.mesh.userData._capPrevVis; delete L.mesh.userData._capPrevVis; }
-          if(L.labelMesh && L.labelMesh.userData._capPrevVis !== undefined){ L.labelMesh.visible = L.labelMesh.userData._capPrevVis; delete L.labelMesh.userData._capPrevVis; }
-          if(L.eventGuide && L.eventGuide.userData._capPrevVis !== undefined){ L.eventGuide.visible = L.eventGuide.userData._capPrevVis; delete L.eventGuide.userData._capPrevVis; }
+          if(L.pathLabelSprite && L.pathLabelSprite.userData._capPrevVis !== undefined){ L.pathLabelSprite.visible = L.pathLabelSprite.userData._capPrevVis; delete L.pathLabelSprite.userData._capPrevVis; }
         }
       }
     }
