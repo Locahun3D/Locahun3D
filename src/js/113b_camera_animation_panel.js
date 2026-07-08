@@ -659,8 +659,14 @@ window.camAnimRecordExport = function(){
         const waitForRender = () => {
           if(!camAnim.playing) return;
           const rendered = (window.__riCounter || 0) >= targetRiCount;
+          // タブが背面だと rAF が停止し animate() が __riCounter を進めない。ここで
+          // timedOut を受理して古い _recCanvas を焼き込むと、背面にしていた間ずっと
+          // 同一フレームが凍結して混入する（構造は正常なMP4だが一部フリーズ）。背面の
+          // 間は受理せず待機し、前面復帰でレンダーが再開してから push する。timedOut を
+          // 受理するのは前面（=単に重いフレーム。古めでも進める方が良い）のときだけ。
+          const backgrounded = (typeof document !== 'undefined' && document.hidden);
           const timedOut = (performance.now() - waitStartedAt) >= FRAME_WAIT_MS;
-          if(rendered || timedOut){
+          if(rendered || (timedOut && !backgrounded)){
             (async () => {
               try {
                 await exporter.pushFrame(
@@ -682,7 +688,8 @@ window.camAnimRecordExport = function(){
               stepTimeoutId = setTimeout(stepFrame, 0);
             })();
           } else {
-            stepTimeoutId = setTimeout(waitForRender, 16);
+            // 背面中は無駄な高頻度ポーリングを避け、少し間隔を空けて待つ。
+            stepTimeoutId = setTimeout(waitForRender, backgrounded ? 200 : 16);
           }
         };
         waitForRender();

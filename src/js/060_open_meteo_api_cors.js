@@ -24,20 +24,6 @@ function _sunFcKey(){ return _sunDateStr()+'@'+sun.lat.toFixed(2)+','+sun.lng.to
 function _sunFcShow(html, on){ const el=document.getElementById('sun-forecast'); if(!el) return; el.innerHTML=html; el.style.display=on?'block':'none'; }
 
 function _sunFcSyncButtons(){ document.querySelectorAll('#sun-panel .sun-wx-btn').forEach(b=>b.classList.toggle('on', b.dataset.wx===sun.weather)); }
-// キャッシュ済み予報から「現在の日付/場所/時刻」の天気種別(clear/cloudy/rain)を返す。無ければnull。
-function _sunFcWeatherForNow(){
-  const fc=sun._fc;
-  if(!fc||!fc.hourly||!fc.hourly.time) return null;
-  if(fc.keyLoc!==(sun.lat.toFixed(2)+','+sun.lng.toFixed(2))) return null;
-  const dstr=_sunDateStr();
-  if(dstr<fc.start || dstr>fc.end) return null;
-  const h=Math.max(0,Math.min(23,Math.round(sun.timeMin/60)));
-  const idx=fc.hourly.time.indexOf(dstr+'T'+String(h).padStart(2,'0')+':00');
-  if(idx<0) return null;
-  const code=(fc.hourly.weather_code&&fc.hourly.weather_code[idx]!=null)?fc.hourly.weather_code[idx]:null;
-  if(code==null) return null;
-  return _wmoWx(code).wx;
-}
 // 雨を3段階に分類: 1=霧雨 / 2=雨 / 3=豪雨。WMO weather_code を主、毎時降水量(mm)で補強。
 function _rainLevelFromCodePrecip(code, pr){
   let lvl;
@@ -89,7 +75,9 @@ function _sunFcDetailForNow(){
   // ★気象庁の雲量基準で「晴れ/曇り」を再判定（雲量で決まる code 0-3 のみ）。
   //   快晴=雲量0-1 / 晴れ=2-8(15-85%) / 曇り=9-10(85%超)。WMOの partly-cloudy(=晴れ)を
   //   灰色の曇り扱いにしていたズレを是正。雨・雪・霧はそのまま。
-  if(code>=0 && code<=3 && cloudAmt!=null){
+  //   ※実雲量(cc)がある時だけ再判定する。cc欠損のフォールバック値(0.85)で判定すると
+  //     partly-cloudy(code2)が境界ちょうどで clear に倒れてしまうため(cc!=null で限定)。
+  if(code>=0 && code<=3 && cc!=null){
     wx = (cloudAmt > 0.85) ? 'cloudy' : 'clear';
   }
   return { wx, cloudAmt, rainLevel, snowLevel, precipType };

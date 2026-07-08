@@ -23,8 +23,12 @@ if(/[?&]capture=1/.test(location.search)){
     const canvas = document.getElementById('c');
     if(!canvas) return;
 
-    const target = window.opener || parent;
-    const msg = (type, extra)=> target.postMessage(Object.assign({type}, extra||{}), '*');
+    // 送信先: opener(window.open 由来)優先、無ければ親フレーム。どちらも無い
+    // (rel=noopener / COOP でトップレベル化)と parent===window になり、自分自身へ
+    // 送って親が永久に応答待ちハングする。target=null として検出しアボートする。
+    const target = window.opener || (parent !== window ? parent : null);
+    const msg = (type, extra)=>{ try { if(target) target.postMessage(Object.assign({type}, extra||{}), '*'); } catch(_){} };
+    if(!target){ console.error('[capture] postMessage 送信先(opener/parent)が無いため中止'); return; }
 
     const hasScene = ()=> (typeof layers!=='undefined' && layers.some(L=>L&&L.mesh&&L.type!=='camera'));
     const nSplat = ()=> typeof window.__nSplat==='function' ? window.__nSplat() : -1;
@@ -44,6 +48,8 @@ if(/[?&]capture=1/.test(location.search)){
       : new Promise(r=>requestAnimationFrame(r));
 
     async function run(){
+     let encoder = null;
+     try {
       // Phase 1: wait for a renderable scene (up to 90s).
       // hasScene() inspects layers[].mesh, but a streaming RAD keeps its data
       // on the global splatMesh (not the layer ref) — so __nSplat()>0 ("splats
@@ -91,7 +97,9 @@ if(/[?&]capture=1/.test(location.search)){
       // ファイルサイズ（ページの重さ）を優先し 1920×1080 から落としてある。
       const CAP_W = 1280, CAP_H = 720;
       const CAP_FOV = 90;   // 固定FOV（90）でキャプチャ
-      if(typeof _captureLock!=='undefined') _captureLock = true;
+      // 撮影中は LODプリフェッチ(294)とビューポートresize(070)を抑止する。
+      // 旧コードは未宣言の _captureLock に代入する no-op だった → 実効フラグへ。
+      window._captureBusy = true;
       // 画質=高: RAD の LoD 密度を最大化。setQuality は pixelRatio を 1.5 に
       // 上げてしまい VideoEncoder の 1280×720 と不整合になるため、ここでは
       // 品質変数と RAD lodScale だけ高に寄せ、pixelRatio は下で 1 に固定する。
@@ -148,12 +156,26 @@ if(/[?&]capture=1/.test(location.search)){
         firstTimestampBehavior: 'offset',
       });
 
-      const encoder = new VideoEncoder({
+      // コーデックfallback: High→Main→Baseline の順で isConfigSupported を確認して
+      // 最初に使えるものを選ぶ。H.264 未対応環境(一部 Linux Chrome / Android WebView)で
+      // configure() が同期throwし無音ハングしていた問題への対処。いずれも mp4-muxer の
+      // 'avc' と整合するプロファイル違いなので muxer 側は変更不要。
+      const AVC_CODECS = ['avc1.640028','avc1.4d0028','avc1.42001f']; // High / Main / Baseline
+      let chosenCodec = null;
+      for(const c of AVC_CODECS){
+        try {
+          const s = await VideoEncoder.isConfigSupported({ codec:c, width:CAP_W, height:CAP_H, bitrate:4_000_000, framerate:FPS });
+          if(s && s.supported){ chosenCodec = c; break; }
+        } catch(_){}
+      }
+      if(!chosenCodec){ msg('capture-error',{error:'no-h264-encoder'}); return; }
+
+      encoder = new VideoEncoder({
         output: (chunk, meta) => muxer.addVideoChunk(chunk, meta),
         error: e => msg('capture-error',{error:'VideoEncoder: '+e.message}),
       });
       encoder.configure({
-        codec: 'avc1.640028',
+        codec: chosenCodec,
         width: CAP_W, height: CAP_H,
         bitrate: 4_000_000, // 720p 相当に下げたビットレート（旧 1080p 時は 8Mbps）
         framerate: FPS,
@@ -202,6 +224,13 @@ if(/[?&]capture=1/.test(location.search)){
       muxer.finalize();
       const blob = new Blob([muxTarget.buffer], {type:'video/mp4'});
       msg('capture-done',{blob, mimeType:'video/mp4', ext:'mp4'});
+     } catch(e){
+       // configure() の同期throw やその他の例外を必ず親へ通知（無音ハング防止）。
+       msg('capture-error',{error:'exception: ' + ((e && e.message) || e)});
+     } finally {
+       try { if(encoder && encoder.state !== 'closed') encoder.close(); } catch(_){}
+       window._captureBusy = false;
+     }
     }
     setTimeout(run, 300);
   })();

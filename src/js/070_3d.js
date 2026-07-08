@@ -150,6 +150,10 @@ window.resetCameraToInitial = function(){
 // viewport settle, and also hook orientationchange + visualViewport
 // so we don't depend on a single event source.
 function _doViewportResize(){
+  // 撮影(captureCamShot)中は renderer のサイズ/pixelRatio を固定した上でクロップする。
+  // ここで setSize すると撮影中バッファが変わり出力が崩れるので何もしない（撮影終了時に
+  // captureCamShot 側が現在サイズへ再フィットする）。
+  if(window._captureBusy) return;
   const w = Math.max(1, innerWidth);
   const h = Math.max(1, innerHeight);
   renderer.setSize(w, h);

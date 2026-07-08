@@ -1,16 +1,10 @@
 // ══════════════════════════════════════════════════
 //  ?orbit=1 — Slow 360° auto-orbit for inline preview embeds (online SaaS
 //  property listing pages). Waits for the scene to load, then gently
-//  rotates yaw a full turn over ~10 s. Stops on any pointer interaction so
-//  the user can take manual control. OFF by default — zero effect unless
-//  the URL explicitly requests it, so this is inert in the standalone app.
-//
-//  Known doc/code mismatch: despite the claim above, there is no pointer-
-//  event listener anywhere in this file — the orbit runs to completion
-//  regardless of user interaction. Verified pre-existing in the real
-//  production source this was ported from (not introduced by this port).
-//  Left uncorrected to keep the port verbatim; noted here so it isn't
-//  mistaken for something this port broke.
+//  rotates yaw a full turn over ~10 s. Stops on any pointer/wheel/touch/key
+//  interaction so the user can take manual control. OFF by default — zero
+//  effect unless the URL explicitly requests it, so this is inert in the
+//  standalone app.
 // ══════════════════════════════════════════════════
 if(/[?&]orbit=1/.test(location.search)){
   (function(){
@@ -26,6 +20,11 @@ if(/[?&]orbit=1/.test(location.search)){
     const RAD_PER_S = (2 * Math.PI) / ORBIT_DURATION_S;
     let orbitRaf = 0;
     let baseYaw = 0;
+    // ユーザー操作(ポインタ/ホイール/タッチ/キー)で自動回転を止め、手動操作に譲る。
+    let orbitStopped = false;
+    const stopOrbit = ()=>{ if(orbitStopped) return; orbitStopped = true; if(orbitRaf) cancelAnimationFrame(orbitRaf); };
+    ['pointerdown','wheel','touchstart','keydown'].forEach(ev =>
+      window.addEventListener(ev, stopOrbit, { passive:true, once:true }));
 
     const hasScene = ()=> (typeof layers!=='undefined' && layers.some(L=>L&&L.mesh&&L.type!=='camera'));
 
@@ -38,6 +37,7 @@ if(/[?&]orbit=1/.test(location.search)){
       let prev = performance.now();
 
       (function loop(now){
+        if(orbitStopped) return;
         const dt = (now - prev) / 1000;
         prev = now;
         _yawTarget += RAD_PER_S * dt;

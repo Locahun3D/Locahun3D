@@ -92,7 +92,10 @@ window.captureCamShot = async function(){
   const _needPR = target.w / Math.max(1, fr.w);
   const _tierCap = (typeof _qualTouchLike !== 'undefined' && _qualTouchLike)
     ? (devicePixelRatio || 1) * 2.2 : 4.0;
-  const _dimCap = 16384 / Math.max(innerWidth, innerHeight);
+  // WebGL の実バッファ上限を GPU に問い合わせる（ハードコードの16384だと4096/8192の
+  // 中位GPUで超過し、黒帯/破損キャプチャになる）。取得不可なら安全側の2048へ。
+  const _glMaxDim = (renderer.capabilities && renderer.capabilities.maxTextureSize) || 2048;
+  const _dimCap = _glMaxDim / Math.max(innerWidth, innerHeight);
   const _boostPR = Math.min(Math.max(_needPR, PR), _tierCap, _dimCap);
   const capPR = (_boostPR > PR + 1e-3) ? _boostPR : PR;
   window._captureBusy = true;          // 294のLODプリフェッチを撮影中サスペンド

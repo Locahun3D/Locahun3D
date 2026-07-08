@@ -5689,20 +5689,6 @@ function _sunFcKey(){ return _sunDateStr()+'@'+sun.lat.toFixed(2)+','+sun.lng.to
 function _sunFcShow(html, on){ const el=document.getElementById('sun-forecast'); if(!el) return; el.innerHTML=html; el.style.display=on?'block':'none'; }
 
 function _sunFcSyncButtons(){ document.querySelectorAll('#sun-panel .sun-wx-btn').forEach(b=>b.classList.toggle('on', b.dataset.wx===sun.weather)); }
-// キャッシュ済み予報から「現在の日付/場所/時刻」の天気種別(clear/cloudy/rain)を返す。無ければnull。
-function _sunFcWeatherForNow(){
-  const fc=sun._fc;
-  if(!fc||!fc.hourly||!fc.hourly.time) return null;
-  if(fc.keyLoc!==(sun.lat.toFixed(2)+','+sun.lng.toFixed(2))) return null;
-  const dstr=_sunDateStr();
-  if(dstr<fc.start || dstr>fc.end) return null;
-  const h=Math.max(0,Math.min(23,Math.round(sun.timeMin/60)));
-  const idx=fc.hourly.time.indexOf(dstr+'T'+String(h).padStart(2,'0')+':00');
-  if(idx<0) return null;
-  const code=(fc.hourly.weather_code&&fc.hourly.weather_code[idx]!=null)?fc.hourly.weather_code[idx]:null;
-  if(code==null) return null;
-  return _wmoWx(code).wx;
-}
 // 雨を3段階に分類: 1=霧雨 / 2=雨 / 3=豪雨。WMO weather_code を主、毎時降水量(mm)で補強。
 function _rainLevelFromCodePrecip(code, pr){
   let lvl;
@@ -5754,7 +5740,9 @@ function _sunFcDetailForNow(){
   // ★気象庁の雲量基準で「晴れ/曇り」を再判定（雲量で決まる code 0-3 のみ）。
   //   快晴=雲量0-1 / 晴れ=2-8(15-85%) / 曇り=9-10(85%超)。WMOの partly-cloudy(=晴れ)を
   //   灰色の曇り扱いにしていたズレを是正。雨・雪・霧はそのまま。
-  if(code>=0 && code<=3 && cloudAmt!=null){
+  //   ※実雲量(cc)がある時だけ再判定する。cc欠損のフォールバック値(0.85)で判定すると
+  //     partly-cloudy(code2)が境界ちょうどで clear に倒れてしまうため(cc!=null で限定)。
+  if(code>=0 && code<=3 && cc!=null){
     wx = (cloudAmt > 0.85) ? 'cloudy' : 'clear';
   }
   return { wx, cloudAmt, rainLevel, snowLevel, precipType };
@@ -6081,6 +6069,10 @@ window.resetCameraToInitial = function(){
 // viewport settle, and also hook orientationchange + visualViewport
 // so we don't depend on a single event source.
 function _doViewportResize(){
+  // 撮影(captureCamShot)中は renderer のサイズ/pixelRatio を固定した上でクロップする。
+  // ここで setSize すると撮影中バッファが変わり出力が崩れるので何もしない（撮影終了時に
+  // captureCamShot 側が現在サイズへ再フィットする）。
+  if(window._captureBusy) return;
   const w = Math.max(1, innerWidth);
   const h = Math.max(1, innerHeight);
   renderer.setSize(w, h);
@@ -9579,8 +9571,14 @@ window.camAnimRecordExport = function(){
         const waitForRender = () => {
           if(!camAnim.playing) return;
           const rendered = (window.__riCounter || 0) >= targetRiCount;
+          // タブが背面だと rAF が停止し animate() が __riCounter を進めない。ここで
+          // timedOut を受理して古い _recCanvas を焼き込むと、背面にしていた間ずっと
+          // 同一フレームが凍結して混入する（構造は正常なMP4だが一部フリーズ）。背面の
+          // 間は受理せず待機し、前面復帰でレンダーが再開してから push する。timedOut を
+          // 受理するのは前面（=単に重いフレーム。古めでも進める方が良い）のときだけ。
+          const backgrounded = (typeof document !== 'undefined' && document.hidden);
           const timedOut = (performance.now() - waitStartedAt) >= FRAME_WAIT_MS;
-          if(rendered || timedOut){
+          if(rendered || (timedOut && !backgrounded)){
             (async () => {
               try {
                 await exporter.pushFrame(
@@ -9602,7 +9600,8 @@ window.camAnimRecordExport = function(){
               stepTimeoutId = setTimeout(stepFrame, 0);
             })();
           } else {
-            stepTimeoutId = setTimeout(waitForRender, 16);
+            // 背面中は無駄な高頻度ポーリングを避け、少し間隔を空けて待つ。
+            stepTimeoutId = setTimeout(waitForRender, backgrounded ? 200 : 16);
           }
         };
         waitForRender();
@@ -9896,7 +9895,10 @@ window.captureCamShot = async function(){
   const _needPR = target.w / Math.max(1, fr.w);
   const _tierCap = (typeof _qualTouchLike !== 'undefined' && _qualTouchLike)
     ? (devicePixelRatio || 1) * 2.2 : 4.0;
-  const _dimCap = 16384 / Math.max(innerWidth, innerHeight);
+  // WebGL の実バッファ上限を GPU に問い合わせる（ハードコードの16384だと4096/8192の
+  // 中位GPUで超過し、黒帯/破損キャプチャになる）。取得不可なら安全側の2048へ。
+  const _glMaxDim = (renderer.capabilities && renderer.capabilities.maxTextureSize) || 2048;
+  const _dimCap = _glMaxDim / Math.max(innerWidth, innerHeight);
   const _boostPR = Math.min(Math.max(_needPR, PR), _tierCap, _dimCap);
   const capPR = (_boostPR > PR + 1e-3) ? _boostPR : PR;
   window._captureBusy = true;          // 294のLODプリフェッチを撮影中サスペンド
@@ -19664,16 +19666,10 @@ function updateLightHalos(){
 // ══════════════════════════════════════════════════
 //  ?orbit=1 — Slow 360° auto-orbit for inline preview embeds (online SaaS
 //  property listing pages). Waits for the scene to load, then gently
-//  rotates yaw a full turn over ~10 s. Stops on any pointer interaction so
-//  the user can take manual control. OFF by default — zero effect unless
-//  the URL explicitly requests it, so this is inert in the standalone app.
-//
-//  Known doc/code mismatch: despite the claim above, there is no pointer-
-//  event listener anywhere in this file — the orbit runs to completion
-//  regardless of user interaction. Verified pre-existing in the real
-//  production source this was ported from (not introduced by this port).
-//  Left uncorrected to keep the port verbatim; noted here so it isn't
-//  mistaken for something this port broke.
+//  rotates yaw a full turn over ~10 s. Stops on any pointer/wheel/touch/key
+//  interaction so the user can take manual control. OFF by default — zero
+//  effect unless the URL explicitly requests it, so this is inert in the
+//  standalone app.
 // ══════════════════════════════════════════════════
 if(/[?&]orbit=1/.test(location.search)){
   (function(){
@@ -19689,6 +19685,11 @@ if(/[?&]orbit=1/.test(location.search)){
     const RAD_PER_S = (2 * Math.PI) / ORBIT_DURATION_S;
     let orbitRaf = 0;
     let baseYaw = 0;
+    // ユーザー操作(ポインタ/ホイール/タッチ/キー)で自動回転を止め、手動操作に譲る。
+    let orbitStopped = false;
+    const stopOrbit = ()=>{ if(orbitStopped) return; orbitStopped = true; if(orbitRaf) cancelAnimationFrame(orbitRaf); };
+    ['pointerdown','wheel','touchstart','keydown'].forEach(ev =>
+      window.addEventListener(ev, stopOrbit, { passive:true, once:true }));
 
     const hasScene = ()=> (typeof layers!=='undefined' && layers.some(L=>L&&L.mesh&&L.type!=='camera'));
 
@@ -19701,6 +19702,7 @@ if(/[?&]orbit=1/.test(location.search)){
       let prev = performance.now();
 
       (function loop(now){
+        if(orbitStopped) return;
         const dt = (now - prev) / 1000;
         prev = now;
         _yawTarget += RAD_PER_S * dt;
@@ -19738,8 +19740,12 @@ if(/[?&]capture=1/.test(location.search)){
     const canvas = document.getElementById('c');
     if(!canvas) return;
 
-    const target = window.opener || parent;
-    const msg = (type, extra)=> target.postMessage(Object.assign({type}, extra||{}), '*');
+    // 送信先: opener(window.open 由来)優先、無ければ親フレーム。どちらも無い
+    // (rel=noopener / COOP でトップレベル化)と parent===window になり、自分自身へ
+    // 送って親が永久に応答待ちハングする。target=null として検出しアボートする。
+    const target = window.opener || (parent !== window ? parent : null);
+    const msg = (type, extra)=>{ try { if(target) target.postMessage(Object.assign({type}, extra||{}), '*'); } catch(_){} };
+    if(!target){ console.error('[capture] postMessage 送信先(opener/parent)が無いため中止'); return; }
 
     const hasScene = ()=> (typeof layers!=='undefined' && layers.some(L=>L&&L.mesh&&L.type!=='camera'));
     const nSplat = ()=> typeof window.__nSplat==='function' ? window.__nSplat() : -1;
@@ -19759,6 +19765,8 @@ if(/[?&]capture=1/.test(location.search)){
       : new Promise(r=>requestAnimationFrame(r));
 
     async function run(){
+     let encoder = null;
+     try {
       // Phase 1: wait for a renderable scene (up to 90s).
       // hasScene() inspects layers[].mesh, but a streaming RAD keeps its data
       // on the global splatMesh (not the layer ref) — so __nSplat()>0 ("splats
@@ -19806,7 +19814,9 @@ if(/[?&]capture=1/.test(location.search)){
       // ファイルサイズ（ページの重さ）を優先し 1920×1080 から落としてある。
       const CAP_W = 1280, CAP_H = 720;
       const CAP_FOV = 90;   // 固定FOV（90）でキャプチャ
-      if(typeof _captureLock!=='undefined') _captureLock = true;
+      // 撮影中は LODプリフェッチ(294)とビューポートresize(070)を抑止する。
+      // 旧コードは未宣言の _captureLock に代入する no-op だった → 実効フラグへ。
+      window._captureBusy = true;
       // 画質=高: RAD の LoD 密度を最大化。setQuality は pixelRatio を 1.5 に
       // 上げてしまい VideoEncoder の 1280×720 と不整合になるため、ここでは
       // 品質変数と RAD lodScale だけ高に寄せ、pixelRatio は下で 1 に固定する。
@@ -19863,12 +19873,26 @@ if(/[?&]capture=1/.test(location.search)){
         firstTimestampBehavior: 'offset',
       });
 
-      const encoder = new VideoEncoder({
+      // コーデックfallback: High→Main→Baseline の順で isConfigSupported を確認して
+      // 最初に使えるものを選ぶ。H.264 未対応環境(一部 Linux Chrome / Android WebView)で
+      // configure() が同期throwし無音ハングしていた問題への対処。いずれも mp4-muxer の
+      // 'avc' と整合するプロファイル違いなので muxer 側は変更不要。
+      const AVC_CODECS = ['avc1.640028','avc1.4d0028','avc1.42001f']; // High / Main / Baseline
+      let chosenCodec = null;
+      for(const c of AVC_CODECS){
+        try {
+          const s = await VideoEncoder.isConfigSupported({ codec:c, width:CAP_W, height:CAP_H, bitrate:4_000_000, framerate:FPS });
+          if(s && s.supported){ chosenCodec = c; break; }
+        } catch(_){}
+      }
+      if(!chosenCodec){ msg('capture-error',{error:'no-h264-encoder'}); return; }
+
+      encoder = new VideoEncoder({
         output: (chunk, meta) => muxer.addVideoChunk(chunk, meta),
         error: e => msg('capture-error',{error:'VideoEncoder: '+e.message}),
       });
       encoder.configure({
-        codec: 'avc1.640028',
+        codec: chosenCodec,
         width: CAP_W, height: CAP_H,
         bitrate: 4_000_000, // 720p 相当に下げたビットレート（旧 1080p 時は 8Mbps）
         framerate: FPS,
@@ -19917,6 +19941,13 @@ if(/[?&]capture=1/.test(location.search)){
       muxer.finalize();
       const blob = new Blob([muxTarget.buffer], {type:'video/mp4'});
       msg('capture-done',{blob, mimeType:'video/mp4', ext:'mp4'});
+     } catch(e){
+       // configure() の同期throw やその他の例外を必ず親へ通知（無音ハング防止）。
+       msg('capture-error',{error:'exception: ' + ((e && e.message) || e)});
+     } finally {
+       try { if(encoder && encoder.state !== 'closed') encoder.close(); } catch(_){}
+       window._captureBusy = false;
+     }
     }
     setTimeout(run, 300);
   })();
