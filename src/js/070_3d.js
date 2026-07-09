@@ -61,6 +61,7 @@ function _updateSkyMoon(){
   if(!show){ skyMoon.visible=false; return; }
   skyMoon.userData.dir.copy(mo.dir);
   if(typeof camPos!=='undefined') skyMoon.position.copy(camPos).addScaledVector(mo.dir, _SKY_MOON_DIST);
+  skyMoon.material.opacity = (mo.skyOpacity!=null) ? mo.skyOpacity : 1;   // 昼は淡く / 夜はくっきり
   skyMoon.visible = true;
   // phase/fraction が変わったときだけテクスチャを描き直す(0.5%刻み)。
   const key=Math.round(mo.phase*200)+'/'+Math.round(mo.fraction*200);
