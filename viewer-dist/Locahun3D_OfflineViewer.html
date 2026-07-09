@@ -5476,6 +5476,10 @@ function updateSunMode(){
   let _moonIll = { fraction:0.5, phase:0.5 };
   try { _moonIll = SunCalc.getMoonIllumination(date); } catch(_){}
   sun._moon = { dir:_moon.dir, altDeg:_moonAltDeg, az:_moon.az, fraction:_moonIll.fraction, phase:_moonIll.phase };
+  // 昼は月を淡くする（現実の昼の月は明るい空に溶けてほとんど目立たない）。太陽高度で減衰:
+  // 夜(sun<-6°)=ほぼ不透明 / 薄明で減衰 / 昼(sun>6°)=ごく淡く。スプライトとシェーダ両方に適用。
+  const _moonDayFade = THREE.MathUtils.clamp((6 - altDeg) / 12, 0.08, 1.0);
+  sun._moon.skyOpacity = _moonDayFade;
   // 月明かり: 太陽が地平線下(夜)で月が昇っているとき、夜度×月高度×満ち欠け×晴れ度に比例した
   // 寒色の淡い持ち上げ。満月・快晴・天頂付近で最大でも控えめ(現実の月明かりは弱い)。
   const _night   = THREE.MathUtils.clamp((-altDeg - 2) / 8, 0, 1);                 // 薄明で 0→1
@@ -5513,7 +5517,7 @@ function updateSunMode(){
     u.uShowMoon.value = (_moonAltDeg > -0.5 && _skyClearish) ? 1.0 : 0.0;
     u.uMoonDir.value.copy(_moon.dir);
     u.uMoonPhase.value = _moonIll.fraction;
-    u.uMoonGlow.value = (_moonAltDeg < 8) ? 1.2 : 0.7;   // 低い月ほどにじみを強める
+    u.uMoonGlow.value = ((_moonAltDeg < 8) ? 1.2 : 0.7) * _moonDayFade;   // 低い月ほどにじみ強／昼は減光
   }
   _cloudAnimEnsure();
   // 満ち欠けの形が見える月ビルボード(skyMoon)を sun._moon から更新。
@@ -5992,6 +5996,7 @@ function _updateSkyMoon(){
   if(!show){ skyMoon.visible=false; return; }
   skyMoon.userData.dir.copy(mo.dir);
   if(typeof camPos!=='undefined') skyMoon.position.copy(camPos).addScaledVector(mo.dir, _SKY_MOON_DIST);
+  skyMoon.material.opacity = (mo.skyOpacity!=null) ? mo.skyOpacity : 1;   // 昼は淡く / 夜はくっきり
   skyMoon.visible = true;
   // phase/fraction が変わったときだけテクスチャを描き直す(0.5%刻み)。
   const key=Math.round(mo.phase*200)+'/'+Math.round(mo.fraction*200);
