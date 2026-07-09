@@ -611,15 +611,26 @@ function _sunUpdateReadout(altDeg, azRad, times){
   const hh=Math.floor(sun.timeMin/60), mm=sun.timeMin%60;
   set('sun-time-val', String(hh).padStart(2,'0')+':'+String(mm).padStart(2,'0'));
 
-  // ── 月相・月の出/月の入り ──
+  // ── 月相・方角・月の出/月の入り ──
   const en = window._lang==='en';
   const mo = sun._moon;
   if(mo && typeof _moonPhaseInfo==='function'){
     const ph = _moonPhaseInfo(mo.phase);
     const pct = Math.round(mo.fraction*100);
-    set('sun-r-moonphase', en
-      ? `${ph.emoji} ${ph.name} · ${pct}% lit · alt ${mo.altDeg.toFixed(0)}°`
-      : `${ph.emoji} ${ph.name}・照度${pct}%・高度${mo.altDeg.toFixed(0)}°`);
+    // 月をどの方角に見ればよいか（太陽の方位計算と同じ: 北=0、東回り）。
+    let mcomp = ((mo.az*180/Math.PI) + 180) % 360; if(mcomp<0) mcomp+=360;
+    const C8J=['北','北東','東','南東','南','南西','西','北西'], C8E=['N','NE','E','SE','S','SW','W','NW'];
+    const cdir=(en?C8E:C8J)[Math.round(mcomp/45)%8];
+    const below = mo.altDeg < 0;   // 地平線下は見えない
+    if(below){
+      set('sun-r-moonphase', en
+        ? `${ph.emoji} ${ph.name} · ${pct}% · below horizon`
+        : `${ph.emoji} ${ph.name}・照度${pct}%・地平線下（今は見えません）`);
+    } else {
+      set('sun-r-moonphase', en
+        ? `${ph.emoji} ${ph.name} · ${pct}% · look ${cdir} ${mo.altDeg.toFixed(0)}°↑`
+        : `${ph.emoji} ${ph.name}・照度${pct}%・${cdir}の空 高度${mo.altDeg.toFixed(0)}°`);
+    }
   } else set('sun-r-moonphase','—');
   const rlmr=document.getElementById('sun-rl-moonrise'); if(rlmr) rlmr.textContent = en?'🌘 Moonrise':'🌘 月の出';
   const rlms=document.getElementById('sun-rl-moonset');  if(rlms) rlms.textContent = en?'🌗 Moonset':'🌗 月の入り';

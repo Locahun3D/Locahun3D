@@ -43,7 +43,7 @@ function _ensureSkyMoon(){
   const sp=new THREE.Sprite(new THREE.SpriteMaterial({map:tex, transparent:true, depthTest:false, depthWrite:false}));
   sp.renderOrder=-9999;               // ドーム(-10000)の手前・シーンの奥（＝空の一部）
   sp.frustumCulled=false;
-  sp.scale.setScalar(_SKY_MOON_DIST*0.075);   // 見やすいよう実際の月より少し大きめ
+  sp.scale.setScalar(_SKY_MOON_DIST*0.10);   // 見やすいよう実際の月より大きめ(約12倍)
   sp.visible=false;
   sp.userData.dir=new THREE.Vector3(0,1,0);
   sp.userData.up=false;
@@ -51,12 +51,17 @@ function _ensureSkyMoon(){
   scene.add(sp); skyMoon=sp;
 }
 // updateSunMode から呼ぶ: sun._moon(位置・満ち欠け)を月ビルボードへ反映。
+// 位置と可視も ここで確定する（描画ループの camPos 追従はタブ非表示中に止まり得るため、
+// updateSunMode 時点で即座に配置・表示しておく。ドームを有効化時に1回置くのと同じ考え）。
 function _updateSkyMoon(){
   _ensureSkyMoon();
   const mo=(typeof sun!=='undefined')?sun._moon:null;
-  if(!mo || !mo.dir){ skyMoon.userData.up=false; skyMoon.visible=false; return; }
+  skyMoon.userData.up = !!(mo && mo.dir && mo.altDeg>-1.0);
+  const show = skyMoon.userData.up && (typeof env!=='undefined' && env.preset==='__sun');
+  if(!show){ skyMoon.visible=false; return; }
   skyMoon.userData.dir.copy(mo.dir);
-  skyMoon.userData.up=(mo.altDeg>-1.0);
+  if(typeof camPos!=='undefined') skyMoon.position.copy(camPos).addScaledVector(mo.dir, _SKY_MOON_DIST);
+  skyMoon.visible = true;
   // phase/fraction が変わったときだけテクスチャを描き直す(0.5%刻み)。
   const key=Math.round(mo.phase*200)+'/'+Math.round(mo.fraction*200);
   if(key!==skyMoon.userData.phaseKey){
@@ -66,6 +71,23 @@ function _updateSkyMoon(){
     m.needsUpdate=true;
   }
 }
+// デバッグ: 月ビルボードの実状態を確認する（コンソールから __moonDbg()）。
+window.__moonDbg = function(){
+  if(!skyMoon) return 'skyMoon 未生成（日照モードをONにしてから）';
+  const p=skyMoon.position, d=skyMoon.userData.dir;
+  return {
+    visible: skyMoon.visible, up: skyMoon.userData.up,
+    inScene: !!(skyMoon.parent),
+    dir: [ +d.x.toFixed(2), +d.y.toFixed(2), +d.z.toFixed(2) ],
+    pos: [ +p.x.toFixed(1), +p.y.toFixed(1), +p.z.toFixed(1) ],
+    scale: skyMoon.scale.x, renderOrder: skyMoon.renderOrder,
+    matVisible: skyMoon.material.visible, opacity: skyMoon.material.opacity,
+    envPreset: (typeof env!=='undefined'?env.preset:'?'),
+    sunActive: (typeof sun!=='undefined'?sun.active:'?'),
+    moon: (typeof sun!=='undefined'?sun._moon:'?'),
+    camFar: (typeof camera!=='undefined'?camera.far:'?')
+  };
+};
 function _sunMakeLabel(text,color){
   const cv=document.createElement('canvas'); cv.width=cv.height=64; const x=cv.getContext('2d');
   x.fillStyle=color; x.font='bold 46px sans-serif'; x.textAlign='center'; x.textBaseline='middle';
