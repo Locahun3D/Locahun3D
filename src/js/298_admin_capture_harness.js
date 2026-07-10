@@ -61,35 +61,55 @@ if(/[?&]capture=1/.test(location.search)){
       for(let i=0; i<480 && !sceneReady(); i++) await new Promise(r=>setTimeout(r,500));
       if(!sceneReady()){ msg('capture-error',{error:'no-scene'}); return; }
 
-      // Phase 2: readiness.
-      //  - Streaming RAD (__nSplat()>0): wait for splats to stream in & stabilise.
-      //  - Non-streaming ZIP/PLY/SPLAT: __nSplat (a RAD-only counter) stays 0/-1
-      //    even though geometry is fully baked & present once the scene layer
-      //    exists, so gate on hasScene() instead of forcing a 'no-splats' abort.
-      // ZIP から展開された RAD はストリーミング開始が遅れ、nSplat が「後から」
-      // >0 になる。即時判定すると非ストリーミング扱いになり、直後の重さ判定
-      // （_heavy）も 0 のまま誤判定する → 少し待ってから分岐し直す。
-      if(nSplat() <= 0){
-        msg('capture-progress',{phase:'loading', text:'シーン安定化中…', pct:20});
-        await new Promise(r=>setTimeout(r, 2500));
-      }
-      if(nSplat() > 0){
-        msg('capture-progress',{phase:'loading', text:'RAD データ読み込み中…'});
-        let lastCount = 0, stableMs = 0;
+      // Phase 2: readiness — wait for the splat count to STOP GROWING,
+      // regardless of format (streaming RAD or baked ZIP/PLY/SPLAT).
+      //
+      // 旧実装は RAD (__nSplat()>0) だけを収束待ちし、非ストリーミング
+      // (ZIP内ベイク済み .ply/.splat) は hasScene() が true になった時点で
+      // 「もう安定した」とみなしていた。しかし実機の 1GB超シーン（渋谷スク
+      // ランブル交差点、2026-07-11 報告）で検証したところ、hasScene() が
+      // true になった直後の packedSplats.numSplats は最終値のごく一部
+      // （実測 29,049 — 本来はもっと桁違いに多いはずの都市景観シーン）で、
+      // ワーカーでの解凍/パースが裏で継続し数字が後から伸びていた。
+      // baked/RAD を問わず同じ「安定するまでポーリング」ロジックで扱う。
+      const anySplatCount = ()=>{
+        const rad = nSplat();
+        if(rad > 0) return rad;
+        try {
+          if(typeof layers==='undefined' || !layers) return rad; // -1 か 0 のまま
+          let n = 0;
+          for(const L of layers){
+            if(!L || !L.mesh || L.type==='camera') continue;
+            const ps = L.mesh.packedSplats;
+            if(ps && ps.numSplats) n += ps.numSplats;
+            else if(typeof L.mesh.numSplats === 'number') n += L.mesh.numSplats;
+          }
+          return n > 0 ? n : rad;
+        } catch(_){ return rad; }
+      };
+      msg('capture-progress',{phase:'loading', text:'シーン読み込み中…', pct:18});
+      {
+        // ⚠ ポーリング名目間隔(POLL_MS)を実経過時間として加算しない。
+        // バックグラウンドタブでは setTimeout(500) が実際には1000ms超
+        // かかることがあり、名目加算だと「上限60秒」のつもりが実時間で
+        // 数分に膨れる。performance.now() の実差分で判定する。
+        let last = -1, stableStart = -1;
         const STABLE_MS = 3000, POLL_MS = 500, MAX_MS = 60000;
-        let elapsed = 0;
-        while(elapsed < MAX_MS){
+        const convStart = performance.now();
+        while(performance.now() - convStart < MAX_MS){
           await new Promise(r=>setTimeout(r, POLL_MS));
-          elapsed += POLL_MS;
-          const c = nSplat();
-          if(c > 0 && c === lastCount){ stableMs += POLL_MS; if(stableMs >= STABLE_MS) break; }
-          else { stableMs = 0; lastCount = c; }
-          msg('capture-progress',{phase:'loading', text:'RAD 読み込み中… '+(c>0?c.toLocaleString()+' splats':'待機中'), pct:Math.min(30, Math.round(elapsed/MAX_MS*30))});
+          const elapsed = performance.now() - convStart;
+          if(typeof markDirty==='function') markDirty(20); // 収束待ち中もソート/ストリーミングを止めない
+          const c = anySplatCount();
+          if(c > 0 && c === last){
+            if(stableStart < 0) stableStart = elapsed;
+            if(elapsed - stableStart >= STABLE_MS) break;
+          } else { stableStart = -1; last = c; }
+          msg('capture-progress',{phase:'loading',
+            text:'読み込み中… '+(c>0 ? c.toLocaleString()+' splats' : (hasScene() ? '安定化中' : '待機中')),
+            pct: 18 + Math.min(12, Math.round(elapsed / MAX_MS * 12))});
         }
-        if(nSplat() <= 0){ msg('capture-error',{error:'no-splats'}); return; }
-      } else {
-        // Non-streaming scene (PLY / SPLAT): already settled above.
-        if(!hasScene()){ msg('capture-error',{error:'no-scene'}); return; }
+        if(anySplatCount() <= 0 && !hasScene()){ msg('capture-error',{error:'no-scene'}); return; }
       }
 
       // Phase 3: Lock resize handler and force 1280×720 (HD) capture resolution.
@@ -125,46 +145,25 @@ if(/[?&]capture=1/.test(location.search)){
         if('fov' in camera) camera.fov = CAP_FOV;
         camera.updateProjectionMatrix();
       }
-      // Warm-up: let the viewer's render loop run at capture resolution so
-      // Spark can re-sort splats and stabilise LOD at 1280×720.
-      // 非ストリーミング(ZIP内ベイク済み .splat/.ply)の重量シーンは初回ソート
-      // 整定に固定2秒では足りず、録画序盤が未整定のまま映る（実機報告
-      // 2026-07-11）。splat総数に応じて 2s 〜 12s(実時間)に伸縮する。
-      // RAD は nSplat が別カウンタなので下の収束待ちが担当。
-      //
-      // ⚠ フレーム数ではなく経過時間で判定すること。バックグラウンドタブでは
-      // Chrome が setTimeout を（headless 経路の nextFrame も含め）最短1秒
-      // 程度までスロットルする（実測: 16ms 要求→400ms超）。フレーム数固定
-      // だと「軽いはずの待ち」がスロットル下で数分に膨れる。performance.now()
-      // の実経過時間で打ち切ることで、フォアグラウンド(高速)でもバックグラウンド
-      // (低速)でも「狙った実時間だけ待つ」という意図が崩れない。
-      const bakedSplats = (()=>{ try {
-        if(typeof layers==='undefined' || !layers) return 0;
-        let n = 0;
-        for(const L of layers){
-          if(!L || !L.mesh || L.type==='camera') continue;
-          const ps = L.mesh.packedSplats;
-          if(ps && ps.numSplats) n += ps.numSplats;
-          else if(typeof L.mesh.numSplats === 'number') n += L.mesh.numSplats;
-        }
-        return n;
-      } catch(_){ return 0; } })();
-      const warmTargetMs = 2000 + Math.min(10000, Math.max(0, Math.round(bakedSplats / 100000) * 1000));
-      msg('capture-progress',{phase:'loading',
-        text:'解像度安定化中…'+(bakedSplats>0 ? ' '+bakedSplats.toLocaleString()+' splats' : ''), pct:28});
+      // Warm-up: let the viewer's render loop run a couple real seconds at
+      // capture resolution so Spark can re-sort splats and settle the new
+      // canvas size/aspect. Data completeness itself is now guaranteed by
+      // the Phase 2 convergence wait above (covers RAD *and* baked scenes),
+      // so this no longer needs to scale with splat count — it's purely a
+      // "let the resize settle visually" pause.
+      msg('capture-progress',{phase:'loading', text:'解像度安定化中…', pct:28});
       const warmStart = performance.now();
-      for(let w=0; performance.now() - warmStart < warmTargetMs; w++){
+      for(let w=0; performance.now() - warmStart < 2000; w++){
         // dirty 窓(既定120f)を跨いでもレンダー/ソートが止まらないよう補給する
         if((w % 60) === 0 && typeof markDirty==='function') markDirty(90);
         await nextFrame();
       }
 
-      // 重いシーン対策: 直前で lodScale を高画質へ引き上げ＋解像度変更したため、
-      // RAD は LoD の再ストリーミングを始める。固定2秒のウォームアップでは
-      // 重いシーンで読み込みが終わる前に録画が始まり、序盤が低密度のまま映る
-      // （実機報告 2026-07-11）。splat 数が再び安定するまで収束待ちする。
-      // 軽量シーン/非ストリーミング(PLY/SPLAT)は即安定 or nSplat<=0 なので
-      // 追加の実時間はほぼゼロ。上限45sで必ず前進する（無限待ちしない）。
+      // RAD 専用の再収束: 直前で lodScale を高画質へ引き上げたため、RAD は
+      // より高精細な LoD チャンクの再ストリーミングを始める（Phase 2 の
+      // 収束はこの品質引き上げより前に行っているのでここは対象外）。
+      // 非ストリーミング(baked PLY/SPLAT)は lodScale 変更の影響を受けない
+      // ため対象外（nSplat()<=0 で分岐しスキップされる）。
       if(nSplat() > 0){
         // ⚠ ここも名目のポーリング間隔(RESTAB_POLL_MS)を「実経過時間」として
         // 加算しない。バックグラウンドタブでは setTimeout(500) が実際には
