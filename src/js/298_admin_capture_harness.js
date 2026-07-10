@@ -129,8 +129,15 @@ if(/[?&]capture=1/.test(location.search)){
       // Spark can re-sort splats and stabilise LOD at 1280×720.
       // 非ストリーミング(ZIP内ベイク済み .splat/.ply)の重量シーンは初回ソート
       // 整定に固定2秒では足りず、録画序盤が未整定のまま映る（実機報告
-      // 2026-07-11）。splat総数に応じて 120f(2s) 〜 720f(12s) に伸縮する。
+      // 2026-07-11）。splat総数に応じて 2s 〜 12s(実時間)に伸縮する。
       // RAD は nSplat が別カウンタなので下の収束待ちが担当。
+      //
+      // ⚠ フレーム数ではなく経過時間で判定すること。バックグラウンドタブでは
+      // Chrome が setTimeout を（headless 経路の nextFrame も含め）最短1秒
+      // 程度までスロットルする（実測: 16ms 要求→400ms超）。フレーム数固定
+      // だと「軽いはずの待ち」がスロットル下で数分に膨れる。performance.now()
+      // の実経過時間で打ち切ることで、フォアグラウンド(高速)でもバックグラウンド
+      // (低速)でも「狙った実時間だけ待つ」という意図が崩れない。
       const bakedSplats = (()=>{ try {
         if(typeof layers==='undefined' || !layers) return 0;
         let n = 0;
@@ -142,10 +149,11 @@ if(/[?&]capture=1/.test(location.search)){
         }
         return n;
       } catch(_){ return 0; } })();
-      const warmFrames = 120 + Math.min(600, Math.max(0, Math.round(bakedSplats / 100000)));
+      const warmTargetMs = 2000 + Math.min(10000, Math.max(0, Math.round(bakedSplats / 100000) * 1000));
       msg('capture-progress',{phase:'loading',
         text:'解像度安定化中…'+(bakedSplats>0 ? ' '+bakedSplats.toLocaleString()+' splats' : ''), pct:28});
-      for(let w=0; w<warmFrames; w++){
+      const warmStart = performance.now();
+      for(let w=0; performance.now() - warmStart < warmTargetMs; w++){
         // dirty 窓(既定120f)を跨いでもレンダー/ソートが止まらないよう補給する
         if((w % 60) === 0 && typeof markDirty==='function') markDirty(90);
         await nextFrame();
@@ -158,21 +166,26 @@ if(/[?&]capture=1/.test(location.search)){
       // 軽量シーン/非ストリーミング(PLY/SPLAT)は即安定 or nSplat<=0 なので
       // 追加の実時間はほぼゼロ。上限45sで必ず前進する（無限待ちしない）。
       if(nSplat() > 0){
-        let last = -1, stable = 0, waited = 0;
+        // ⚠ ここも名目のポーリング間隔(RESTAB_POLL_MS)を「実経過時間」として
+        // 加算しない。バックグラウンドタブでは setTimeout(500) が実際には
+        // 1000ms 超かかることがあり、名目加算だと上限45sのつもりが実時間で
+        // 倍以上かかる。performance.now() の差分を都度測って判定する。
+        let last = -1, stableStart = -1;
         const RESTAB_STABLE_MS = 2500, RESTAB_POLL_MS = 500, RESTAB_MAX_MS = 45000;
-        while(waited < RESTAB_MAX_MS){
+        const restabStart = performance.now();
+        while(performance.now() - restabStart < RESTAB_MAX_MS){
           await new Promise(r=>setTimeout(r, RESTAB_POLL_MS));
-          waited += RESTAB_POLL_MS;
+          const elapsed = performance.now() - restabStart;
           // レンダー/ソート/ストリーミングを止めないよう毎ポーリングで dirty 維持
           if(typeof markDirty==='function') markDirty(20);
           const c = nSplat();
           if(c > 0 && c === last){
-            stable += RESTAB_POLL_MS;
-            if(stable >= RESTAB_STABLE_MS) break;
-          } else { stable = 0; last = c; }
+            if(stableStart < 0) stableStart = elapsed;
+            if(elapsed - stableStart >= RESTAB_STABLE_MS) break;
+          } else { stableStart = -1; last = c; }
           msg('capture-progress',{phase:'loading',
             text:'高画質LOD読み込み中… '+(c>0 ? c.toLocaleString()+' splats' : ''),
-            pct: 28 + Math.min(7, Math.round(waited / RESTAB_MAX_MS * 7))});
+            pct: 28 + Math.min(7, Math.round(elapsed / RESTAB_MAX_MS * 7))});
         }
         // 最終密度でのソートが画面に反映されるまで数フレーム余分に回す
         for(let w=0; w<30; w++) await nextFrame();
