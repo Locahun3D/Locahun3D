@@ -125,11 +125,31 @@ if(/[?&]capture=1/.test(location.search)){
         if('fov' in camera) camera.fov = CAP_FOV;
         camera.updateProjectionMatrix();
       }
-      // Warm-up: let the viewer's render loop run for ~2s at capture resolution
-      // so Spark can re-sort splats and stabilise LOD at 1280×720.
-      if(typeof markDirty==='function') markDirty(120);
-      msg('capture-progress',{phase:'loading', text:'解像度安定化中…', pct:28});
-      for(let w=0; w<120; w++) await nextFrame();
+      // Warm-up: let the viewer's render loop run at capture resolution so
+      // Spark can re-sort splats and stabilise LOD at 1280×720.
+      // 非ストリーミング(ZIP内ベイク済み .splat/.ply)の重量シーンは初回ソート
+      // 整定に固定2秒では足りず、録画序盤が未整定のまま映る（実機報告
+      // 2026-07-11）。splat総数に応じて 120f(2s) 〜 720f(12s) に伸縮する。
+      // RAD は nSplat が別カウンタなので下の収束待ちが担当。
+      const bakedSplats = (()=>{ try {
+        if(typeof layers==='undefined' || !layers) return 0;
+        let n = 0;
+        for(const L of layers){
+          if(!L || !L.mesh || L.type==='camera') continue;
+          const ps = L.mesh.packedSplats;
+          if(ps && ps.numSplats) n += ps.numSplats;
+          else if(typeof L.mesh.numSplats === 'number') n += L.mesh.numSplats;
+        }
+        return n;
+      } catch(_){ return 0; } })();
+      const warmFrames = 120 + Math.min(600, Math.max(0, Math.round(bakedSplats / 100000)));
+      msg('capture-progress',{phase:'loading',
+        text:'解像度安定化中…'+(bakedSplats>0 ? ' '+bakedSplats.toLocaleString()+' splats' : ''), pct:28});
+      for(let w=0; w<warmFrames; w++){
+        // dirty 窓(既定120f)を跨いでもレンダー/ソートが止まらないよう補給する
+        if((w % 60) === 0 && typeof markDirty==='function') markDirty(90);
+        await nextFrame();
+      }
 
       // 重いシーン対策: 直前で lodScale を高画質へ引き上げ＋解像度変更したため、
       // RAD は LoD の再ストリーミングを始める。固定2秒のウォームアップでは
