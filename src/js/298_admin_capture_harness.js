@@ -131,6 +131,33 @@ if(/[?&]capture=1/.test(location.search)){
       msg('capture-progress',{phase:'loading', text:'解像度安定化中…', pct:28});
       for(let w=0; w<120; w++) await nextFrame();
 
+      // 重いシーン対策: 直前で lodScale を高画質へ引き上げ＋解像度変更したため、
+      // RAD は LoD の再ストリーミングを始める。固定2秒のウォームアップでは
+      // 重いシーンで読み込みが終わる前に録画が始まり、序盤が低密度のまま映る
+      // （実機報告 2026-07-11）。splat 数が再び安定するまで収束待ちする。
+      // 軽量シーン/非ストリーミング(PLY/SPLAT)は即安定 or nSplat<=0 なので
+      // 追加の実時間はほぼゼロ。上限45sで必ず前進する（無限待ちしない）。
+      if(nSplat() > 0){
+        let last = -1, stable = 0, waited = 0;
+        const RESTAB_STABLE_MS = 2500, RESTAB_POLL_MS = 500, RESTAB_MAX_MS = 45000;
+        while(waited < RESTAB_MAX_MS){
+          await new Promise(r=>setTimeout(r, RESTAB_POLL_MS));
+          waited += RESTAB_POLL_MS;
+          // レンダー/ソート/ストリーミングを止めないよう毎ポーリングで dirty 維持
+          if(typeof markDirty==='function') markDirty(20);
+          const c = nSplat();
+          if(c > 0 && c === last){
+            stable += RESTAB_POLL_MS;
+            if(stable >= RESTAB_STABLE_MS) break;
+          } else { stable = 0; last = c; }
+          msg('capture-progress',{phase:'loading',
+            text:'高画質LOD読み込み中… '+(c>0 ? c.toLocaleString()+' splats' : ''),
+            pct: 28 + Math.min(7, Math.round(waited / RESTAB_MAX_MS * 7))});
+        }
+        // 最終密度でのソートが画面に反映されるまで数フレーム余分に回す
+        for(let w=0; w<30; w++) await nextFrame();
+      }
+
       // Phase 4: rAF-driven frame-by-frame capture.
       // No setTimeout loop — tight for-loop with encoder backpressure yield.
       const FPS = 24;
