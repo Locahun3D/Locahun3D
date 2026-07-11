@@ -43,7 +43,7 @@ function _ensureSkyMoon(){
   const sp=new THREE.Sprite(new THREE.SpriteMaterial({map:tex, transparent:true, depthTest:false, depthWrite:false}));
   sp.renderOrder=-9999;               // ドーム(-10000)の手前・シーンの奥（＝空の一部）
   sp.frustumCulled=false;
-  sp.scale.setScalar(_SKY_MOON_DIST*0.10);   // 見やすいよう実際の月より大きめ(約12倍)
+  sp.scale.setScalar(_SKY_MOON_DIST*0.055);   // 実際の月より少し大きめ(約6倍)。大きすぎ回避
   sp.visible=false;
   sp.userData.dir=new THREE.Vector3(0,1,0);
   sp.userData.up=false;
@@ -62,6 +62,7 @@ function _updateSkyMoon(){
   skyMoon.userData.dir.copy(mo.dir);
   if(typeof camPos!=='undefined') skyMoon.position.copy(camPos).addScaledVector(mo.dir, _SKY_MOON_DIST);
   skyMoon.material.opacity = (mo.skyOpacity!=null) ? mo.skyOpacity : 1;   // 昼は淡く / 夜はくっきり
+  if(mo.tint) skyMoon.material.color.setRGB(mo.tint[0], mo.tint[1], mo.tint[2]);  // 高度で暖色⇄白の色合い
   skyMoon.visible = true;
   // phase/fraction が変わったときだけテクスチャを描き直す(0.5%刻み)。
   const key=Math.round(mo.phase*200)+'/'+Math.round(mo.fraction*200);

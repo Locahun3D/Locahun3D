@@ -278,6 +278,26 @@ function _moonPhaseInfo(phase){
   const idx = Math.round((phase % 1) * 8) % 8;
   return { name:names[idx], emoji:emoji[idx] };
 }
+// 月の色合い(高度依存): 地平線近く=大気で赤みの琥珀色 → 高い=白〜青白。太陽より淡いカーブ。
+function _moonDiscColor(altDeg){
+  const kf=[ {a:-2,c:[1.00,0.78,0.60]},{a:8,c:[1.00,0.92,0.82]},{a:22,c:[0.97,0.97,1.00]},{a:55,c:[0.90,0.94,1.00]} ];
+  if(altDeg<=kf[0].a) return kf[0].c.slice();
+  if(altDeg>=kf[kf.length-1].a) return kf[kf.length-1].c.slice();
+  for(let i=0;i<kf.length-1;i++){ if(altDeg>=kf[i].a&&altDeg<=kf[i+1].a){ const f=(altDeg-kf[i].a)/((kf[i+1].a-kf[i].a)||1); return _sunLerp3(kf[i].c,kf[i+1].c,f);} }
+  return [1,1,1];
+}
+// 月の色合いの呼び名(高度依存) + 見かけの等級(満ち欠けから概算)。UIの「色合い/輝度」表示用。
+function _moonHueName(altDeg){
+  const en = window._lang==='en';
+  if(altDeg < 6)  return en?'amber (low)':'橙みの白（低空）';
+  if(altDeg < 20) return en?'warm white':'黄みの白';
+  return en?'white':'白';
+}
+function _moonApparentMag(fraction){
+  // 位相角 α(0=満月,180=新月) を照度から逆算し、Allen の近似式で見かけの等級を求める。
+  const a = Math.acos(Math.max(-1,Math.min(1, 2*fraction - 1))) * 180/Math.PI;
+  return -12.73 + 0.026*a + 4e-9*Math.pow(a,4);   // 満月 ≈ -12.7
+}
 
 // 天気(疑似HDRI)変換: 晴天パレットを曇り/雨向けに変換。
 // 日照の高度駆動(昼夜の明暗)は pal に既に乗っているので維持される。
@@ -528,7 +548,8 @@ function updateSunMode(){
   const _moonAltDeg = _moon.alt * 180/Math.PI;
   let _moonIll = { fraction:0.5, phase:0.5 };
   try { _moonIll = SunCalc.getMoonIllumination(date); } catch(_){}
-  sun._moon = { dir:_moon.dir, altDeg:_moonAltDeg, az:_moon.az, fraction:_moonIll.fraction, phase:_moonIll.phase };
+  const _moonTint = _moonDiscColor(_moonAltDeg);   // 高度依存の色合い(低空=琥珀/高空=白青)
+  sun._moon = { dir:_moon.dir, altDeg:_moonAltDeg, az:_moon.az, fraction:_moonIll.fraction, phase:_moonIll.phase, tint:_moonTint };
   // 昼は月を淡くする（現実の昼の月は明るい空に溶けてほとんど目立たない）。太陽高度で減衰:
   // 夜(sun<-6°)=ほぼ不透明 / 薄明で減衰 / 昼(sun>6°)=ごく淡く。スプライトとシェーダ両方に適用。
   const _moonDayFade = THREE.MathUtils.clamp((6 - altDeg) / 12, 0.08, 1.0);
@@ -571,6 +592,7 @@ function updateSunMode(){
     u.uMoonDir.value.copy(_moon.dir);
     u.uMoonPhase.value = _moonIll.fraction;
     u.uMoonGlow.value = ((_moonAltDeg < 8) ? 1.2 : 0.7) * _moonDayFade;   // 低い月ほどにじみ強／昼は減光
+    u.uMoonColor.value.setRGB(_moonTint[0], _moonTint[1], _moonTint[2]);  // ハローも月の色合いに追従
   }
   _cloudAnimEnsure();
   // 満ち欠けの形が見える月ビルボード(skyMoon)を sun._moon から更新。
@@ -626,14 +648,20 @@ function _sunUpdateReadout(altDeg, azRad, times){
     const C8J=['北','北東','東','南東','南','南西','西','北西'], C8E=['N','NE','E','SE','S','SW','W','NW'];
     const cdir=(en?C8E:C8J)[Math.round(mcomp/45)%8];
     const below = mo.altDeg < 0;   // 地平線下は見えない
-    if(below){
-      set('sun-r-moonphase', en
-        ? `${ph.emoji} ${ph.name} · ${pct}% · below horizon`
-        : `${ph.emoji} ${ph.name}・照度${pct}%・地平線下（今は見えません）`);
-    } else {
-      set('sun-r-moonphase', en
-        ? `${ph.emoji} ${ph.name} · ${pct}% · look ${cdir} ${mo.altDeg.toFixed(0)}°↑`
-        : `${ph.emoji} ${ph.name}・照度${pct}%・${cdir}の空 高度${mo.altDeg.toFixed(0)}°`);
+    const hue = (typeof _moonHueName==='function') ? _moonHueName(mo.altDeg) : '';
+    const mag = (typeof _moonApparentMag==='function') ? _moonApparentMag(mo.fraction).toFixed(1) : '';
+    const sub = 'font-weight:400;opacity:.72;font-size:.88em';
+    const el = document.getElementById('sun-r-moonphase');
+    if(el){
+      if(below){
+        el.innerHTML = en
+          ? `${ph.emoji} ${ph.name}・${pct}% lit<br><span style="${sub}">below horizon (not visible now)</span>`
+          : `${ph.emoji} ${ph.name}・照度${pct}%<br><span style="${sub}">地平線下（今は見えません）</span>`;
+      } else {
+        el.innerHTML = en
+          ? `${ph.emoji} ${ph.name}・${pct}% lit<br><span style="${sub}">look ${cdir} ${mo.altDeg.toFixed(0)}°↑ ・ ${hue} ・ mag ${mag}</span>`
+          : `${ph.emoji} ${ph.name}・照度${pct}%<br><span style="${sub}">${cdir}の空 高度${mo.altDeg.toFixed(0)}° ・ 色:${hue} ・ 明るさ 約${mag}等</span>`;
+      }
     }
   } else set('sun-r-moonphase','—');
   const rlmr=document.getElementById('sun-rl-moonrise'); if(rlmr) rlmr.textContent = en?'🌘 Moonrise':'🌘 月の出';

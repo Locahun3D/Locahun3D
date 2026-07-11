@@ -5225,6 +5225,26 @@ function _moonPhaseInfo(phase){
   const idx = Math.round((phase % 1) * 8) % 8;
   return { name:names[idx], emoji:emoji[idx] };
 }
+// 月の色合い(高度依存): 地平線近く=大気で赤みの琥珀色 → 高い=白〜青白。太陽より淡いカーブ。
+function _moonDiscColor(altDeg){
+  const kf=[ {a:-2,c:[1.00,0.78,0.60]},{a:8,c:[1.00,0.92,0.82]},{a:22,c:[0.97,0.97,1.00]},{a:55,c:[0.90,0.94,1.00]} ];
+  if(altDeg<=kf[0].a) return kf[0].c.slice();
+  if(altDeg>=kf[kf.length-1].a) return kf[kf.length-1].c.slice();
+  for(let i=0;i<kf.length-1;i++){ if(altDeg>=kf[i].a&&altDeg<=kf[i+1].a){ const f=(altDeg-kf[i].a)/((kf[i+1].a-kf[i].a)||1); return _sunLerp3(kf[i].c,kf[i+1].c,f);} }
+  return [1,1,1];
+}
+// 月の色合いの呼び名(高度依存) + 見かけの等級(満ち欠けから概算)。UIの「色合い/輝度」表示用。
+function _moonHueName(altDeg){
+  const en = window._lang==='en';
+  if(altDeg < 6)  return en?'amber (low)':'橙みの白（低空）';
+  if(altDeg < 20) return en?'warm white':'黄みの白';
+  return en?'white':'白';
+}
+function _moonApparentMag(fraction){
+  // 位相角 α(0=満月,180=新月) を照度から逆算し、Allen の近似式で見かけの等級を求める。
+  const a = Math.acos(Math.max(-1,Math.min(1, 2*fraction - 1))) * 180/Math.PI;
+  return -12.73 + 0.026*a + 4e-9*Math.pow(a,4);   // 満月 ≈ -12.7
+}
 
 // 天気(疑似HDRI)変換: 晴天パレットを曇り/雨向けに変換。
 // 日照の高度駆動(昼夜の明暗)は pal に既に乗っているので維持される。
@@ -5475,7 +5495,8 @@ function updateSunMode(){
   const _moonAltDeg = _moon.alt * 180/Math.PI;
   let _moonIll = { fraction:0.5, phase:0.5 };
   try { _moonIll = SunCalc.getMoonIllumination(date); } catch(_){}
-  sun._moon = { dir:_moon.dir, altDeg:_moonAltDeg, az:_moon.az, fraction:_moonIll.fraction, phase:_moonIll.phase };
+  const _moonTint = _moonDiscColor(_moonAltDeg);   // 高度依存の色合い(低空=琥珀/高空=白青)
+  sun._moon = { dir:_moon.dir, altDeg:_moonAltDeg, az:_moon.az, fraction:_moonIll.fraction, phase:_moonIll.phase, tint:_moonTint };
   // 昼は月を淡くする（現実の昼の月は明るい空に溶けてほとんど目立たない）。太陽高度で減衰:
   // 夜(sun<-6°)=ほぼ不透明 / 薄明で減衰 / 昼(sun>6°)=ごく淡く。スプライトとシェーダ両方に適用。
   const _moonDayFade = THREE.MathUtils.clamp((6 - altDeg) / 12, 0.08, 1.0);
@@ -5518,6 +5539,7 @@ function updateSunMode(){
     u.uMoonDir.value.copy(_moon.dir);
     u.uMoonPhase.value = _moonIll.fraction;
     u.uMoonGlow.value = ((_moonAltDeg < 8) ? 1.2 : 0.7) * _moonDayFade;   // 低い月ほどにじみ強／昼は減光
+    u.uMoonColor.value.setRGB(_moonTint[0], _moonTint[1], _moonTint[2]);  // ハローも月の色合いに追従
   }
   _cloudAnimEnsure();
   // 満ち欠けの形が見える月ビルボード(skyMoon)を sun._moon から更新。
@@ -5573,14 +5595,20 @@ function _sunUpdateReadout(altDeg, azRad, times){
     const C8J=['北','北東','東','南東','南','南西','西','北西'], C8E=['N','NE','E','SE','S','SW','W','NW'];
     const cdir=(en?C8E:C8J)[Math.round(mcomp/45)%8];
     const below = mo.altDeg < 0;   // 地平線下は見えない
-    if(below){
-      set('sun-r-moonphase', en
-        ? `${ph.emoji} ${ph.name} · ${pct}% · below horizon`
-        : `${ph.emoji} ${ph.name}・照度${pct}%・地平線下（今は見えません）`);
-    } else {
-      set('sun-r-moonphase', en
-        ? `${ph.emoji} ${ph.name} · ${pct}% · look ${cdir} ${mo.altDeg.toFixed(0)}°↑`
-        : `${ph.emoji} ${ph.name}・照度${pct}%・${cdir}の空 高度${mo.altDeg.toFixed(0)}°`);
+    const hue = (typeof _moonHueName==='function') ? _moonHueName(mo.altDeg) : '';
+    const mag = (typeof _moonApparentMag==='function') ? _moonApparentMag(mo.fraction).toFixed(1) : '';
+    const sub = 'font-weight:400;opacity:.72;font-size:.88em';
+    const el = document.getElementById('sun-r-moonphase');
+    if(el){
+      if(below){
+        el.innerHTML = en
+          ? `${ph.emoji} ${ph.name}・${pct}% lit<br><span style="${sub}">below horizon (not visible now)</span>`
+          : `${ph.emoji} ${ph.name}・照度${pct}%<br><span style="${sub}">地平線下（今は見えません）</span>`;
+      } else {
+        el.innerHTML = en
+          ? `${ph.emoji} ${ph.name}・${pct}% lit<br><span style="${sub}">look ${cdir} ${mo.altDeg.toFixed(0)}°↑ ・ ${hue} ・ mag ${mag}</span>`
+          : `${ph.emoji} ${ph.name}・照度${pct}%<br><span style="${sub}">${cdir}の空 高度${mo.altDeg.toFixed(0)}° ・ 色:${hue} ・ 明るさ 約${mag}等</span>`;
+      }
     }
   } else set('sun-r-moonphase','—');
   const rlmr=document.getElementById('sun-rl-moonrise'); if(rlmr) rlmr.textContent = en?'🌘 Moonrise':'🌘 月の出';
@@ -5978,7 +6006,7 @@ function _ensureSkyMoon(){
   const sp=new THREE.Sprite(new THREE.SpriteMaterial({map:tex, transparent:true, depthTest:false, depthWrite:false}));
   sp.renderOrder=-9999;               // ドーム(-10000)の手前・シーンの奥（＝空の一部）
   sp.frustumCulled=false;
-  sp.scale.setScalar(_SKY_MOON_DIST*0.10);   // 見やすいよう実際の月より大きめ(約12倍)
+  sp.scale.setScalar(_SKY_MOON_DIST*0.055);   // 実際の月より少し大きめ(約6倍)。大きすぎ回避
   sp.visible=false;
   sp.userData.dir=new THREE.Vector3(0,1,0);
   sp.userData.up=false;
@@ -5997,6 +6025,7 @@ function _updateSkyMoon(){
   skyMoon.userData.dir.copy(mo.dir);
   if(typeof camPos!=='undefined') skyMoon.position.copy(camPos).addScaledVector(mo.dir, _SKY_MOON_DIST);
   skyMoon.material.opacity = (mo.skyOpacity!=null) ? mo.skyOpacity : 1;   // 昼は淡く / 夜はくっきり
+  if(mo.tint) skyMoon.material.color.setRGB(mo.tint[0], mo.tint[1], mo.tint[2]);  // 高度で暖色⇄白の色合い
   skyMoon.visible = true;
   // phase/fraction が変わったときだけテクスチャを描き直す(0.5%刻み)。
   const key=Math.round(mo.phase*200)+'/'+Math.round(mo.fraction*200);
@@ -19877,35 +19906,55 @@ if(/[?&]capture=1/.test(location.search)){
       for(let i=0; i<480 && !sceneReady(); i++) await new Promise(r=>setTimeout(r,500));
       if(!sceneReady()){ msg('capture-error',{error:'no-scene'}); return; }
 
-      // Phase 2: readiness.
-      //  - Streaming RAD (__nSplat()>0): wait for splats to stream in & stabilise.
-      //  - Non-streaming ZIP/PLY/SPLAT: __nSplat (a RAD-only counter) stays 0/-1
-      //    even though geometry is fully baked & present once the scene layer
-      //    exists, so gate on hasScene() instead of forcing a 'no-splats' abort.
-      // ZIP から展開された RAD はストリーミング開始が遅れ、nSplat が「後から」
-      // >0 になる。即時判定すると非ストリーミング扱いになり、直後の重さ判定
-      // （_heavy）も 0 のまま誤判定する → 少し待ってから分岐し直す。
-      if(nSplat() <= 0){
-        msg('capture-progress',{phase:'loading', text:'シーン安定化中…', pct:20});
-        await new Promise(r=>setTimeout(r, 2500));
-      }
-      if(nSplat() > 0){
-        msg('capture-progress',{phase:'loading', text:'RAD データ読み込み中…'});
-        let lastCount = 0, stableMs = 0;
+      // Phase 2: readiness — wait for the splat count to STOP GROWING,
+      // regardless of format (streaming RAD or baked ZIP/PLY/SPLAT).
+      //
+      // 旧実装は RAD (__nSplat()>0) だけを収束待ちし、非ストリーミング
+      // (ZIP内ベイク済み .ply/.splat) は hasScene() が true になった時点で
+      // 「もう安定した」とみなしていた。しかし実機の 1GB超シーン（渋谷スク
+      // ランブル交差点、2026-07-11 報告）で検証したところ、hasScene() が
+      // true になった直後の packedSplats.numSplats は最終値のごく一部
+      // （実測 29,049 — 本来はもっと桁違いに多いはずの都市景観シーン）で、
+      // ワーカーでの解凍/パースが裏で継続し数字が後から伸びていた。
+      // baked/RAD を問わず同じ「安定するまでポーリング」ロジックで扱う。
+      const anySplatCount = ()=>{
+        const rad = nSplat();
+        if(rad > 0) return rad;
+        try {
+          if(typeof layers==='undefined' || !layers) return rad; // -1 か 0 のまま
+          let n = 0;
+          for(const L of layers){
+            if(!L || !L.mesh || L.type==='camera') continue;
+            const ps = L.mesh.packedSplats;
+            if(ps && ps.numSplats) n += ps.numSplats;
+            else if(typeof L.mesh.numSplats === 'number') n += L.mesh.numSplats;
+          }
+          return n > 0 ? n : rad;
+        } catch(_){ return rad; }
+      };
+      msg('capture-progress',{phase:'loading', text:'シーン読み込み中…', pct:18});
+      {
+        // ⚠ ポーリング名目間隔(POLL_MS)を実経過時間として加算しない。
+        // バックグラウンドタブでは setTimeout(500) が実際には1000ms超
+        // かかることがあり、名目加算だと「上限60秒」のつもりが実時間で
+        // 数分に膨れる。performance.now() の実差分で判定する。
+        let last = -1, stableStart = -1;
         const STABLE_MS = 3000, POLL_MS = 500, MAX_MS = 60000;
-        let elapsed = 0;
-        while(elapsed < MAX_MS){
+        const convStart = performance.now();
+        while(performance.now() - convStart < MAX_MS){
           await new Promise(r=>setTimeout(r, POLL_MS));
-          elapsed += POLL_MS;
-          const c = nSplat();
-          if(c > 0 && c === lastCount){ stableMs += POLL_MS; if(stableMs >= STABLE_MS) break; }
-          else { stableMs = 0; lastCount = c; }
-          msg('capture-progress',{phase:'loading', text:'RAD 読み込み中… '+(c>0?c.toLocaleString()+' splats':'待機中'), pct:Math.min(30, Math.round(elapsed/MAX_MS*30))});
+          const elapsed = performance.now() - convStart;
+          if(typeof markDirty==='function') markDirty(20); // 収束待ち中もソート/ストリーミングを止めない
+          const c = anySplatCount();
+          if(c > 0 && c === last){
+            if(stableStart < 0) stableStart = elapsed;
+            if(elapsed - stableStart >= STABLE_MS) break;
+          } else { stableStart = -1; last = c; }
+          msg('capture-progress',{phase:'loading',
+            text:'読み込み中… '+(c>0 ? c.toLocaleString()+' splats' : (hasScene() ? '安定化中' : '待機中')),
+            pct: 18 + Math.min(12, Math.round(elapsed / MAX_MS * 12))});
         }
-        if(nSplat() <= 0){ msg('capture-error',{error:'no-splats'}); return; }
-      } else {
-        // Non-streaming scene (PLY / SPLAT): already settled above.
-        if(!hasScene()){ msg('capture-error',{error:'no-scene'}); return; }
+        if(anySplatCount() <= 0 && !hasScene()){ msg('capture-error',{error:'no-scene'}); return; }
       }
 
       // Phase 3: Lock resize handler and force 1280×720 (HD) capture resolution.
@@ -19941,11 +19990,50 @@ if(/[?&]capture=1/.test(location.search)){
         if('fov' in camera) camera.fov = CAP_FOV;
         camera.updateProjectionMatrix();
       }
-      // Warm-up: let the viewer's render loop run for ~2s at capture resolution
-      // so Spark can re-sort splats and stabilise LOD at 1280×720.
-      if(typeof markDirty==='function') markDirty(120);
+      // Warm-up: let the viewer's render loop run a couple real seconds at
+      // capture resolution so Spark can re-sort splats and settle the new
+      // canvas size/aspect. Data completeness itself is now guaranteed by
+      // the Phase 2 convergence wait above (covers RAD *and* baked scenes),
+      // so this no longer needs to scale with splat count — it's purely a
+      // "let the resize settle visually" pause.
       msg('capture-progress',{phase:'loading', text:'解像度安定化中…', pct:28});
-      for(let w=0; w<120; w++) await nextFrame();
+      const warmStart = performance.now();
+      for(let w=0; performance.now() - warmStart < 2000; w++){
+        // dirty 窓(既定120f)を跨いでもレンダー/ソートが止まらないよう補給する
+        if((w % 60) === 0 && typeof markDirty==='function') markDirty(90);
+        await nextFrame();
+      }
+
+      // RAD 専用の再収束: 直前で lodScale を高画質へ引き上げたため、RAD は
+      // より高精細な LoD チャンクの再ストリーミングを始める（Phase 2 の
+      // 収束はこの品質引き上げより前に行っているのでここは対象外）。
+      // 非ストリーミング(baked PLY/SPLAT)は lodScale 変更の影響を受けない
+      // ため対象外（nSplat()<=0 で分岐しスキップされる）。
+      if(nSplat() > 0){
+        // ⚠ ここも名目のポーリング間隔(RESTAB_POLL_MS)を「実経過時間」として
+        // 加算しない。バックグラウンドタブでは setTimeout(500) が実際には
+        // 1000ms 超かかることがあり、名目加算だと上限45sのつもりが実時間で
+        // 倍以上かかる。performance.now() の差分を都度測って判定する。
+        let last = -1, stableStart = -1;
+        const RESTAB_STABLE_MS = 2500, RESTAB_POLL_MS = 500, RESTAB_MAX_MS = 45000;
+        const restabStart = performance.now();
+        while(performance.now() - restabStart < RESTAB_MAX_MS){
+          await new Promise(r=>setTimeout(r, RESTAB_POLL_MS));
+          const elapsed = performance.now() - restabStart;
+          // レンダー/ソート/ストリーミングを止めないよう毎ポーリングで dirty 維持
+          if(typeof markDirty==='function') markDirty(20);
+          const c = nSplat();
+          if(c > 0 && c === last){
+            if(stableStart < 0) stableStart = elapsed;
+            if(elapsed - stableStart >= RESTAB_STABLE_MS) break;
+          } else { stableStart = -1; last = c; }
+          msg('capture-progress',{phase:'loading',
+            text:'高画質LOD読み込み中… '+(c>0 ? c.toLocaleString()+' splats' : ''),
+            pct: 28 + Math.min(7, Math.round(elapsed / RESTAB_MAX_MS * 7))});
+        }
+        // 最終密度でのソートが画面に反映されるまで数フレーム余分に回す
+        for(let w=0; w<30; w++) await nextFrame();
+      }
 
       // Phase 4: rAF-driven frame-by-frame capture.
       // No setTimeout loop — tight for-loop with encoder backpressure yield.
