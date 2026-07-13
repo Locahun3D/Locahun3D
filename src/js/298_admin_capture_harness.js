@@ -20,6 +20,10 @@ if(/[?&]capture=1/.test(location.search)){
   (function(){
     const params = new URLSearchParams(location.search);
     const ORBIT_S = parseInt(params.get('orbitSec')||'20', 10);
+    // 録画前ウォームアップの追加時間(ms)。重いシーンで既定2秒では画質が乗り切らず
+    // ボケた動画になることがあるため、管理側から任意で延長できるようにする
+    // （例: warmupExtra=3000 で +3秒）。0〜10秒にクランプ。
+    const WARM_EXTRA = Math.min(10000, Math.max(0, parseInt(params.get('warmupExtra')||'0', 10) || 0));
     const canvas = document.getElementById('c');
     if(!canvas) return;
 
@@ -153,7 +157,10 @@ if(/[?&]capture=1/.test(location.search)){
       // "let the resize settle visually" pause.
       msg('capture-progress',{phase:'loading', text:'解像度安定化中…', pct:28});
       const warmStart = performance.now();
-      for(let w=0; performance.now() - warmStart < 2000; w++){
+      // 既定2秒 ＋ 管理側指定の追加ウォームアップ(warmupExtra)。重いシーンで
+      // 画質が乗り切る前に録画が始まりボケるのを防ぐ。
+      const WARM_MS = 2000 + WARM_EXTRA;
+      for(let w=0; performance.now() - warmStart < WARM_MS; w++){
         // dirty 窓(既定120f)を跨いでもレンダー/ソートが止まらないよう補給する
         if((w % 60) === 0 && typeof markDirty==='function') markDirty(90);
         await nextFrame();
