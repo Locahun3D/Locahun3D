@@ -34,9 +34,33 @@ export default {
     if (url.pathname.startsWith('/api/demo-asset/')) {
       return handleDemoAsset(request, env, url);
     }
+    if (url.pathname.startsWith('/vendor/')) {
+      return handleVendorAsset(request, env);
+    }
     return env.ASSETS.fetch(request);
   },
 };
+
+// vendored Spark 等の /vendor/ 配下を、別オリジンから ES モジュールとして
+// import できるよう CORS を付けて再配信する。
+//
+// なぜ必要か: 配布用 Locahun3D_OfflineViewer.html は importmap で Spark を
+// この /vendor/ の絶対URLから読む。以前は公開CDN(jsDelivr, ACAO:* を返す)
+// から読んでいたため file:// のダウンロード版でも import できたが、パッチ版
+// Spark(ワーカー16/差分トラバース)を自社ホストへ移した際、静的配信(ASSETS)が
+// ACAO を返さないことを見落とした。結果、viewer.locahun3d.com 以外のオリジン
+// (ダブルクリックの file:// 等)で開くと Spark の cross-origin モジュール取得が
+// CORS で失敗し、メインモジュールごと起動しない回帰になっていた。
+// /vendor/ は公開の静的JSのみ・Cookie を読まないので Origin * で安全。
+async function handleVendorAsset(request, env) {
+  if (request.method === 'OPTIONS') {
+    return new Response(null, { status: 204, headers: { ...CORS, 'Content-Length': '0' } });
+  }
+  const res = await env.ASSETS.fetch(request);
+  const h = new Headers(res.headers);
+  for (const [k, v] of Object.entries(CORS)) h.set(k, v);
+  return new Response(res.body, { status: res.status, statusText: res.statusText, headers: h });
+}
 
 // bytes=X-Y / bytes=X- / bytes=-N を R2 の range オプションへ変換。
 function toR2Range(header) {

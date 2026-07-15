@@ -17,6 +17,11 @@ compatibility_date = "2026-06-22"
 [assets]
 directory = "./viewer-dist"
 binding = "ASSETS"
+# 既定では実在する静的ファイルは Worker を迂回して直接配信される。だが /vendor/ の
+# Spark モジュールは worker.js の handleVendorAsset で CORS を付けて返す必要がある
+# （別オリジン=file:// のダウンロード版から import させるため）。該当パスだけ Worker
+# を先に通す。他の静的アセットは従来どおり直接配信のまま。
+run_worker_first = ["/vendor/*"]
 
 # デモRAD(交差点)を配信するためのR2バインディング。
 # worker.js の /api/demo-asset/ が ALLOWED_KEYS のオブジェクトだけを
