@@ -1626,6 +1626,39 @@ body.immersive #immersive-exit{ display:inline-block; }
   #gizmo{ width:min(180px, calc(100vw - 16px)) !important; }
 }
 
+/* ══════════════════════════════════════════════════════════════════════
+   日照パネルの「時刻」スライダーだけタッチ端末で 1.5× に拡大（iPad で摘まみ
+   やすく）。ユーザー指示 2026-07: 150% にするのは時刻のパラメーターだけ。他の
+   スライダー・UI は不変。ネイティブ accent-color 表示ではツマミが小さく iPad で
+   掴みづらいので、#sun-time のみツマミ/トラックを明示サイズで拡大する。真下の
+   日の出/日の入り目盛り(#sun-scrub-marks)は水平%配置なので縦拡大で位置ズレしない。
+   ══════════════════════════════════════════════════════════════════════ */
+@media (pointer:coarse) and (any-hover:none){
+  /* 入力要素自体を背高(30px)にしてタッチのヒット領域を確保しつつ、細いトラックを
+     その中央に描く。ツマミも 30px（ネイティブ比 約1.5×）。ボックスを 9px のまま
+     ツマミだけ大きくすると見た目は大きいのに掴める縦領域が狭いままなので不可。 */
+  #sun-time{
+    -webkit-appearance:none; appearance:none;
+    height:30px; margin:2px 0; background:transparent;
+  }
+  #sun-time::-webkit-slider-runnable-track{
+    height:9px; border-radius:5px; background:rgba(255,255,255,.28);
+  }
+  #sun-time::-webkit-slider-thumb{
+    -webkit-appearance:none; appearance:none;
+    width:30px; height:30px; margin-top:-10.5px;
+    border-radius:50%; background:#ffd49a;
+    border:2px solid rgba(0,0,0,.35); box-shadow:0 1px 3px rgba(0,0,0,.4);
+  }
+  #sun-time::-moz-range-track{
+    height:9px; border-radius:5px; background:rgba(255,255,255,.28);
+  }
+  #sun-time::-moz-range-thumb{
+    width:30px; height:30px; border-radius:50%; background:#ffd49a;
+    border:2px solid rgba(0,0,0,.35); box-shadow:0 1px 3px rgba(0,0,0,.4);
+  }
+}
+
 </style>
 </head>
 <body>
@@ -1845,12 +1878,14 @@ body.immersive #immersive-exit{ display:inline-block; }
     <div><span class="sun-rk" id="sun-rl-rise" data-i18n="sun-rl-rise">🌅 日の出</span> <b id="sun-r-rise">—</b></div>
     <div><span class="sun-rk" id="sun-rl-set" data-i18n="sun-rl-set">🌇 日の入り</span> <b id="sun-r-set">—</b></div>
     <div style="display:none"><span class="sun-rk" id="sun-rl-noon" data-i18n="sun-rl-noon">☀ 南中</span> <b id="sun-r-noon">—</b></div>
-    <div><span class="sun-rk" id="sun-rl-len" data-i18n="sun-rl-len">⏱ 昼の長さ</span> <b id="sun-r-len">—</b></div>
+    <!-- パネル表示は日の出・日の入りのみに絞る（ユーザー指示 2026-07）。昼の長さ/南中/
+         高度/方位/月相・月の出入りは算出は続けるが非表示（sun-r-* 要素は残すので JS は不変）。 -->
+    <div style="display:none"><span class="sun-rk" id="sun-rl-len" data-i18n="sun-rl-len">⏱ 昼の長さ</span> <b id="sun-r-len">—</b></div>
     <div style="display:none"><span class="sun-rk" id="sun-rl-alt" data-i18n="sun-rl-alt">↕ 高度</span> <b id="sun-r-alt">—</b></div>
     <div style="display:none"><span class="sun-rk" id="sun-rl-az" data-i18n="sun-rl-az">↗ 方位</span> <b id="sun-r-az">—</b></div>
-    <div style="grid-column:1/-1;border-top:1px solid rgba(255,255,255,.08);margin-top:2px;padding-top:5px"><b id="sun-r-moonphase">—</b></div>
-    <div><span class="sun-rk" id="sun-rl-moonrise">🌘 月の出</span> <b id="sun-r-moonrise">—</b></div>
-    <div><span class="sun-rk" id="sun-rl-moonset">🌗 月の入り</span> <b id="sun-r-moonset">—</b></div>
+    <div style="display:none;grid-column:1/-1;border-top:1px solid rgba(255,255,255,.08);margin-top:2px;padding-top:5px"><b id="sun-r-moonphase">—</b></div>
+    <div style="display:none"><span class="sun-rk" id="sun-rl-moonrise">🌘 月の出</span> <b id="sun-r-moonrise">—</b></div>
+    <div style="display:none"><span class="sun-rk" id="sun-rl-moonset">🌗 月の入り</span> <b id="sun-r-moonset">—</b></div>
   </div>
 </div>
 

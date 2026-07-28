@@ -467,3 +467,36 @@ body.immersive #immersive-exit{ display:inline-block; }
   #gizmo{ width:min(180px, calc(100vw - 16px)) !important; }
 }
 
+/* ══════════════════════════════════════════════════════════════════════
+   日照パネルの「時刻」スライダーだけタッチ端末で 1.5× に拡大（iPad で摘まみ
+   やすく）。ユーザー指示 2026-07: 150% にするのは時刻のパラメーターだけ。他の
+   スライダー・UI は不変。ネイティブ accent-color 表示ではツマミが小さく iPad で
+   掴みづらいので、#sun-time のみツマミ/トラックを明示サイズで拡大する。真下の
+   日の出/日の入り目盛り(#sun-scrub-marks)は水平%配置なので縦拡大で位置ズレしない。
+   ══════════════════════════════════════════════════════════════════════ */
+@media (pointer:coarse) and (any-hover:none){
+  /* 入力要素自体を背高(30px)にしてタッチのヒット領域を確保しつつ、細いトラックを
+     その中央に描く。ツマミも 30px（ネイティブ比 約1.5×）。ボックスを 9px のまま
+     ツマミだけ大きくすると見た目は大きいのに掴める縦領域が狭いままなので不可。 */
+  #sun-time{
+    -webkit-appearance:none; appearance:none;
+    height:30px; margin:2px 0; background:transparent;
+  }
+  #sun-time::-webkit-slider-runnable-track{
+    height:9px; border-radius:5px; background:rgba(255,255,255,.28);
+  }
+  #sun-time::-webkit-slider-thumb{
+    -webkit-appearance:none; appearance:none;
+    width:30px; height:30px; margin-top:-10.5px;
+    border-radius:50%; background:#ffd49a;
+    border:2px solid rgba(0,0,0,.35); box-shadow:0 1px 3px rgba(0,0,0,.4);
+  }
+  #sun-time::-moz-range-track{
+    height:9px; border-radius:5px; background:rgba(255,255,255,.28);
+  }
+  #sun-time::-moz-range-thumb{
+    width:30px; height:30px; border-radius:50%; background:#ffd49a;
+    border:2px solid rgba(0,0,0,.35); box-shadow:0 1px 3px rgba(0,0,0,.4);
+  }
+}
+
