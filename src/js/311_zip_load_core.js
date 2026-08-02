@@ -1,19 +1,38 @@
-// Opens a native file picker for re-supplying 3DGS file(s) that a lite-save
-// ZIP didn't embed. Resolves with [] (not a rejection) on cancel — callers
-// treat an empty result as "user skipped reattach, proceed with placeholders"
-// rather than an error. `cancel` fires on current Chrome/Safari/Firefox for
-// <input type=file>; if a browser never fires it the picker just sits open
-// until the user picks a file or navigates away (no hang risk to the app).
-function _promptFilesForReattach(count){
+// Explains why a re-select is about to happen, via a blocking modal (not an
+// auto-hiding toast — a toast disappearing right as the OS file dialog pops
+// up left users staring at an unexplained picker with no idea why). Only
+// after the user clicks "ファイルを選択" does the native <input type=file>
+// picker open; "スキップ" resolves immediately with [], and callers treat an
+// empty result as "user skipped reattach, proceed with placeholders" rather
+// than an error — same fallback as before this modal existed. `cancel` fires
+// on current Chrome/Safari/Firefox for <input type=file>; if a browser never
+// fires it, the picker just sits open until the user picks a file or
+// navigates away (no hang risk to the app either way).
+function _promptFilesForReattach(missingEntries){
   return new Promise((resolve)=>{
-    const input=document.createElement('input');
-    input.type='file';
-    input.multiple = count>1;
-    input.accept='.rad,.ply,.spz,.ksplat,.splat,.sog,.pcsogs,.pcsogszip';
-    let _done=false;
-    input.onchange=(e)=>{ _done=true; resolve(Array.from(e.target.files||[])); };
-    input.oncancel=()=>{ if(!_done){ _done=true; resolve([]); } };
-    input.click();
+    const modal=document.getElementById('reattach-modal');
+    const descEl=document.getElementById('rm-desc');
+    const pickBtn=document.getElementById('rm-pick-btn');
+    const skipBtn=document.getElementById('rm-skip-btn');
+    const _en=window._lang==='en';
+    const names=missingEntries.map(e=>e.name).join(_en?', ':'、');
+    descEl.textContent=_en
+      ? `This project was saved without its 3DGS data ("Lite Save"). To restore it, select the original file(s) again: ${names}`
+      : `このプロジェクトは3DGS本体を含めずに保存されています（軽量保存）。復元するには元の3DGSファイルを選び直してください: ${names}`;
+    const close=()=>{ modal.classList.remove('show'); pickBtn.onclick=null; skipBtn.onclick=null; };
+    pickBtn.onclick=()=>{
+      close();
+      const input=document.createElement('input');
+      input.type='file';
+      input.multiple=missingEntries.length>1;
+      input.accept='.rad,.ply,.spz,.ksplat,.splat,.sog,.pcsogs,.pcsogszip';
+      let _done=false;
+      input.onchange=(e)=>{ _done=true; resolve(Array.from(e.target.files||[])); };
+      input.oncancel=()=>{ if(!_done){ _done=true; resolve([]); } };
+      input.click();
+    };
+    skipBtn.onclick=()=>{ close(); resolve([]); };
+    modal.classList.add('show');
   });
 }
 
@@ -148,10 +167,7 @@ async function _loadProjectZipFromFile(file){
     const _missingSplats = project.layers.filter(e=>e.type==='splat' && e.file && !e._buf && !e.streamUrl);
     if(_missingSplats.length){
       setMsg(_en()?'Original 3DGS file needed…':'元の3DGSファイルが必要です…'); setBar(70);
-      showUndoToast(_en()
-        ? `📎 Lite save — select the original 3DGS file for: ${_missingSplats.map(e=>e.name).join(', ')}`
-        : `📎 軽量保存されたプロジェクトです — 元の3DGSファイルを選択してください: ${_missingSplats.map(e=>e.name).join('、')}`);
-      const _picked = await _promptFilesForReattach(_missingSplats.length);
+      const _picked = await _promptFilesForReattach(_missingSplats);
       const _pool = _missingSplats.slice();
       const _norm = s => (s||'').toLowerCase().replace(/[^a-z0-9]/g,'');
       for(const f of _picked){

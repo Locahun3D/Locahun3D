@@ -418,6 +418,32 @@
 }
 #export-modal .em-close:hover{color:#C0C0C0;}
 
+/* ── Reattach modal (lite-save 3DGS re-select) — same visual language as
+   #export-modal, higher z-index so it can sit above the ZIP-loading
+   overlay (#ld, z-index:200) which is still showing while this prompt
+   appears. ── */
+#reattach-modal{
+  position:fixed;inset:0;background:rgba(0,0,0,.7);z-index:310;
+  display:none;align-items:center;justify-content:center;
+}
+#reattach-modal.show{display:flex;}
+#reattach-modal .em-box{
+  background:rgba(26,26,28,.98);border:1px solid rgba(255,255,255,.15);border-radius:12px;
+  padding:22px 26px;min-width:280px;max-width:360px;
+}
+#reattach-modal .em-title{font-size:.95em;color:#D0D0D0;font-weight:600;margin-bottom:8px;}
+#reattach-modal .em-btn{
+  display:block;width:100%;background:#2A2A2C;border:1px solid rgba(255,255,255,.12);
+  border-radius:7px;padding:10px 14px;font-size:.83em;cursor:pointer;
+  text-align:left;transition:all .15s;margin-bottom:8px;
+}
+#reattach-modal .em-btn:hover{background:rgba(255,255,255,.08);border-color:rgba(255,255,255,.25);}
+#reattach-modal .em-close{
+  background:transparent;border:1px solid rgba(255,255,255,.1);color:#484848;
+  border-radius:5px;padding:5px 14px;cursor:pointer;font-size:.78em;width:100%;margin-top:4px;
+}
+#reattach-modal .em-close:hover{color:#C0C0C0;}
+
 /* ── Folder name input ── */
 .lr-name-input{
   flex:1;background:transparent;border:none;border-bottom:1px solid rgba(255,255,255,.2);

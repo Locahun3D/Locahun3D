@@ -891,6 +891,25 @@
   </div>
 </div>
 
+<!-- ══ Reattach (lite-save 3DGS re-select) Modal ══ -->
+<!-- 軽量保存されたプロジェクトを読込む際、3DGS本体が同梱されていないレイヤーに
+     ついて元ファイルの再選択を促す。トーストは1.6秒で消えて読まれない/OSの
+     ファイル選択ダイアログだけが唐突に開いて見える問題があったため、ボタンで
+     進める・消えないモーダルに変更（311_zip_load_core.jsの_promptFilesForReattach
+     から開閉される）。-->
+<div id="reattach-modal">
+  <div class="em-box">
+    <div class="em-title" id="rm-title">📎 3DGSファイルの再選択が必要です</div>
+    <div class="em-desc" id="rm-desc" style="margin-bottom:14px;font-size:.8em;color:#909090;line-height:1.6"></div>
+    <button class="em-btn" id="rm-pick-btn" style="text-align:center;color:#88ffaa">
+      <span id="rm-pick">📎 ファイルを選択</span>
+    </button>
+    <button class="em-close" id="rm-skip-btn">
+      <span id="rm-skip">スキップ（元データなしで復元）</span>
+    </button>
+  </div>
+</div>
+
 <!-- Undo toast -->
 <div id="undo-toast"></div>
 

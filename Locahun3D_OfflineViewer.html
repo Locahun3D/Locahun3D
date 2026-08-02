@@ -1151,6 +1151,32 @@ body.cam-active #view-tl-btns{
 }
 #export-modal .em-close:hover{color:#C0C0C0;}
 
+/* ── Reattach modal (lite-save 3DGS re-select) — same visual language as
+   #export-modal, higher z-index so it can sit above the ZIP-loading
+   overlay (#ld, z-index:200) which is still showing while this prompt
+   appears. ── */
+#reattach-modal{
+  position:fixed;inset:0;background:rgba(0,0,0,.7);z-index:310;
+  display:none;align-items:center;justify-content:center;
+}
+#reattach-modal.show{display:flex;}
+#reattach-modal .em-box{
+  background:rgba(26,26,28,.98);border:1px solid rgba(255,255,255,.15);border-radius:12px;
+  padding:22px 26px;min-width:280px;max-width:360px;
+}
+#reattach-modal .em-title{font-size:.95em;color:#D0D0D0;font-weight:600;margin-bottom:8px;}
+#reattach-modal .em-btn{
+  display:block;width:100%;background:#2A2A2C;border:1px solid rgba(255,255,255,.12);
+  border-radius:7px;padding:10px 14px;font-size:.83em;cursor:pointer;
+  text-align:left;transition:all .15s;margin-bottom:8px;
+}
+#reattach-modal .em-btn:hover{background:rgba(255,255,255,.08);border-color:rgba(255,255,255,.25);}
+#reattach-modal .em-close{
+  background:transparent;border:1px solid rgba(255,255,255,.1);color:#484848;
+  border-radius:5px;padding:5px 14px;cursor:pointer;font-size:.78em;width:100%;margin-top:4px;
+}
+#reattach-modal .em-close:hover{color:#C0C0C0;}
+
 /* ── Folder name input ── */
 .lr-name-input{
   flex:1;background:transparent;border:none;border-bottom:1px solid rgba(255,255,255,.2);
@@ -3986,6 +4012,25 @@ body.ar-active #dz{display:none !important;}
       <span class="em-desc" id="em-obj-d">OBJ/キューブレイヤーを .obj ファイルとして書き出す</span>
     </button>
     <button class="em-close" id="em-cancel" onclick="closeExportModal()">キャンセル</button>
+  </div>
+</div>
+
+<!-- ══ Reattach (lite-save 3DGS re-select) Modal ══ -->
+<!-- 軽量保存されたプロジェクトを読込む際、3DGS本体が同梱されていないレイヤーに
+     ついて元ファイルの再選択を促す。トーストは1.6秒で消えて読まれない/OSの
+     ファイル選択ダイアログだけが唐突に開いて見える問題があったため、ボタンで
+     進める・消えないモーダルに変更（311_zip_load_core.jsの_promptFilesForReattach
+     から開閉される）。-->
+<div id="reattach-modal">
+  <div class="em-box">
+    <div class="em-title" id="rm-title">📎 3DGSファイルの再選択が必要です</div>
+    <div class="em-desc" id="rm-desc" style="margin-bottom:14px;font-size:.8em;color:#909090;line-height:1.6"></div>
+    <button class="em-btn" id="rm-pick-btn" style="text-align:center;color:#88ffaa">
+      <span id="rm-pick">📎 ファイルを選択</span>
+    </button>
+    <button class="em-close" id="rm-skip-btn">
+      <span id="rm-skip">スキップ（元データなしで復元）</span>
+    </button>
   </div>
 </div>
 
@@ -14831,6 +14876,9 @@ const I18N = {
   'em-zip-load-d':'保存したZIPファイルからプロジェクトを完全復元',
   'em-zip-lite':'📦 軽量保存（3DGS本体を除外）',
   'em-zip-lite-d':'カメラ・注釈・レイアウトのみ保存（高速・低容量）。読込時に元の3DGSファイルの選択が必要です',
+  'rm-title':'📎 3DGSファイルの再選択が必要です',
+  'rm-pick':'📎 ファイルを選択',
+  'rm-skip':'スキップ（元データなしで復元）',
   'em-json':'💾 JSONのみ保存 (.json)',
   'em-recommended':'★推奨',
   'em-cancel':'キャンセル',
@@ -14953,6 +15001,9 @@ const I18N = {
   'em-zip-load-d':'Restore project from a previously saved ZIP',
   'em-zip-lite':'📦 Lite Save (excludes 3DGS data)',
   'em-zip-lite-d':'Saves camera / annotations / layout only (fast, small). Loading it later asks you to re-select the original 3DGS file.',
+  'rm-title':'📎 3DGS file re-select needed',
+  'rm-pick':'📎 Select File',
+  'rm-skip':'Skip (restore without original data)',
   'em-json':'💾 Save JSON only (.json)',
   'em-recommended':'★Recommended',
   'em-cancel':'Cancel',
@@ -15015,7 +15066,7 @@ function applyI18n(){
   // 日照パネルの都市ドロップダウンを言語に合わせて翻訳
   if(typeof _sunApplyCityI18n==='function') _sunApplyCityI18n();
   // HUD labels
-  ['lbl-pos','lbl-spd','lbl-rot','lbl-measure','lbl-flip','lbl-addobj','lbl-quality','lbl-settings','lbl-file','lbl-cam-reset','lbl-camtool','lbl-env','lbl-help','orient-lock-msg','orient-lock-sub','lbl-addobj-top','lbl-addfig-top','tb-save-lbl','tb-undo-lbl','tb-load-lbl','tb-report-lbl','fp-btn-import-lbl','fp-btn-export-lbl','csp-shot-info','csp-cam-info','csp-meta-info','csp-shot-name','csp-rig','csp-env','csp-note','csp-capture','csp-burnin','csp-burnin-grid','csp-capture-btn','csp-salvage','csp-salvage-drop','csp-salvage-sub','ct-tool','ct-lens','ct-focal','ct-sensor','ct-sensor-ff','ct-sensor-apsc','ct-sensor-apsh','ct-sensor-mft','ct-sensor-1inch','ct-sensor-phone13','ct-sensor-phone17','ct-sensor-phone23','ct-sensor-m65','ct-sensor-s35','ct-sensor-bm','ct-sensor-cust','ct-sensor-w','ct-sensor-h','ct-cam-angle','ct-pan','ct-tilt','ct-roll','ct-roll-level','ct-wb','ct-wb-temp','ct-aspect','ct-aspect-sensor','ct-aspect-cust','ct-aspect-apply','ct-margin','ct-grid','ct-grid-multi','ct-grid-guide','ct-grid-off','ct-grid-thirds','ct-grid-golden','ct-grid-cross','ct-grid-diag','ct-grid-safe-cust','ct-grid-action','ct-grid-title','ct-grid-center','ct-grid-custom','ct-grid-cols','ct-grid-rows','ct-grid-opacity','dz-manual-text','dz-ar-label','env-h-title','env-p-off','env-p-day','env-p-morning','env-p-evening','env-p-night','env-p-cloudy','env-p-rain','env-p-overcast','env-p-twilight','env-l-rot','env-l-int','msr-active-lbl','msr-end-lbl','lp-h-scene','lp-empty','qt-title','qt-low','qt-mid','qt-high','qp-perf-t','qp-l-frame','qp-l-gpu','qp-l-head','qp-l-dc','qp-l-tris','qp-l-geos','qp-l-texs','dist-l','msr-clear','msr-undo','em-3dgs','em-3dgs-d','em-zip-save','em-zip-save-d','em-zip-load','em-zip-load-d','em-zip-lite','em-zip-lite-d','em-json','em-json-d','em-glb','em-glb-d','em-obj','em-obj-d','em-cancel','em-recommended','em-h-title','qp-settings-t','qp-lbl-lowpoly-main','qp-lbl-lowpoly-hint','qp-lbl-grid','qp-lbl-show','qp-lbl-fov','qp-lbl-spd','cl-title','cl-sub','cl-tag-init','cl-tag-v003','lbl-walk','lbl-save-camera','lbl-view-rec','lbl-view-rec-phone','lbl-cam-anim','giz-pt-a','giz-pt-b','giz-pt-c','giz-height-lbl','height-l','csp-jpeg-q','csp-4k-lbl','obj-add-cube','obj-add-sphere','obj-add-light','obj-add-event','obj-add-path','msr-end-lbl-init'].forEach(id=>{
+  ['lbl-pos','lbl-spd','lbl-rot','lbl-measure','lbl-flip','lbl-addobj','lbl-quality','lbl-settings','lbl-file','lbl-cam-reset','lbl-camtool','lbl-env','lbl-help','orient-lock-msg','orient-lock-sub','lbl-addobj-top','lbl-addfig-top','tb-save-lbl','tb-undo-lbl','tb-load-lbl','tb-report-lbl','fp-btn-import-lbl','fp-btn-export-lbl','csp-shot-info','csp-cam-info','csp-meta-info','csp-shot-name','csp-rig','csp-env','csp-note','csp-capture','csp-burnin','csp-burnin-grid','csp-capture-btn','csp-salvage','csp-salvage-drop','csp-salvage-sub','ct-tool','ct-lens','ct-focal','ct-sensor','ct-sensor-ff','ct-sensor-apsc','ct-sensor-apsh','ct-sensor-mft','ct-sensor-1inch','ct-sensor-phone13','ct-sensor-phone17','ct-sensor-phone23','ct-sensor-m65','ct-sensor-s35','ct-sensor-bm','ct-sensor-cust','ct-sensor-w','ct-sensor-h','ct-cam-angle','ct-pan','ct-tilt','ct-roll','ct-roll-level','ct-wb','ct-wb-temp','ct-aspect','ct-aspect-sensor','ct-aspect-cust','ct-aspect-apply','ct-margin','ct-grid','ct-grid-multi','ct-grid-guide','ct-grid-off','ct-grid-thirds','ct-grid-golden','ct-grid-cross','ct-grid-diag','ct-grid-safe-cust','ct-grid-action','ct-grid-title','ct-grid-center','ct-grid-custom','ct-grid-cols','ct-grid-rows','ct-grid-opacity','dz-manual-text','dz-ar-label','env-h-title','env-p-off','env-p-day','env-p-morning','env-p-evening','env-p-night','env-p-cloudy','env-p-rain','env-p-overcast','env-p-twilight','env-l-rot','env-l-int','msr-active-lbl','msr-end-lbl','lp-h-scene','lp-empty','qt-title','qt-low','qt-mid','qt-high','qp-perf-t','qp-l-frame','qp-l-gpu','qp-l-head','qp-l-dc','qp-l-tris','qp-l-geos','qp-l-texs','dist-l','msr-clear','msr-undo','em-3dgs','em-3dgs-d','em-zip-save','em-zip-save-d','em-zip-load','em-zip-load-d','em-zip-lite','em-zip-lite-d','rm-title','rm-pick','rm-skip','em-json','em-json-d','em-glb','em-glb-d','em-obj','em-obj-d','em-cancel','em-recommended','em-h-title','qp-settings-t','qp-lbl-lowpoly-main','qp-lbl-lowpoly-hint','qp-lbl-grid','qp-lbl-show','qp-lbl-fov','qp-lbl-spd','cl-title','cl-sub','cl-tag-init','cl-tag-v003','lbl-walk','lbl-save-camera','lbl-view-rec','lbl-view-rec-phone','lbl-cam-anim','giz-pt-a','giz-pt-b','giz-pt-c','giz-height-lbl','height-l','csp-jpeg-q','csp-4k-lbl','obj-add-cube','obj-add-sphere','obj-add-light','obj-add-event','obj-add-path','msr-end-lbl-init'].forEach(id=>{
     const el=document.getElementById(id); if(el) el.textContent=T(id);
   });
   // HUD info-box edit tooltip + dropzone titles
@@ -20702,22 +20753,41 @@ window.saveProjectZip = async function(forceLite){
   } catch(e){ console.error(e); showUndoToast(T('zip-fail')+e.message); } finally { _zipSaving = false; }
 };
 
-// Opens a native file picker for re-supplying 3DGS file(s) that a lite-save
-// ZIP didn't embed. Resolves with [] (not a rejection) on cancel — callers
-// treat an empty result as "user skipped reattach, proceed with placeholders"
-// rather than an error. `cancel` fires on current Chrome/Safari/Firefox for
-// <input type=file>; if a browser never fires it the picker just sits open
-// until the user picks a file or navigates away (no hang risk to the app).
-function _promptFilesForReattach(count){
+// Explains why a re-select is about to happen, via a blocking modal (not an
+// auto-hiding toast — a toast disappearing right as the OS file dialog pops
+// up left users staring at an unexplained picker with no idea why). Only
+// after the user clicks "ファイルを選択" does the native <input type=file>
+// picker open; "スキップ" resolves immediately with [], and callers treat an
+// empty result as "user skipped reattach, proceed with placeholders" rather
+// than an error — same fallback as before this modal existed. `cancel` fires
+// on current Chrome/Safari/Firefox for <input type=file>; if a browser never
+// fires it, the picker just sits open until the user picks a file or
+// navigates away (no hang risk to the app either way).
+function _promptFilesForReattach(missingEntries){
   return new Promise((resolve)=>{
-    const input=document.createElement('input');
-    input.type='file';
-    input.multiple = count>1;
-    input.accept='.rad,.ply,.spz,.ksplat,.splat,.sog,.pcsogs,.pcsogszip';
-    let _done=false;
-    input.onchange=(e)=>{ _done=true; resolve(Array.from(e.target.files||[])); };
-    input.oncancel=()=>{ if(!_done){ _done=true; resolve([]); } };
-    input.click();
+    const modal=document.getElementById('reattach-modal');
+    const descEl=document.getElementById('rm-desc');
+    const pickBtn=document.getElementById('rm-pick-btn');
+    const skipBtn=document.getElementById('rm-skip-btn');
+    const _en=window._lang==='en';
+    const names=missingEntries.map(e=>e.name).join(_en?', ':'、');
+    descEl.textContent=_en
+      ? `This project was saved without its 3DGS data ("Lite Save"). To restore it, select the original file(s) again: ${names}`
+      : `このプロジェクトは3DGS本体を含めずに保存されています（軽量保存）。復元するには元の3DGSファイルを選び直してください: ${names}`;
+    const close=()=>{ modal.classList.remove('show'); pickBtn.onclick=null; skipBtn.onclick=null; };
+    pickBtn.onclick=()=>{
+      close();
+      const input=document.createElement('input');
+      input.type='file';
+      input.multiple=missingEntries.length>1;
+      input.accept='.rad,.ply,.spz,.ksplat,.splat,.sog,.pcsogs,.pcsogszip';
+      let _done=false;
+      input.onchange=(e)=>{ _done=true; resolve(Array.from(e.target.files||[])); };
+      input.oncancel=()=>{ if(!_done){ _done=true; resolve([]); } };
+      input.click();
+    };
+    skipBtn.onclick=()=>{ close(); resolve([]); };
+    modal.classList.add('show');
   });
 }
 
@@ -20852,10 +20922,7 @@ async function _loadProjectZipFromFile(file){
     const _missingSplats = project.layers.filter(e=>e.type==='splat' && e.file && !e._buf && !e.streamUrl);
     if(_missingSplats.length){
       setMsg(_en()?'Original 3DGS file needed…':'元の3DGSファイルが必要です…'); setBar(70);
-      showUndoToast(_en()
-        ? `📎 Lite save — select the original 3DGS file for: ${_missingSplats.map(e=>e.name).join(', ')}`
-        : `📎 軽量保存されたプロジェクトです — 元の3DGSファイルを選択してください: ${_missingSplats.map(e=>e.name).join('、')}`);
-      const _picked = await _promptFilesForReattach(_missingSplats.length);
+      const _picked = await _promptFilesForReattach(_missingSplats);
       const _pool = _missingSplats.slice();
       const _norm = s => (s||'').toLowerCase().replace(/[^a-z0-9]/g,'');
       for(const f of _picked){
