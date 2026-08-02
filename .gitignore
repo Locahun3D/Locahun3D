@@ -47,3 +47,6 @@ __pycache__/
 .build-hash
 .build-hash.online
 /Locahun3D_OfflineViewer.online.html
+
+# ── Brainstorming visual companion scratch (superpowers skill) ───────────
+.superpowers/
