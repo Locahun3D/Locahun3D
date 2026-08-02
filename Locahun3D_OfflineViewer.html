@@ -3964,6 +3964,10 @@ body.ar-active #dz{display:none !important;}
       <span id="em-zip-save">📦 プロジェクトZIP保存</span> <span style="color:#88ffaa;font-size:.8em" id="em-recommended">★推奨</span>
       <span class="em-desc" id="em-zip-save-d">全ファイル（Splat・3Dモデル・キューブ）をZIPに完全保存</span>
     </button>
+    <button id="em-save-zip-lite" class="em-btn" onclick="saveProjectZip(true);closeExportModal()">
+      <span id="em-zip-lite">📦 軽量保存（3DGS本体を除外）</span>
+      <span class="em-desc" id="em-zip-lite-d">カメラ・注釈・レイアウトのみ保存（高速・低容量）。読込時に元の3DGSファイルの選択が必要です</span>
+    </button>
     <button class="em-btn" onclick="loadProjectZip();closeExportModal()">
       <span id="em-zip-load">📂 プロジェクトZIP読込</span>
       <span class="em-desc" id="em-zip-load-d">保存したZIPファイルからプロジェクトを完全復元</span>
@@ -14825,6 +14829,8 @@ const I18N = {
   'em-zip-save-d':'全ファイル（Splat・3Dモデル・キューブ）をZIPに完全保存',
   'em-zip-load':'📂 プロジェクトZIP読込',
   'em-zip-load-d':'保存したZIPファイルからプロジェクトを完全復元',
+  'em-zip-lite':'📦 軽量保存（3DGS本体を除外）',
+  'em-zip-lite-d':'カメラ・注釈・レイアウトのみ保存（高速・低容量）。読込時に元の3DGSファイルの選択が必要です',
   'em-json':'💾 JSONのみ保存 (.json)',
   'em-recommended':'★推奨',
   'em-cancel':'キャンセル',
@@ -14945,6 +14951,8 @@ const I18N = {
   'em-zip-save-d':'Saves all files (Splat / 3D models / cubes) into one ZIP',
   'em-zip-load':'📂 Load Project ZIP',
   'em-zip-load-d':'Restore project from a previously saved ZIP',
+  'em-zip-lite':'📦 Lite Save (excludes 3DGS data)',
+  'em-zip-lite-d':'Saves camera / annotations / layout only (fast, small). Loading it later asks you to re-select the original 3DGS file.',
   'em-json':'💾 Save JSON only (.json)',
   'em-recommended':'★Recommended',
   'em-cancel':'Cancel',
@@ -15007,7 +15015,7 @@ function applyI18n(){
   // 日照パネルの都市ドロップダウンを言語に合わせて翻訳
   if(typeof _sunApplyCityI18n==='function') _sunApplyCityI18n();
   // HUD labels
-  ['lbl-pos','lbl-spd','lbl-rot','lbl-measure','lbl-flip','lbl-addobj','lbl-quality','lbl-settings','lbl-file','lbl-cam-reset','lbl-camtool','lbl-env','lbl-help','orient-lock-msg','orient-lock-sub','lbl-addobj-top','lbl-addfig-top','tb-save-lbl','tb-undo-lbl','tb-load-lbl','tb-report-lbl','fp-btn-import-lbl','fp-btn-export-lbl','csp-shot-info','csp-cam-info','csp-meta-info','csp-shot-name','csp-rig','csp-env','csp-note','csp-capture','csp-burnin','csp-burnin-grid','csp-capture-btn','csp-salvage','csp-salvage-drop','csp-salvage-sub','ct-tool','ct-lens','ct-focal','ct-sensor','ct-sensor-ff','ct-sensor-apsc','ct-sensor-apsh','ct-sensor-mft','ct-sensor-1inch','ct-sensor-phone13','ct-sensor-phone17','ct-sensor-phone23','ct-sensor-m65','ct-sensor-s35','ct-sensor-bm','ct-sensor-cust','ct-sensor-w','ct-sensor-h','ct-cam-angle','ct-pan','ct-tilt','ct-roll','ct-roll-level','ct-wb','ct-wb-temp','ct-aspect','ct-aspect-sensor','ct-aspect-cust','ct-aspect-apply','ct-margin','ct-grid','ct-grid-multi','ct-grid-guide','ct-grid-off','ct-grid-thirds','ct-grid-golden','ct-grid-cross','ct-grid-diag','ct-grid-safe-cust','ct-grid-action','ct-grid-title','ct-grid-center','ct-grid-custom','ct-grid-cols','ct-grid-rows','ct-grid-opacity','dz-manual-text','dz-ar-label','env-h-title','env-p-off','env-p-day','env-p-morning','env-p-evening','env-p-night','env-p-cloudy','env-p-rain','env-p-overcast','env-p-twilight','env-l-rot','env-l-int','msr-active-lbl','msr-end-lbl','lp-h-scene','lp-empty','qt-title','qt-low','qt-mid','qt-high','qp-perf-t','qp-l-frame','qp-l-gpu','qp-l-head','qp-l-dc','qp-l-tris','qp-l-geos','qp-l-texs','dist-l','msr-clear','msr-undo','em-3dgs','em-3dgs-d','em-zip-save','em-zip-save-d','em-zip-load','em-zip-load-d','em-json','em-json-d','em-glb','em-glb-d','em-obj','em-obj-d','em-cancel','em-recommended','em-h-title','qp-settings-t','qp-lbl-lowpoly-main','qp-lbl-lowpoly-hint','qp-lbl-grid','qp-lbl-show','qp-lbl-fov','qp-lbl-spd','cl-title','cl-sub','cl-tag-init','cl-tag-v003','lbl-walk','lbl-save-camera','lbl-view-rec','lbl-view-rec-phone','lbl-cam-anim','giz-pt-a','giz-pt-b','giz-pt-c','giz-height-lbl','height-l','csp-jpeg-q','csp-4k-lbl','obj-add-cube','obj-add-sphere','obj-add-light','obj-add-event','obj-add-path','msr-end-lbl-init'].forEach(id=>{
+  ['lbl-pos','lbl-spd','lbl-rot','lbl-measure','lbl-flip','lbl-addobj','lbl-quality','lbl-settings','lbl-file','lbl-cam-reset','lbl-camtool','lbl-env','lbl-help','orient-lock-msg','orient-lock-sub','lbl-addobj-top','lbl-addfig-top','tb-save-lbl','tb-undo-lbl','tb-load-lbl','tb-report-lbl','fp-btn-import-lbl','fp-btn-export-lbl','csp-shot-info','csp-cam-info','csp-meta-info','csp-shot-name','csp-rig','csp-env','csp-note','csp-capture','csp-burnin','csp-burnin-grid','csp-capture-btn','csp-salvage','csp-salvage-drop','csp-salvage-sub','ct-tool','ct-lens','ct-focal','ct-sensor','ct-sensor-ff','ct-sensor-apsc','ct-sensor-apsh','ct-sensor-mft','ct-sensor-1inch','ct-sensor-phone13','ct-sensor-phone17','ct-sensor-phone23','ct-sensor-m65','ct-sensor-s35','ct-sensor-bm','ct-sensor-cust','ct-sensor-w','ct-sensor-h','ct-cam-angle','ct-pan','ct-tilt','ct-roll','ct-roll-level','ct-wb','ct-wb-temp','ct-aspect','ct-aspect-sensor','ct-aspect-cust','ct-aspect-apply','ct-margin','ct-grid','ct-grid-multi','ct-grid-guide','ct-grid-off','ct-grid-thirds','ct-grid-golden','ct-grid-cross','ct-grid-diag','ct-grid-safe-cust','ct-grid-action','ct-grid-title','ct-grid-center','ct-grid-custom','ct-grid-cols','ct-grid-rows','ct-grid-opacity','dz-manual-text','dz-ar-label','env-h-title','env-p-off','env-p-day','env-p-morning','env-p-evening','env-p-night','env-p-cloudy','env-p-rain','env-p-overcast','env-p-twilight','env-l-rot','env-l-int','msr-active-lbl','msr-end-lbl','lp-h-scene','lp-empty','qt-title','qt-low','qt-mid','qt-high','qp-perf-t','qp-l-frame','qp-l-gpu','qp-l-head','qp-l-dc','qp-l-tris','qp-l-geos','qp-l-texs','dist-l','msr-clear','msr-undo','em-3dgs','em-3dgs-d','em-zip-save','em-zip-save-d','em-zip-load','em-zip-load-d','em-zip-lite','em-zip-lite-d','em-json','em-json-d','em-glb','em-glb-d','em-obj','em-obj-d','em-cancel','em-recommended','em-h-title','qp-settings-t','qp-lbl-lowpoly-main','qp-lbl-lowpoly-hint','qp-lbl-grid','qp-lbl-show','qp-lbl-fov','qp-lbl-spd','cl-title','cl-sub','cl-tag-init','cl-tag-v003','lbl-walk','lbl-save-camera','lbl-view-rec','lbl-view-rec-phone','lbl-cam-anim','giz-pt-a','giz-pt-b','giz-pt-c','giz-height-lbl','height-l','csp-jpeg-q','csp-4k-lbl','obj-add-cube','obj-add-sphere','obj-add-light','obj-add-event','obj-add-path','msr-end-lbl-init'].forEach(id=>{
     const el=document.getElementById(id); if(el) el.textContent=T(id);
   });
   // HUD info-box edit tooltip + dropzone titles
@@ -20397,7 +20405,13 @@ async function _fetchStreamUrlToBytes(url, label){
 }
 
 let _zipSaving = false;
-window.saveProjectZip = async function(){
+// forceLite: user-triggered "軽量保存" (export modal) — same code path the
+// phone-memory auto-guard below already used, just opt-in on any device
+// instead of gated behind the phone-viewport heuristic. Skips embedding
+// splat/model raw bytes; project.json still lists filenames so the load
+// path can prompt the user to re-select the original 3DGS file (see
+// _promptFilesForReattach in 311_zip_load_core.js).
+window.saveProjectZip = async function(forceLite){
   if(_zipSaving){ showUndoToast(T('zip-saving')); return; }
   _zipSaving = true;
   showUndoToast(T('zip-saving'));
@@ -20439,10 +20453,10 @@ window.saveProjectZip = async function(){
         _totalSplatBytes += L._rawBuffer.byteLength;
       }
     }
-    const _skipSplatData = _isPhoneClass && _totalSplatBytes > PHONE_SPLAT_BUDGET;
+    const _skipSplatData = !!forceLite || (_isPhoneClass && _totalSplatBytes > PHONE_SPLAT_BUDGET);
     if(_skipSplatData){
       const mb = Math.round(_totalSplatBytes / 1024 / 1024);
-      console.warn(`[saveZIP] phone-class device + ${mb} MB splat data — switching to lite save (project.json only)`);
+      console.warn(`[saveZIP] lite save (${forceLite?'user-requested':'phone-class device'}) — ${mb} MB splat data excluded`);
     }
 
     // Build file map and layer entries
@@ -20618,7 +20632,11 @@ window.saveProjectZip = async function(){
     // if the request fails (e.g. file:// origin + strict CORS) we just
     // skip the HTML inclusion and the rest of the save still succeeds.
     let _bundledHtml = false;
-    try {
+    // Skip for lite saves: without the splat payload the bundled HTML can't
+    // play anything standalone anyway, and re-fetching+re-zipping the whole
+    // viewer on every checkpoint save is exactly the "why is this so slow"
+    // cost a lite save exists to avoid.
+    if(!_skipSplatData) try {
       const res = await fetch(location.href, { cache: 'no-store' });
       if(res.ok){
         const htmlText = await res.text();
@@ -20644,7 +20662,8 @@ window.saveProjectZip = async function(){
     const blob=new Blob([zipBuf],{type:'application/zip'});
     const a=document.createElement('a');
     a.href=URL.createObjectURL(blob);
-    a.download=(_projectName||'scene_project').replace(/[^a-zA-Z0-9_\\-\u3040-\u309F\u30A0-\u30FF\u4E00-\u9FFF]/g,'_')+'.zip';
+    const _liteSuffix=_skipSplatData?'_lite':'';
+    a.download=(_projectName||'scene_project').replace(/[^a-zA-Z0-9_\\-\u3040-\u309F\u30A0-\u30FF\u4E00-\u9FFF]/g,'_')+_liteSuffix+'.zip';
     document.body.appendChild(a); a.click(); document.body.removeChild(a);
     setTimeout(()=>URL.revokeObjectURL(a.href), 5000);
 
@@ -20671,8 +20690,8 @@ window.saveProjectZip = async function(){
     if(_skipSplatData){
       const mb = Math.round(_totalSplatBytes / 1024 / 1024);
       showUndoToast(_en
-        ? `📦 Lite save: skipped ${_skippedSplatCount} splat file(s) (${mb} MB) to fit phone memory. Re-attach after extracting.`
-        : `📦 軽量保存: スマホメモリ節約のため ${_skippedSplatCount} 件の Splat (${mb} MB) は除外。展開後に再アタッチしてください。`);
+        ? `📦 Lite save: skipped ${_skippedSplatCount} splat file(s) (${mb} MB). Loading this ZIP later will ask you to re-select the original 3DGS file.`
+        : `📦 軽量保存: Splat ${_skippedSplatCount}件 (${mb} MB) を除外して保存しました。次回読込時に元の3DGSファイルの選択が必要です。`);
     } else {
       showUndoToast(missing>0
         ?(_en?`⚠ ZIP save: ${missing} file(s) uncached (reload then save)`
@@ -20682,6 +20701,25 @@ window.saveProjectZip = async function(){
     }
   } catch(e){ console.error(e); showUndoToast(T('zip-fail')+e.message); } finally { _zipSaving = false; }
 };
+
+// Opens a native file picker for re-supplying 3DGS file(s) that a lite-save
+// ZIP didn't embed. Resolves with [] (not a rejection) on cancel — callers
+// treat an empty result as "user skipped reattach, proceed with placeholders"
+// rather than an error. `cancel` fires on current Chrome/Safari/Firefox for
+// <input type=file>; if a browser never fires it the picker just sits open
+// until the user picks a file or navigates away (no hang risk to the app).
+function _promptFilesForReattach(count){
+  return new Promise((resolve)=>{
+    const input=document.createElement('input');
+    input.type='file';
+    input.multiple = count>1;
+    input.accept='.rad,.ply,.spz,.ksplat,.splat,.sog,.pcsogs,.pcsogszip';
+    let _done=false;
+    input.onchange=(e)=>{ _done=true; resolve(Array.from(e.target.files||[])); };
+    input.oncancel=()=>{ if(!_done){ _done=true; resolve([]); } };
+    input.click();
+  });
+}
 
 // ── Core ZIP load logic (callable directly with a File object) ──
 async function _loadProjectZipFromFile(file){
@@ -20803,6 +20841,38 @@ async function _loadProjectZipFromFile(file){
         console.warn(`[ZIP] ✗ "${entry.name}": ${entry.file}`);
       }
     }
+    // ── Lite-save reattach ──
+    // Splat entries that list a filename but have no bytes in this archive
+    // AND no streamUrl are checkpoints from "軽量保存"/forceLite (or the
+    // phone-memory auto-guard in saveProjectZip) — the 3DGS payload itself
+    // was deliberately left out. Ask the user to re-select the original
+    // file(s) so restoreProject can rebuild the scene instead of showing
+    // an empty placeholder. Cancelling just falls through to the existing
+    // "missing" behaviour below (unchanged).
+    const _missingSplats = project.layers.filter(e=>e.type==='splat' && e.file && !e._buf && !e.streamUrl);
+    if(_missingSplats.length){
+      setMsg(_en()?'Original 3DGS file needed…':'元の3DGSファイルが必要です…'); setBar(70);
+      showUndoToast(_en()
+        ? `📎 Lite save — select the original 3DGS file for: ${_missingSplats.map(e=>e.name).join(', ')}`
+        : `📎 軽量保存されたプロジェクトです — 元の3DGSファイルを選択してください: ${_missingSplats.map(e=>e.name).join('、')}`);
+      const _picked = await _promptFilesForReattach(_missingSplats.length);
+      const _pool = _missingSplats.slice();
+      const _norm = s => (s||'').toLowerCase().replace(/[^a-z0-9]/g,'');
+      for(const f of _picked){
+        const stem = _norm(f.name.replace(/\.[^.]+$/,''));
+        let target = _pool.length===1 ? _pool[0]
+          : _pool.find(e => stem.includes(_norm(e.name)) || _norm(e.name).includes(stem));
+        if(!target) continue;
+        try{
+          target._buf = await _readFileArrayBufferChunked(f);
+          target._ext = f.name.split('.').pop().toLowerCase();
+          attached++; missing--;
+          _pool.splice(_pool.indexOf(target),1);
+          console.log(`[ZIP] ✓ reattached "${target.name}" ← ${f.name}`);
+        }catch(fe){ console.warn('[ZIP] reattach read failed for', f.name, fe); }
+      }
+    }
+
     setMsg(_en()?`${attached} file(s) attached, restoring...`:`${attached}ファイル割り当て完了、復元中...`); setBar(75);
     await restoreProject(project);
     hideLd();

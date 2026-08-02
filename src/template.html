@@ -866,6 +866,10 @@
       <span id="em-zip-save">📦 プロジェクトZIP保存</span> <span style="color:#88ffaa;font-size:.8em" id="em-recommended">★推奨</span>
       <span class="em-desc" id="em-zip-save-d">全ファイル（Splat・3Dモデル・キューブ）をZIPに完全保存</span>
     </button>
+    <button id="em-save-zip-lite" class="em-btn" onclick="saveProjectZip(true);closeExportModal()">
+      <span id="em-zip-lite">📦 軽量保存（3DGS本体を除外）</span>
+      <span class="em-desc" id="em-zip-lite-d">カメラ・注釈・レイアウトのみ保存（高速・低容量）。読込時に元の3DGSファイルの選択が必要です</span>
+    </button>
     <button class="em-btn" onclick="loadProjectZip();closeExportModal()">
       <span id="em-zip-load">📂 プロジェクトZIP読込</span>
       <span class="em-desc" id="em-zip-load-d">保存したZIPファイルからプロジェクトを完全復元</span>

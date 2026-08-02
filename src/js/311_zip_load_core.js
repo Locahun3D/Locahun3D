@@ -1,3 +1,22 @@
+// Opens a native file picker for re-supplying 3DGS file(s) that a lite-save
+// ZIP didn't embed. Resolves with [] (not a rejection) on cancel — callers
+// treat an empty result as "user skipped reattach, proceed with placeholders"
+// rather than an error. `cancel` fires on current Chrome/Safari/Firefox for
+// <input type=file>; if a browser never fires it the picker just sits open
+// until the user picks a file or navigates away (no hang risk to the app).
+function _promptFilesForReattach(count){
+  return new Promise((resolve)=>{
+    const input=document.createElement('input');
+    input.type='file';
+    input.multiple = count>1;
+    input.accept='.rad,.ply,.spz,.ksplat,.splat,.sog,.pcsogs,.pcsogszip';
+    let _done=false;
+    input.onchange=(e)=>{ _done=true; resolve(Array.from(e.target.files||[])); };
+    input.oncancel=()=>{ if(!_done){ _done=true; resolve([]); } };
+    input.click();
+  });
+}
+
 // ── Core ZIP load logic (callable directly with a File object) ──
 async function _loadProjectZipFromFile(file){
   const _en=()=>window._lang==='en';
@@ -118,6 +137,38 @@ async function _loadProjectZipFromFile(file){
         console.warn(`[ZIP] ✗ "${entry.name}": ${entry.file}`);
       }
     }
+    // ── Lite-save reattach ──
+    // Splat entries that list a filename but have no bytes in this archive
+    // AND no streamUrl are checkpoints from "軽量保存"/forceLite (or the
+    // phone-memory auto-guard in saveProjectZip) — the 3DGS payload itself
+    // was deliberately left out. Ask the user to re-select the original
+    // file(s) so restoreProject can rebuild the scene instead of showing
+    // an empty placeholder. Cancelling just falls through to the existing
+    // "missing" behaviour below (unchanged).
+    const _missingSplats = project.layers.filter(e=>e.type==='splat' && e.file && !e._buf && !e.streamUrl);
+    if(_missingSplats.length){
+      setMsg(_en()?'Original 3DGS file needed…':'元の3DGSファイルが必要です…'); setBar(70);
+      showUndoToast(_en()
+        ? `📎 Lite save — select the original 3DGS file for: ${_missingSplats.map(e=>e.name).join(', ')}`
+        : `📎 軽量保存されたプロジェクトです — 元の3DGSファイルを選択してください: ${_missingSplats.map(e=>e.name).join('、')}`);
+      const _picked = await _promptFilesForReattach(_missingSplats.length);
+      const _pool = _missingSplats.slice();
+      const _norm = s => (s||'').toLowerCase().replace(/[^a-z0-9]/g,'');
+      for(const f of _picked){
+        const stem = _norm(f.name.replace(/\.[^.]+$/,''));
+        let target = _pool.length===1 ? _pool[0]
+          : _pool.find(e => stem.includes(_norm(e.name)) || _norm(e.name).includes(stem));
+        if(!target) continue;
+        try{
+          target._buf = await _readFileArrayBufferChunked(f);
+          target._ext = f.name.split('.').pop().toLowerCase();
+          attached++; missing--;
+          _pool.splice(_pool.indexOf(target),1);
+          console.log(`[ZIP] ✓ reattached "${target.name}" ← ${f.name}`);
+        }catch(fe){ console.warn('[ZIP] reattach read failed for', f.name, fe); }
+      }
+    }
+
     setMsg(_en()?`${attached} file(s) attached, restoring...`:`${attached}ファイル割り当て完了、復元中...`); setBar(75);
     await restoreProject(project);
     hideLd();

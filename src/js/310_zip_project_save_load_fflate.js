@@ -93,7 +93,13 @@ async function _fetchStreamUrlToBytes(url, label){
 }
 
 let _zipSaving = false;
-window.saveProjectZip = async function(){
+// forceLite: user-triggered "軽量保存" (export modal) — same code path the
+// phone-memory auto-guard below already used, just opt-in on any device
+// instead of gated behind the phone-viewport heuristic. Skips embedding
+// splat/model raw bytes; project.json still lists filenames so the load
+// path can prompt the user to re-select the original 3DGS file (see
+// _promptFilesForReattach in 311_zip_load_core.js).
+window.saveProjectZip = async function(forceLite){
   if(_zipSaving){ showUndoToast(T('zip-saving')); return; }
   _zipSaving = true;
   showUndoToast(T('zip-saving'));
@@ -135,10 +141,10 @@ window.saveProjectZip = async function(){
         _totalSplatBytes += L._rawBuffer.byteLength;
       }
     }
-    const _skipSplatData = _isPhoneClass && _totalSplatBytes > PHONE_SPLAT_BUDGET;
+    const _skipSplatData = !!forceLite || (_isPhoneClass && _totalSplatBytes > PHONE_SPLAT_BUDGET);
     if(_skipSplatData){
       const mb = Math.round(_totalSplatBytes / 1024 / 1024);
-      console.warn(`[saveZIP] phone-class device + ${mb} MB splat data — switching to lite save (project.json only)`);
+      console.warn(`[saveZIP] lite save (${forceLite?'user-requested':'phone-class device'}) — ${mb} MB splat data excluded`);
     }
 
     // Build file map and layer entries
@@ -314,7 +320,11 @@ window.saveProjectZip = async function(){
     // if the request fails (e.g. file:// origin + strict CORS) we just
     // skip the HTML inclusion and the rest of the save still succeeds.
     let _bundledHtml = false;
-    try {
+    // Skip for lite saves: without the splat payload the bundled HTML can't
+    // play anything standalone anyway, and re-fetching+re-zipping the whole
+    // viewer on every checkpoint save is exactly the "why is this so slow"
+    // cost a lite save exists to avoid.
+    if(!_skipSplatData) try {
       const res = await fetch(location.href, { cache: 'no-store' });
       if(res.ok){
         const htmlText = await res.text();
@@ -340,7 +350,8 @@ window.saveProjectZip = async function(){
     const blob=new Blob([zipBuf],{type:'application/zip'});
     const a=document.createElement('a');
     a.href=URL.createObjectURL(blob);
-    a.download=(_projectName||'scene_project').replace(/[^a-zA-Z0-9_\\-\u3040-\u309F\u30A0-\u30FF\u4E00-\u9FFF]/g,'_')+'.zip';
+    const _liteSuffix=_skipSplatData?'_lite':'';
+    a.download=(_projectName||'scene_project').replace(/[^a-zA-Z0-9_\\-\u3040-\u309F\u30A0-\u30FF\u4E00-\u9FFF]/g,'_')+_liteSuffix+'.zip';
     document.body.appendChild(a); a.click(); document.body.removeChild(a);
     setTimeout(()=>URL.revokeObjectURL(a.href), 5000);
 
@@ -367,8 +378,8 @@ window.saveProjectZip = async function(){
     if(_skipSplatData){
       const mb = Math.round(_totalSplatBytes / 1024 / 1024);
       showUndoToast(_en
-        ? `📦 Lite save: skipped ${_skippedSplatCount} splat file(s) (${mb} MB) to fit phone memory. Re-attach after extracting.`
-        : `📦 軽量保存: スマホメモリ節約のため ${_skippedSplatCount} 件の Splat (${mb} MB) は除外。展開後に再アタッチしてください。`);
+        ? `📦 Lite save: skipped ${_skippedSplatCount} splat file(s) (${mb} MB). Loading this ZIP later will ask you to re-select the original 3DGS file.`
+        : `📦 軽量保存: Splat ${_skippedSplatCount}件 (${mb} MB) を除外して保存しました。次回読込時に元の3DGSファイルの選択が必要です。`);
     } else {
       showUndoToast(missing>0
         ?(_en?`⚠ ZIP save: ${missing} file(s) uncached (reload then save)`
