@@ -58,10 +58,6 @@ function showHUD() {
     if(el) el.style.display = hide ? 'none' : '';
   };
   _phoneHide('btnSaveCamera', _isPhoneTier);
-  // Update-check button is removed on phones (user request 2026-06): file://
-  // self-update is a desktop workflow and the button just crowds the narrow
-  // top bar. Desktop/tablet keep it.
-  _phoneHide('tb-update-btn', _isPhoneTier);
   // Camera animation (🎞) IS now exposed on phones too (user request 2026-06).
   _phoneHide('btnCamAnim',    false);
   // #btnViewRec lives in the cbar now and the cbar's smartphone media query

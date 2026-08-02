@@ -159,7 +159,6 @@
   #topbar #tb-brand-text{display:none !important;}
   #topbar .tb-update{padding:4px 6px;font-size:.58em;}
   #topbar .tb-lang{padding:4px 8px;font-size:.60em;}
-  #topbar .tb-bug{padding:4px 6px;font-size:.64em;}
   /* Action row (カメラリセット / アバター歩行 / AR). Smartphone gets a
      special override below (in the iPhone-only block) that lifts the
      row INSIDE the topbar; here we keep the generic "flush against
@@ -340,8 +339,6 @@ body.immersive #immersive-exit{ display:inline-block; }
   #topbar #tb-save-btn{ font-size:.78em; padding:3px 12px; }
   #topbar .tb-update{ font-size:.74em; padding:3px 10px; }
   #topbar .tb-lang{ font-size:.76em; padding:3px 10px; }
-  #topbar .tb-bug{ font-size:.86em; }
-  #topbar .tb-integrity{ font-size:.76em; }
 
   #view-tl-btns{ top:54px !important; }
   /* 画質チップ含む全ボタンを一括拡大（バッジ専用ルールは廃止＝兄弟と完全統一）。 */

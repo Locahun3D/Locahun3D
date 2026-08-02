@@ -178,8 +178,7 @@ body{position:fixed;top:0;left:0;}
 #topbar .tb-pn:hover::after{ color:rgba(255,200,120,.95); }
 #topbar .tb-sep{flex:1;}
 /* tb-version was previously in the topbar; moved to the home screen
-   (under the changelog) at the user's request. The element still
-   carries id="tb-version" so reportBug() / checkForUpdate() can read it. */
+   (under the changelog) at the user's request. */
 #dz .dz-version-line{
   margin-top:14px;text-align:center;
   font-size:.7em;color:rgba(255,255,255,.28);letter-spacing:.08em;
@@ -197,33 +196,7 @@ body{position:fixed;top:0;left:0;}
   color:rgba(160,160,160,.55);border-radius:4px;padding:2px 8px;font-size:.66em;
   cursor:pointer;transition:all .15s;letter-spacing:.04em;white-space:nowrap;
 }
-/* Error / bug report — standalone topbar button (was previously nested
-   INSIDE the update-check button, but the parent's state classes
-   (is-checking/.55 opacity, is-offline, has-update pulse) dimmed the icon
-   to near-invisible. Also: <span onclick> inside <button> is invalid HTML.
-   Now a separate sibling: its visibility never depends on update state.
-   PC only; hidden on touch devices (their native mail flow handles this). */
-#topbar .tb-bug{
-  background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.08);
-  color:rgba(220,220,220,.85);border-radius:4px;padding:2px 7px;font-size:.78em;
-  cursor:pointer;transition:all .15s;line-height:1;flex-shrink:0;
-}
-#topbar .tb-bug:hover{
-  background:rgba(255,90,80,.22);color:#ffd0cb;border-color:rgba(255,90,80,.45);
-}
-@media (pointer:coarse) and (any-hover:none){
-  #topbar .tb-bug{display:none !important;}
-}
 #topbar .tb-update:hover{background:rgba(255,255,255,.1);color:#D8D8D8;}
-#topbar .tb-update.is-latest{background:rgba(80,200,120,.06);border-color:rgba(80,200,120,.22);
-  color:rgba(140,220,170,.75);}
-#topbar .tb-update.is-latest:hover{background:rgba(80,200,120,.12);color:#cfeed8;}
-#topbar .tb-update.has-update{background:rgba(255,180,84,.12);border-color:rgba(255,180,84,.45);
-  color:#ffe4b3;animation:tb-update-pulse 1.6s ease-in-out infinite;}
-#topbar .tb-update.has-update:hover{background:rgba(255,180,84,.22);}
-#topbar .tb-update.is-checking{opacity:.55;cursor:default;}
-#topbar .tb-update.is-offline{background:rgba(255,255,255,.04);
-  border-color:rgba(255,180,84,.18);color:rgba(220,180,120,.55);}
 /* スマホ版では上部の「↩ 戻る」(Undo) ボタンを非表示（user 2026-06-30）。
    狭い画面の上部を圧迫するため。タブレット(iPad)は対象外。 */
 @media (pointer:coarse) and (any-hover:none) and (max-width:600px),
@@ -235,21 +208,6 @@ body{position:fixed;top:0;left:0;}
 body.protected-mode #tb-save-btn,
 body.protected-mode #em-export-splat,
 body.protected-mode #em-save-zip { display:none !important; }
-@keyframes tb-update-pulse{
-  0%,100%{box-shadow:0 0 0 0 rgba(255,180,84,.0);}
-  50%   {box-shadow:0 0 0 4px rgba(255,180,84,.18);}
-}
-#topbar .tb-integrity{
-  font-size:.7em;font-weight:700;letter-spacing:0;
-  padding:1px 5px;border-radius:3px;line-height:1;
-  font-family:ui-monospace,Consolas,monospace;
-  cursor:help;
-}
-#topbar .tb-integrity.ok{background:rgba(80,200,120,.14);color:rgba(170,235,190,.9);
-  border:1px solid rgba(80,200,120,.3);}
-#topbar .tb-integrity.bad{background:rgba(255,90,80,.18);color:#ffb4ae;
-  border:1px solid rgba(255,90,80,.45);
-  animation:tb-update-pulse 1.6s ease-in-out infinite;}
 
 /* ── Drop zone (REEL — ASPECT FRAMES) ── */
 #dz{
