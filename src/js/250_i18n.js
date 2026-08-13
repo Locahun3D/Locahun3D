@@ -22,6 +22,10 @@ const I18N = {
     'lt-appear':'▸ 外観','lt-color':'色','lt-opacity':'透明度','lt-wire':'ワイヤーフレーム',
     'lt-size':'▸ サイズ','lt-yup':'Y 上','lt-zup':'Z 上',
     'lt-scale':'▸ スケール','lt-viewadj':'▸ 表示調整',
+    'lt-heading':'▸ 方角合わせ（横回転 / Y軸）',
+    'lt-heading-hint':'日照パネルの方位コンパス（北＝−Z）を見ながら合わせてください。',
+    'lt-heading-reset-tt':'横回転を 0° に戻す',
+    'init-view-set-msg':'📍 現在の視点を初期位置に設定しました',
     'lt-flip-x':'X軸反転','lt-flip-y':'Y軸反転','lt-flip-z':'Z軸反転','lt-light':'▸ ライト設定','lt-light-color':'色',
     'lt-light-int':'強度','lt-pos-local':'ローカル','lt-pos-world':'ワールド',
     'onote-txt':'シーンが逆さまですか？','onote-btn':'Y軸を反転',
@@ -147,6 +151,10 @@ const I18N = {
     'lt-appear':'▸ Appearance','lt-color':'Color','lt-opacity':'Opacity','lt-wire':'Wireframe',
     'lt-size':'▸ Size','lt-yup':'Y Up','lt-zup':'Z Up',
     'lt-scale':'▸ Scale','lt-viewadj':'▸ View Adjust',
+    'lt-heading':'▸ Heading (Yaw / Y-Axis)',
+    'lt-heading-hint':'Match it against the compass in the Sun panel (North = −Z).',
+    'lt-heading-reset-tt':'Reset heading to 0°',
+    'init-view-set-msg':'📍 Current view saved as the initial position',
     'lt-flip-x':'Flip X-Axis','lt-flip-y':'Flip Y-Axis','lt-flip-z':'Flip Z-Axis','lt-light':'▸ Light Settings','lt-light-color':'Color',
     'lt-light-int':'Intensity','lt-pos-local':'Local','lt-pos-world':'World',
     'onote-txt':'Scene upside down?','onote-btn':'Flip Y-Axis',
@@ -278,7 +286,7 @@ function applyI18n(){
   // 日照パネルの都市ドロップダウンを言語に合わせて翻訳
   if(typeof _sunApplyCityI18n==='function') _sunApplyCityI18n();
   // HUD labels
-  ['lbl-pos','lbl-spd','lbl-rot','lbl-measure','lbl-flip','lbl-addobj','lbl-quality','lbl-settings','lbl-file','lbl-cam-reset','lbl-camtool','lbl-env','lbl-help','orient-lock-msg','orient-lock-sub','lbl-addobj-top','lbl-addfig-top','tb-save-lbl','tb-undo-lbl','tb-load-lbl','fp-btn-import-lbl','fp-btn-export-lbl','csp-shot-info','csp-cam-info','csp-meta-info','csp-shot-name','csp-rig','csp-env','csp-note','csp-capture','csp-burnin','csp-burnin-grid','csp-capture-btn','csp-salvage','csp-salvage-drop','csp-salvage-sub','ct-tool','ct-lens','ct-focal','ct-sensor','ct-sensor-ff','ct-sensor-apsc','ct-sensor-apsh','ct-sensor-mft','ct-sensor-1inch','ct-sensor-phone13','ct-sensor-phone17','ct-sensor-phone23','ct-sensor-m65','ct-sensor-s35','ct-sensor-bm','ct-sensor-cust','ct-sensor-w','ct-sensor-h','ct-cam-angle','ct-pan','ct-tilt','ct-roll','ct-roll-level','ct-wb','ct-wb-temp','ct-aspect','ct-aspect-sensor','ct-aspect-cust','ct-aspect-apply','ct-margin','ct-grid','ct-grid-multi','ct-grid-guide','ct-grid-off','ct-grid-thirds','ct-grid-golden','ct-grid-cross','ct-grid-diag','ct-grid-safe-cust','ct-grid-action','ct-grid-title','ct-grid-center','ct-grid-custom','ct-grid-cols','ct-grid-rows','ct-grid-opacity','dz-manual-text','dz-ar-label','env-h-title','env-p-off','env-p-day','env-p-morning','env-p-evening','env-p-night','env-p-cloudy','env-p-rain','env-p-overcast','env-p-twilight','env-l-rot','env-l-int','msr-active-lbl','msr-end-lbl','lp-h-scene','lp-empty','qt-title','qt-low','qt-mid','qt-high','qp-perf-t','qp-l-frame','qp-l-gpu','qp-l-head','qp-l-dc','qp-l-tris','qp-l-geos','qp-l-texs','dist-l','msr-clear','msr-undo','em-3dgs','em-3dgs-d','em-zip-save','em-zip-save-d','em-zip-load','em-zip-load-d','em-zip-lite','em-zip-lite-d','rm-title','rm-pick','rm-skip','em-json','em-json-d','em-glb','em-glb-d','em-obj','em-obj-d','em-cancel','em-recommended','em-h-title','qp-settings-t','qp-lbl-lowpoly-main','qp-lbl-lowpoly-hint','qp-lbl-grid','qp-lbl-show','qp-lbl-fov','qp-lbl-spd','cl-title','cl-sub','cl-tag-init','cl-tag-v003','lbl-walk','lbl-save-camera','lbl-view-rec','lbl-view-rec-phone','lbl-cam-anim','giz-pt-a','giz-pt-b','giz-pt-c','giz-height-lbl','height-l','csp-jpeg-q','csp-4k-lbl','obj-add-cube','obj-add-sphere','obj-add-light','obj-add-event','obj-add-path','msr-end-lbl-init'].forEach(id=>{
+  ['lbl-pos','lbl-spd','lbl-rot','lbl-measure','lbl-flip','lbl-addobj','lbl-quality','lbl-settings','lbl-file','lbl-cam-reset','lbl-set-init-view','iv-title','iv-heading-lbl','lbl-camtool','lbl-env','lbl-help','orient-lock-msg','orient-lock-sub','lbl-addobj-top','lbl-addfig-top','tb-save-lbl','tb-undo-lbl','tb-load-lbl','fp-btn-import-lbl','fp-btn-export-lbl','csp-shot-info','csp-cam-info','csp-meta-info','csp-shot-name','csp-rig','csp-env','csp-note','csp-capture','csp-burnin','csp-burnin-grid','csp-capture-btn','csp-salvage','csp-salvage-drop','csp-salvage-sub','ct-tool','ct-lens','ct-focal','ct-sensor','ct-sensor-ff','ct-sensor-apsc','ct-sensor-apsh','ct-sensor-mft','ct-sensor-1inch','ct-sensor-phone13','ct-sensor-phone17','ct-sensor-phone23','ct-sensor-m65','ct-sensor-s35','ct-sensor-bm','ct-sensor-cust','ct-sensor-w','ct-sensor-h','ct-cam-angle','ct-pan','ct-tilt','ct-roll','ct-roll-level','ct-wb','ct-wb-temp','ct-aspect','ct-aspect-sensor','ct-aspect-cust','ct-aspect-apply','ct-margin','ct-grid','ct-grid-multi','ct-grid-guide','ct-grid-off','ct-grid-thirds','ct-grid-golden','ct-grid-cross','ct-grid-diag','ct-grid-safe-cust','ct-grid-action','ct-grid-title','ct-grid-center','ct-grid-custom','ct-grid-cols','ct-grid-rows','ct-grid-opacity','dz-manual-text','dz-ar-label','env-h-title','env-p-off','env-p-day','env-p-morning','env-p-evening','env-p-night','env-p-cloudy','env-p-rain','env-p-overcast','env-p-twilight','env-l-rot','env-l-int','msr-active-lbl','msr-end-lbl','lp-h-scene','lp-empty','qt-title','qt-low','qt-mid','qt-high','qp-perf-t','qp-l-frame','qp-l-gpu','qp-l-head','qp-l-dc','qp-l-tris','qp-l-geos','qp-l-texs','dist-l','msr-clear','msr-undo','em-3dgs','em-3dgs-d','em-zip-save','em-zip-save-d','em-zip-load','em-zip-load-d','em-zip-lite','em-zip-lite-d','rm-title','rm-pick','rm-skip','em-json','em-json-d','em-glb','em-glb-d','em-obj','em-obj-d','em-cancel','em-recommended','em-h-title','qp-settings-t','qp-lbl-lowpoly-main','qp-lbl-lowpoly-hint','qp-lbl-grid','qp-lbl-show','qp-lbl-fov','qp-lbl-spd','cl-title','cl-sub','cl-tag-init','cl-tag-v003','lbl-walk','lbl-save-camera','lbl-view-rec','lbl-view-rec-phone','lbl-cam-anim','giz-pt-a','giz-pt-b','giz-pt-c','giz-height-lbl','height-l','csp-jpeg-q','csp-4k-lbl','obj-add-cube','obj-add-sphere','obj-add-light','obj-add-event','obj-add-path','msr-end-lbl-init'].forEach(id=>{
     const el=document.getElementById(id); if(el) el.textContent=T(id);
   });
   // HUD info-box edit tooltip + dropzone titles
@@ -310,6 +318,8 @@ function applyI18n(){
     ['btnViewRec',        'tt-view-rec'],
     ['btnViewRecPhone',   'tt-view-rec'],
     ['btnCamAnim',        'tt-cam-anim'],
+    ['btn-set-init-view', 'tt-set-init-view'],
+    ['btn-init-view-more','tt-init-view-more'],
   ];
   for(const [id, key] of _camTopBtns){
     const el = document.getElementById(id);

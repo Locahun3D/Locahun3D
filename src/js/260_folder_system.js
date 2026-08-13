@@ -15,6 +15,18 @@ window.addFolder = function() {
   return L;
 };
 
+// UI(📁＋ボタン)専用の入口。ヘッダーのすぐ隣にあるため誤爆で空フォルダが量産される
+// 事故が多発していたので、ここでだけ確認を挟む (user 2026-08-13)。プログラム側の
+// 呼び出し(カメラレイヤー生成 / ZIP復元)は素の addFolder() を使うので影響しない。
+window.addFolderFromUI = function(ev){
+  if(ev) ev.stopPropagation();
+  const msg = (window._lang === 'en')
+    ? 'Add a new folder to the scene layers?'
+    : 'シーンレイヤーに新しいフォルダを追加しますか？';
+  if(!window.confirm(msg)) return null;
+  return window.addFolder();
+};
+
 window.toggleFolder = function(id, ev) {
   if(ev) ev.stopPropagation();
   const L = findLayer(id);
@@ -270,6 +282,34 @@ window.setObjUpAxis=function(id,axis){
   applyLayerTransform(id);
   renderTransformPanel();
 };
+// ── 方角合わせ (Y軸まわりの横回転のみ) ──
+// 運用は「日照パネルの方位コンパスを見ながら建物の向きを合わせる」作業。
+// 横回転は必ず Y なので、X/Z には一切触れない。
+function _normDeg(d){ d = d % 360; if(d < 0) d += 360; return d; }
+window.setLayerYaw = function(id, deg, fromSlider){
+  const L = findLayer(id); if(!L) return;
+  const v = parseFloat(deg); if(!isFinite(v)) return;
+  if(!L._undoPending){
+    L._undoPending = true;
+    pushGlobalUndo({type:'layer-transform',id:L.id,pos:{...L.pos},rot:{...L.rot},size:{...L.size},scale:{...(L.scale||{x:1,y:1,z:1})}});
+    setTimeout(()=>{ if(L) L._undoPending = false; }, 800);
+  }
+  L.rot.y = _normDeg(v);
+  applyLayerTransform(id);
+  if(fromSlider){
+    // スライダー操作中はドラッグを途切れさせないため、パネル全体は再生成せず
+    // 数値欄と読み出しだけ書き換える。
+    const num = document.getElementById('lt-ry');   if(num) num.value = L.rot.y.toFixed(2);
+    const val = document.getElementById('lt-heading-val'); if(val) val.textContent = L.rot.y.toFixed(0)+'°';
+  } else {
+    renderTransformPanel();
+  }
+};
+window.nudgeLayerYaw = function(id, delta){
+  const L = findLayer(id); if(!L) return;
+  window.setLayerYaw(id, (L.rot.y || 0) + delta);
+};
+
 // ── ピボット座標系の切替 (全レイヤータイプ共通) ──
 window.setLayerPivotSpace=function(id,space){
   const L=findLayer(id); if(!L) return;
@@ -354,7 +394,30 @@ function renderTransformPanel(){
         🔄 <span>${label}</span>
       </button>`;
     };
-    html+=`<div class="lt-section">${T('lt-viewadj')}</div>
+    // ── 方角合わせ: 横回転は必ず Y。日照パネルのコンパス(N/S/E/W)を見ながら
+    //    ワンクリックで回せるようにする。X/Z はここでは触らない。 ──
+    const yawNow = ((r.y % 360) + 360) % 360;
+    const yBtn=(d,label)=>`<button onclick="nudgeLayerYaw(${L.id},${d})"
+        style="flex:1;background:#1a1a1a;border:1px solid rgba(255,255,255,.12);color:#bdbdbd;
+               border-radius:4px;padding:5px 0;font-size:.72em;cursor:pointer;transition:all .15s"
+        onmouseover="this.style.background='rgba(255,180,84,.16)';this.style.borderColor='rgba(255,180,84,.5)'"
+        onmouseout="this.style.background='#1a1a1a';this.style.borderColor='rgba(255,255,255,.12)'">${label}</button>`;
+    html+=`<div class="lt-section">${T('lt-heading')}</div>
+  <div class="lt-row" style="gap:5px">
+    ${yBtn(-90,'↺ 90°')}
+    ${yBtn(90,'↻ 90°')}
+    ${yBtn(180,'180°')}
+  </div>
+  <div class="lt-row" style="align-items:center;gap:6px;margin-top:4px">
+    <input type="range" id="lt-heading-rng" min="0" max="359" step="1" value="${yawNow.toFixed(0)}"
+      oninput="setLayerYaw(${L.id},this.value,true)"
+      style="flex:1;height:4px;accent-color:#ffb454">
+    <span id="lt-heading-val" style="font-size:.7em;color:#ffb45499;min-width:34px;text-align:right">${yawNow.toFixed(0)}°</span>
+    <button onclick="setLayerYaw(${L.id},0)" title="${T('lt-heading-reset-tt')}"
+      style="background:#1a1a1a;border:1px solid rgba(255,255,255,.12);color:#8a8a8a;border-radius:4px;padding:3px 7px;font-size:.68em;cursor:pointer">0°</button>
+  </div>
+  <div style="font-size:.62em;color:#5a5a5a;padding:2px 2px 0;line-height:1.4">${T('lt-heading-hint')}</div>
+  <div class="lt-section">${T('lt-viewadj')}</div>
   <div class="lt-row" style="gap:6px">
     ${mkBtn('x',T('lt-flip-x'))}
     ${mkBtn('y',T('lt-flip-y'))}

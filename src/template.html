@@ -46,11 +46,16 @@
   <div class="lp-resize" id="lp-resize-handle"></div>
   <div class="lp-head" id="lp-title-head" onclick="toggleLayerPanelCollapse(event)">
     <span><span class="lp-chev">▾</span>📁 <span id="lp-h-scene">シーンレイヤー</span></span>
-    <button onclick="event.stopPropagation();addFolder()" title="フォルダを追加"
-      style="background:rgba(255,220,80,.12);border:1px solid rgba(255,220,80,.25);color:rgba(255,220,80,.8);
-             border-radius:5px;padding:2px 8px;font-size:.75em;cursor:pointer;transition:all .15s"
+    <!-- 誤爆で空フォルダが増える事故対策 (user 2026-08-13):
+         ① addFolderFromUI() で確認ダイアログを挟む
+         ② タイトル(=パネル開閉のクリック域)から margin-left で離し、当たり判定も
+            ひと回り小さくして押し間違えにくくする -->
+    <button onclick="addFolderFromUI(event)" title="フォルダを追加"
+      style="background:rgba(255,220,80,.10);border:1px solid rgba(255,220,80,.22);color:rgba(255,220,80,.75);
+             border-radius:5px;padding:1px 6px;font-size:.68em;cursor:pointer;transition:all .15s;
+             margin-left:14px;flex-shrink:0"
       onmouseover="this.style.background='rgba(255,220,80,.22)'"
-      onmouseout="this.style.background='rgba(255,220,80,.12)'">📁＋</button>
+      onmouseout="this.style.background='rgba(255,220,80,.10)'">📁＋</button>
   </div>
   <!-- Type-visibility filter row (#lp-type-filter) removed per user request.
        toggleTypeVis() remains exported on window so any programmatic toggling

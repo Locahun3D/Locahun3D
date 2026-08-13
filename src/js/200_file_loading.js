@@ -285,6 +285,7 @@ async function loadSplatFile(file){
     // Save as initial camera state for reset button
     _initCamPos.copy(camPos);
     _initYaw=yaw; _initPitch=0;
+    if(typeof syncInitViewInputs==='function') syncInitViewInputs();
 
     await sleep(400); setBar(100); await sleep(300);
     hideLd(); showHUD(); hideDZ();
@@ -348,6 +349,7 @@ function loadEmptyProject(){
   camPos.set(0, 1.6, 3.5);
   setCamRotImmediate(Math.PI, 0);
   _initCamPos.copy(camPos); _initYaw = Math.PI; _initPitch = 0;
+  if(typeof syncInitViewInputs==='function') syncInitViewInputs();
   msr.placeDepth = 2.5;
   // Reveal viewer
   showHUD();

@@ -134,6 +134,21 @@ body{position:fixed;top:0;left:0;}
 #topbar,
 #topbar button,
 #immersive-exit{ touch-action:manipulation; }
+/* 上部ボタン行は viewport 中央基準 (inline `left:50%`) に置かれているが、
+   「📍現在の視点を初期位置にする」が加わって行が長くなり、狭いデスクトップ
+   (≲1400px) では左端が シーンレイヤーパネルの下に潜り込むようになった。
+   タッチ端末で既に使っている手法(--lp-width で「パネルより右の空き」に対して
+   センタリング＋折り返し)を、狭いデスクトップにも同じ形で適用する。
+   inline style の left に勝つ必要があるので left だけ !important。
+   カメラモード中は body.cam-active 側の !important ルールが引き続き優先。 */
+@media (hover:hover) and (max-width:1400px){
+  #view-tl-btns{
+    left: calc((100% + var(--lp-width, 0px)) / 2) !important;
+    flex-wrap: wrap;
+    row-gap: 5px;
+    max-width: calc(100% - var(--lp-width, 0px) - 24px);
+  }
+}
 #c{
   display:block;width:100vw;height:100vh;touch-action:none;
   /* will-change:transform promotes the canvas to its own compositor layer
@@ -749,7 +764,9 @@ body.cam-active #view-tl-btns{
 .lr .lr-icon{font-size:.85em;flex-shrink:0;}
 .lr .lr-name{flex:1;font-size:.75em;color:#A0A0A0;overflow:hidden;
   text-overflow:ellipsis;white-space:nowrap;}
-.lr .lr-del{font-size:.75em;color:#383838;cursor:pointer;flex-shrink:0;}
+/* 🗑 は #383838 だと背景に沈んで「見えない」と報告があったため視認できる濃さへ
+   (user 2026-08-13)。hover の赤は据え置き。 */
+.lr .lr-del{font-size:.85em;color:#9a9a9a;cursor:pointer;flex-shrink:0;}
 .lr.lr-pivot-hover{background:rgba(255,180,60,.15);border-color:rgba(255,180,60,.4);}
 .color-preset-popup{
   position:fixed;z-index:200;background:rgba(30,30,32,.96);border:1px solid rgba(255,255,255,.12);
@@ -1686,11 +1703,16 @@ body.immersive #immersive-exit{ display:inline-block; }
   <div class="lp-resize" id="lp-resize-handle"></div>
   <div class="lp-head" id="lp-title-head" onclick="toggleLayerPanelCollapse(event)">
     <span><span class="lp-chev">▾</span>📁 <span id="lp-h-scene">シーンレイヤー</span></span>
-    <button onclick="event.stopPropagation();addFolder()" title="フォルダを追加"
-      style="background:rgba(255,220,80,.12);border:1px solid rgba(255,220,80,.25);color:rgba(255,220,80,.8);
-             border-radius:5px;padding:2px 8px;font-size:.75em;cursor:pointer;transition:all .15s"
+    <!-- 誤爆で空フォルダが増える事故対策 (user 2026-08-13):
+         ① addFolderFromUI() で確認ダイアログを挟む
+         ② タイトル(=パネル開閉のクリック域)から margin-left で離し、当たり判定も
+            ひと回り小さくして押し間違えにくくする -->
+    <button onclick="addFolderFromUI(event)" title="フォルダを追加"
+      style="background:rgba(255,220,80,.10);border:1px solid rgba(255,220,80,.22);color:rgba(255,220,80,.75);
+             border-radius:5px;padding:1px 6px;font-size:.68em;cursor:pointer;transition:all .15s;
+             margin-left:14px;flex-shrink:0"
       onmouseover="this.style.background='rgba(255,220,80,.22)'"
-      onmouseout="this.style.background='rgba(255,220,80,.12)'">📁＋</button>
+      onmouseout="this.style.background='rgba(255,220,80,.10)'">📁＋</button>
   </div>
   <!-- Type-visibility filter row (#lp-type-filter) removed per user request.
        toggleTypeVis() remains exported on window so any programmatic toggling
@@ -1997,6 +2019,45 @@ body.immersive #immersive-exit{ display:inline-block; }
     onmouseover="this.style.background='rgba(80,200,120,.18)';this.style.borderColor='rgba(100,255,160,.45)'"
     onmouseout="this.style.background='rgba(20,20,22,.88)';this.style.borderColor='rgba(255,255,255,.18)'"
     title="カメラを初期位置にリセット">🏠 <span id="lbl-cam-reset">カメラリセット</span></button>
+  <!-- 現在の視点を初期位置に確定する（運用作業の主役ボタン）。カメラリセットの
+       すぐ右に置き、押した直後に 🏠 で戻って確認できる並びにしてある。右端の ▾ は
+       微調整用の数値パネル(#init-view-panel)を開く。ラッパー div なのでタッチ端末では
+       既存の `#view-tl-btns > div` 非表示ルールに乗って自動的に隠れる（PC運用機能）。 -->
+  <div style="position:relative;display:inline-flex;flex-shrink:0;white-space:nowrap;">
+    <button id="btn-set-init-view" onclick="setCurrentViewAsInitial()"
+      style="background:rgba(20,20,22,.88);border:1px solid rgba(255,255,255,.18);
+             color:rgba(200,200,200,.85);border-radius:6px 0 0 6px;padding:5px 12px;
+             font-size:.72em;cursor:pointer;transition:all .2s;letter-spacing:.02em;white-space:nowrap;"
+      onmouseover="this.style.background='rgba(80,200,120,.18)';this.style.borderColor='rgba(100,255,160,.45)'"
+      onmouseout="this.style.background='rgba(20,20,22,.88)';this.style.borderColor='rgba(255,255,255,.18)'"
+      title="いま見ている視点を、カメラリセット時の初期位置として登録する">📍 <span id="lbl-set-init-view">現在の視点を初期位置にする</span></button><button
+      id="btn-init-view-more" onclick="toggleInitViewPanel()"
+      style="background:rgba(20,20,22,.88);border:1px solid rgba(255,255,255,.18);border-left:none;
+             color:rgba(200,200,200,.6);border-radius:0 6px 6px 0;padding:5px 7px;
+             font-size:.72em;cursor:pointer;transition:all .2s;white-space:nowrap;"
+      onmouseover="this.style.background='rgba(80,200,120,.18)'"
+      onmouseout="this.style.background='rgba(20,20,22,.88)'"
+      title="初期位置の数値を微調整">▾</button>
+    <div id="init-view-panel" style="display:none;position:absolute;top:calc(100% + 6px);left:0;
+      background:rgba(20,20,22,.97);border:1px solid rgba(255,255,255,.15);border-radius:8px;
+      padding:9px 10px;z-index:400;min-width:230px;box-shadow:0 4px 16px rgba(0,0,0,.5);text-align:left;">
+      <div id="iv-title" style="font-size:.72em;color:rgba(200,200,200,.75);margin-bottom:7px;white-space:nowrap">📍 初期位置（微調整）</div>
+      <div style="display:flex;align-items:center;gap:4px">
+        <span style="color:#ff5566;font-size:.68em;width:10px;text-align:center">X</span>
+        <input type="number" id="iv-x" step="0.1" value="0.00" oninput="applyInitViewInputs()"
+          style="flex:1;min-width:0;background:#1a1a1a;border:1px solid rgba(255,255,255,.15);color:#D8D8D8;border-radius:4px;padding:2px 4px;font-size:.72em;text-align:right">
+        <span style="color:#55ee66;font-size:.68em;width:10px;text-align:center">Y</span>
+        <input type="number" id="iv-y" step="0.1" value="1.70" oninput="applyInitViewInputs()"
+          style="flex:1;min-width:0;background:#1a1a1a;border:1px solid rgba(255,255,255,.15);color:#D8D8D8;border-radius:4px;padding:2px 4px;font-size:.72em;text-align:right">
+        <span style="color:#5599ff;font-size:.68em;width:10px;text-align:center">Z</span>
+        <input type="number" id="iv-z" step="0.1" value="4.00" oninput="applyInitViewInputs()"
+          style="flex:1;min-width:0;background:#1a1a1a;border:1px solid rgba(255,255,255,.15);color:#D8D8D8;border-radius:4px;padding:2px 4px;font-size:.72em;text-align:right">
+      </div>
+      <div style="margin-top:7px;font-size:.68em;color:rgba(200,200,200,.5);white-space:nowrap">
+        <span id="iv-heading-lbl">向き</span>: <span id="iv-heading" style="color:#9fd0ff">－</span>
+      </div>
+    </div>
+  </div>
   <div style="position:relative;display:inline-block;">
     <button id="btnAddCubeTop" onclick="toggleObjTypeMenuTop(this)" style="background:rgba(20,20,22,.88);border:1px solid rgba(255,255,255,.18);color:rgba(200,200,200,.85);border-radius:6px;padding:5px 12px;font-size:.72em;cursor:pointer;transition:all .2s;letter-spacing:.02em;white-space:nowrap;" onmouseover="this.style.background='rgba(255,200,80,.18)';this.style.borderColor='rgba(255,220,100,.45)'" onmouseout="this.style.background='rgba(20,20,22,.88)';this.style.borderColor='rgba(255,255,255,.18)'" title="オブジェクト追加">📦 <span id="lbl-addobj-top">オブジェクト追加</span> ▾</button>
     <div id="obj-type-menu-top" style="display:none;position:absolute;top:calc(100% + 6px);left:0;background:rgba(20,20,22,.97);border:1px solid rgba(255,255,255,.15);border-radius:8px;padding:5px;z-index:400;flex-direction:column;gap:4px;min-width:178px;box-shadow:0 4px 16px rgba(0,0,0,.5);">
@@ -6212,8 +6273,59 @@ window.resetCameraToInitial = function(){
   camPos.copy(_initCamPos);
   setCamRotImmediate(_initYaw, _initPitch);
   showUndoToast(T('cam-reset-msg'));
+  syncInitViewInputs();
   markDirty(10);
 };
+
+// ══ 初期視点(カメラリセット先)を「いま見ている視点」で上書きする ══
+// 運用担当がWASD＋右ドラッグで画角を決め、ボタン一発で初期位置に確定できる
+// ようにするための入口。数値欄(#iv-x/y/z)は微調整用に残し、ここで同期する。
+window.setCurrentViewAsInitial = function(){
+  _initCamPos.copy(camPos);
+  _initYaw = yaw; _initPitch = pitch;
+  syncInitViewInputs();
+  showUndoToast(T('init-view-set-msg'));
+  markDirty(4);
+};
+
+// 数値欄 → _initCamPos（向き yaw/pitch はボタン側でのみ確定する）
+window.applyInitViewInputs = function(){
+  const g = id => { const el=document.getElementById(id); const v=parseFloat(el&&el.value); return isFinite(v)?v:null; };
+  const x=g('iv-x'), y=g('iv-y'), z=g('iv-z');
+  if(x!==null) _initCamPos.x=x;
+  if(y!==null) _initCamPos.y=y;
+  if(z!==null) _initCamPos.z=z;
+};
+
+// _initCamPos → 数値欄。フォーカス中の欄は打鍵を邪魔しないので書き換えない。
+window.syncInitViewInputs = function(){
+  const set=(id,v)=>{ const el=document.getElementById(id); if(el && document.activeElement!==el) el.value=v.toFixed(2); };
+  set('iv-x', _initCamPos.x); set('iv-y', _initCamPos.y); set('iv-z', _initCamPos.z);
+  const hd = document.getElementById('iv-heading');
+  if(hd){
+    // 北 = シーン固定軸の −Z（日照パネルのコンパスと同じ規約）。
+    // 視線ベクトルは (sin yaw, *, cos yaw) なので yaw=0 は +Z＝南を向く。
+    // 北基準・東回りの方位角は atan2(fwd.x, -fwd.z) で求める（= 180° − yaw）。
+    let deg = THREE.MathUtils.radToDeg(Math.atan2(Math.sin(_initYaw), -Math.cos(_initYaw)));
+    deg = (deg % 360 + 360) % 360;
+    const names = window._lang==='en'
+      ? ['N','NE','E','SE','S','SW','W','NW']
+      : ['北','北東','東','南東','南','南西','西','北西'];
+    hd.textContent = names[Math.round(deg/45)%8] + ' (' + deg.toFixed(0) + '°)';
+  }
+};
+
+window.toggleInitViewPanel = function(){
+  const p = document.getElementById('init-view-panel'); if(!p) return;
+  const open = p.style.display !== 'block';
+  p.style.display = open ? 'block' : 'none';
+  if(open) syncInitViewInputs();
+};
+document.addEventListener('mousedown', function(e){
+  const p = document.getElementById('init-view-panel');
+  const b = document.getElementById('btn-init-view-more');
+  if(p && b && p.style.display==='block' && !p.contains(e.target) && !b.contains(e.target)) p.style.display='none';
+});
 
 // Resize handler. iOS Safari fires `resize` on orientation change but
 // the first dispatch frequently arrives with stale innerWidth /
@@ -12333,6 +12445,7 @@ async function loadSplatFile(file){
     // Save as initial camera state for reset button
     _initCamPos.copy(camPos);
     _initYaw=yaw; _initPitch=0;
+    if(typeof syncInitViewInputs==='function') syncInitViewInputs();
 
     await sleep(400); setBar(100); await sleep(300);
     hideLd(); showHUD(); hideDZ();
@@ -12396,6 +12509,7 @@ function loadEmptyProject(){
   camPos.set(0, 1.6, 3.5);
   setCamRotImmediate(Math.PI, 0);
   _initCamPos.copy(camPos); _initYaw = Math.PI; _initPitch = 0;
+  if(typeof syncInitViewInputs==='function') syncInitViewInputs();
   msr.placeDepth = 2.5;
   // Reveal viewer
   showHUD();
@@ -14756,6 +14870,10 @@ const I18N = {
     'lt-appear':'▸ 外観','lt-color':'色','lt-opacity':'透明度','lt-wire':'ワイヤーフレーム',
     'lt-size':'▸ サイズ','lt-yup':'Y 上','lt-zup':'Z 上',
     'lt-scale':'▸ スケール','lt-viewadj':'▸ 表示調整',
+    'lt-heading':'▸ 方角合わせ（横回転 / Y軸）',
+    'lt-heading-hint':'日照パネルの方位コンパス（北＝−Z）を見ながら合わせてください。',
+    'lt-heading-reset-tt':'横回転を 0° に戻す',
+    'init-view-set-msg':'📍 現在の視点を初期位置に設定しました',
     'lt-flip-x':'X軸反転','lt-flip-y':'Y軸反転','lt-flip-z':'Z軸反転','lt-light':'▸ ライト設定','lt-light-color':'色',
     'lt-light-int':'強度','lt-pos-local':'ローカル','lt-pos-world':'ワールド',
     'onote-txt':'シーンが逆さまですか？','onote-btn':'Y軸を反転',
@@ -14881,6 +14999,10 @@ const I18N = {
     'lt-appear':'▸ Appearance','lt-color':'Color','lt-opacity':'Opacity','lt-wire':'Wireframe',
     'lt-size':'▸ Size','lt-yup':'Y Up','lt-zup':'Z Up',
     'lt-scale':'▸ Scale','lt-viewadj':'▸ View Adjust',
+    'lt-heading':'▸ Heading (Yaw / Y-Axis)',
+    'lt-heading-hint':'Match it against the compass in the Sun panel (North = −Z).',
+    'lt-heading-reset-tt':'Reset heading to 0°',
+    'init-view-set-msg':'📍 Current view saved as the initial position',
     'lt-flip-x':'Flip X-Axis','lt-flip-y':'Flip Y-Axis','lt-flip-z':'Flip Z-Axis','lt-light':'▸ Light Settings','lt-light-color':'Color',
     'lt-light-int':'Intensity','lt-pos-local':'Local','lt-pos-world':'World',
     'onote-txt':'Scene upside down?','onote-btn':'Flip Y-Axis',
@@ -15012,7 +15134,7 @@ function applyI18n(){
   // 日照パネルの都市ドロップダウンを言語に合わせて翻訳
   if(typeof _sunApplyCityI18n==='function') _sunApplyCityI18n();
   // HUD labels
-  ['lbl-pos','lbl-spd','lbl-rot','lbl-measure','lbl-flip','lbl-addobj','lbl-quality','lbl-settings','lbl-file','lbl-cam-reset','lbl-camtool','lbl-env','lbl-help','orient-lock-msg','orient-lock-sub','lbl-addobj-top','lbl-addfig-top','tb-save-lbl','tb-undo-lbl','tb-load-lbl','fp-btn-import-lbl','fp-btn-export-lbl','csp-shot-info','csp-cam-info','csp-meta-info','csp-shot-name','csp-rig','csp-env','csp-note','csp-capture','csp-burnin','csp-burnin-grid','csp-capture-btn','csp-salvage','csp-salvage-drop','csp-salvage-sub','ct-tool','ct-lens','ct-focal','ct-sensor','ct-sensor-ff','ct-sensor-apsc','ct-sensor-apsh','ct-sensor-mft','ct-sensor-1inch','ct-sensor-phone13','ct-sensor-phone17','ct-sensor-phone23','ct-sensor-m65','ct-sensor-s35','ct-sensor-bm','ct-sensor-cust','ct-sensor-w','ct-sensor-h','ct-cam-angle','ct-pan','ct-tilt','ct-roll','ct-roll-level','ct-wb','ct-wb-temp','ct-aspect','ct-aspect-sensor','ct-aspect-cust','ct-aspect-apply','ct-margin','ct-grid','ct-grid-multi','ct-grid-guide','ct-grid-off','ct-grid-thirds','ct-grid-golden','ct-grid-cross','ct-grid-diag','ct-grid-safe-cust','ct-grid-action','ct-grid-title','ct-grid-center','ct-grid-custom','ct-grid-cols','ct-grid-rows','ct-grid-opacity','dz-manual-text','dz-ar-label','env-h-title','env-p-off','env-p-day','env-p-morning','env-p-evening','env-p-night','env-p-cloudy','env-p-rain','env-p-overcast','env-p-twilight','env-l-rot','env-l-int','msr-active-lbl','msr-end-lbl','lp-h-scene','lp-empty','qt-title','qt-low','qt-mid','qt-high','qp-perf-t','qp-l-frame','qp-l-gpu','qp-l-head','qp-l-dc','qp-l-tris','qp-l-geos','qp-l-texs','dist-l','msr-clear','msr-undo','em-3dgs','em-3dgs-d','em-zip-save','em-zip-save-d','em-zip-load','em-zip-load-d','em-zip-lite','em-zip-lite-d','rm-title','rm-pick','rm-skip','em-json','em-json-d','em-glb','em-glb-d','em-obj','em-obj-d','em-cancel','em-recommended','em-h-title','qp-settings-t','qp-lbl-lowpoly-main','qp-lbl-lowpoly-hint','qp-lbl-grid','qp-lbl-show','qp-lbl-fov','qp-lbl-spd','cl-title','cl-sub','cl-tag-init','cl-tag-v003','lbl-walk','lbl-save-camera','lbl-view-rec','lbl-view-rec-phone','lbl-cam-anim','giz-pt-a','giz-pt-b','giz-pt-c','giz-height-lbl','height-l','csp-jpeg-q','csp-4k-lbl','obj-add-cube','obj-add-sphere','obj-add-light','obj-add-event','obj-add-path','msr-end-lbl-init'].forEach(id=>{
+  ['lbl-pos','lbl-spd','lbl-rot','lbl-measure','lbl-flip','lbl-addobj','lbl-quality','lbl-settings','lbl-file','lbl-cam-reset','lbl-set-init-view','iv-title','iv-heading-lbl','lbl-camtool','lbl-env','lbl-help','orient-lock-msg','orient-lock-sub','lbl-addobj-top','lbl-addfig-top','tb-save-lbl','tb-undo-lbl','tb-load-lbl','fp-btn-import-lbl','fp-btn-export-lbl','csp-shot-info','csp-cam-info','csp-meta-info','csp-shot-name','csp-rig','csp-env','csp-note','csp-capture','csp-burnin','csp-burnin-grid','csp-capture-btn','csp-salvage','csp-salvage-drop','csp-salvage-sub','ct-tool','ct-lens','ct-focal','ct-sensor','ct-sensor-ff','ct-sensor-apsc','ct-sensor-apsh','ct-sensor-mft','ct-sensor-1inch','ct-sensor-phone13','ct-sensor-phone17','ct-sensor-phone23','ct-sensor-m65','ct-sensor-s35','ct-sensor-bm','ct-sensor-cust','ct-sensor-w','ct-sensor-h','ct-cam-angle','ct-pan','ct-tilt','ct-roll','ct-roll-level','ct-wb','ct-wb-temp','ct-aspect','ct-aspect-sensor','ct-aspect-cust','ct-aspect-apply','ct-margin','ct-grid','ct-grid-multi','ct-grid-guide','ct-grid-off','ct-grid-thirds','ct-grid-golden','ct-grid-cross','ct-grid-diag','ct-grid-safe-cust','ct-grid-action','ct-grid-title','ct-grid-center','ct-grid-custom','ct-grid-cols','ct-grid-rows','ct-grid-opacity','dz-manual-text','dz-ar-label','env-h-title','env-p-off','env-p-day','env-p-morning','env-p-evening','env-p-night','env-p-cloudy','env-p-rain','env-p-overcast','env-p-twilight','env-l-rot','env-l-int','msr-active-lbl','msr-end-lbl','lp-h-scene','lp-empty','qt-title','qt-low','qt-mid','qt-high','qp-perf-t','qp-l-frame','qp-l-gpu','qp-l-head','qp-l-dc','qp-l-tris','qp-l-geos','qp-l-texs','dist-l','msr-clear','msr-undo','em-3dgs','em-3dgs-d','em-zip-save','em-zip-save-d','em-zip-load','em-zip-load-d','em-zip-lite','em-zip-lite-d','rm-title','rm-pick','rm-skip','em-json','em-json-d','em-glb','em-glb-d','em-obj','em-obj-d','em-cancel','em-recommended','em-h-title','qp-settings-t','qp-lbl-lowpoly-main','qp-lbl-lowpoly-hint','qp-lbl-grid','qp-lbl-show','qp-lbl-fov','qp-lbl-spd','cl-title','cl-sub','cl-tag-init','cl-tag-v003','lbl-walk','lbl-save-camera','lbl-view-rec','lbl-view-rec-phone','lbl-cam-anim','giz-pt-a','giz-pt-b','giz-pt-c','giz-height-lbl','height-l','csp-jpeg-q','csp-4k-lbl','obj-add-cube','obj-add-sphere','obj-add-light','obj-add-event','obj-add-path','msr-end-lbl-init'].forEach(id=>{
     const el=document.getElementById(id); if(el) el.textContent=T(id);
   });
   // HUD info-box edit tooltip + dropzone titles
@@ -15044,6 +15166,8 @@ function applyI18n(){
     ['btnViewRec',        'tt-view-rec'],
     ['btnViewRecPhone',   'tt-view-rec'],
     ['btnCamAnim',        'tt-cam-anim'],
+    ['btn-set-init-view', 'tt-set-init-view'],
+    ['btn-init-view-more','tt-init-view-more'],
   ];
   for(const [id, key] of _camTopBtns){
     const el = document.getElementById(id);
@@ -15276,6 +15400,18 @@ window.addFolder = function() {
   renderLayerList();
   showUndoToast(T('folder-added'));
   return L;
+};
+
+// UI(📁＋ボタン)専用の入口。ヘッダーのすぐ隣にあるため誤爆で空フォルダが量産される
+// 事故が多発していたので、ここでだけ確認を挟む (user 2026-08-13)。プログラム側の
+// 呼び出し(カメラレイヤー生成 / ZIP復元)は素の addFolder() を使うので影響しない。
+window.addFolderFromUI = function(ev){
+  if(ev) ev.stopPropagation();
+  const msg = (window._lang === 'en')
+    ? 'Add a new folder to the scene layers?'
+    : 'シーンレイヤーに新しいフォルダを追加しますか？';
+  if(!window.confirm(msg)) return null;
+  return window.addFolder();
 };
 
 window.toggleFolder = function(id, ev) {
@@ -15533,6 +15669,34 @@ window.setObjUpAxis=function(id,axis){
   applyLayerTransform(id);
   renderTransformPanel();
 };
+// ── 方角合わせ (Y軸まわりの横回転のみ) ──
+// 運用は「日照パネルの方位コンパスを見ながら建物の向きを合わせる」作業。
+// 横回転は必ず Y なので、X/Z には一切触れない。
+function _normDeg(d){ d = d % 360; if(d < 0) d += 360; return d; }
+window.setLayerYaw = function(id, deg, fromSlider){
+  const L = findLayer(id); if(!L) return;
+  const v = parseFloat(deg); if(!isFinite(v)) return;
+  if(!L._undoPending){
+    L._undoPending = true;
+    pushGlobalUndo({type:'layer-transform',id:L.id,pos:{...L.pos},rot:{...L.rot},size:{...L.size},scale:{...(L.scale||{x:1,y:1,z:1})}});
+    setTimeout(()=>{ if(L) L._undoPending = false; }, 800);
+  }
+  L.rot.y = _normDeg(v);
+  applyLayerTransform(id);
+  if(fromSlider){
+    // スライダー操作中はドラッグを途切れさせないため、パネル全体は再生成せず
+    // 数値欄と読み出しだけ書き換える。
+    const num = document.getElementById('lt-ry');   if(num) num.value = L.rot.y.toFixed(2);
+    const val = document.getElementById('lt-heading-val'); if(val) val.textContent = L.rot.y.toFixed(0)+'°';
+  } else {
+    renderTransformPanel();
+  }
+};
+window.nudgeLayerYaw = function(id, delta){
+  const L = findLayer(id); if(!L) return;
+  window.setLayerYaw(id, (L.rot.y || 0) + delta);
+};
+
 // ── ピボット座標系の切替 (全レイヤータイプ共通) ──
 window.setLayerPivotSpace=function(id,space){
   const L=findLayer(id); if(!L) return;
@@ -15617,7 +15781,30 @@ function renderTransformPanel(){
         🔄 <span>${label}</span>
       </button>`;
     };
-    html+=`<div class="lt-section">${T('lt-viewadj')}</div>
+    // ── 方角合わせ: 横回転は必ず Y。日照パネルのコンパス(N/S/E/W)を見ながら
+    //    ワンクリックで回せるようにする。X/Z はここでは触らない。 ──
+    const yawNow = ((r.y % 360) + 360) % 360;
+    const yBtn=(d,label)=>`<button onclick="nudgeLayerYaw(${L.id},${d})"
+        style="flex:1;background:#1a1a1a;border:1px solid rgba(255,255,255,.12);color:#bdbdbd;
+               border-radius:4px;padding:5px 0;font-size:.72em;cursor:pointer;transition:all .15s"
+        onmouseover="this.style.background='rgba(255,180,84,.16)';this.style.borderColor='rgba(255,180,84,.5)'"
+        onmouseout="this.style.background='#1a1a1a';this.style.borderColor='rgba(255,255,255,.12)'">${label}</button>`;
+    html+=`<div class="lt-section">${T('lt-heading')}</div>
+  <div class="lt-row" style="gap:5px">
+    ${yBtn(-90,'↺ 90°')}
+    ${yBtn(90,'↻ 90°')}
+    ${yBtn(180,'180°')}
+  </div>
+  <div class="lt-row" style="align-items:center;gap:6px;margin-top:4px">
+    <input type="range" id="lt-heading-rng" min="0" max="359" step="1" value="${yawNow.toFixed(0)}"
+      oninput="setLayerYaw(${L.id},this.value,true)"
+      style="flex:1;height:4px;accent-color:#ffb454">
+    <span id="lt-heading-val" style="font-size:.7em;color:#ffb45499;min-width:34px;text-align:right">${yawNow.toFixed(0)}°</span>
+    <button onclick="setLayerYaw(${L.id},0)" title="${T('lt-heading-reset-tt')}"
+      style="background:#1a1a1a;border:1px solid rgba(255,255,255,.12);color:#8a8a8a;border-radius:4px;padding:3px 7px;font-size:.68em;cursor:pointer">0°</button>
+  </div>
+  <div style="font-size:.62em;color:#5a5a5a;padding:2px 2px 0;line-height:1.4">${T('lt-heading-hint')}</div>
+  <div class="lt-section">${T('lt-viewadj')}</div>
   <div class="lt-row" style="gap:6px">
     ${mkBtn('x',T('lt-flip-x'))}
     ${mkBtn('y',T('lt-flip-y'))}
@@ -20606,6 +20793,10 @@ window.saveProjectZip = async function(forceLite){
       appName:'ロケハン3D',
       projectName:_projectName||'Untitled Project',
       camera:{pos:{x:camPos.x,y:camPos.y,z:camPos.z},yaw,pitch},
+      // 「現在の視点を初期位置にする」で確定した初期視点。camera は保存時の
+      // 現在視点なので、確定後にうっかり動かしてから保存しても初期位置が
+      // 失われないよう別枠で持つ。旧ZIP(このキーが無い)は camera へフォールバック。
+      cameraInit:{pos:{x:_initCamPos.x,y:_initCamPos.y,z:_initCamPos.z},yaw:_initYaw,pitch:_initPitch},
       layerNextId:_layerNextId,
       layers:serialized,
       // 日照シミュの都道府県のみ保存（天気・日時・ON状態は流動的なので保存しない）。
@@ -21091,6 +21282,17 @@ async function restoreProject(project) {
     _initCamPos.copy(camPos);
     _initYaw=yaw; _initPitch=pitch;
   }
+  // 明示的に確定された初期視点があればそれを優先し、開いた直後の視点も揃える。
+  if(project.cameraInit && project.cameraInit.pos){
+    const ci=project.cameraInit;
+    _initCamPos.set(ci.pos.x,ci.pos.y,ci.pos.z);
+    if(typeof ci.yaw==='number') _initYaw=ci.yaw;
+    if(typeof ci.pitch==='number') _initPitch=ci.pitch;
+    camPos.copy(_initCamPos);
+    yaw=_initYaw; pitch=_initPitch;
+    if(typeof setCamRotImmediate==='function') setCamRotImmediate(_initYaw,_initPitch);
+  }
+  if(typeof syncInitViewInputs==='function') syncInitViewInputs();
   _layerNextId=project.layerNextId||100;
   if(project.projectName){
     _projectName=project.projectName;
@@ -22089,6 +22291,11 @@ Object.assign(I18N.ja,{
   'lt-flip-y':'Y軸反転',
   'lt-flip-z':'Z軸反転',
   'lbl-cam-reset':'カメラリセット',
+  'lbl-set-init-view':'現在の視点を初期位置にする',
+  'iv-title':'📍 初期位置（微調整）',
+  'iv-heading-lbl':'向き',
+  'tt-set-init-view':'いま見ている視点を、カメラリセット時の初期位置として登録する',
+  'tt-init-view-more':'初期位置の数値を微調整',
   'lbl-camtool':'カメラ',
   'lbl-env':'環境',
   'lbl-sun':'日照',
@@ -22344,6 +22551,11 @@ Object.assign(I18N.en,{
   'lt-flip-y':'Flip Y-Axis',
   'lt-flip-z':'Flip Z-Axis',
   'lbl-cam-reset':'Cam Reset',
+  'lbl-set-init-view':'Set Current View as Initial',
+  'iv-title':'📍 Initial position (fine-tune)',
+  'iv-heading-lbl':'Heading',
+  'tt-set-init-view':'Register the current view as the camera-reset position',
+  'tt-init-view-more':'Fine-tune the initial position numerically',
   'lbl-camtool':'Camera',
   'lbl-env':'Env',
   'lbl-sun':'Sun',

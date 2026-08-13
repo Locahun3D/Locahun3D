@@ -58,7 +58,9 @@
 .lr .lr-icon{font-size:.85em;flex-shrink:0;}
 .lr .lr-name{flex:1;font-size:.75em;color:#A0A0A0;overflow:hidden;
   text-overflow:ellipsis;white-space:nowrap;}
-.lr .lr-del{font-size:.75em;color:#383838;cursor:pointer;flex-shrink:0;}
+/* 🗑 は #383838 だと背景に沈んで「見えない」と報告があったため視認できる濃さへ
+   (user 2026-08-13)。hover の赤は据え置き。 */
+.lr .lr-del{font-size:.85em;color:#9a9a9a;cursor:pointer;flex-shrink:0;}
 .lr.lr-pivot-hover{background:rgba(255,180,60,.15);border-color:rgba(255,180,60,.4);}
 .color-preset-popup{
   position:fixed;z-index:200;background:rgba(30,30,32,.96);border:1px solid rgba(255,255,255,.12);

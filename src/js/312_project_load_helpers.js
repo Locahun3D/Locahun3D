@@ -37,6 +37,17 @@ async function restoreProject(project) {
     _initCamPos.copy(camPos);
     _initYaw=yaw; _initPitch=pitch;
   }
+  // 明示的に確定された初期視点があればそれを優先し、開いた直後の視点も揃える。
+  if(project.cameraInit && project.cameraInit.pos){
+    const ci=project.cameraInit;
+    _initCamPos.set(ci.pos.x,ci.pos.y,ci.pos.z);
+    if(typeof ci.yaw==='number') _initYaw=ci.yaw;
+    if(typeof ci.pitch==='number') _initPitch=ci.pitch;
+    camPos.copy(_initCamPos);
+    yaw=_initYaw; pitch=_initPitch;
+    if(typeof setCamRotImmediate==='function') setCamRotImmediate(_initYaw,_initPitch);
+  }
+  if(typeof syncInitViewInputs==='function') syncInitViewInputs();
   _layerNextId=project.layerNextId||100;
   if(project.projectName){
     _projectName=project.projectName;

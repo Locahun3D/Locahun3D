@@ -114,6 +114,21 @@ body{position:fixed;top:0;left:0;}
 #topbar,
 #topbar button,
 #immersive-exit{ touch-action:manipulation; }
+/* 上部ボタン行は viewport 中央基準 (inline `left:50%`) に置かれているが、
+   「📍現在の視点を初期位置にする」が加わって行が長くなり、狭いデスクトップ
+   (≲1400px) では左端が シーンレイヤーパネルの下に潜り込むようになった。
+   タッチ端末で既に使っている手法(--lp-width で「パネルより右の空き」に対して
+   センタリング＋折り返し)を、狭いデスクトップにも同じ形で適用する。
+   inline style の left に勝つ必要があるので left だけ !important。
+   カメラモード中は body.cam-active 側の !important ルールが引き続き優先。 */
+@media (hover:hover) and (max-width:1400px){
+  #view-tl-btns{
+    left: calc((100% + var(--lp-width, 0px)) / 2) !important;
+    flex-wrap: wrap;
+    row-gap: 5px;
+    max-width: calc(100% - var(--lp-width, 0px) - 24px);
+  }
+}
 #c{
   display:block;width:100vw;height:100vh;touch-action:none;
   /* will-change:transform promotes the canvas to its own compositor layer

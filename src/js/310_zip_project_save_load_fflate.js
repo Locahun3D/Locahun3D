@@ -305,6 +305,10 @@ window.saveProjectZip = async function(forceLite){
       appName:'ロケハン3D',
       projectName:_projectName||'Untitled Project',
       camera:{pos:{x:camPos.x,y:camPos.y,z:camPos.z},yaw,pitch},
+      // 「現在の視点を初期位置にする」で確定した初期視点。camera は保存時の
+      // 現在視点なので、確定後にうっかり動かしてから保存しても初期位置が
+      // 失われないよう別枠で持つ。旧ZIP(このキーが無い)は camera へフォールバック。
+      cameraInit:{pos:{x:_initCamPos.x,y:_initCamPos.y,z:_initCamPos.z},yaw:_initYaw,pitch:_initPitch},
       layerNextId:_layerNextId,
       layers:serialized,
       // 日照シミュの都道府県のみ保存（天気・日時・ON状態は流動的なので保存しない）。
