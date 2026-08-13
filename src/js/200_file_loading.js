@@ -253,6 +253,8 @@ async function loadSplatFile(file){
     // of how many additional splats are loaded later.
     mainL._splatCache = stats.cache;
     mainL._splatCacheCount = stats.cacheCount;
+    // プロジェクト名が未設定なら、読み込んだ 3DGS のファイル名で埋める。
+    if(typeof setProjectNameFromFile==='function') setProjectNameFromFile(file.name);
     selectLayer(mainL.id);
 
     setBar(78); setMsg(T('placing-cam'));
@@ -285,8 +287,7 @@ async function loadSplatFile(file){
     // Save as initial camera state for reset button
     _initCamPos.copy(camPos);
     _initYaw=yaw; _initPitch=0;
-    if(typeof syncInitViewInputs==='function') syncInitViewInputs();
-
+  
     await sleep(400); setBar(100); await sleep(300);
     hideLd(); showHUD(); hideDZ();
     // Force continuous rendering while Spark streams/sorts the 3DGS (async).
@@ -349,7 +350,6 @@ function loadEmptyProject(){
   camPos.set(0, 1.6, 3.5);
   setCamRotImmediate(Math.PI, 0);
   _initCamPos.copy(camPos); _initYaw = Math.PI; _initPitch = 0;
-  if(typeof syncInitViewInputs==='function') syncInitViewInputs();
   msr.placeDepth = 2.5;
   // Reveal viewer
   showHUD();

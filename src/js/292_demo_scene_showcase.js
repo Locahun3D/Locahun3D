@@ -198,6 +198,8 @@ async function loadFromURL(url, displayName){
       mainL._isMain = true;
       mainL._rawExt = 'rad';
       mainL._streamUrl = url;
+      // プロジェクト名が未設定なら、読み込んだ 3DGS のファイル名で埋める。
+      if(typeof setProjectNameFromFile==='function') setProjectNameFromFile(name);
       // Demo scene (交差点) ships slightly below the grid floor and a touch
       // off-axis, so when we autoload it apply the curated transform the
       // gizmo panel shows (Pos Y 1.5, Rot Y -168°). The -168° yaw aligns the

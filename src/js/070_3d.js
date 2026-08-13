@@ -215,59 +215,18 @@ window.resetCameraToInitial = function(){
   camPos.copy(_initCamPos);
   setCamRotImmediate(_initYaw, _initPitch);
   showUndoToast(T('cam-reset-msg'));
-  syncInitViewInputs();
   markDirty(10);
 };
 
 // ══ 初期視点(カメラリセット先)を「いま見ている視点」で上書きする ══
-// 運用担当がWASD＋右ドラッグで画角を決め、ボタン一発で初期位置に確定できる
-// ようにするための入口。数値欄(#iv-x/y/z)は微調整用に残し、ここで同期する。
+// 運用担当がWASD＋右ドラッグで画角を決め、ワンクリックで初期位置に確定できる
+// ようにするための入口。UI は画質パネル最下部の小さなボタン(#qp-set-init-view)。
 window.setCurrentViewAsInitial = function(){
   _initCamPos.copy(camPos);
   _initYaw = yaw; _initPitch = pitch;
-  syncInitViewInputs();
   showUndoToast(T('init-view-set-msg'));
   markDirty(4);
 };
-
-// 数値欄 → _initCamPos（向き yaw/pitch はボタン側でのみ確定する）
-window.applyInitViewInputs = function(){
-  const g = id => { const el=document.getElementById(id); const v=parseFloat(el&&el.value); return isFinite(v)?v:null; };
-  const x=g('iv-x'), y=g('iv-y'), z=g('iv-z');
-  if(x!==null) _initCamPos.x=x;
-  if(y!==null) _initCamPos.y=y;
-  if(z!==null) _initCamPos.z=z;
-};
-
-// _initCamPos → 数値欄。フォーカス中の欄は打鍵を邪魔しないので書き換えない。
-window.syncInitViewInputs = function(){
-  const set=(id,v)=>{ const el=document.getElementById(id); if(el && document.activeElement!==el) el.value=v.toFixed(2); };
-  set('iv-x', _initCamPos.x); set('iv-y', _initCamPos.y); set('iv-z', _initCamPos.z);
-  const hd = document.getElementById('iv-heading');
-  if(hd){
-    // 北 = シーン固定軸の −Z（日照パネルのコンパスと同じ規約）。
-    // 視線ベクトルは (sin yaw, *, cos yaw) なので yaw=0 は +Z＝南を向く。
-    // 北基準・東回りの方位角は atan2(fwd.x, -fwd.z) で求める（= 180° − yaw）。
-    let deg = THREE.MathUtils.radToDeg(Math.atan2(Math.sin(_initYaw), -Math.cos(_initYaw)));
-    deg = (deg % 360 + 360) % 360;
-    const names = window._lang==='en'
-      ? ['N','NE','E','SE','S','SW','W','NW']
-      : ['北','北東','東','南東','南','南西','西','北西'];
-    hd.textContent = names[Math.round(deg/45)%8] + ' (' + deg.toFixed(0) + '°)';
-  }
-};
-
-window.toggleInitViewPanel = function(){
-  const p = document.getElementById('init-view-panel'); if(!p) return;
-  const open = p.style.display !== 'block';
-  p.style.display = open ? 'block' : 'none';
-  if(open) syncInitViewInputs();
-};
-document.addEventListener('mousedown', function(e){
-  const p = document.getElementById('init-view-panel');
-  const b = document.getElementById('btn-init-view-more');
-  if(p && b && p.style.display==='block' && !p.contains(e.target) && !b.contains(e.target)) p.style.display='none';
-});
 
 // Resize handler. iOS Safari fires `resize` on orientation change but
 // the first dispatch frequently arrives with stale innerWidth /

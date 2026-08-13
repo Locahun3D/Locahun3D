@@ -216,7 +216,22 @@ document.querySelectorAll('#gizmo input[type=number]').forEach(inp=>{
 
 
 // PROJECT NAME
-let _projectName = 'Untitled Project';
+const _PROJECT_NAME_DEFAULT = 'Untitled Project';
+let _projectName = _PROJECT_NAME_DEFAULT;
+// 最初に読み込んだ 3DGS のファイル名をそのままプロジェクト名にする (user 2026-08-13)。
+// 従来は毎回 RAD のファイル名をコピペして書き換えていた手作業。既にユーザーが
+// 名前を付けている場合（＝既定値以外）は絶対に上書きしない。ZIP プロジェクトの
+// 復元も自前の名前を持つのでここは通らない。
+window.setProjectNameFromFile = function(fileName){
+  if(!fileName) return;
+  if(_projectName && _projectName !== _PROJECT_NAME_DEFAULT) return;
+  const base = String(fileName).replace(/\.[^.]+$/, '').trim();
+  if(!base) return;
+  _projectName = base;
+  const el = document.getElementById('tb-project-name');
+  if(el) el.textContent = base;
+  document.title = base + ' - ' + (window._lang==='en' ? 'LOCAHUN 3D' : 'ロケハン3D');
+};
 window.startEditProjectName = function(){
   const el = document.getElementById('tb-project-name');
   if(!el) return;

@@ -134,21 +134,6 @@ body{position:fixed;top:0;left:0;}
 #topbar,
 #topbar button,
 #immersive-exit{ touch-action:manipulation; }
-/* 上部ボタン行は viewport 中央基準 (inline `left:50%`) に置かれているが、
-   「📍現在の視点を初期位置にする」が加わって行が長くなり、狭いデスクトップ
-   (≲1400px) では左端が シーンレイヤーパネルの下に潜り込むようになった。
-   タッチ端末で既に使っている手法(--lp-width で「パネルより右の空き」に対して
-   センタリング＋折り返し)を、狭いデスクトップにも同じ形で適用する。
-   inline style の left に勝つ必要があるので left だけ !important。
-   カメラモード中は body.cam-active 側の !important ルールが引き続き優先。 */
-@media (hover:hover) and (max-width:1400px){
-  #view-tl-btns{
-    left: calc((100% + var(--lp-width, 0px)) / 2) !important;
-    flex-wrap: wrap;
-    row-gap: 5px;
-    max-width: calc(100% - var(--lp-width, 0px) - 24px);
-  }
-}
 #c{
   display:block;width:100vw;height:100vh;touch-action:none;
   /* will-change:transform promotes the canvas to its own compositor layer
@@ -2003,6 +1988,31 @@ body.immersive #immersive-exit{ display:inline-block; }
 
   <div style="margin-top:7px;font-size:.62em;color:#303030;text-align:right" id="qp-resolution">—</div>
   </div><!-- /qp-perf-section -->
+
+  <!-- ══ 初期視点（運用担当だけが使う機能） ══
+       一般ユーザーは触らないので上部ボタン行には出さず、画質パネルの最下部に
+       小さく置く (user 2026-08-13)。押すと「カメラリセットで戻ってくる視点」が
+       確定する。自動のほうは splat の幾何から位置と向きを決める(174/175)。 -->
+  <div class="qp-divider"></div>
+  <div class="qp-perf-title" id="qp-init-h">📍 初期視点（カメラリセット先）</div>
+  <div class="qrow" style="display:flex;flex-direction:column;gap:4px;margin:4px 0 2px">
+    <button id="qp-set-init-view" onclick="setCurrentViewAsInitial()"
+      title="いま見ている視点を、カメラリセット時の初期位置として登録する"
+      style="background:#1a1a1a;border:1px solid rgba(255,255,255,.12);color:#9a9a9a;
+             border-radius:4px;padding:4px 6px;font-size:.7em;cursor:pointer;
+             text-align:left;transition:all .15s;white-space:nowrap;overflow:hidden;text-overflow:ellipsis"
+      onmouseover="this.style.background='rgba(80,200,120,.16)';this.style.borderColor='rgba(100,255,160,.4)'"
+      onmouseout="this.style.background='#1a1a1a';this.style.borderColor='rgba(255,255,255,.12)'"
+      >📍 <span id="lbl-set-init-view">現在の視点を初期位置にする</span></button>
+    <button id="qp-auto-init-view" onclick="autoPlaceInitialView()"
+      title="splatの形状から初期位置と向きを自動で決める（気に入らなければ上のボタンで上書きできます）"
+      style="background:#1a1a1a;border:1px solid rgba(255,255,255,.12);color:#9a9a9a;
+             border-radius:4px;padding:4px 6px;font-size:.7em;cursor:pointer;
+             text-align:left;transition:all .15s;white-space:nowrap;overflow:hidden;text-overflow:ellipsis"
+      onmouseover="this.style.background='rgba(80,200,120,.16)';this.style.borderColor='rgba(100,255,160,.4)'"
+      onmouseout="this.style.background='#1a1a1a';this.style.borderColor='rgba(255,255,255,.12)'"
+      >🎯 <span id="lbl-auto-init-view">初期位置を自動で決める</span></button>
+  </div>
 </div>
 
 <!-- ══ View Top-Left Buttons (projection toggle + camera reset) ══ -->
@@ -2019,45 +2029,6 @@ body.immersive #immersive-exit{ display:inline-block; }
     onmouseover="this.style.background='rgba(80,200,120,.18)';this.style.borderColor='rgba(100,255,160,.45)'"
     onmouseout="this.style.background='rgba(20,20,22,.88)';this.style.borderColor='rgba(255,255,255,.18)'"
     title="カメラを初期位置にリセット">🏠 <span id="lbl-cam-reset">カメラリセット</span></button>
-  <!-- 現在の視点を初期位置に確定する（運用作業の主役ボタン）。カメラリセットの
-       すぐ右に置き、押した直後に 🏠 で戻って確認できる並びにしてある。右端の ▾ は
-       微調整用の数値パネル(#init-view-panel)を開く。ラッパー div なのでタッチ端末では
-       既存の `#view-tl-btns > div` 非表示ルールに乗って自動的に隠れる（PC運用機能）。 -->
-  <div style="position:relative;display:inline-flex;flex-shrink:0;white-space:nowrap;">
-    <button id="btn-set-init-view" onclick="setCurrentViewAsInitial()"
-      style="background:rgba(20,20,22,.88);border:1px solid rgba(255,255,255,.18);
-             color:rgba(200,200,200,.85);border-radius:6px 0 0 6px;padding:5px 12px;
-             font-size:.72em;cursor:pointer;transition:all .2s;letter-spacing:.02em;white-space:nowrap;"
-      onmouseover="this.style.background='rgba(80,200,120,.18)';this.style.borderColor='rgba(100,255,160,.45)'"
-      onmouseout="this.style.background='rgba(20,20,22,.88)';this.style.borderColor='rgba(255,255,255,.18)'"
-      title="いま見ている視点を、カメラリセット時の初期位置として登録する">📍 <span id="lbl-set-init-view">現在の視点を初期位置にする</span></button><button
-      id="btn-init-view-more" onclick="toggleInitViewPanel()"
-      style="background:rgba(20,20,22,.88);border:1px solid rgba(255,255,255,.18);border-left:none;
-             color:rgba(200,200,200,.6);border-radius:0 6px 6px 0;padding:5px 7px;
-             font-size:.72em;cursor:pointer;transition:all .2s;white-space:nowrap;"
-      onmouseover="this.style.background='rgba(80,200,120,.18)'"
-      onmouseout="this.style.background='rgba(20,20,22,.88)'"
-      title="初期位置の数値を微調整">▾</button>
-    <div id="init-view-panel" style="display:none;position:absolute;top:calc(100% + 6px);left:0;
-      background:rgba(20,20,22,.97);border:1px solid rgba(255,255,255,.15);border-radius:8px;
-      padding:9px 10px;z-index:400;min-width:230px;box-shadow:0 4px 16px rgba(0,0,0,.5);text-align:left;">
-      <div id="iv-title" style="font-size:.72em;color:rgba(200,200,200,.75);margin-bottom:7px;white-space:nowrap">📍 初期位置（微調整）</div>
-      <div style="display:flex;align-items:center;gap:4px">
-        <span style="color:#ff5566;font-size:.68em;width:10px;text-align:center">X</span>
-        <input type="number" id="iv-x" step="0.1" value="0.00" oninput="applyInitViewInputs()"
-          style="flex:1;min-width:0;background:#1a1a1a;border:1px solid rgba(255,255,255,.15);color:#D8D8D8;border-radius:4px;padding:2px 4px;font-size:.72em;text-align:right">
-        <span style="color:#55ee66;font-size:.68em;width:10px;text-align:center">Y</span>
-        <input type="number" id="iv-y" step="0.1" value="1.70" oninput="applyInitViewInputs()"
-          style="flex:1;min-width:0;background:#1a1a1a;border:1px solid rgba(255,255,255,.15);color:#D8D8D8;border-radius:4px;padding:2px 4px;font-size:.72em;text-align:right">
-        <span style="color:#5599ff;font-size:.68em;width:10px;text-align:center">Z</span>
-        <input type="number" id="iv-z" step="0.1" value="4.00" oninput="applyInitViewInputs()"
-          style="flex:1;min-width:0;background:#1a1a1a;border:1px solid rgba(255,255,255,.15);color:#D8D8D8;border-radius:4px;padding:2px 4px;font-size:.72em;text-align:right">
-      </div>
-      <div style="margin-top:7px;font-size:.68em;color:rgba(200,200,200,.5);white-space:nowrap">
-        <span id="iv-heading-lbl">向き</span>: <span id="iv-heading" style="color:#9fd0ff">－</span>
-      </div>
-    </div>
-  </div>
   <div style="position:relative;display:inline-block;">
     <button id="btnAddCubeTop" onclick="toggleObjTypeMenuTop(this)" style="background:rgba(20,20,22,.88);border:1px solid rgba(255,255,255,.18);color:rgba(200,200,200,.85);border-radius:6px;padding:5px 12px;font-size:.72em;cursor:pointer;transition:all .2s;letter-spacing:.02em;white-space:nowrap;" onmouseover="this.style.background='rgba(255,200,80,.18)';this.style.borderColor='rgba(255,220,100,.45)'" onmouseout="this.style.background='rgba(20,20,22,.88)';this.style.borderColor='rgba(255,255,255,.18)'" title="オブジェクト追加">📦 <span id="lbl-addobj-top">オブジェクト追加</span> ▾</button>
     <div id="obj-type-menu-top" style="display:none;position:absolute;top:calc(100% + 6px);left:0;background:rgba(20,20,22,.97);border:1px solid rgba(255,255,255,.15);border-radius:8px;padding:5px;z-index:400;flex-direction:column;gap:4px;min-width:178px;box-shadow:0 4px 16px rgba(0,0,0,.5);">
@@ -6273,59 +6244,18 @@ window.resetCameraToInitial = function(){
   camPos.copy(_initCamPos);
   setCamRotImmediate(_initYaw, _initPitch);
   showUndoToast(T('cam-reset-msg'));
-  syncInitViewInputs();
   markDirty(10);
 };
 
 // ══ 初期視点(カメラリセット先)を「いま見ている視点」で上書きする ══
-// 運用担当がWASD＋右ドラッグで画角を決め、ボタン一発で初期位置に確定できる
-// ようにするための入口。数値欄(#iv-x/y/z)は微調整用に残し、ここで同期する。
+// 運用担当がWASD＋右ドラッグで画角を決め、ワンクリックで初期位置に確定できる
+// ようにするための入口。UI は画質パネル最下部の小さなボタン(#qp-set-init-view)。
 window.setCurrentViewAsInitial = function(){
   _initCamPos.copy(camPos);
   _initYaw = yaw; _initPitch = pitch;
-  syncInitViewInputs();
   showUndoToast(T('init-view-set-msg'));
   markDirty(4);
 };
-
-// 数値欄 → _initCamPos（向き yaw/pitch はボタン側でのみ確定する）
-window.applyInitViewInputs = function(){
-  const g = id => { const el=document.getElementById(id); const v=parseFloat(el&&el.value); return isFinite(v)?v:null; };
-  const x=g('iv-x'), y=g('iv-y'), z=g('iv-z');
-  if(x!==null) _initCamPos.x=x;
-  if(y!==null) _initCamPos.y=y;
-  if(z!==null) _initCamPos.z=z;
-};
-
-// _initCamPos → 数値欄。フォーカス中の欄は打鍵を邪魔しないので書き換えない。
-window.syncInitViewInputs = function(){
-  const set=(id,v)=>{ const el=document.getElementById(id); if(el && document.activeElement!==el) el.value=v.toFixed(2); };
-  set('iv-x', _initCamPos.x); set('iv-y', _initCamPos.y); set('iv-z', _initCamPos.z);
-  const hd = document.getElementById('iv-heading');
-  if(hd){
-    // 北 = シーン固定軸の −Z（日照パネルのコンパスと同じ規約）。
-    // 視線ベクトルは (sin yaw, *, cos yaw) なので yaw=0 は +Z＝南を向く。
-    // 北基準・東回りの方位角は atan2(fwd.x, -fwd.z) で求める（= 180° − yaw）。
-    let deg = THREE.MathUtils.radToDeg(Math.atan2(Math.sin(_initYaw), -Math.cos(_initYaw)));
-    deg = (deg % 360 + 360) % 360;
-    const names = window._lang==='en'
-      ? ['N','NE','E','SE','S','SW','W','NW']
-      : ['北','北東','東','南東','南','南西','西','北西'];
-    hd.textContent = names[Math.round(deg/45)%8] + ' (' + deg.toFixed(0) + '°)';
-  }
-};
-
-window.toggleInitViewPanel = function(){
-  const p = document.getElementById('init-view-panel'); if(!p) return;
-  const open = p.style.display !== 'block';
-  p.style.display = open ? 'block' : 'none';
-  if(open) syncInitViewInputs();
-};
-document.addEventListener('mousedown', function(e){
-  const p = document.getElementById('init-view-panel');
-  const b = document.getElementById('btn-init-view-more');
-  if(p && b && p.style.display==='block' && !p.contains(e.target) && !b.contains(e.target)) p.style.display='none';
-});
 
 // Resize handler. iOS Safari fires `resize` on orientation change but
 // the first dispatch frequently arrives with stale innerWidth /
@@ -11478,6 +11408,601 @@ function estimatePLYStats(buffer,flipYZ) {
 
 
 // ══════════════════════════════════════════════════
+//  AUTO CAMERA PLACEMENT — 幾何エンジン（純粋関数）
+//
+//  設計書: F:\Claude\docs\設計_カメラ初期位置の自動決定パイプライン_2026-08-13.md
+//
+//  「カメラ初期位置」を splat 点群の幾何だけで決定的に解く。画像認識は使わない。
+//  ここには Spark / THREE / DOM への依存を一切置かない —— 点群(Float32Array の
+//  x,y,z 連番)を渡せばスコアと位置が返るだけの純粋な計算。単体テストのため
+//  (scripts/test-auto-camera.mjs が この1ファイルだけを eval して検証する)。
+//
+//  ブラウザ側の配線（splat の取り出し・ボタン・トースト）は 175 に置く。
+// ══════════════════════════════════════════════════
+(function (root) {
+  'use strict';
+
+  // ── パラメータ ────────────────────────────────────────────────
+  // 設計書 §2 の数値をそのまま定数化してある。実データに合わせて動かすときは
+  // ここだけを触ればよい（コード中に数値を散らさない）。★印は設計書に明示の
+  // 数値が無く、こちらで決めた値。
+  const P = {
+    VOXEL: 0.3,                  // §2-1 占有グリッドのボクセル辺長 [m]
+    VOXEL_LARGE: 0.5,            // §2-1 広い屋外はここまで緩和
+    LARGE_SCENE_EXTENT: 60,      // ★ 水平の最大辺がこれを超えたら「広い屋外」[m]
+    MAX_VOXELS: 40e6,            // ★ メモリ保護。超えたらボクセルを粗くする
+    OCCUPANCY_MIN_POINTS: 3,     // §2-1 3点以上で占有（フローター対策）
+
+    FLOOR_BIN: 0.1,              // §2-2 Yヒストグラムの刻み [m]
+    FLOOR_PERCENTILE: 0.05,      // §2-2 累積5%より下は外れ値として無視
+    // ★ 床候補ピークを探すのは高さレンジの下60%まで。天井を床と誤らないための
+    //   上限だが、狭すぎると §2-2 の「多層構造では最も点数の多い層を採る」規定で
+    //   2階側を拾えなくなる（下40%だと 0-8m のスキャンで y=4 の層が範囲外に
+    //   落ちた）。室内の天井は必ずレンジ上端＝100%側に来るので 60% で両立する。
+    FLOOR_SEARCH_FRACTION: 0.6,
+    FLOOR_PEAK_MIN_RATIO: 0.25,  // ★ 最大ピークのこの割合未満は「密なピーク」と認めない
+    EYE_HEIGHT: 1.5,             // §2-2 目線高さ = 床 + 1.5m
+
+    CLEAR_RADIUS: 0.5,           // §2-3 水平これ以内は全て非占有であること [m]
+    FLOOR_BELOW: 1.5,            // §2-3 真下これ以内に床(占有)があること [m]
+
+    RAYS: 64,                    // §2-4 水平レイの本数
+    RAY_MAX: 30,                 // §2-4 レイ距離の上限 [m]
+    CONTENT_MIN: 3,              // §2-4 content はこの距離以上でのヒットを数える [m]
+    HEADROOM_CAP: 5,             // ★ 真上レイの正規化上限 [m]
+    W_OPEN: 0.35, W_CONTENT: 0.35, W_CENTRALITY: 0.20, W_HEADROOM: 0.10,  // §2-4 重み
+
+    YAW_BINS: 72,                // §2-5 5°刻み
+    YAW_FOV_DEG: 60,             // §2-5 水平画角
+    YAW_MIN_DIST: 2,             // §2-5 近すぎる点は除外 [m]
+    YAW_MAX_DIST: 30,            // §2-5 遠すぎる点は除外 [m]
+    YAW_FALLOFF: 10,             // ★ 距離減衰 w = 1/(1+d/FALLOFF)
+
+    CONFIDENCE_THRESHOLD: 70,    // §2-6 これ未満は needsReview
+    MAX_CANDIDATES_SCORED: 2000, // ★ 採点する候補数の上限（等間隔で間引く）
+    MAX_POINTS_FOR_YAW: 60000,   // ★ yaw 決定に使う点数の上限
+
+    // ★ 偽陽性ガード（設計書 §5「明らかに悪い配置が信頼度70以上で通らないこと」）。
+    //   スコアの重み付き和だけだと、壁に近すぎる/虚空を向く候補でも他の指標が
+    //   高ければ 70 を超えうるので、上限でクリップする。
+    WALL_TOO_CLOSE: 0.8, WALL_PENALTY_CAP: 40,
+    CONTENT_TOO_LOW: 0.4, CONTENT_PENALTY_CAP: 50,
+
+    // ★ openness の正規化上限。設計書は「上限30mでクランプ」だが、それを
+    //   そのまま 0-1 化すると室内(見通し5-8m)は openness≈0.2 にしかならず、
+    //   人手と同等の良い配置でも信頼度が 70 に届かない。シーンの水平サイズの
+    //   半分（4〜30mでクランプ）で正規化し、「そのシーンとして見通せているか」
+    //   を測る。レイ自体の打ち切りは設計書どおり 30m。
+    OPEN_CAP_MIN: 4, OPEN_CAP_MAX: 30,
+  };
+
+  const clamp = (v, lo, hi) => (v < lo ? lo : v > hi ? hi : v);
+
+  // ── 1. 占有グリッド ───────────────────────────────────────────
+  // points: Float32Array(x,y,z,...) / count: 点数
+  // 返り値の counts は各ボクセルの点数（0-65535 でクリップ）。occupied() で判定する。
+  function buildOccupancy(points, count, opts) {
+    opts = opts || {};
+    let minX = Infinity, minY = Infinity, minZ = Infinity;
+    let maxX = -Infinity, maxY = -Infinity, maxZ = -Infinity;
+    for (let i = 0; i < count; i++) {
+      const x = points[i * 3], y = points[i * 3 + 1], z = points[i * 3 + 2];
+      if (!isFinite(x) || !isFinite(y) || !isFinite(z)) continue;
+      if (x < minX) minX = x; if (x > maxX) maxX = x;
+      if (y < minY) minY = y; if (y > maxY) maxY = y;
+      if (z < minZ) minZ = z; if (z > maxZ) maxZ = z;
+    }
+    if (!isFinite(minX)) return null;
+
+    // ★ 上方向の余白。目線高さ(床+1.5m)と headroom レイ(5m)がグリッドの外に
+    //   出ると候補ゼロになってしまう（平坦な広場のスキャン＝点群の最高点が
+    //   1m しかない、等）。空のボクセルを上へ足しておく。
+    maxY += P.EYE_HEIGHT + P.HEADROOM_CAP;
+
+    const extentX = maxX - minX, extentY = maxY - minY, extentZ = maxZ - minZ;
+    const horizExtent = Math.max(extentX, extentZ);
+    // 広い屋外は 0.5m へ自動緩和（設計書 §2-1）
+    let voxel = opts.voxel || (horizExtent > P.LARGE_SCENE_EXTENT ? P.VOXEL_LARGE : P.VOXEL);
+    // メモリ保護: ボクセル数が上限を超えるうちは粗くしていく
+    for (let guard = 0; guard < 12; guard++) {
+      const n = ((extentX / voxel) + 2) * ((extentY / voxel) + 2) * ((extentZ / voxel) + 2);
+      if (n <= P.MAX_VOXELS) break;
+      voxel *= 1.5;
+    }
+
+    const nx = Math.max(1, Math.floor(extentX / voxel) + 1);
+    const ny = Math.max(1, Math.floor(extentY / voxel) + 1);
+    const nz = Math.max(1, Math.floor(extentZ / voxel) + 1);
+    const counts = new Uint16Array(nx * ny * nz);
+    for (let i = 0; i < count; i++) {
+      const x = points[i * 3], y = points[i * 3 + 1], z = points[i * 3 + 2];
+      if (!isFinite(x) || !isFinite(y) || !isFinite(z)) continue;
+      const ix = clamp(Math.floor((x - minX) / voxel), 0, nx - 1);
+      const iy = clamp(Math.floor((y - minY) / voxel), 0, ny - 1);
+      const iz = clamp(Math.floor((z - minZ) / voxel), 0, nz - 1);
+      const k = (iy * nz + iz) * nx + ix;
+      if (counts[k] < 65535) counts[k]++;
+    }
+    return {
+      voxel, nx, ny, nz, counts,
+      min: { x: minX, y: minY, z: minZ },
+      max: { x: maxX, y: maxY, z: maxZ },
+      horizExtent,
+      minPoints: opts.minPoints != null ? opts.minPoints : P.OCCUPANCY_MIN_POINTS,
+    };
+  }
+
+  function occupied(g, ix, iy, iz) {
+    if (ix < 0 || iy < 0 || iz < 0 || ix >= g.nx || iy >= g.ny || iz >= g.nz) return false;
+    return g.counts[(iy * g.nz + iz) * g.nx + ix] >= g.minPoints;
+  }
+
+  // ── 2. 床面の検出 ─────────────────────────────────────────────
+  // 0.1m 刻みの Y ヒストグラム。累積5パーセンタイル以降・高さレンジ下40%以内の
+  // 「密なピーク」のうち最も点数の多いものを床とする（設計書 §2-2 の多層規定）。
+  function detectFloor(points, count) {
+    let minY = Infinity, maxY = -Infinity;
+    for (let i = 0; i < count; i++) {
+      const y = points[i * 3 + 1];
+      if (!isFinite(y)) continue;
+      if (y < minY) minY = y; if (y > maxY) maxY = y;
+    }
+    if (!isFinite(minY)) return null;
+    const span = Math.max(maxY - minY, 1e-6);
+    const nb = Math.max(1, Math.ceil(span / P.FLOOR_BIN) + 1);
+    const hist = new Int32Array(nb);
+    let valid = 0;
+    for (let i = 0; i < count; i++) {
+      const y = points[i * 3 + 1];
+      if (!isFinite(y)) continue;
+      hist[clamp(Math.floor((y - minY) / P.FLOOR_BIN), 0, nb - 1)]++;
+      valid++;
+    }
+    if (!valid) return null;
+
+    // 累積5パーセンタイル（地下・ノイズを避ける）
+    let cum = 0, startBin = 0;
+    const need = valid * P.FLOOR_PERCENTILE;
+    for (let b = 0; b < nb; b++) { cum += hist[b]; if (cum >= need) { startBin = b; break; } }
+    // 探索範囲は高さレンジの下 FLOOR_SEARCH_FRACTION まで（天井を床と誤らないため）
+    const endBin = Math.max(startBin, Math.min(nb - 1, Math.floor(nb * P.FLOOR_SEARCH_FRACTION)));
+
+    let globalMax = 0;
+    for (let b = startBin; b <= endBin; b++) if (hist[b] > globalMax) globalMax = hist[b];
+    if (globalMax <= 0) return { y: minY, confident: false, hist, minY, binSize: P.FLOOR_BIN };
+
+    // 局所ピーク（両隣以上）かつ最大ピークの FLOOR_PEAK_MIN_RATIO 以上を候補に。
+    // 候補が複数＝多層構造なので、そのうち最も点数の多い層を採る。
+    let bestBin = -1, bestVal = -1, peaks = 0;
+    for (let b = startBin; b <= endBin; b++) {
+      const v = hist[b];
+      if (v < globalMax * P.FLOOR_PEAK_MIN_RATIO) continue;
+      const prev = b > 0 ? hist[b - 1] : 0, next = b < nb - 1 ? hist[b + 1] : 0;
+      if (v < prev || v < next) continue;
+      peaks++;
+      if (v > bestVal) { bestVal = v; bestBin = b; }
+    }
+    if (bestBin < 0) { bestBin = startBin; bestVal = hist[startBin]; }
+    return {
+      y: minY + bestBin * P.FLOOR_BIN,
+      // 「はっきりした床」＝ピークが平均の2倍以上ある（信頼度に効かせる）
+      confident: bestVal >= (valid / nb) * 2,
+      peakCount: peaks, peakRatio: bestVal / valid,
+      minY, maxY, hist, binSize: P.FLOOR_BIN,
+    };
+  }
+
+  // ── 3. 水平レイ（2D DDA, Amanatides–Woo）────────────────────────
+  // 目線スライス(iy固定)上を進み、最初に占有ボクセルへ当たるまでの距離を返す。
+  // 当たらなければ maxDist（グリッド外へ出た場合も maxDist 扱い＝「開けている」）。
+  function castRay2D(g, iy, ox, oz, dx, dz, maxDist) {
+    let ix = clamp(Math.floor((ox - g.min.x) / g.voxel), 0, g.nx - 1);
+    let iz = clamp(Math.floor((oz - g.min.z) / g.voxel), 0, g.nz - 1);
+    const stepX = dx > 0 ? 1 : -1, stepZ = dz > 0 ? 1 : -1;
+    const invX = dx !== 0 ? 1 / Math.abs(dx) : Infinity;
+    const invZ = dz !== 0 ? 1 / Math.abs(dz) : Infinity;
+    const bx = g.min.x + (ix + (dx > 0 ? 1 : 0)) * g.voxel;
+    const bz = g.min.z + (iz + (dz > 0 ? 1 : 0)) * g.voxel;
+    let tMaxX = dx !== 0 ? Math.abs(bx - ox) * invX : Infinity;
+    let tMaxZ = dz !== 0 ? Math.abs(bz - oz) * invZ : Infinity;
+    const tDeltaX = g.voxel * invX, tDeltaZ = g.voxel * invZ;
+    let t = 0;
+    while (t <= maxDist) {
+      if (tMaxX < tMaxZ) { ix += stepX; t = tMaxX; tMaxX += tDeltaX; }
+      else { iz += stepZ; t = tMaxZ; tMaxZ += tDeltaZ; }
+      if (ix < 0 || iz < 0 || ix >= g.nx || iz >= g.nz) return maxDist;
+      if (t > maxDist) return maxDist;
+      if (occupied(g, ix, iy, iz)) return t;
+    }
+    return maxDist;
+  }
+
+  // 真上へのレイ（机の下・棚の中を弾く）
+  function castRayUp(g, ix, iy, iz, maxDist) {
+    const steps = Math.ceil(maxDist / g.voxel);
+    for (let s = 1; s <= steps; s++) {
+      const y = iy + s;
+      if (y >= g.ny) return maxDist;
+      if (occupied(g, ix, y, iz)) return Math.min(maxDist, s * g.voxel);
+    }
+    return maxDist;
+  }
+
+  // ── 4. 候補抽出 ───────────────────────────────────────────────
+  // 目線高さのスライスで「非占有 / 水平0.5m以内が空 / 真下1.5m以内に床」。
+  function findCandidates(g, eyeY, clearRadius) {
+    const iy = Math.floor((eyeY - g.min.y) / g.voxel);
+    if (iy < 0 || iy >= g.ny) return { iy, list: [] };
+    const r = Math.max(1, Math.ceil((clearRadius != null ? clearRadius : P.CLEAR_RADIUS) / g.voxel));
+    const below = Math.max(1, Math.ceil(P.FLOOR_BELOW / g.voxel));
+    const list = [];
+    for (let iz = 0; iz < g.nz; iz++) {
+      for (let ix = 0; ix < g.nx; ix++) {
+        if (occupied(g, ix, iy, iz)) continue;
+        let clear = true;
+        for (let dz = -r; dz <= r && clear; dz++) {
+          for (let dx = -r; dx <= r; dx++) {
+            if (occupied(g, ix + dx, iy, iz + dz)) { clear = false; break; }
+          }
+        }
+        if (!clear) continue;
+        let hasFloor = false;
+        for (let d = 1; d <= below; d++) {
+          if (occupied(g, ix, iy - d, iz)) { hasFloor = true; break; }
+        }
+        if (!hasFloor) continue;
+        list.push(ix, iz);
+      }
+    }
+    return { iy, list };
+  }
+
+  // ── 5. 採点 ───────────────────────────────────────────────────
+  function scoreCandidate(g, iy, ix, iz, ctx) {
+    const ox = g.min.x + (ix + 0.5) * g.voxel;
+    const oz = g.min.z + (iz + 0.5) * g.voxel;
+    let sum = 0, minD = Infinity, contentHits = 0;
+    for (let k = 0; k < P.RAYS; k++) {
+      const a = (k / P.RAYS) * Math.PI * 2;
+      const d = castRay2D(g, iy, ox, oz, Math.sin(a), Math.cos(a), P.RAY_MAX);
+      sum += d;
+      if (d < minD) minD = d;
+      if (d >= P.CONTENT_MIN && d < P.RAY_MAX) contentHits++;
+    }
+    const meanD = sum / P.RAYS;
+    const openness = clamp(meanD / ctx.openCap, 0, 1);
+    const content = contentHits / P.RAYS;
+    const dc = Math.hypot(ox - ctx.centroidX, oz - ctx.centroidZ);
+    const centrality = 1 - clamp(dc / ctx.centralityNorm, 0, 1);
+    const upDist = castRayUp(g, ix, iy, iz, P.HEADROOM_CAP);
+    const headroom = clamp(upDist / P.HEADROOM_CAP, 0, 1);
+    const score = P.W_OPEN * openness + P.W_CONTENT * content +
+                  P.W_CENTRALITY * centrality + P.W_HEADROOM * headroom;
+    return { ix, iz, x: ox, z: oz, score, openness, content, centrality, headroom, meanD, minD, upDist };
+  }
+
+  // ── 6. 向き（yaw）────────────────────────────────────────────
+  // 5°刻み72ビン。各点を「その点が入るビン」に距離重みで積み、最後に
+  // ±(画角/2) の窓で合計することで「視錐台内の密度」を O(N + bins) で得る。
+  // 前方ベクトルは (sin yaw, *, cos yaw)（既存 070_3d.js の規約）。
+  function chooseYaw(points, count, camX, camY, camZ) {
+    const bins = new Float64Array(P.YAW_BINS);
+    const stride = Math.max(1, Math.floor(count / P.MAX_POINTS_FOR_YAW));
+    let used = 0;
+    for (let i = 0; i < count; i += stride) {
+      const dx = points[i * 3] - camX;
+      const dy = points[i * 3 + 1] - camY;
+      const dz = points[i * 3 + 2] - camZ;
+      const d = Math.hypot(dx, dz);
+      if (d < P.YAW_MIN_DIST || d > P.YAW_MAX_DIST) continue;
+      // 仰角45°を超える点（真上のビル上部・真下の床）は「正面に見えるもの」では
+      // ないので数えない。
+      if (Math.abs(dy) > d) continue;
+      let a = Math.atan2(dx, dz);
+      if (a < 0) a += Math.PI * 2;
+      const b = Math.floor(a / (Math.PI * 2) * P.YAW_BINS) % P.YAW_BINS;
+      bins[b] += 1 / (1 + d / P.YAW_FALLOFF);
+      used++;
+    }
+    const half = Math.round((P.YAW_FOV_DEG / 2) / (360 / P.YAW_BINS));
+    let best = 0, bestVal = -1, total = 0;
+    for (let b = 0; b < P.YAW_BINS; b++) {
+      let s = 0;
+      for (let o = -half; o <= half; o++) s += bins[(b + o + P.YAW_BINS) % P.YAW_BINS];
+      total += s;
+      if (s > bestVal) { bestVal = s; best = b; }
+    }
+    const mean = total / P.YAW_BINS;
+    return {
+      yaw: (best + 0.5) * (Math.PI * 2 / P.YAW_BINS),
+      // 決定力: 最良ビンが平均の何倍か（1=どこを向いても同じ＝手掛かり無し）
+      decisiveness: mean > 0 ? bestVal / mean : 0,
+      usedPoints: used,
+    };
+  }
+
+  // ── 7. 総合 ───────────────────────────────────────────────────
+  // points: Float32Array(x,y,z...) / count: 点数
+  // 返り値: { failed, position, yaw, pitch, confidence, needsReview, diagnostics }
+  function autoPlaceCamera(points, count, opts) {
+    opts = opts || {};
+    const t0 = (typeof performance !== 'undefined' && performance.now) ? performance.now() : Date.now();
+    const fail = (reason, extra) => Object.assign({
+      failed: true, needsReview: true, confidence: 0, reason,
+      position: null, yaw: 0, pitch: 0, diagnostics: { sampleCount: count },
+    }, extra || {});
+
+    if (!points || count < 100) return fail('too-few-points');
+    const g = buildOccupancy(points, count, opts);
+    if (!g) return fail('no-valid-points');
+    const floor = detectFloor(points, count);
+    if (!floor) return fail('no-floor');
+
+    const eyeY = floor.y + P.EYE_HEIGHT;
+
+    // 候補ゼロなら 1度だけ条件を緩めて再試行（極端に狭い室内・柱だらけの空間）。
+    let cand = findCandidates(g, eyeY, P.CLEAR_RADIUS);
+    let relaxed = false;
+    if (cand.list.length === 0) {
+      cand = findCandidates(g, eyeY, g.voxel);   // 水平クリアランスを1ボクセルへ
+      relaxed = true;
+    }
+    if (cand.list.length === 0) {
+      return fail('no-candidate', { diagnostics: { sampleCount: count, floorY: floor.y, eyeY, voxel: g.voxel } });
+    }
+
+    // 水平重心（centrality 用）
+    let cxs = 0, czs = 0;
+    for (let i = 0; i < count; i++) { cxs += points[i * 3]; czs += points[i * 3 + 2]; }
+    const ctx = {
+      centroidX: cxs / count, centroidZ: czs / count,
+      centralityNorm: Math.max(g.horizExtent * 0.5, 1),
+      openCap: clamp(g.horizExtent * 0.5, P.OPEN_CAP_MIN, P.OPEN_CAP_MAX),
+    };
+
+    const nCand = cand.list.length / 2;
+    const stride = Math.max(1, Math.ceil(nCand / P.MAX_CANDIDATES_SCORED));
+    let best = null;
+    for (let i = 0; i < nCand; i += stride) {
+      const s = scoreCandidate(g, cand.iy, cand.list[i * 2], cand.list[i * 2 + 1], ctx);
+      if (!best || s.score > best.score) best = s;
+    }
+    if (!best) return fail('no-candidate');
+
+    const yawRes = chooseYaw(points, count, best.x, eyeY, best.z);
+
+    // pitch は 0（水平）が基本。天井が低い / 足元が遠いときだけ微調整（§2-5）。
+    let pitch = 0;
+    if (best.upDist < 1.0) pitch = -5 * Math.PI / 180;
+    // 目線スライスの真下に床がどれだけ離れているか（高所＝下を向かせる）
+    let floorDrop = 0;
+    for (let d = 1; d <= Math.ceil(P.FLOOR_BELOW / g.voxel); d++) {
+      if (occupied(g, best.ix, cand.iy - d, cand.iz)) { floorDrop = d * g.voxel; break; }
+    }
+    if (floorDrop > 2.5) pitch = -10 * Math.PI / 180;
+
+    // 信頼度（§2-6）。基本はスコアをそのまま 0-100 にし、明らかな失敗パターンは
+    // 上限でクリップして 70 を超えさせない。
+    let confidence = Math.round(best.score * 100);
+    const flags = [];
+    if (best.minD < P.WALL_TOO_CLOSE) { confidence = Math.min(confidence, P.WALL_PENALTY_CAP); flags.push('wall-too-close'); }
+    if (best.content < P.CONTENT_TOO_LOW) { confidence = Math.min(confidence, P.CONTENT_PENALTY_CAP); flags.push('low-content'); }
+    if (!floor.confident) { confidence = Math.min(confidence, 65); flags.push('floor-uncertain'); }
+    if (yawRes.decisiveness < 1.15) { confidence = Math.min(confidence, 65); flags.push('yaw-undecided'); }
+    if (relaxed) { confidence = Math.min(confidence, 60); flags.push('relaxed-clearance'); }
+    confidence = clamp(confidence, 0, 100);
+
+    const t1 = (typeof performance !== 'undefined' && performance.now) ? performance.now() : Date.now();
+    return {
+      failed: false,
+      position: { x: best.x, y: eyeY, z: best.z },
+      yaw: yawRes.yaw,
+      pitch,
+      confidence,
+      needsReview: confidence < P.CONFIDENCE_THRESHOLD,
+      flags,
+      diagnostics: {
+        sampleCount: count, voxel: g.voxel, floorY: floor.y, eyeY,
+        floorConfident: floor.confident, floorPeaks: floor.peakCount,
+        candidateCount: nCand, scoredCount: Math.ceil(nCand / stride), relaxed,
+        score: best.score, openness: best.openness, content: best.content,
+        centrality: best.centrality, headroom: best.headroom,
+        meanRayDist: best.meanD, minRayDist: best.minD, upDist: best.upDist,
+        yawDecisiveness: yawRes.decisiveness, floorDrop,
+        sceneExtent: g.horizExtent, openCap: ctx.openCap,
+        elapsedMs: Math.round(t1 - t0),
+      },
+    };
+  }
+
+  root.LocahunAutoCam = {
+    PARAMS: P,
+    buildOccupancy, occupied, detectFloor, findCandidates,
+    castRay2D, castRayUp, scoreCandidate, chooseYaw, autoPlaceCamera,
+  };
+})(typeof globalThis !== 'undefined' ? globalThis : this);
+// ══════════════════════════════════════════════════
+//  AUTO CAMERA PLACEMENT — ブラウザ側の配線
+//
+//  設計書: F:\Claude\docs\設計_カメラ初期位置の自動決定パイプライン_2026-08-13.md
+//
+//  役割は3つだけ:
+//    ① シーンの splat から CPU 側で点群を取り出す（Spark依存はここに閉じる）
+//    ② 174 の純粋エンジンへ渡して位置・向き・信頼度を得る
+//    ③ 結果を既存の初期視点（_initCamPos/_initYaw/_initPitch）へ書き込み、
+//       手動ボタン(📍)と同じ状態にする（気に入らなければ📍で上書きできる）
+// ══════════════════════════════════════════════════
+
+// ── half-float(IEEE 754 binary16) → number ──────────────────────
+// Spark の packed splat は中心座標を half で持つ。unpackSplat() を import すると
+// 010_state.js の import 行（オンライン版と共用）を触ることになるので、必要な
+// 「中心座標だけ」をここで自前に展開する。値の解釈は Spark の fromHalf と同一。
+const _AC_HALF_BUF = new ArrayBuffer(4);
+const _AC_HALF_U32 = new Uint32Array(_AC_HALF_BUF);
+const _AC_HALF_F32 = new Float32Array(_AC_HALF_BUF);
+function _acFromHalf(h){
+  const s = (h & 0x8000) << 16;
+  const e = (h >> 10) & 0x1f;
+  const m = h & 0x3ff;
+  if(e === 0){
+    if(m === 0){ _AC_HALF_U32[0] = s; return _AC_HALF_F32[0]; }
+    // subnormal: 正規化しなおす
+    let ex = -1, mm = m;
+    do { mm <<= 1; ex++; } while(!(mm & 0x400));
+    _AC_HALF_U32[0] = s | ((127 - 15 - ex) << 23) | ((mm & 0x3ff) << 13);
+    return _AC_HALF_F32[0];
+  }
+  if(e === 31){ _AC_HALF_U32[0] = s | 0x7f800000 | (m << 13); return _AC_HALF_F32[0]; }
+  _AC_HALF_U32[0] = s | ((e - 15 + 127) << 23) | (m << 13);
+  return _AC_HALF_F32[0];
+}
+
+// ── splat 点群の取り出し ────────────────────────────────────────
+// Spark 2.0 の CPU 側データ配置（vendor の SplatMesh.raycast() と同じ経路）:
+//   ・RAD(paged)      : mesh.paged.pager.packedTexture.value.image.data が
+//                       常駐ページの packed 配列、mesh.paged.dynoIndices…が
+//                       「描画順index → packed index」。＝いま実際に画面へ出て
+//                       いる LOD 解決済みの集合。設計書の「最粗LODで十分」は
+//                       ここから等間隔に間引くことで満たす。
+//   ・PLY/SPLAT 等    : mesh.packedSplats.packedArray（インデックス無し）
+// どちらも 1 splat = 4 × uint32。中心は word1(x,y) と word2 下位16bit(z)。
+// 座標はメッシュローカルなので matrixWorld を掛けてワールドへ。
+function _acCollectSplatPoints(targetCount){
+  const target = targetCount || 150000;   // 設計書 §2-0: 5万〜20万点
+  if(typeof layers === 'undefined' || !layers) return { points:null, count:0, meshes:0 };
+  const src = [];
+  let total = 0;
+  for(const L of layers){
+    if(!L || L.type !== 'splat' || !L.mesh || L.visible === false) continue;
+    const mesh = L.mesh;
+    let packed = null, indices = null, n = 0;
+    try {
+      if(mesh.paged && mesh.paged.pager && mesh.paged.pager.packedTexture){
+        packed  = mesh.paged.pager.packedTexture.value.image.data;
+        indices = mesh.paged.dynoIndices && mesh.paged.dynoIndices.value &&
+                  mesh.paged.dynoIndices.value.image ? mesh.paged.dynoIndices.value.image.data : null;
+        n = mesh.paged.numSplats || 0;
+      } else if(mesh.packedSplats && mesh.packedSplats.packedArray){
+        packed = mesh.packedSplats.packedArray;
+        n = mesh.packedSplats.numSplats || 0;
+      }
+    } catch(e){ console.warn('[autocam] splat 取り出し失敗:', e); }
+    if(!packed || !n) continue;
+    mesh.updateMatrixWorld(true);
+    src.push({ packed, indices, n, m: mesh.matrixWorld.elements });
+    total += n;
+  }
+  if(!total) return { points:null, count:0, meshes:0 };
+
+  const stride = Math.max(1, Math.floor(total / target));
+  const out = new Float32Array(Math.ceil(total / stride) * 3 + 3);
+  let o = 0;
+  for(const s of src){
+    const { packed, indices, n, m } = s;
+    for(let i = 0; i < n; i += stride){
+      const idx = indices ? indices[i] : i;
+      const b = idx * 4;
+      if(b + 3 >= packed.length) continue;
+      const w1 = packed[b + 1], w2 = packed[b + 2];
+      const lx = _acFromHalf(w1 & 0xffff);
+      const ly = _acFromHalf((w1 >>> 16) & 0xffff);
+      const lz = _acFromHalf(w2 & 0xffff);
+      if(!isFinite(lx) || !isFinite(ly) || !isFinite(lz)) continue;
+      if(o + 3 > out.length) break;
+      // matrixWorld（列優先）を手で掛ける。THREE.Vector3 を都度作らないため。
+      out[o++] = m[0]*lx + m[4]*ly + m[8]*lz  + m[12];
+      out[o++] = m[1]*lx + m[5]*ly + m[9]*lz  + m[13];
+      out[o++] = m[2]*lx + m[6]*ly + m[10]*lz + m[14];
+    }
+  }
+  return { points: out, count: (o / 3) | 0, meshes: src.length };
+}
+
+// ── 実行本体 ───────────────────────────────────────────────────
+// 戻り値は 174 のエンジンの結果そのまま（confidence / needsReview / failed /
+// position / yaw / pitch / diagnostics）。apply:false で「計算だけ」もできる。
+window.computeAutoInitialView = function(opts){
+  opts = opts || {};
+  const eng = (typeof LocahunAutoCam !== 'undefined') ? LocahunAutoCam : null;
+  if(!eng) return { failed:true, needsReview:true, confidence:0, reason:'engine-missing' };
+  const s = _acCollectSplatPoints(opts.targetCount);
+  if(!s.count) return { failed:true, needsReview:true, confidence:0, reason:'no-splats' };
+  const r = eng.autoPlaceCamera(s.points, s.count, opts);
+  r.splatMeshes = s.meshes;
+  return r;
+};
+
+// 自動決定 → 初期視点へ反映（画質パネルの📍ボタンと同じ場所を書き換える）
+window.applyAutoInitialView = function(result){
+  if(!result || result.failed || !result.position) return false;
+  _initCamPos.set(result.position.x, result.position.y, result.position.z);
+  _initYaw = result.yaw; _initPitch = result.pitch;
+  // 決めた視点をその場で見せる（確認できないと「効いたのか」が分からない）
+  camPos.copy(_initCamPos);
+  if(typeof setCamRotImmediate === 'function') setCamRotImmediate(_initYaw, _initPitch);
+  else { yaw = _initYaw; pitch = _initPitch; }
+  if(typeof markDirty === 'function') markDirty(10);
+  return true;
+};
+
+// 信頼度に応じて色を変えるトースト。showUndoToast は色を持たないので、ここで
+// 直接 #undo-toast の色を触り、表示が消える頃に既定色へ戻す（後続のトーストが
+// 警告色のまま出てしまうのを防ぐ）。
+let _acToastTimer = null;
+function _acToast(msg, level){
+  if(typeof showUndoToast === 'function') showUndoToast(msg);
+  const el = document.getElementById('undo-toast');
+  if(!el) return;
+  const color = level === 'warn' ? '#ffcc66' : (level === 'error' ? '#ff8a80' : '');
+  const border = level === 'warn' ? 'rgba(255,204,102,.45)' : (level === 'error' ? 'rgba(255,138,128,.45)' : '');
+  el.style.color = color || 'rgba(200,200,200,.6)';
+  if(border) el.style.borderColor = border;
+  clearTimeout(_acToastTimer);
+  _acToastTimer = setTimeout(()=>{
+    el.style.color = 'rgba(200,200,200,.6)';
+    el.style.borderColor = 'rgba(255,255,255,.15)';
+  }, 4200);
+}
+
+// 🎯 ボタン(画質パネル最下部)の入口。UI からは戻り値を使わないが、?autoinit=1 のバッチ経路は
+// 結果（信頼度・要確認）を必要とするので Promise で返す。
+window.autoPlaceInitialView = async function(){
+  const en = window._lang === 'en';
+  if(typeof layers === 'undefined' || !layers.some(L=>L && L.type==='splat' && L.mesh)){
+    _acToast(en ? 'No 3DGS scene loaded' : '3DGSシーンが読み込まれていません', 'error');
+    return { failed:true, needsReview:true, confidence:0, reason:'no-scene' };
+  }
+  _acToast(en ? '🎯 Computing initial view…' : '🎯 初期位置を計算中…');
+  // トーストを一度描画させてから重い計算に入る（同期実行だと「押しても無反応」
+  // に見えるため）。
+  await new Promise(r=>setTimeout(r, 30));
+  let r;
+  try { r = window.computeAutoInitialView(); }
+  catch(e){
+    console.error('[autocam]', e);
+    _acToast((en ? 'Auto placement failed: ' : '自動配置に失敗しました: ') + e.message, 'error');
+    return { failed:true, needsReview:true, confidence:0, reason:'exception: ' + e.message };
+  }
+  console.info('[autocam]', r);
+  if(r.failed){
+    _acToast(en
+      ? `Auto placement failed (${r.reason}) — position unchanged`
+      : `自動配置に失敗しました（${r.reason}）— 初期位置は変更していません`, 'error');
+    return r;
+  }
+  window.applyAutoInitialView(r);
+  if(r.needsReview){
+    _acToast(en
+      ? `Confidence ${r.confidence} — manual check recommended`
+      : `信頼度 ${r.confidence} — 手動での確認を推奨します`, 'warn');
+  } else {
+    _acToast(en
+      ? `Initial view set automatically (confidence ${r.confidence})`
+      : `初期位置を自動設定しました（信頼度 ${r.confidence}）`);
+  }
+  return r;
+};
+// ══════════════════════════════════════════════════
 //  SPLAT DECIMATION  (user-toggled "low-poly mode")
 // ══════════════════════════════════════════════════
 // Spark 2.0.0 doesn't expose any live-toggle knob to cap splat count after
@@ -12413,6 +12938,8 @@ async function loadSplatFile(file){
     // of how many additional splats are loaded later.
     mainL._splatCache = stats.cache;
     mainL._splatCacheCount = stats.cacheCount;
+    // プロジェクト名が未設定なら、読み込んだ 3DGS のファイル名で埋める。
+    if(typeof setProjectNameFromFile==='function') setProjectNameFromFile(file.name);
     selectLayer(mainL.id);
 
     setBar(78); setMsg(T('placing-cam'));
@@ -12445,8 +12972,7 @@ async function loadSplatFile(file){
     // Save as initial camera state for reset button
     _initCamPos.copy(camPos);
     _initYaw=yaw; _initPitch=0;
-    if(typeof syncInitViewInputs==='function') syncInitViewInputs();
-
+  
     await sleep(400); setBar(100); await sleep(300);
     hideLd(); showHUD(); hideDZ();
     // Force continuous rendering while Spark streams/sorts the 3DGS (async).
@@ -12509,7 +13035,6 @@ function loadEmptyProject(){
   camPos.set(0, 1.6, 3.5);
   setCamRotImmediate(Math.PI, 0);
   _initCamPos.copy(camPos); _initYaw = Math.PI; _initPitch = 0;
-  if(typeof syncInitViewInputs==='function') syncInitViewInputs();
   msr.placeDepth = 2.5;
   // Reveal viewer
   showHUD();
@@ -14870,10 +15395,9 @@ const I18N = {
     'lt-appear':'▸ 外観','lt-color':'色','lt-opacity':'透明度','lt-wire':'ワイヤーフレーム',
     'lt-size':'▸ サイズ','lt-yup':'Y 上','lt-zup':'Z 上',
     'lt-scale':'▸ スケール','lt-viewadj':'▸ 表示調整',
-    'lt-heading':'▸ 方角合わせ（横回転 / Y軸）',
-    'lt-heading-hint':'日照パネルの方位コンパス（北＝−Z）を見ながら合わせてください。',
-    'lt-heading-reset-tt':'横回転を 0° に戻す',
     'init-view-set-msg':'📍 現在の視点を初期位置に設定しました',
+    'tt-set-init-view':'いま見ている視点を、カメラリセット時の初期位置として登録する',
+    'tt-auto-init-view':'splatの形状から初期位置と向きを自動で決める（気に入らなければ左のボタンで上書きできます）',
     'lt-flip-x':'X軸反転','lt-flip-y':'Y軸反転','lt-flip-z':'Z軸反転','lt-light':'▸ ライト設定','lt-light-color':'色',
     'lt-light-int':'強度','lt-pos-local':'ローカル','lt-pos-world':'ワールド',
     'onote-txt':'シーンが逆さまですか？','onote-btn':'Y軸を反転',
@@ -14999,10 +15523,9 @@ const I18N = {
     'lt-appear':'▸ Appearance','lt-color':'Color','lt-opacity':'Opacity','lt-wire':'Wireframe',
     'lt-size':'▸ Size','lt-yup':'Y Up','lt-zup':'Z Up',
     'lt-scale':'▸ Scale','lt-viewadj':'▸ View Adjust',
-    'lt-heading':'▸ Heading (Yaw / Y-Axis)',
-    'lt-heading-hint':'Match it against the compass in the Sun panel (North = −Z).',
-    'lt-heading-reset-tt':'Reset heading to 0°',
     'init-view-set-msg':'📍 Current view saved as the initial position',
+    'tt-set-init-view':'Register the current view as the camera-reset position',
+    'tt-auto-init-view':'Decide the initial position and heading automatically from the splat geometry (override it with the button on the left)',
     'lt-flip-x':'Flip X-Axis','lt-flip-y':'Flip Y-Axis','lt-flip-z':'Flip Z-Axis','lt-light':'▸ Light Settings','lt-light-color':'Color',
     'lt-light-int':'Intensity','lt-pos-local':'Local','lt-pos-world':'World',
     'onote-txt':'Scene upside down?','onote-btn':'Flip Y-Axis',
@@ -15134,7 +15657,7 @@ function applyI18n(){
   // 日照パネルの都市ドロップダウンを言語に合わせて翻訳
   if(typeof _sunApplyCityI18n==='function') _sunApplyCityI18n();
   // HUD labels
-  ['lbl-pos','lbl-spd','lbl-rot','lbl-measure','lbl-flip','lbl-addobj','lbl-quality','lbl-settings','lbl-file','lbl-cam-reset','lbl-set-init-view','iv-title','iv-heading-lbl','lbl-camtool','lbl-env','lbl-help','orient-lock-msg','orient-lock-sub','lbl-addobj-top','lbl-addfig-top','tb-save-lbl','tb-undo-lbl','tb-load-lbl','fp-btn-import-lbl','fp-btn-export-lbl','csp-shot-info','csp-cam-info','csp-meta-info','csp-shot-name','csp-rig','csp-env','csp-note','csp-capture','csp-burnin','csp-burnin-grid','csp-capture-btn','csp-salvage','csp-salvage-drop','csp-salvage-sub','ct-tool','ct-lens','ct-focal','ct-sensor','ct-sensor-ff','ct-sensor-apsc','ct-sensor-apsh','ct-sensor-mft','ct-sensor-1inch','ct-sensor-phone13','ct-sensor-phone17','ct-sensor-phone23','ct-sensor-m65','ct-sensor-s35','ct-sensor-bm','ct-sensor-cust','ct-sensor-w','ct-sensor-h','ct-cam-angle','ct-pan','ct-tilt','ct-roll','ct-roll-level','ct-wb','ct-wb-temp','ct-aspect','ct-aspect-sensor','ct-aspect-cust','ct-aspect-apply','ct-margin','ct-grid','ct-grid-multi','ct-grid-guide','ct-grid-off','ct-grid-thirds','ct-grid-golden','ct-grid-cross','ct-grid-diag','ct-grid-safe-cust','ct-grid-action','ct-grid-title','ct-grid-center','ct-grid-custom','ct-grid-cols','ct-grid-rows','ct-grid-opacity','dz-manual-text','dz-ar-label','env-h-title','env-p-off','env-p-day','env-p-morning','env-p-evening','env-p-night','env-p-cloudy','env-p-rain','env-p-overcast','env-p-twilight','env-l-rot','env-l-int','msr-active-lbl','msr-end-lbl','lp-h-scene','lp-empty','qt-title','qt-low','qt-mid','qt-high','qp-perf-t','qp-l-frame','qp-l-gpu','qp-l-head','qp-l-dc','qp-l-tris','qp-l-geos','qp-l-texs','dist-l','msr-clear','msr-undo','em-3dgs','em-3dgs-d','em-zip-save','em-zip-save-d','em-zip-load','em-zip-load-d','em-zip-lite','em-zip-lite-d','rm-title','rm-pick','rm-skip','em-json','em-json-d','em-glb','em-glb-d','em-obj','em-obj-d','em-cancel','em-recommended','em-h-title','qp-settings-t','qp-lbl-lowpoly-main','qp-lbl-lowpoly-hint','qp-lbl-grid','qp-lbl-show','qp-lbl-fov','qp-lbl-spd','cl-title','cl-sub','cl-tag-init','cl-tag-v003','lbl-walk','lbl-save-camera','lbl-view-rec','lbl-view-rec-phone','lbl-cam-anim','giz-pt-a','giz-pt-b','giz-pt-c','giz-height-lbl','height-l','csp-jpeg-q','csp-4k-lbl','obj-add-cube','obj-add-sphere','obj-add-light','obj-add-event','obj-add-path','msr-end-lbl-init'].forEach(id=>{
+  ['lbl-pos','lbl-spd','lbl-rot','lbl-measure','lbl-flip','lbl-addobj','lbl-quality','lbl-settings','lbl-file','lbl-cam-reset','qp-init-h','lbl-set-init-view','lbl-auto-init-view','lbl-camtool','lbl-env','lbl-help','orient-lock-msg','orient-lock-sub','lbl-addobj-top','lbl-addfig-top','tb-save-lbl','tb-undo-lbl','tb-load-lbl','fp-btn-import-lbl','fp-btn-export-lbl','csp-shot-info','csp-cam-info','csp-meta-info','csp-shot-name','csp-rig','csp-env','csp-note','csp-capture','csp-burnin','csp-burnin-grid','csp-capture-btn','csp-salvage','csp-salvage-drop','csp-salvage-sub','ct-tool','ct-lens','ct-focal','ct-sensor','ct-sensor-ff','ct-sensor-apsc','ct-sensor-apsh','ct-sensor-mft','ct-sensor-1inch','ct-sensor-phone13','ct-sensor-phone17','ct-sensor-phone23','ct-sensor-m65','ct-sensor-s35','ct-sensor-bm','ct-sensor-cust','ct-sensor-w','ct-sensor-h','ct-cam-angle','ct-pan','ct-tilt','ct-roll','ct-roll-level','ct-wb','ct-wb-temp','ct-aspect','ct-aspect-sensor','ct-aspect-cust','ct-aspect-apply','ct-margin','ct-grid','ct-grid-multi','ct-grid-guide','ct-grid-off','ct-grid-thirds','ct-grid-golden','ct-grid-cross','ct-grid-diag','ct-grid-safe-cust','ct-grid-action','ct-grid-title','ct-grid-center','ct-grid-custom','ct-grid-cols','ct-grid-rows','ct-grid-opacity','dz-manual-text','dz-ar-label','env-h-title','env-p-off','env-p-day','env-p-morning','env-p-evening','env-p-night','env-p-cloudy','env-p-rain','env-p-overcast','env-p-twilight','env-l-rot','env-l-int','msr-active-lbl','msr-end-lbl','lp-h-scene','lp-empty','qt-title','qt-low','qt-mid','qt-high','qp-perf-t','qp-l-frame','qp-l-gpu','qp-l-head','qp-l-dc','qp-l-tris','qp-l-geos','qp-l-texs','dist-l','msr-clear','msr-undo','em-3dgs','em-3dgs-d','em-zip-save','em-zip-save-d','em-zip-load','em-zip-load-d','em-zip-lite','em-zip-lite-d','rm-title','rm-pick','rm-skip','em-json','em-json-d','em-glb','em-glb-d','em-obj','em-obj-d','em-cancel','em-recommended','em-h-title','qp-settings-t','qp-lbl-lowpoly-main','qp-lbl-lowpoly-hint','qp-lbl-grid','qp-lbl-show','qp-lbl-fov','qp-lbl-spd','cl-title','cl-sub','cl-tag-init','cl-tag-v003','lbl-walk','lbl-save-camera','lbl-view-rec','lbl-view-rec-phone','lbl-cam-anim','giz-pt-a','giz-pt-b','giz-pt-c','giz-height-lbl','height-l','csp-jpeg-q','csp-4k-lbl','obj-add-cube','obj-add-sphere','obj-add-light','obj-add-event','obj-add-path','msr-end-lbl-init'].forEach(id=>{
     const el=document.getElementById(id); if(el) el.textContent=T(id);
   });
   // HUD info-box edit tooltip + dropzone titles
@@ -15166,8 +15689,8 @@ function applyI18n(){
     ['btnViewRec',        'tt-view-rec'],
     ['btnViewRecPhone',   'tt-view-rec'],
     ['btnCamAnim',        'tt-cam-anim'],
-    ['btn-set-init-view', 'tt-set-init-view'],
-    ['btn-init-view-more','tt-init-view-more'],
+    ['qp-set-init-view',  'tt-set-init-view'],
+    ['qp-auto-init-view', 'tt-auto-init-view'],
   ];
   for(const [id, key] of _camTopBtns){
     const el = document.getElementById(id);
@@ -15669,34 +16192,6 @@ window.setObjUpAxis=function(id,axis){
   applyLayerTransform(id);
   renderTransformPanel();
 };
-// ── 方角合わせ (Y軸まわりの横回転のみ) ──
-// 運用は「日照パネルの方位コンパスを見ながら建物の向きを合わせる」作業。
-// 横回転は必ず Y なので、X/Z には一切触れない。
-function _normDeg(d){ d = d % 360; if(d < 0) d += 360; return d; }
-window.setLayerYaw = function(id, deg, fromSlider){
-  const L = findLayer(id); if(!L) return;
-  const v = parseFloat(deg); if(!isFinite(v)) return;
-  if(!L._undoPending){
-    L._undoPending = true;
-    pushGlobalUndo({type:'layer-transform',id:L.id,pos:{...L.pos},rot:{...L.rot},size:{...L.size},scale:{...(L.scale||{x:1,y:1,z:1})}});
-    setTimeout(()=>{ if(L) L._undoPending = false; }, 800);
-  }
-  L.rot.y = _normDeg(v);
-  applyLayerTransform(id);
-  if(fromSlider){
-    // スライダー操作中はドラッグを途切れさせないため、パネル全体は再生成せず
-    // 数値欄と読み出しだけ書き換える。
-    const num = document.getElementById('lt-ry');   if(num) num.value = L.rot.y.toFixed(2);
-    const val = document.getElementById('lt-heading-val'); if(val) val.textContent = L.rot.y.toFixed(0)+'°';
-  } else {
-    renderTransformPanel();
-  }
-};
-window.nudgeLayerYaw = function(id, delta){
-  const L = findLayer(id); if(!L) return;
-  window.setLayerYaw(id, (L.rot.y || 0) + delta);
-};
-
 // ── ピボット座標系の切替 (全レイヤータイプ共通) ──
 window.setLayerPivotSpace=function(id,space){
   const L=findLayer(id); if(!L) return;
@@ -15781,30 +16276,7 @@ function renderTransformPanel(){
         🔄 <span>${label}</span>
       </button>`;
     };
-    // ── 方角合わせ: 横回転は必ず Y。日照パネルのコンパス(N/S/E/W)を見ながら
-    //    ワンクリックで回せるようにする。X/Z はここでは触らない。 ──
-    const yawNow = ((r.y % 360) + 360) % 360;
-    const yBtn=(d,label)=>`<button onclick="nudgeLayerYaw(${L.id},${d})"
-        style="flex:1;background:#1a1a1a;border:1px solid rgba(255,255,255,.12);color:#bdbdbd;
-               border-radius:4px;padding:5px 0;font-size:.72em;cursor:pointer;transition:all .15s"
-        onmouseover="this.style.background='rgba(255,180,84,.16)';this.style.borderColor='rgba(255,180,84,.5)'"
-        onmouseout="this.style.background='#1a1a1a';this.style.borderColor='rgba(255,255,255,.12)'">${label}</button>`;
-    html+=`<div class="lt-section">${T('lt-heading')}</div>
-  <div class="lt-row" style="gap:5px">
-    ${yBtn(-90,'↺ 90°')}
-    ${yBtn(90,'↻ 90°')}
-    ${yBtn(180,'180°')}
-  </div>
-  <div class="lt-row" style="align-items:center;gap:6px;margin-top:4px">
-    <input type="range" id="lt-heading-rng" min="0" max="359" step="1" value="${yawNow.toFixed(0)}"
-      oninput="setLayerYaw(${L.id},this.value,true)"
-      style="flex:1;height:4px;accent-color:#ffb454">
-    <span id="lt-heading-val" style="font-size:.7em;color:#ffb45499;min-width:34px;text-align:right">${yawNow.toFixed(0)}°</span>
-    <button onclick="setLayerYaw(${L.id},0)" title="${T('lt-heading-reset-tt')}"
-      style="background:#1a1a1a;border:1px solid rgba(255,255,255,.12);color:#8a8a8a;border-radius:4px;padding:3px 7px;font-size:.68em;cursor:pointer">0°</button>
-  </div>
-  <div style="font-size:.62em;color:#5a5a5a;padding:2px 2px 0;line-height:1.4">${T('lt-heading-hint')}</div>
-  <div class="lt-section">${T('lt-viewadj')}</div>
+    html+=`<div class="lt-section">${T('lt-viewadj')}</div>
   <div class="lt-row" style="gap:6px">
     ${mkBtn('x',T('lt-flip-x'))}
     ${mkBtn('y',T('lt-flip-y'))}
@@ -18874,6 +19346,8 @@ async function loadFromURL(url, displayName){
       mainL._isMain = true;
       mainL._rawExt = 'rad';
       mainL._streamUrl = url;
+      // プロジェクト名が未設定なら、読み込んだ 3DGS のファイル名で埋める。
+      if(typeof setProjectNameFromFile==='function') setProjectNameFromFile(name);
       // Demo scene (交差点) ships slightly below the grid floor and a touch
       // off-axis, so when we autoload it apply the curated transform the
       // gizmo panel shows (Pos Y 1.5, Rot Y -168°). The -168° yaw aligns the
@@ -20366,6 +20840,131 @@ if(/[?&]capture=1/.test(location.search)){
   })();
 }
 // ══════════════════════════════════════════════════
+//  ?autoinit=1 — カメラ初期位置を自動決定して ZIP を親へ返すバッチ入口
+//
+//  設計書 §3。298 の ?capture=1 と同じ設計（URLで明示されない限り完全に無効・
+//  postMessage で親へ返す・親が居なければ自動ダウンロードへフォールバック）。
+//
+//  フロー:
+//    ?autoload=<url>&autoinit=1
+//      → シーン読込を待つ → splat のストリームが収束するまで待つ
+//      → 自動配置（175）→ cameraInit を確定 → ZIP 生成
+//      → postMessage('autoinit-done', {blob, confidence, needsReview, …})
+//
+//  返すペイロードには必ず confidence / needsReview / failed / position / yaw /
+//  pitch を含める（信頼度の低い案件だけを人が開く運用のため）。
+// ══════════════════════════════════════════════════
+if(/[?&]autoinit=1/.test(location.search)){
+  (function(){
+    const params = new URLSearchParams(location.search);
+    // 収束待ちの上限（秒）。巨大な RAD ほどストリームに時間がかかる。
+    const MAX_WAIT_S = Math.min(900, Math.max(30, parseInt(params.get('autoinitWaitSec')||'180', 10) || 180));
+    const target = window.opener || (parent !== window ? parent : null);
+    const msg = (type, extra)=>{ try { if(target) target.postMessage(Object.assign({type}, extra||{}), '*'); } catch(_){} };
+
+    const hasScene = ()=> (typeof layers!=='undefined' && layers.some(L=>L&&L.mesh&&L.type!=='camera'));
+    const nSplat = ()=> typeof window.__nSplat==='function' ? window.__nSplat() : -1;
+    // 298 と同じ「RAD でも baked でも同じ数え方」。RAD は __nSplat()、baked は
+    // layers[].mesh.packedSplats.numSplats を合算する。
+    const anySplatCount = ()=>{
+      const rad = nSplat();
+      if(rad > 0) return rad;
+      try {
+        if(typeof layers==='undefined' || !layers) return rad;
+        let n = 0;
+        for(const L of layers){
+          if(!L || !L.mesh || L.type==='camera') continue;
+          const ps = L.mesh.packedSplats;
+          if(ps && ps.numSplats) n += ps.numSplats;
+          else if(typeof L.mesh.numSplats === 'number') n += L.mesh.numSplats;
+        }
+        return n > 0 ? n : rad;
+      } catch(_){ return rad; }
+    };
+
+    async function run(){
+      const t0 = performance.now();
+      try {
+        // Phase 1: レンダー可能なシーンになるまで（ZIP/大きい RAD は数分かかる）
+        msg('autoinit-progress',{phase:'loading', text:'3DGS 読み込み中…'});
+        const sceneReady = ()=> hasScene() || anySplatCount() > 0;
+        for(let i=0; i<MAX_WAIT_S*2 && !sceneReady(); i++) await new Promise(r=>setTimeout(r,500));
+        if(!sceneReady()){
+          msg('autoinit-error',{error:'no-scene'});
+          return;
+        }
+
+        // Phase 2: splat 数が増えなくなるまで待つ。幾何を測るので、まばらな
+        // 途中経過で判定すると床も壁も見つからない。
+        {
+          let last = -1, stableStart = -1;
+          const STABLE_MS = 3000, POLL_MS = 500, MAX_MS = MAX_WAIT_S*1000;
+          const start = performance.now();
+          while(performance.now() - start < MAX_MS){
+            await new Promise(r=>setTimeout(r, POLL_MS));
+            if(typeof markDirty==='function') markDirty(20); // ストリーミングを止めない
+            const elapsed = performance.now() - start;
+            const c = anySplatCount();
+            if(c > 0 && c === last){
+              if(stableStart < 0) stableStart = elapsed;
+              if(elapsed - stableStart >= STABLE_MS) break;
+            } else { stableStart = -1; last = c; }
+            msg('autoinit-progress',{phase:'loading',
+              text:'読み込み中… ' + (c>0 ? c.toLocaleString()+' splats' : '待機中'), splats:c});
+          }
+        }
+
+        // Phase 3: 自動配置
+        msg('autoinit-progress',{phase:'placing', text:'初期位置を計算中…'});
+        const r = await window.autoPlaceInitialView();
+        const result = r || { failed:true, needsReview:true, confidence:0, reason:'no-result' };
+
+        // Phase 4: ZIP 生成（失敗しても既定の初期位置のまま ZIP は作る＝設計書
+        // §2-6「failed は従来の既定位置のまま出力し、必ず人が見る」）
+        msg('autoinit-progress',{phase:'zip', text:'ZIP を作成中…'});
+        const blob = await window.saveProjectZip(false, { returnBlob:true });
+        if(!blob){ msg('autoinit-error',{error:'zip-failed', confidence:result.confidence}); return; }
+
+        const payload = {
+          blob, mimeType:'application/zip', ext:'zip',
+          projectName: (typeof _projectName!=='undefined' && _projectName) || '',
+          failed: !!result.failed,
+          reason: result.reason || null,
+          confidence: result.confidence,
+          needsReview: !!result.needsReview,
+          flags: result.flags || [],
+          position: result.position || null,
+          yaw: result.yaw, pitch: result.pitch,
+          yawDeg: result.yaw != null ? (result.yaw*180/Math.PI) : null,
+          pitchDeg: result.pitch != null ? (result.pitch*180/Math.PI) : null,
+          splats: anySplatCount(),
+          diagnostics: result.diagnostics || null,
+          elapsedMs: Math.round(performance.now() - t0),
+        };
+        if(target){
+          msg('autoinit-done', payload);
+        } else {
+          // 親が居ない（単体で開いた）ときはダウンロードへフォールバック。
+          console.info('[autoinit] postMessage 送信先が無いためダウンロードします', payload);
+          const a = document.createElement('a');
+          a.href = URL.createObjectURL(blob);
+          a.download = ((payload.projectName||'scene_project')
+            .replace(/[^a-zA-Z0-9_\-぀-ゟ゠-ヿ一-鿿]/g,'_')) + '.zip';
+          document.body.appendChild(a); a.click(); document.body.removeChild(a);
+          setTimeout(()=>URL.revokeObjectURL(a.href), 10000);
+        }
+        // Playwright 等が DOM から結果を読めるようにも置いておく（blob は除く）。
+        window.__autoInitResult = Object.assign({}, payload, { blob:undefined });
+      } catch(e){
+        console.error('[autoinit]', e);
+        msg('autoinit-error',{error:'exception: ' + ((e && e.message) || e)});
+        window.__autoInitResult = { failed:true, needsReview:true, confidence:0, reason:'exception: '+((e&&e.message)||e) };
+      }
+    }
+    setTimeout(run, 300);
+  })();
+}
+// ══════════════════════════════════════════════════
 //  EXPORT / SAVE / LOAD
 // ══════════════════════════════════════════════════
 window.openExportModal  = function(){ document.getElementById('export-modal').classList.add('show'); };
@@ -20587,7 +21186,11 @@ let _zipSaving = false;
 // splat/model raw bytes; project.json still lists filenames so the load
 // path can prompt the user to re-select the original 3DGS file (see
 // _promptFilesForReattach in 311_zip_load_core.js).
-window.saveProjectZip = async function(forceLite){
+// opts.returnBlob: ダウンロード(Aタグclick)と完了トーストを行わず、生成した
+// ZIP の Blob をそのまま返す。?autoinit=1 のバッチ経路（299）が親ウィンドウへ
+// postMessage で渡すために使う。通常のUI呼び出し(引数なし)の挙動は不変。
+window.saveProjectZip = async function(forceLite, opts){
+  opts = opts || {};
   if(_zipSaving){ showUndoToast(T('zip-saving')); return; }
   _zipSaving = true;
   showUndoToast(T('zip-saving'));
@@ -20840,6 +21443,7 @@ window.saveProjectZip = async function(forceLite){
     }
     const zipBuf = fflate.zipSync(zipEntries);
     const blob=new Blob([zipBuf],{type:'application/zip'});
+    if(opts.returnBlob) return blob;
     const a=document.createElement('a');
     a.href=URL.createObjectURL(blob);
     const _liteSuffix=_skipSplatData?'_lite':'';
@@ -21292,7 +21896,6 @@ async function restoreProject(project) {
     yaw=_initYaw; pitch=_initPitch;
     if(typeof setCamRotImmediate==='function') setCamRotImmediate(_initYaw,_initPitch);
   }
-  if(typeof syncInitViewInputs==='function') syncInitViewInputs();
   _layerNextId=project.layerNextId||100;
   if(project.projectName){
     _projectName=project.projectName;
@@ -22291,11 +22894,9 @@ Object.assign(I18N.ja,{
   'lt-flip-y':'Y軸反転',
   'lt-flip-z':'Z軸反転',
   'lbl-cam-reset':'カメラリセット',
+  'qp-init-h':'📍 初期視点（カメラリセット先）',
   'lbl-set-init-view':'現在の視点を初期位置にする',
-  'iv-title':'📍 初期位置（微調整）',
-  'iv-heading-lbl':'向き',
-  'tt-set-init-view':'いま見ている視点を、カメラリセット時の初期位置として登録する',
-  'tt-init-view-more':'初期位置の数値を微調整',
+  'lbl-auto-init-view':'初期位置を自動で決める',
   'lbl-camtool':'カメラ',
   'lbl-env':'環境',
   'lbl-sun':'日照',
@@ -22551,11 +23152,9 @@ Object.assign(I18N.en,{
   'lt-flip-y':'Flip Y-Axis',
   'lt-flip-z':'Flip Z-Axis',
   'lbl-cam-reset':'Cam Reset',
-  'lbl-set-init-view':'Set Current View as Initial',
-  'iv-title':'📍 Initial position (fine-tune)',
-  'iv-heading-lbl':'Heading',
-  'tt-set-init-view':'Register the current view as the camera-reset position',
-  'tt-init-view-more':'Fine-tune the initial position numerically',
+  'qp-init-h':'📍 Initial view (camera-reset target)',
+  'lbl-set-init-view':'Set current view as initial',
+  'lbl-auto-init-view':'Decide initial view automatically',
   'lbl-camtool':'Camera',
   'lbl-env':'Env',
   'lbl-sun':'Sun',
@@ -24229,7 +24828,22 @@ document.querySelectorAll('#gizmo input[type=number]').forEach(inp=>{
 
 
 // PROJECT NAME
-let _projectName = 'Untitled Project';
+const _PROJECT_NAME_DEFAULT = 'Untitled Project';
+let _projectName = _PROJECT_NAME_DEFAULT;
+// 最初に読み込んだ 3DGS のファイル名をそのままプロジェクト名にする (user 2026-08-13)。
+// 従来は毎回 RAD のファイル名をコピペして書き換えていた手作業。既にユーザーが
+// 名前を付けている場合（＝既定値以外）は絶対に上書きしない。ZIP プロジェクトの
+// 復元も自前の名前を持つのでここは通らない。
+window.setProjectNameFromFile = function(fileName){
+  if(!fileName) return;
+  if(_projectName && _projectName !== _PROJECT_NAME_DEFAULT) return;
+  const base = String(fileName).replace(/\.[^.]+$/, '').trim();
+  if(!base) return;
+  _projectName = base;
+  const el = document.getElementById('tb-project-name');
+  if(el) el.textContent = base;
+  document.title = base + ' - ' + (window._lang==='en' ? 'LOCAHUN 3D' : 'ロケハン3D');
+};
 window.startEditProjectName = function(){
   const el = document.getElementById('tb-project-name');
   if(!el) return;

@@ -99,7 +99,11 @@ let _zipSaving = false;
 // splat/model raw bytes; project.json still lists filenames so the load
 // path can prompt the user to re-select the original 3DGS file (see
 // _promptFilesForReattach in 311_zip_load_core.js).
-window.saveProjectZip = async function(forceLite){
+// opts.returnBlob: ダウンロード(Aタグclick)と完了トーストを行わず、生成した
+// ZIP の Blob をそのまま返す。?autoinit=1 のバッチ経路（299）が親ウィンドウへ
+// postMessage で渡すために使う。通常のUI呼び出し(引数なし)の挙動は不変。
+window.saveProjectZip = async function(forceLite, opts){
+  opts = opts || {};
   if(_zipSaving){ showUndoToast(T('zip-saving')); return; }
   _zipSaving = true;
   showUndoToast(T('zip-saving'));
@@ -352,6 +356,7 @@ window.saveProjectZip = async function(forceLite){
     }
     const zipBuf = fflate.zipSync(zipEntries);
     const blob=new Blob([zipBuf],{type:'application/zip'});
+    if(opts.returnBlob) return blob;
     const a=document.createElement('a');
     a.href=URL.createObjectURL(blob);
     const _liteSuffix=_skipSplatData?'_lite':'';

@@ -87,5 +87,30 @@
 
   <div style="margin-top:7px;font-size:.62em;color:#303030;text-align:right" id="qp-resolution">—</div>
   </div><!-- /qp-perf-section -->
+
+  <!-- ══ 初期視点（運用担当だけが使う機能） ══
+       一般ユーザーは触らないので上部ボタン行には出さず、画質パネルの最下部に
+       小さく置く (user 2026-08-13)。押すと「カメラリセットで戻ってくる視点」が
+       確定する。自動のほうは splat の幾何から位置と向きを決める(174/175)。 -->
+  <div class="qp-divider"></div>
+  <div class="qp-perf-title" id="qp-init-h">📍 初期視点（カメラリセット先）</div>
+  <div class="qrow" style="display:flex;flex-direction:column;gap:4px;margin:4px 0 2px">
+    <button id="qp-set-init-view" onclick="setCurrentViewAsInitial()"
+      title="いま見ている視点を、カメラリセット時の初期位置として登録する"
+      style="background:#1a1a1a;border:1px solid rgba(255,255,255,.12);color:#9a9a9a;
+             border-radius:4px;padding:4px 6px;font-size:.7em;cursor:pointer;
+             text-align:left;transition:all .15s;white-space:nowrap;overflow:hidden;text-overflow:ellipsis"
+      onmouseover="this.style.background='rgba(80,200,120,.16)';this.style.borderColor='rgba(100,255,160,.4)'"
+      onmouseout="this.style.background='#1a1a1a';this.style.borderColor='rgba(255,255,255,.12)'"
+      >📍 <span id="lbl-set-init-view">現在の視点を初期位置にする</span></button>
+    <button id="qp-auto-init-view" onclick="autoPlaceInitialView()"
+      title="splatの形状から初期位置と向きを自動で決める（気に入らなければ上のボタンで上書きできます）"
+      style="background:#1a1a1a;border:1px solid rgba(255,255,255,.12);color:#9a9a9a;
+             border-radius:4px;padding:4px 6px;font-size:.7em;cursor:pointer;
+             text-align:left;transition:all .15s;white-space:nowrap;overflow:hidden;text-overflow:ellipsis"
+      onmouseover="this.style.background='rgba(80,200,120,.16)';this.style.borderColor='rgba(100,255,160,.4)'"
+      onmouseout="this.style.background='#1a1a1a';this.style.borderColor='rgba(255,255,255,.12)'"
+      >🎯 <span id="lbl-auto-init-view">初期位置を自動で決める</span></button>
+  </div>
 </div>
 

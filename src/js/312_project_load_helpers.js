@@ -47,7 +47,6 @@ async function restoreProject(project) {
     yaw=_initYaw; pitch=_initPitch;
     if(typeof setCamRotImmediate==='function') setCamRotImmediate(_initYaw,_initPitch);
   }
-  if(typeof syncInitViewInputs==='function') syncInitViewInputs();
   _layerNextId=project.layerNextId||100;
   if(project.projectName){
     _projectName=project.projectName;
