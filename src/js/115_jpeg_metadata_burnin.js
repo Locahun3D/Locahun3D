@@ -355,7 +355,8 @@ window.toggleMeasure = function() {
     msr.active=true;
     document.body.classList.add('msr-active');
     document.getElementById('btnMeasure').classList.add('on');
-    document.getElementById('btnMeasure').innerHTML='📐 <span id="lbl-measure">'+T('msr-active-lbl')+'</span>';
+    /* Label-only swap so the button's inline <svg> icon survives. */
+    { const _ml=document.querySelector('#btnMeasure #lbl-measure'); if(_ml) _ml.textContent=T('msr-active-lbl'); }
     document.getElementById('btnMeasureEnd').textContent=T('msr-end-lbl');
     const gizmoEl=document.getElementById('gizmo');
     // Position gizmo just below topbar — helpbox was removed.

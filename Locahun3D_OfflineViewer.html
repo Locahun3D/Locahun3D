@@ -1697,7 +1697,7 @@ body.immersive #immersive-exit{ display:inline-block; }
              border-radius:5px;padding:1px 6px;font-size:.68em;cursor:pointer;transition:all .15s;
              margin-left:14px;flex-shrink:0"
       onmouseover="this.style.background='rgba(255,220,80,.22)'"
-      onmouseout="this.style.background='rgba(255,220,80,.10)'">📁＋</button>
+      onmouseout="this.style.background='rgba(255,220,80,.10)'"><svg width="1.55em" height="1.55em" viewBox="0 0 24 24" fill="none" stroke="#f3a02a" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="vertical-align:-.35em"><path d="M2.6 18.8V6.4a1.7 1.7 0 0 1 1.7-1.7h4.6l2.1 2.5h8.7a1.7 1.7 0 0 1 1.7 1.7v9.9a1.7 1.7 0 0 1-1.7 1.7H4.3a1.7 1.7 0 0 1-1.7-1.7Z"/><path d="M12 10.6v5.6M9.2 13.4h5.6"/></svg></button>
   </div>
   <!-- Type-visibility filter row (#lp-type-filter) removed per user request.
        toggleTypeVis() remains exported on window so any programmatic toggling
@@ -1707,8 +1707,8 @@ body.immersive #immersive-exit{ display:inline-block; }
        request) so the most-used actions sit closest to the panel title.
        Hidden along with the rest of the panel content when collapsed. -->
   <div class="lp-footer" id="lp-footer-bar">
-    <button onclick="triggerImportAny()" id="fp-btn-import">📁 <span id="fp-btn-import-lbl">読み込み</span></button>
-    <button onclick="saveCameraLayer()" id="btnSaveCamera" style="color:#9fd0ff" title="現在のカメラ位置・アングル・画角・アスペクト比を保存">🎥 <span id="lbl-save-camera">カメラ保存</span></button>
+    <button onclick="triggerImportAny()" id="fp-btn-import"><svg width="1.3em" height="1.3em" viewBox="0 0 24 24" fill="none" stroke="#f3a02a" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="vertical-align:-.3em"><path d="M2.6 18.8V6.4a1.7 1.7 0 0 1 1.7-1.7h4.6l2.1 2.5h8.7a1.7 1.7 0 0 1 1.7 1.7v9.9a1.7 1.7 0 0 1-1.7 1.7H4.3a1.7 1.7 0 0 1-1.7-1.7Z"/><path d="M12 10.4v6"/><path d="m9.2 13.6 2.8 2.8 2.8-2.8"/></svg> <span id="fp-btn-import-lbl">読み込み</span></button>
+    <button onclick="saveCameraLayer()" id="btnSaveCamera" style="color:#9fd0ff" title="現在のカメラ位置・アングル・画角・アスペクト比を保存"><svg width="1.3em" height="1.3em" viewBox="0 0 24 24" fill="none" stroke="#f3a02a" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="vertical-align:-.3em"><rect x="1.3" y="4.6" width="14" height="10" rx="2.2"/><path d="M5.7 4.6l1.1-2h3.6l1.1 2"/><circle cx="8.3" cy="9.6" r="2.9"/><g transform="translate(11.8 11.3) scale(.5)" stroke-width="3.6"><path d="M15.2 3H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V8.8Z"/><path d="M17 21v-8H7v8"/><path d="M7 3v5h8"/></g></svg> <span id="lbl-save-camera">カメラ保存</span></button>
   </div>
   <!-- Layer list — always visible when the panel itself is expanded.
        (The earlier "sub-header chevron" second-level collapse was removed
@@ -2028,9 +2028,9 @@ body.immersive #immersive-exit{ display:inline-block; }
            transition:all .2s;letter-spacing:.02em;white-space:nowrap;"
     onmouseover="this.style.background='rgba(80,200,120,.18)';this.style.borderColor='rgba(100,255,160,.45)'"
     onmouseout="this.style.background='rgba(20,20,22,.88)';this.style.borderColor='rgba(255,255,255,.18)'"
-    title="カメラを初期位置にリセット">🏠 <span id="lbl-cam-reset">カメラリセット</span></button>
+    title="カメラを初期位置にリセット"><svg width="1.25em" height="1.25em" viewBox="0 0 24 24" fill="none" stroke="#f3a02a" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="vertical-align:-.28em"><rect x="1.5" y="5" width="13.5" height="10" rx="2.2"/><path d="M5.6 5l1.1-2h3.6l1.1 2"/><circle cx="8.25" cy="10" r="2.8"/><g transform="translate(12.5 11) scale(.5)" stroke-width="3.6"><path d="M21 12a9 9 0 1 1-9-9c2.52 0 4.93 1.06 6.74 2.74L21 8"/><path d="M21 3v5h-5"/></g></svg> <span id="lbl-cam-reset">カメラリセット</span></button>
   <div style="position:relative;display:inline-block;">
-    <button id="btnAddCubeTop" onclick="toggleObjTypeMenuTop(this)" style="background:rgba(20,20,22,.88);border:1px solid rgba(255,255,255,.18);color:rgba(200,200,200,.85);border-radius:6px;padding:5px 12px;font-size:.72em;cursor:pointer;transition:all .2s;letter-spacing:.02em;white-space:nowrap;" onmouseover="this.style.background='rgba(255,200,80,.18)';this.style.borderColor='rgba(255,220,100,.45)'" onmouseout="this.style.background='rgba(20,20,22,.88)';this.style.borderColor='rgba(255,255,255,.18)'" title="オブジェクト追加">📦 <span id="lbl-addobj-top">オブジェクト追加</span> ▾</button>
+    <button id="btnAddCubeTop" onclick="toggleObjTypeMenuTop(this)" style="background:rgba(20,20,22,.88);border:1px solid rgba(255,255,255,.18);color:rgba(200,200,200,.85);border-radius:6px;padding:5px 12px;font-size:.72em;cursor:pointer;transition:all .2s;letter-spacing:.02em;white-space:nowrap;" onmouseover="this.style.background='rgba(255,200,80,.18)';this.style.borderColor='rgba(255,220,100,.45)'" onmouseout="this.style.background='rgba(20,20,22,.88)';this.style.borderColor='rgba(255,255,255,.18)'" title="オブジェクト追加"><svg width="1.25em" height="1.25em" viewBox="0 0 24 24" fill="none" stroke="#f3a02a" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="vertical-align:-.28em"><g transform="translate(-1.5 -.5) scale(.78)" stroke-width="2.31"><path d="M21 8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16Z"/><path d="m3.3 7 8.7 5 8.7-5"/><path d="M12 22V12"/></g><path d="M18.4 14.8v6M15.4 17.8h6"/></svg> <span id="lbl-addobj-top">オブジェクト追加</span> ▾</button>
     <div id="obj-type-menu-top" style="display:none;position:absolute;top:calc(100% + 6px);left:0;background:rgba(20,20,22,.97);border:1px solid rgba(255,255,255,.15);border-radius:8px;padding:5px;z-index:400;flex-direction:column;gap:4px;min-width:178px;box-shadow:0 4px 16px rgba(0,0,0,.5);">
       <button onclick="_beginPlace('cube');window.closeObjTypeMenuTop()" style="background:rgba(255,221,68,.06);border:1px solid rgba(255,221,68,.15);color:#C0C0C0;border-radius:5px;padding:7px 14px;cursor:pointer;font-size:.8em;text-align:left;width:100%;white-space:nowrap;transition:background .15s;" onmouseover="this.style.background='rgba(255,221,68,.15)'" onmouseout="this.style.background='rgba(255,221,68,.06)'">📦 <span id="obj-add-cube">Cube (立方体)</span></button>
       <div style="border-top:1px solid rgba(255,255,255,.07);margin:2px 0"></div>
@@ -2057,7 +2057,7 @@ body.immersive #immersive-exit{ display:inline-block; }
            font-size:.72em;cursor:pointer;transition:all .2s;letter-spacing:.02em;white-space:nowrap;"
     onmouseover="this.style.background='rgba(170,120,255,.18)';this.style.borderColor='rgba(190,140,255,.45)'"
     onmouseout="this.style.background='rgba(20,20,22,.88)';this.style.borderColor='rgba(255,255,255,.18)'"
-    title="カメラパスを定義してアニメーション動画を書き出し">🎞 <span id="lbl-cam-anim">カメラワーク</span></button>
+    title="カメラパスを定義してアニメーション動画を書き出し"><svg width="1.25em" height="1.25em" viewBox="0 0 24 24" fill="none" stroke="#f3a02a" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="vertical-align:-.28em"><rect x="5.2" y="3.4" width="13.6" height="9.4" rx="2"/><path d="M9.6 3.4l1.1-1.9h3.4l1.1 1.9"/><circle cx="12" cy="8.1" r="2.7"/><circle cx="2.3" cy="14.4" r="1.15"/><circle cx="21.7" cy="14.4" r="1.15"/><path d="M2.9 15.6c1.2 3.4 4.5 5.5 8.2 5.5 3.2 0 6.2-1.6 7.9-4.2"/><path d="M16.8 18 19 16.9 18.9 19.4"/></svg> <span id="lbl-cam-anim">カメラワーク</span></button>
   <!-- Standalone #btnAddFigureTop merged into the オブジェクト追加 dropdown
        above so all "add new layer" entries live in one menu. -->
   <!-- Multi-camera placement (🎥 カメラ保存) relocated to the layer-panel
@@ -3865,9 +3865,9 @@ body.ar-active #dz{display:none !important;}
        not needed in the viewport. -->
 
   <div class="cbar">
-    <button id="btnCamTool" onclick="toggleCamTool()">📷 <span id="lbl-camtool">カメラ</span></button>
-    <button id="btn-sun"    onclick="toggleSunMode()">☀ <span id="lbl-sun" data-i18n="lbl-sun">日照</span></button>
-    <button id="btnMeasure" onclick="toggleMeasure()">📐 <span id="lbl-measure">測定</span></button>
+    <button id="btnCamTool" onclick="toggleCamTool()"><svg width="1.25em" height="1.25em" viewBox="0 0 24 24" fill="none" stroke="#f3a02a" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="vertical-align:-.28em"><rect x="2" y="7" width="20" height="13" rx="2.5"/><path d="M8.3 7l1.5-2.6h4.4L15.7 7"/><circle cx="12" cy="13.5" r="3.9"/><path d="M18.4 10.6h.01"/></svg> <span id="lbl-camtool">カメラ</span></button>
+    <button id="btn-sun"    onclick="toggleSunMode()"><svg width="1.25em" height="1.25em" viewBox="0 0 24 24" fill="none" stroke="#f3a02a" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="vertical-align:-.28em"><circle cx="12" cy="12" r="4.4"/><path d="M12 2v2.6M12 19.4V22M22 12h-2.6M4.6 12H2M19.07 4.93l-1.84 1.84M6.77 17.23l-1.84 1.84M19.07 19.07l-1.84-1.84M6.77 6.77 4.93 4.93"/></svg> <span id="lbl-sun" data-i18n="lbl-sun">日照</span></button>
+    <button id="btnMeasure" onclick="toggleMeasure()"><svg width="1.25em" height="1.25em" viewBox="0 0 24 24" fill="none" stroke="#f3a02a" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="vertical-align:-.28em"><path d="M21.3 8.7 8.7 21.3a1 1 0 0 1-1.4 0l-4.6-4.6a1 1 0 0 1 0-1.4L15.3 2.7a1 1 0 0 1 1.4 0l4.6 4.6a1 1 0 0 1 0 1.4Z"/><path d="m7.5 10.5 2 2M10.5 7.5l2 2M13.5 4.5l2 2M4.5 13.5l2 2"/></svg> <span id="lbl-measure">測定</span></button>
     <!-- Camera animation (🎞 カメラワーク) MOVED to the top-row #view-tl-btns
          group per user request 2026-06-19 (gather it with the other top
          controls + renamed アニメーション→カメラワーク). See its markup there. -->
@@ -3876,7 +3876,7 @@ body.ar-active #dz{display:none !important;}
     <!-- 画質 / 設定 buttons removed: quality is now an always-visible
          indicator at the top-right of the view (#qi-badge); grid / FOV /
          move-speed settings have been merged into the quality panel. -->
-    <button id="btnHelp"    onclick="openManual()" title="使い方"><span id="lbl-help">使い方</span></button>
+    <button id="btnHelp"    onclick="openManual()" title="使い方"><svg width="1.25em" height="1.25em" viewBox="0 0 24 24" fill="none" stroke="#f3a02a" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="vertical-align:-.28em"><circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/><path d="M12 17h.01"/></svg> <span id="lbl-help">使い方</span></button>
   </div>
 </div>
 
@@ -7321,7 +7321,9 @@ function _closeMeasureOnly(){
   msr.active=false;
   document.body.classList.remove('msr-active');
   document.getElementById('btnMeasure').classList.remove('on');
-  document.getElementById('btnMeasure').innerHTML='📐 <span id="lbl-measure">'+T('lbl-measure')+'</span>';
+  /* Only the label text is swapped — the button's inline <svg> icon must be
+     preserved (rewriting innerHTML here used to blow it away). */
+  { const _ml=document.querySelector('#btnMeasure #lbl-measure'); if(_ml) _ml.textContent=T('lbl-measure'); }
   // Restore the gizmo End button to its idle label
   const _btnEnd = document.getElementById('btnMeasureEnd');
   if(_btnEnd) _btnEnd.innerHTML = '<span id="msr-end-lbl-init">'+T('msr-end-lbl-init')+'</span>';
@@ -10653,7 +10655,8 @@ window.toggleMeasure = function() {
     msr.active=true;
     document.body.classList.add('msr-active');
     document.getElementById('btnMeasure').classList.add('on');
-    document.getElementById('btnMeasure').innerHTML='📐 <span id="lbl-measure">'+T('msr-active-lbl')+'</span>';
+    /* Label-only swap so the button's inline <svg> icon survives. */
+    { const _ml=document.querySelector('#btnMeasure #lbl-measure'); if(_ml) _ml.textContent=T('msr-active-lbl'); }
     document.getElementById('btnMeasureEnd').textContent=T('msr-end-lbl');
     const gizmoEl=document.getElementById('gizmo');
     // Position gizmo just below topbar — helpbox was removed.

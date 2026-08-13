@@ -685,7 +685,9 @@ function _closeMeasureOnly(){
   msr.active=false;
   document.body.classList.remove('msr-active');
   document.getElementById('btnMeasure').classList.remove('on');
-  document.getElementById('btnMeasure').innerHTML='📐 <span id="lbl-measure">'+T('lbl-measure')+'</span>';
+  /* Only the label text is swapped — the button's inline <svg> icon must be
+     preserved (rewriting innerHTML here used to blow it away). */
+  { const _ml=document.querySelector('#btnMeasure #lbl-measure'); if(_ml) _ml.textContent=T('lbl-measure'); }
   // Restore the gizmo End button to its idle label
   const _btnEnd = document.getElementById('btnMeasureEnd');
   if(_btnEnd) _btnEnd.innerHTML = '<span id="msr-end-lbl-init">'+T('msr-end-lbl-init')+'</span>';
