@@ -109,7 +109,7 @@ body{position:fixed;top:0;left:0;}
   #hud .cbar button{ font-size:.92em !important; padding:11px 18px !important; }
   #qi-badge{ font-size:.9em !important; }
   #topbar .tb-home, #topbar .tb-update, #topbar .tb-lang,
-  #topbar #tb-save-btn, #topbar #tb-undo-btn{ font-size:.85em; padding:5px 12px; }
+  #topbar #tb-save-btn{ font-size:.85em; padding:5px 12px; }
   #quality-panel #qbtns button{ padding:10px 0 !important; font-size:1.05em !important; }
   /* The bottom bar can sit a touch higher so it clears any TV bottom overscan. */
   #hud .cbar{ bottom:28px; }
@@ -217,12 +217,6 @@ body{position:fixed;top:0;left:0;}
   cursor:pointer;transition:all .15s;letter-spacing:.04em;white-space:nowrap;
 }
 #topbar .tb-update:hover{background:rgba(255,255,255,.1);color:#D8D8D8;}
-/* スマホ版では上部の「↩ 戻る」(Undo) ボタンを非表示（user 2026-06-30）。
-   狭い画面の上部を圧迫するため。タブレット(iPad)は対象外。 */
-@media (pointer:coarse) and (any-hover:none) and (max-width:600px),
-       (pointer:coarse) and (any-hover:none) and (max-height:500px){
-  #topbar #tb-undo-btn{ display:none !important; }
-}
 /* オンライン版経由(?protected=1)ではデータ保存/エクスポートを無効化。
    ZIP保存ボタン・3DGSエクスポート・ZIP保存モーダル項目を非表示。 */
 body.protected-mode #tb-save-btn,
@@ -2112,12 +2106,8 @@ body.immersive #immersive-exit{ display:inline-block; }
       <circle cx="50" cy="50" r="4.4" fill="#0c0c0d"/>
     </svg><span id="tb-brand-text" data-i18n="tb-brand" style="font-weight:600;letter-spacing:.03em;white-space:nowrap;line-height:1;display:inline-flex;align-items:center">ロケハン3D</span></button>
   <div style="display:flex;align-items:center;gap:8px;flex:1;min-width:0;justify-content:flex-end">
-    <!-- Undo (1 step). Mirrors Ctrl+Z: undoes the last measurement step while
-         measuring, otherwise the last scene action (move/add/delete/pose…).
-         Up to 20 steps are kept (≥10 as requested). user 2026-06-27. -->
-    <button class="tb-update" id="tb-undo-btn"
-      onclick="topbarUndo()"
-      title="一つ前に戻す (Ctrl+Z)">↩ <span id="tb-undo-lbl">戻る</span></button>
+    <!-- 「↩ 戻る」ボタンは削除 (user 2026-08-14)。アンドゥは Ctrl+Z /
+         リドゥは Ctrl+Y のキーボード操作のみ（window.topbarUndo() は残置）。 -->
     <!-- Browser fullscreen toggle (phone/tablet). Hidden by default; shown by
          JS only when the Fullscreen API is actually available (iOS Safari
          supports it on iPhone from 16.4) AND the device is touch — desktop
@@ -14613,6 +14603,24 @@ function _flushGenericPending(){
   _genericPending.clear();
 }
 
+// ── Layer / folder rename undo (user 2026-08-14) ──
+// A rename is a discrete commit (Enter or blur), so it is pushed straight onto
+// the generic stack with NO debounce — pushGenericUndo's 700ms coalescing is for
+// slider drags and would merge two deliberate renames into one. Riding the
+// generic entry means Ctrl+Z and Ctrl+Y both work with zero new machinery.
+function pushRenameUndo(id, before, after){
+  if(before === after) return;
+  const apply = (name)=>{
+    const L = (typeof findLayer==='function') ? findLayer(id) : null;
+    if(!L) return;               // layer was deleted since — nothing to rename
+    L.name = name;
+    renderLayerList();
+    if(typeof renderTransformPanel==='function') renderTransformPanel();
+  };
+  pushGlobalUndo({ type:'generic', key:'rename:'+id, before, after, apply,
+                   undoKey:'undo-rename', redoKey:'redo-rename' });
+}
+
 function globalRedo(){
   _flushGenericPending();
   if(!globalRedoStack.length){ showUndoToast(T('redo-none')); return; }
@@ -14621,7 +14629,9 @@ function globalRedo(){
     globalUndoStack.push(s);
     _suppressUndoCapture = true;
     try { s.apply(s.after); } finally { _suppressUndoCapture = false; }
-    showUndoToast(T('redo-move'));
+    // `redoKey` lets a generic entry name its own toast (e.g. rename); the
+    // default stays the historical "layer move" wording.
+    showUndoToast(T(s.redoKey || 'redo-move'));
     markDirty(4);
     return;
   }
@@ -14728,9 +14738,11 @@ function globalRedo(){
   }
 }
 
-// Exposed for the top-bar "↩ 戻る" button (inline onclick runs in GLOBAL scope and
-// can't see the module-scoped globalUndo). Mirrors the Ctrl+Z behaviour: undo the
-// last measurement step while measuring, else the last scene action.
+// Global-scope entry point for undo. The top-bar "↩ 戻る" button that used to call
+// this was removed (user 2026-08-14) — undo is now keyboard-only (Ctrl+Z) — but the
+// export stays so any inline onclick / external harness keeps working. Mirrors the
+// Ctrl+Z behaviour: undo the last measurement step while measuring, else the last
+// scene action.
 window.topbarUndo = function(){
   if(typeof msr!=='undefined' && msr.active && msr.undoStack && msr.undoStack.length) window.undoMeasure();
   else globalUndo();
@@ -14743,7 +14755,7 @@ function globalUndo(){
     globalRedoStack.push(s);
     _suppressUndoCapture = true;
     try { s.apply(s.before); } finally { _suppressUndoCapture = false; }
-    showUndoToast(T('undo-move'));
+    showUndoToast(T(s.undoKey || 'undo-move'));
     markDirty(4);
     return;
   }
@@ -15196,8 +15208,8 @@ window.removeLayer=function(id){
   }
   renderLayerList();
   renderTransformPanel();
-  // (削除トーストは非表示 — user 2026-06-27「これ表示いらない」。取り消しは Ctrl+Z /
-  //  上メニューの「↩ 戻る」で可能。)
+  // (削除トーストは非表示 — user 2026-06-27「これ表示いらない」。取り消しは Ctrl+Z、
+  //  やり直しは Ctrl+Y で可能。)
   markDirty(8);
   if(typeof _haloMarkDirty === 'function') _haloMarkDirty();
   if(typeof _recountLayerActivity === 'function') _recountLayerActivity();
@@ -15411,6 +15423,7 @@ const I18N = {
     'redo-none':'これ以上進めません','undo-none':'これ以上戻れません',
     'redo-move':'↪ レイヤー移動を進めました','redo-del':'↪ レイヤー削除を進めました',
     'undo-move':'↩ レイヤー移動を戻しました（Y で進む）','undo-del':'↩ レイヤー削除を戻しました（Y で進む）',
+    'undo-rename':'↩ 名前の変更を戻しました（Y で進む）','redo-rename':'↪ 名前の変更を進めました',
     'undo-msr':'測定モードで Z を押してください',
     'undo-pose':'↩ ポーズを戻しました（Y で進む）','redo-pose':'↪ ポーズを進めました',
     'layer-def':'レイヤー','folder-name':'フォルダ','folder-added':'📁 フォルダを追加',
@@ -15539,6 +15552,7 @@ const I18N = {
     'redo-none':'Nothing to redo','undo-none':'Nothing to undo',
     'redo-move':'↪ Redid layer move','redo-del':'↪ Redid layer delete',
     'undo-move':'↩ Undid layer move (Y to redo)','undo-del':'↩ Undid layer delete (Y to redo)',
+    'undo-rename':'↩ Undid rename (Y to redo)','redo-rename':'↪ Redid rename',
     'undo-msr':'Press Z in measure mode',
     'undo-pose':'↩ Undid pose (Y to redo)','redo-pose':'↪ Redid pose',
     'layer-def':'Layer','folder-name':'Folder','folder-added':'📁 Folder added',
@@ -15657,7 +15671,7 @@ function applyI18n(){
   // 日照パネルの都市ドロップダウンを言語に合わせて翻訳
   if(typeof _sunApplyCityI18n==='function') _sunApplyCityI18n();
   // HUD labels
-  ['lbl-pos','lbl-spd','lbl-rot','lbl-measure','lbl-flip','lbl-addobj','lbl-quality','lbl-settings','lbl-file','lbl-cam-reset','qp-init-h','lbl-set-init-view','lbl-auto-init-view','lbl-camtool','lbl-env','lbl-help','orient-lock-msg','orient-lock-sub','lbl-addobj-top','lbl-addfig-top','tb-save-lbl','tb-undo-lbl','tb-load-lbl','fp-btn-import-lbl','fp-btn-export-lbl','csp-shot-info','csp-cam-info','csp-meta-info','csp-shot-name','csp-rig','csp-env','csp-note','csp-capture','csp-burnin','csp-burnin-grid','csp-capture-btn','csp-salvage','csp-salvage-drop','csp-salvage-sub','ct-tool','ct-lens','ct-focal','ct-sensor','ct-sensor-ff','ct-sensor-apsc','ct-sensor-apsh','ct-sensor-mft','ct-sensor-1inch','ct-sensor-phone13','ct-sensor-phone17','ct-sensor-phone23','ct-sensor-m65','ct-sensor-s35','ct-sensor-bm','ct-sensor-cust','ct-sensor-w','ct-sensor-h','ct-cam-angle','ct-pan','ct-tilt','ct-roll','ct-roll-level','ct-wb','ct-wb-temp','ct-aspect','ct-aspect-sensor','ct-aspect-cust','ct-aspect-apply','ct-margin','ct-grid','ct-grid-multi','ct-grid-guide','ct-grid-off','ct-grid-thirds','ct-grid-golden','ct-grid-cross','ct-grid-diag','ct-grid-safe-cust','ct-grid-action','ct-grid-title','ct-grid-center','ct-grid-custom','ct-grid-cols','ct-grid-rows','ct-grid-opacity','dz-manual-text','dz-ar-label','env-h-title','env-p-off','env-p-day','env-p-morning','env-p-evening','env-p-night','env-p-cloudy','env-p-rain','env-p-overcast','env-p-twilight','env-l-rot','env-l-int','msr-active-lbl','msr-end-lbl','lp-h-scene','lp-empty','qt-title','qt-low','qt-mid','qt-high','qp-perf-t','qp-l-frame','qp-l-gpu','qp-l-head','qp-l-dc','qp-l-tris','qp-l-geos','qp-l-texs','dist-l','msr-clear','msr-undo','em-3dgs','em-3dgs-d','em-zip-save','em-zip-save-d','em-zip-load','em-zip-load-d','em-zip-lite','em-zip-lite-d','rm-title','rm-pick','rm-skip','em-json','em-json-d','em-glb','em-glb-d','em-obj','em-obj-d','em-cancel','em-recommended','em-h-title','qp-settings-t','qp-lbl-lowpoly-main','qp-lbl-lowpoly-hint','qp-lbl-grid','qp-lbl-show','qp-lbl-fov','qp-lbl-spd','cl-title','cl-sub','cl-tag-init','cl-tag-v003','lbl-walk','lbl-save-camera','lbl-view-rec','lbl-view-rec-phone','lbl-cam-anim','giz-pt-a','giz-pt-b','giz-pt-c','giz-height-lbl','height-l','csp-jpeg-q','csp-4k-lbl','obj-add-cube','obj-add-sphere','obj-add-light','obj-add-event','obj-add-path','msr-end-lbl-init'].forEach(id=>{
+  ['lbl-pos','lbl-spd','lbl-rot','lbl-measure','lbl-flip','lbl-addobj','lbl-quality','lbl-settings','lbl-file','lbl-cam-reset','qp-init-h','lbl-set-init-view','lbl-auto-init-view','lbl-camtool','lbl-env','lbl-help','orient-lock-msg','orient-lock-sub','lbl-addobj-top','lbl-addfig-top','tb-save-lbl','tb-load-lbl','fp-btn-import-lbl','fp-btn-export-lbl','csp-shot-info','csp-cam-info','csp-meta-info','csp-shot-name','csp-rig','csp-env','csp-note','csp-capture','csp-burnin','csp-burnin-grid','csp-capture-btn','csp-salvage','csp-salvage-drop','csp-salvage-sub','ct-tool','ct-lens','ct-focal','ct-sensor','ct-sensor-ff','ct-sensor-apsc','ct-sensor-apsh','ct-sensor-mft','ct-sensor-1inch','ct-sensor-phone13','ct-sensor-phone17','ct-sensor-phone23','ct-sensor-m65','ct-sensor-s35','ct-sensor-bm','ct-sensor-cust','ct-sensor-w','ct-sensor-h','ct-cam-angle','ct-pan','ct-tilt','ct-roll','ct-roll-level','ct-wb','ct-wb-temp','ct-aspect','ct-aspect-sensor','ct-aspect-cust','ct-aspect-apply','ct-margin','ct-grid','ct-grid-multi','ct-grid-guide','ct-grid-off','ct-grid-thirds','ct-grid-golden','ct-grid-cross','ct-grid-diag','ct-grid-safe-cust','ct-grid-action','ct-grid-title','ct-grid-center','ct-grid-custom','ct-grid-cols','ct-grid-rows','ct-grid-opacity','dz-manual-text','dz-ar-label','env-h-title','env-p-off','env-p-day','env-p-morning','env-p-evening','env-p-night','env-p-cloudy','env-p-rain','env-p-overcast','env-p-twilight','env-l-rot','env-l-int','msr-active-lbl','msr-end-lbl','lp-h-scene','lp-empty','qt-title','qt-low','qt-mid','qt-high','qp-perf-t','qp-l-frame','qp-l-gpu','qp-l-head','qp-l-dc','qp-l-tris','qp-l-geos','qp-l-texs','dist-l','msr-clear','msr-undo','em-3dgs','em-3dgs-d','em-zip-save','em-zip-save-d','em-zip-load','em-zip-load-d','em-zip-lite','em-zip-lite-d','rm-title','rm-pick','rm-skip','em-json','em-json-d','em-glb','em-glb-d','em-obj','em-obj-d','em-cancel','em-recommended','em-h-title','qp-settings-t','qp-lbl-lowpoly-main','qp-lbl-lowpoly-hint','qp-lbl-grid','qp-lbl-show','qp-lbl-fov','qp-lbl-spd','cl-title','cl-sub','cl-tag-init','cl-tag-v003','lbl-walk','lbl-save-camera','lbl-view-rec','lbl-view-rec-phone','lbl-cam-anim','giz-pt-a','giz-pt-b','giz-pt-c','giz-height-lbl','height-l','csp-jpeg-q','csp-4k-lbl','obj-add-cube','obj-add-sphere','obj-add-light','obj-add-event','obj-add-path','msr-end-lbl-init'].forEach(id=>{
     const el=document.getElementById(id); if(el) el.textContent=T(id);
   });
   // HUD info-box edit tooltip + dropzone titles
@@ -15674,7 +15688,6 @@ function applyI18n(){
   _setTitle('#btnHelp','tt-help');
   _setTitle('#btnAddCubeTop','tt-add-obj');
   _setTitle('#tb-project-name','tt-edit-name');
-  _setTitle('#tb-undo-btn','tt-undo');
   _setTitle('#mf-collapse-btn','tt-mf-collapse');
   // Cam reset button has no stable id; locate via lbl-cam-reset child
   const _camResetBtn=document.getElementById('lbl-cam-reset');
@@ -15958,14 +15971,35 @@ window.startRenameLayer = function(id, ev) {
   inp.onclick = e => e.stopPropagation();
   inp.ondblclick = e => e.stopPropagation();
   inp.ondragstart = e => e.stopPropagation();
-  inp.onkeydown = e => {
-    e.stopPropagation();
-    if(e.key==='Enter'||e.key==='Escape'){
-      if(e.key==='Enter') L.name = inp.value.trim() || L.name;
-      renderLayerList();
+  // Rename is undoable (Ctrl+Z) / redoable (Ctrl+Y) — user 2026-08-14.
+  // `_done` makes commit idempotent: Enter/Escape both call renderLayerList(),
+  // which rips the input out of the DOM and fires a trailing blur. Without the
+  // latch, Escape's blur would re-commit the abandoned text and a plain Enter
+  // would push the same rename onto the undo stack twice.
+  const _oldName = L.name;
+  let _done = false;
+  const _commit = (accept)=>{
+    if(_done) return;
+    _done = true;
+    if(accept){
+      const next = inp.value.trim() || _oldName;
+      if(next !== _oldName){
+        L.name = next;
+        pushRenameUndo(L.id, _oldName, next);
+        markDirty(4);
+      }
     }
+    renderLayerList();
   };
-  inp.onblur = () => { L.name = inp.value.trim() || L.name; renderLayerList(); };
+  inp.onkeydown = e => {
+    // Keep Ctrl+Z / Ctrl+Y (and every other key) inside the field: the global
+    // shortcut handler lives on window, so stopping propagation here leaves the
+    // browser's NATIVE text-edit undo in charge while the user is typing.
+    e.stopPropagation();
+    if(e.key==='Enter') _commit(true);
+    else if(e.key==='Escape') _commit(false);
+  };
+  inp.onblur = () => _commit(true);
   nameEl.replaceWith(inp);
   // iOS Safari only raises the on-screen keyboard when focus() runs
   // SYNCHRONOUSLY inside the tap gesture — a deferred (rAF-only) focus is
@@ -22974,7 +23008,6 @@ Object.assign(I18N.ja,{
   'ct-grid-rows':'行',
   'ct-grid-opacity':'不透明度',
   'tb-save-lbl':'Zip保存',
-  'tb-undo-lbl':'戻る',
   'tb-load-lbl':'読込',
   'tt-qibadge':'画質と設定',
   'cl-title':'更新履歴',
@@ -23105,7 +23138,6 @@ Object.assign(I18N.ja,{
   'tt-cam-reset':'カメラを初期位置にリセット',
   'tt-add-obj':'オブジェクト追加',
   'tt-edit-name':'クリックで名前を編集',
-  'tt-undo':'一つ前に戻す (Ctrl+Z)',
   'tt-folder-add':'フォルダを追加',
   'tt-mf-collapse':'折りたたむ',
   'tt-zip-save':'ZIPで保存',
@@ -23232,7 +23264,6 @@ Object.assign(I18N.en,{
   'ct-grid-rows':'Rows',
   'ct-grid-opacity':'Opacity',
   'tb-save-lbl':'Zip Save',
-  'tb-undo-lbl':'Undo',
   'tb-load-lbl':'Load',
   'tt-qibadge':'Quality & settings',
   'cl-title':'Changelog',
@@ -23363,7 +23394,6 @@ Object.assign(I18N.en,{
   'tt-cam-reset':'Reset camera to initial position',
   'tt-add-obj':'Add Object',
   'tt-edit-name':'Click to edit name',
-  'tt-undo':'Undo last action (Ctrl+Z)',
   'tt-folder-add':'Add folder',
   'tt-mf-collapse':'Collapse',
   'tt-zip-save':'ZIP Save',
@@ -23408,6 +23438,12 @@ window.addEventListener('keydown',e=>{
   // in adjustment-tool inputs. Blur the input first so the global stack reflects the
   // committed value, then run the undo/redo.
   if((e.ctrlKey||e.metaKey) && (e.code==='KeyZ'||e.code==='KeyY')){
+    // EXCEPT the layer-rename field: while renaming, Ctrl+Z must be the
+    // browser's native text-edit undo, not an app undo. (The rename input also
+    // stopPropagation()s its own keydown, so this is a second line of defence
+    // for any future caller that dispatches the event straight at window.)
+    const _ae0 = document.activeElement;
+    if(_ae0 && _ae0.classList && _ae0.classList.contains('lr-name-input')) return;
     if(_isTypingInInput()){
       const ae=document.activeElement;
       if(ae && typeof ae.blur==='function') ae.blur();

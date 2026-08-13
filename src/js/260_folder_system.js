@@ -48,14 +48,35 @@ window.startRenameLayer = function(id, ev) {
   inp.onclick = e => e.stopPropagation();
   inp.ondblclick = e => e.stopPropagation();
   inp.ondragstart = e => e.stopPropagation();
-  inp.onkeydown = e => {
-    e.stopPropagation();
-    if(e.key==='Enter'||e.key==='Escape'){
-      if(e.key==='Enter') L.name = inp.value.trim() || L.name;
-      renderLayerList();
+  // Rename is undoable (Ctrl+Z) / redoable (Ctrl+Y) — user 2026-08-14.
+  // `_done` makes commit idempotent: Enter/Escape both call renderLayerList(),
+  // which rips the input out of the DOM and fires a trailing blur. Without the
+  // latch, Escape's blur would re-commit the abandoned text and a plain Enter
+  // would push the same rename onto the undo stack twice.
+  const _oldName = L.name;
+  let _done = false;
+  const _commit = (accept)=>{
+    if(_done) return;
+    _done = true;
+    if(accept){
+      const next = inp.value.trim() || _oldName;
+      if(next !== _oldName){
+        L.name = next;
+        pushRenameUndo(L.id, _oldName, next);
+        markDirty(4);
+      }
     }
+    renderLayerList();
   };
-  inp.onblur = () => { L.name = inp.value.trim() || L.name; renderLayerList(); };
+  inp.onkeydown = e => {
+    // Keep Ctrl+Z / Ctrl+Y (and every other key) inside the field: the global
+    // shortcut handler lives on window, so stopping propagation here leaves the
+    // browser's NATIVE text-edit undo in charge while the user is typing.
+    e.stopPropagation();
+    if(e.key==='Enter') _commit(true);
+    else if(e.key==='Escape') _commit(false);
+  };
+  inp.onblur = () => _commit(true);
   nameEl.replaceWith(inp);
   // iOS Safari only raises the on-screen keyboard when focus() runs
   // SYNCHRONOUSLY inside the tap gesture — a deferred (rAF-only) focus is

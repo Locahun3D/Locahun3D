@@ -95,12 +95,8 @@
       <circle cx="50" cy="50" r="4.4" fill="#0c0c0d"/>
     </svg><span id="tb-brand-text" data-i18n="tb-brand" style="font-weight:600;letter-spacing:.03em;white-space:nowrap;line-height:1;display:inline-flex;align-items:center">ロケハン3D</span></button>
   <div style="display:flex;align-items:center;gap:8px;flex:1;min-width:0;justify-content:flex-end">
-    <!-- Undo (1 step). Mirrors Ctrl+Z: undoes the last measurement step while
-         measuring, otherwise the last scene action (move/add/delete/pose…).
-         Up to 20 steps are kept (≥10 as requested). user 2026-06-27. -->
-    <button class="tb-update" id="tb-undo-btn"
-      onclick="topbarUndo()"
-      title="一つ前に戻す (Ctrl+Z)">↩ <span id="tb-undo-lbl">戻る</span></button>
+    <!-- 「↩ 戻る」ボタンは削除 (user 2026-08-14)。アンドゥは Ctrl+Z /
+         リドゥは Ctrl+Y のキーボード操作のみ（window.topbarUndo() は残置）。 -->
     <!-- Browser fullscreen toggle (phone/tablet). Hidden by default; shown by
          JS only when the Fullscreen API is actually available (iOS Safari
          supports it on iPhone from 16.4) AND the device is touch — desktop

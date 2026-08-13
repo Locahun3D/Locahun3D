@@ -109,7 +109,7 @@ body{position:fixed;top:0;left:0;}
   #hud .cbar button{ font-size:.92em !important; padding:11px 18px !important; }
   #qi-badge{ font-size:.9em !important; }
   #topbar .tb-home, #topbar .tb-update, #topbar .tb-lang,
-  #topbar #tb-save-btn, #topbar #tb-undo-btn{ font-size:.85em; padding:5px 12px; }
+  #topbar #tb-save-btn{ font-size:.85em; padding:5px 12px; }
   #quality-panel #qbtns button{ padding:10px 0 !important; font-size:1.05em !important; }
   /* The bottom bar can sit a touch higher so it clears any TV bottom overscan. */
   #hud .cbar{ bottom:28px; }
@@ -198,8 +198,7 @@ body{position:fixed;top:0;left:0;}
 #topbar .tb-pn:hover::after{ color:rgba(255,200,120,.95); }
 #topbar .tb-sep{flex:1;}
 /* tb-version was previously in the topbar; moved to the home screen
-   (under the changelog) at the user's request. The element still
-   carries id="tb-version" so reportBug() / checkForUpdate() can read it. */
+   (under the changelog) at the user's request. */
 #dz .dz-version-line{
   margin-top:14px;text-align:center;
   font-size:.7em;color:rgba(255,255,255,.28);letter-spacing:.08em;
@@ -217,59 +216,12 @@ body{position:fixed;top:0;left:0;}
   color:rgba(160,160,160,.55);border-radius:4px;padding:2px 8px;font-size:.66em;
   cursor:pointer;transition:all .15s;letter-spacing:.04em;white-space:nowrap;
 }
-/* Error / bug report — standalone topbar button (was previously nested
-   INSIDE the update-check button, but the parent's state classes
-   (is-checking/.55 opacity, is-offline, has-update pulse) dimmed the icon
-   to near-invisible. Also: <span onclick> inside <button> is invalid HTML.
-   Now a separate sibling: its visibility never depends on update state.
-   PC only; hidden on touch devices (their native mail flow handles this). */
-#topbar .tb-bug{
-  background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.08);
-  color:rgba(220,220,220,.85);border-radius:4px;padding:2px 7px;font-size:.78em;
-  cursor:pointer;transition:all .15s;line-height:1;flex-shrink:0;
-}
-#topbar .tb-bug:hover{
-  background:rgba(255,90,80,.22);color:#ffd0cb;border-color:rgba(255,90,80,.45);
-}
-@media (pointer:coarse) and (any-hover:none){
-  #topbar .tb-bug{display:none !important;}
-}
 #topbar .tb-update:hover{background:rgba(255,255,255,.1);color:#D8D8D8;}
-#topbar .tb-update.is-latest{background:rgba(80,200,120,.06);border-color:rgba(80,200,120,.22);
-  color:rgba(140,220,170,.75);}
-#topbar .tb-update.is-latest:hover{background:rgba(80,200,120,.12);color:#cfeed8;}
-#topbar .tb-update.has-update{background:rgba(255,180,84,.12);border-color:rgba(255,180,84,.45);
-  color:#ffe4b3;animation:tb-update-pulse 1.6s ease-in-out infinite;}
-#topbar .tb-update.has-update:hover{background:rgba(255,180,84,.22);}
-#topbar .tb-update.is-checking{opacity:.55;cursor:default;}
-#topbar .tb-update.is-offline{background:rgba(255,255,255,.04);
-  border-color:rgba(255,180,84,.18);color:rgba(220,180,120,.55);}
-/* スマホ版では上部の「↩ 戻る」(Undo) ボタンを非表示（user 2026-06-30）。
-   狭い画面の上部を圧迫するため。タブレット(iPad)は対象外。 */
-@media (pointer:coarse) and (any-hover:none) and (max-width:600px),
-       (pointer:coarse) and (any-hover:none) and (max-height:500px){
-  #topbar #tb-undo-btn{ display:none !important; }
-}
 /* オンライン版経由(?protected=1)ではデータ保存/エクスポートを無効化。
    ZIP保存ボタン・3DGSエクスポート・ZIP保存モーダル項目を非表示。 */
 body.protected-mode #tb-save-btn,
 body.protected-mode #em-export-splat,
 body.protected-mode #em-save-zip { display:none !important; }
-@keyframes tb-update-pulse{
-  0%,100%{box-shadow:0 0 0 0 rgba(255,180,84,.0);}
-  50%   {box-shadow:0 0 0 4px rgba(255,180,84,.18);}
-}
-#topbar .tb-integrity{
-  font-size:.7em;font-weight:700;letter-spacing:0;
-  padding:1px 5px;border-radius:3px;line-height:1;
-  font-family:ui-monospace,Consolas,monospace;
-  cursor:help;
-}
-#topbar .tb-integrity.ok{background:rgba(80,200,120,.14);color:rgba(170,235,190,.9);
-  border:1px solid rgba(80,200,120,.3);}
-#topbar .tb-integrity.bad{background:rgba(255,90,80,.18);color:#ffb4ae;
-  border:1px solid rgba(255,90,80,.45);
-  animation:tb-update-pulse 1.6s ease-in-out infinite;}
 
 /* ── Drop zone (REEL — ASPECT FRAMES) ── */
 #dz{
@@ -791,7 +743,9 @@ body.cam-active #view-tl-btns{
 .lr .lr-icon{font-size:.85em;flex-shrink:0;}
 .lr .lr-name{flex:1;font-size:.75em;color:#A0A0A0;overflow:hidden;
   text-overflow:ellipsis;white-space:nowrap;}
-.lr .lr-del{font-size:.75em;color:#383838;cursor:pointer;flex-shrink:0;}
+/* 🗑 は #383838 だと背景に沈んで「見えない」と報告があったため視認できる濃さへ
+   (user 2026-08-13)。hover の赤は据え置き。 */
+.lr .lr-del{font-size:.85em;color:#9a9a9a;cursor:pointer;flex-shrink:0;}
 .lr.lr-pivot-hover{background:rgba(255,180,60,.15);border-color:rgba(255,180,60,.4);}
 .color-preset-popup{
   position:fixed;z-index:200;background:rgba(30,30,32,.96);border:1px solid rgba(255,255,255,.12);
@@ -1151,6 +1105,32 @@ body.cam-active #view-tl-btns{
 }
 #export-modal .em-close:hover{color:#C0C0C0;}
 
+/* ── Reattach modal (lite-save 3DGS re-select) — same visual language as
+   #export-modal, higher z-index so it can sit above the ZIP-loading
+   overlay (#ld, z-index:200) which is still showing while this prompt
+   appears. ── */
+#reattach-modal{
+  position:fixed;inset:0;background:rgba(0,0,0,.7);z-index:310;
+  display:none;align-items:center;justify-content:center;
+}
+#reattach-modal.show{display:flex;}
+#reattach-modal .em-box{
+  background:rgba(26,26,28,.98);border:1px solid rgba(255,255,255,.15);border-radius:12px;
+  padding:22px 26px;min-width:280px;max-width:360px;
+}
+#reattach-modal .em-title{font-size:.95em;color:#D0D0D0;font-weight:600;margin-bottom:8px;}
+#reattach-modal .em-btn{
+  display:block;width:100%;background:#2A2A2C;border:1px solid rgba(255,255,255,.12);
+  border-radius:7px;padding:10px 14px;font-size:.83em;cursor:pointer;
+  text-align:left;transition:all .15s;margin-bottom:8px;
+}
+#reattach-modal .em-btn:hover{background:rgba(255,255,255,.08);border-color:rgba(255,255,255,.25);}
+#reattach-modal .em-close{
+  background:transparent;border:1px solid rgba(255,255,255,.1);color:#484848;
+  border-radius:5px;padding:5px 14px;cursor:pointer;font-size:.78em;width:100%;margin-top:4px;
+}
+#reattach-modal .em-close:hover{color:#C0C0C0;}
+
 /* ── Folder name input ── */
 .lr-name-input{
   flex:1;background:transparent;border:none;border-bottom:1px solid rgba(255,255,255,.2);
@@ -1318,7 +1298,6 @@ body.cam-active #view-tl-btns{
   #topbar #tb-brand-text{display:none !important;}
   #topbar .tb-update{padding:4px 6px;font-size:.58em;}
   #topbar .tb-lang{padding:4px 8px;font-size:.60em;}
-  #topbar .tb-bug{padding:4px 6px;font-size:.64em;}
   /* Action row (カメラリセット / アバター歩行 / AR). Smartphone gets a
      special override below (in the iPhone-only block) that lifts the
      row INSIDE the topbar; here we keep the generic "flush against
@@ -1499,8 +1478,6 @@ body.immersive #immersive-exit{ display:inline-block; }
   #topbar #tb-save-btn{ font-size:.78em; padding:3px 12px; }
   #topbar .tb-update{ font-size:.74em; padding:3px 10px; }
   #topbar .tb-lang{ font-size:.76em; padding:3px 10px; }
-  #topbar .tb-bug{ font-size:.86em; }
-  #topbar .tb-integrity{ font-size:.76em; }
 
   #view-tl-btns{ top:54px !important; }
   /* 画質チップ含む全ボタンを一括拡大（バッジ専用ルールは廃止＝兄弟と完全統一）。 */
@@ -1705,11 +1682,16 @@ body.immersive #immersive-exit{ display:inline-block; }
   <div class="lp-resize" id="lp-resize-handle"></div>
   <div class="lp-head" id="lp-title-head" onclick="toggleLayerPanelCollapse(event)">
     <span><span class="lp-chev">▾</span>📁 <span id="lp-h-scene">シーンレイヤー</span></span>
-    <button onclick="event.stopPropagation();addFolder()" title="フォルダを追加"
-      style="background:rgba(255,220,80,.12);border:1px solid rgba(255,220,80,.25);color:rgba(255,220,80,.8);
-             border-radius:5px;padding:2px 8px;font-size:.75em;cursor:pointer;transition:all .15s"
+    <!-- 誤爆で空フォルダが増える事故対策 (user 2026-08-13):
+         ① addFolderFromUI() で確認ダイアログを挟む
+         ② タイトル(=パネル開閉のクリック域)から margin-left で離し、当たり判定も
+            ひと回り小さくして押し間違えにくくする -->
+    <button onclick="addFolderFromUI(event)" title="フォルダを追加"
+      style="background:rgba(255,220,80,.10);border:1px solid rgba(255,220,80,.22);color:rgba(255,220,80,.75);
+             border-radius:5px;padding:1px 6px;font-size:.68em;cursor:pointer;transition:all .15s;
+             margin-left:14px;flex-shrink:0"
       onmouseover="this.style.background='rgba(255,220,80,.22)'"
-      onmouseout="this.style.background='rgba(255,220,80,.12)'">📁＋</button>
+      onmouseout="this.style.background='rgba(255,220,80,.10)'">📁＋</button>
   </div>
   <!-- Type-visibility filter row (#lp-type-filter) removed per user request.
        toggleTypeVis() remains exported on window so any programmatic toggling
@@ -2000,6 +1982,31 @@ body.immersive #immersive-exit{ display:inline-block; }
 
   <div style="margin-top:7px;font-size:.62em;color:#303030;text-align:right" id="qp-resolution">—</div>
   </div><!-- /qp-perf-section -->
+
+  <!-- ══ 初期視点（運用担当だけが使う機能） ══
+       一般ユーザーは触らないので上部ボタン行には出さず、画質パネルの最下部に
+       小さく置く (user 2026-08-13)。押すと「カメラリセットで戻ってくる視点」が
+       確定する。自動のほうは splat の幾何から位置と向きを決める(174/175)。 -->
+  <div class="qp-divider"></div>
+  <div class="qp-perf-title" id="qp-init-h">📍 初期視点（カメラリセット先）</div>
+  <div class="qrow" style="display:flex;flex-direction:column;gap:4px;margin:4px 0 2px">
+    <button id="qp-set-init-view" onclick="setCurrentViewAsInitial()"
+      title="いま見ている視点を、カメラリセット時の初期位置として登録する"
+      style="background:#1a1a1a;border:1px solid rgba(255,255,255,.12);color:#9a9a9a;
+             border-radius:4px;padding:4px 6px;font-size:.7em;cursor:pointer;
+             text-align:left;transition:all .15s;white-space:nowrap;overflow:hidden;text-overflow:ellipsis"
+      onmouseover="this.style.background='rgba(80,200,120,.16)';this.style.borderColor='rgba(100,255,160,.4)'"
+      onmouseout="this.style.background='#1a1a1a';this.style.borderColor='rgba(255,255,255,.12)'"
+      >📍 <span id="lbl-set-init-view">現在の視点を初期位置にする</span></button>
+    <button id="qp-auto-init-view" onclick="autoPlaceInitialView()"
+      title="splatの形状から初期位置と向きを自動で決める（気に入らなければ上のボタンで上書きできます）"
+      style="background:#1a1a1a;border:1px solid rgba(255,255,255,.12);color:#9a9a9a;
+             border-radius:4px;padding:4px 6px;font-size:.7em;cursor:pointer;
+             text-align:left;transition:all .15s;white-space:nowrap;overflow:hidden;text-overflow:ellipsis"
+      onmouseover="this.style.background='rgba(80,200,120,.16)';this.style.borderColor='rgba(100,255,160,.4)'"
+      onmouseout="this.style.background='#1a1a1a';this.style.borderColor='rgba(255,255,255,.12)'"
+      >🎯 <span id="lbl-auto-init-view">初期位置を自動で決める</span></button>
+  </div>
 </div>
 
 <!-- ══ View Top-Left Buttons (projection toggle + camera reset) ══ -->
@@ -2099,17 +2106,8 @@ body.immersive #immersive-exit{ display:inline-block; }
       <circle cx="50" cy="50" r="4.4" fill="#0c0c0d"/>
     </svg><span id="tb-brand-text" data-i18n="tb-brand" style="font-weight:600;letter-spacing:.03em;white-space:nowrap;line-height:1;display:inline-flex;align-items:center">ロケハン3D</span></button>
   <div style="display:flex;align-items:center;gap:8px;flex:1;min-width:0;justify-content:flex-end">
-    <!-- Undo (1 step). Mirrors Ctrl+Z: undoes the last measurement step while
-         measuring, otherwise the last scene action (move/add/delete/pose…).
-         Up to 20 steps are kept (≥10 as requested). user 2026-06-27. -->
-    <button class="tb-update" id="tb-undo-btn"
-      onclick="topbarUndo()"
-      title="一つ前に戻す (Ctrl+Z)">↩ <span id="tb-undo-lbl">戻る</span></button>
-    <button class="tb-bug" id="tb-report-btn" onclick="reportBug()"
-      title="エラー / 不具合を開発者に報告">❗</button>
-    <button class="tb-update" id="tb-update-btn" onclick="checkForUpdate(true)"
-      title="更新を確認">🔄 <span id="tb-update-lbl">更新確認</span></button>
-    <span class="tb-integrity" id="tb-integrity" hidden></span>
+    <!-- 「↩ 戻る」ボタンは削除 (user 2026-08-14)。アンドゥは Ctrl+Z /
+         リドゥは Ctrl+Y のキーボード操作のみ（window.topbarUndo() は残置）。 -->
     <!-- Browser fullscreen toggle (phone/tablet). Hidden by default; shown by
          JS only when the Fullscreen API is actually available (iOS Safari
          supports it on iPhone from 16.4) AND the device is touch — desktop
@@ -3964,6 +3962,10 @@ body.ar-active #dz{display:none !important;}
       <span id="em-zip-save">📦 プロジェクトZIP保存</span> <span style="color:#88ffaa;font-size:.8em" id="em-recommended">★推奨</span>
       <span class="em-desc" id="em-zip-save-d">全ファイル（Splat・3Dモデル・キューブ）をZIPに完全保存</span>
     </button>
+    <button id="em-save-zip-lite" class="em-btn" onclick="saveProjectZip(true);closeExportModal()">
+      <span id="em-zip-lite">📦 軽量保存（3DGS本体を除外）</span>
+      <span class="em-desc" id="em-zip-lite-d">カメラ・注釈・レイアウトのみ保存（高速・低容量）。読込時に元の3DGSファイルの選択が必要です</span>
+    </button>
     <button class="em-btn" onclick="loadProjectZip();closeExportModal()">
       <span id="em-zip-load">📂 プロジェクトZIP読込</span>
       <span class="em-desc" id="em-zip-load-d">保存したZIPファイルからプロジェクトを完全復元</span>
@@ -3982,6 +3984,25 @@ body.ar-active #dz{display:none !important;}
       <span class="em-desc" id="em-obj-d">OBJ/キューブレイヤーを .obj ファイルとして書き出す</span>
     </button>
     <button class="em-close" id="em-cancel" onclick="closeExportModal()">キャンセル</button>
+  </div>
+</div>
+
+<!-- ══ Reattach (lite-save 3DGS re-select) Modal ══ -->
+<!-- 軽量保存されたプロジェクトを読込む際、3DGS本体が同梱されていないレイヤーに
+     ついて元ファイルの再選択を促す。トーストは1.6秒で消えて読まれない/OSの
+     ファイル選択ダイアログだけが唐突に開いて見える問題があったため、ボタンで
+     進める・消えないモーダルに変更（311_zip_load_core.jsの_promptFilesForReattach
+     から開閉される）。-->
+<div id="reattach-modal">
+  <div class="em-box">
+    <div class="em-title" id="rm-title">📎 3DGSファイルの再選択が必要です</div>
+    <div class="em-desc" id="rm-desc" style="margin-bottom:14px;font-size:.8em;color:#909090;line-height:1.6"></div>
+    <button class="em-btn" id="rm-pick-btn" style="text-align:center;color:#88ffaa">
+      <span id="rm-pick">📎 ファイルを選択</span>
+    </button>
+    <button class="em-close" id="rm-skip-btn">
+      <span id="rm-skip">スキップ（元データなしで復元）</span>
+    </button>
   </div>
 </div>
 
@@ -6214,6 +6235,16 @@ window.resetCameraToInitial = function(){
   setCamRotImmediate(_initYaw, _initPitch);
   showUndoToast(T('cam-reset-msg'));
   markDirty(10);
+};
+
+// ══ 初期視点(カメラリセット先)を「いま見ている視点」で上書きする ══
+// 運用担当がWASD＋右ドラッグで画角を決め、ワンクリックで初期位置に確定できる
+// ようにするための入口。UI は画質パネル最下部の小さなボタン(#qp-set-init-view)。
+window.setCurrentViewAsInitial = function(){
+  _initCamPos.copy(camPos);
+  _initYaw = yaw; _initPitch = pitch;
+  showUndoToast(T('init-view-set-msg'));
+  markDirty(4);
 };
 
 // Resize handler. iOS Safari fires `resize` on orientation change but
@@ -11263,10 +11294,6 @@ function showHUD() {
     if(el) el.style.display = hide ? 'none' : '';
   };
   _phoneHide('btnSaveCamera', _isPhoneTier);
-  // Update-check button is removed on phones (user request 2026-06): file://
-  // self-update is a desktop workflow and the button just crowds the narrow
-  // top bar. Desktop/tablet keep it.
-  _phoneHide('tb-update-btn', _isPhoneTier);
   // Camera animation (🎞) IS now exposed on phones too (user request 2026-06).
   _phoneHide('btnCamAnim',    false);
   // #btnViewRec lives in the cbar now and the cbar's smartphone media query
@@ -11370,6 +11397,601 @@ function estimatePLYStats(buffer,flipYZ) {
 
 
 
+// ══════════════════════════════════════════════════
+//  AUTO CAMERA PLACEMENT — 幾何エンジン（純粋関数）
+//
+//  設計書: F:\Claude\docs\設計_カメラ初期位置の自動決定パイプライン_2026-08-13.md
+//
+//  「カメラ初期位置」を splat 点群の幾何だけで決定的に解く。画像認識は使わない。
+//  ここには Spark / THREE / DOM への依存を一切置かない —— 点群(Float32Array の
+//  x,y,z 連番)を渡せばスコアと位置が返るだけの純粋な計算。単体テストのため
+//  (scripts/test-auto-camera.mjs が この1ファイルだけを eval して検証する)。
+//
+//  ブラウザ側の配線（splat の取り出し・ボタン・トースト）は 175 に置く。
+// ══════════════════════════════════════════════════
+(function (root) {
+  'use strict';
+
+  // ── パラメータ ────────────────────────────────────────────────
+  // 設計書 §2 の数値をそのまま定数化してある。実データに合わせて動かすときは
+  // ここだけを触ればよい（コード中に数値を散らさない）。★印は設計書に明示の
+  // 数値が無く、こちらで決めた値。
+  const P = {
+    VOXEL: 0.3,                  // §2-1 占有グリッドのボクセル辺長 [m]
+    VOXEL_LARGE: 0.5,            // §2-1 広い屋外はここまで緩和
+    LARGE_SCENE_EXTENT: 60,      // ★ 水平の最大辺がこれを超えたら「広い屋外」[m]
+    MAX_VOXELS: 40e6,            // ★ メモリ保護。超えたらボクセルを粗くする
+    OCCUPANCY_MIN_POINTS: 3,     // §2-1 3点以上で占有（フローター対策）
+
+    FLOOR_BIN: 0.1,              // §2-2 Yヒストグラムの刻み [m]
+    FLOOR_PERCENTILE: 0.05,      // §2-2 累積5%より下は外れ値として無視
+    // ★ 床候補ピークを探すのは高さレンジの下60%まで。天井を床と誤らないための
+    //   上限だが、狭すぎると §2-2 の「多層構造では最も点数の多い層を採る」規定で
+    //   2階側を拾えなくなる（下40%だと 0-8m のスキャンで y=4 の層が範囲外に
+    //   落ちた）。室内の天井は必ずレンジ上端＝100%側に来るので 60% で両立する。
+    FLOOR_SEARCH_FRACTION: 0.6,
+    FLOOR_PEAK_MIN_RATIO: 0.25,  // ★ 最大ピークのこの割合未満は「密なピーク」と認めない
+    EYE_HEIGHT: 1.5,             // §2-2 目線高さ = 床 + 1.5m
+
+    CLEAR_RADIUS: 0.5,           // §2-3 水平これ以内は全て非占有であること [m]
+    FLOOR_BELOW: 1.5,            // §2-3 真下これ以内に床(占有)があること [m]
+
+    RAYS: 64,                    // §2-4 水平レイの本数
+    RAY_MAX: 30,                 // §2-4 レイ距離の上限 [m]
+    CONTENT_MIN: 3,              // §2-4 content はこの距離以上でのヒットを数える [m]
+    HEADROOM_CAP: 5,             // ★ 真上レイの正規化上限 [m]
+    W_OPEN: 0.35, W_CONTENT: 0.35, W_CENTRALITY: 0.20, W_HEADROOM: 0.10,  // §2-4 重み
+
+    YAW_BINS: 72,                // §2-5 5°刻み
+    YAW_FOV_DEG: 60,             // §2-5 水平画角
+    YAW_MIN_DIST: 2,             // §2-5 近すぎる点は除外 [m]
+    YAW_MAX_DIST: 30,            // §2-5 遠すぎる点は除外 [m]
+    YAW_FALLOFF: 10,             // ★ 距離減衰 w = 1/(1+d/FALLOFF)
+
+    CONFIDENCE_THRESHOLD: 70,    // §2-6 これ未満は needsReview
+    MAX_CANDIDATES_SCORED: 2000, // ★ 採点する候補数の上限（等間隔で間引く）
+    MAX_POINTS_FOR_YAW: 60000,   // ★ yaw 決定に使う点数の上限
+
+    // ★ 偽陽性ガード（設計書 §5「明らかに悪い配置が信頼度70以上で通らないこと」）。
+    //   スコアの重み付き和だけだと、壁に近すぎる/虚空を向く候補でも他の指標が
+    //   高ければ 70 を超えうるので、上限でクリップする。
+    WALL_TOO_CLOSE: 0.8, WALL_PENALTY_CAP: 40,
+    CONTENT_TOO_LOW: 0.4, CONTENT_PENALTY_CAP: 50,
+
+    // ★ openness の正規化上限。設計書は「上限30mでクランプ」だが、それを
+    //   そのまま 0-1 化すると室内(見通し5-8m)は openness≈0.2 にしかならず、
+    //   人手と同等の良い配置でも信頼度が 70 に届かない。シーンの水平サイズの
+    //   半分（4〜30mでクランプ）で正規化し、「そのシーンとして見通せているか」
+    //   を測る。レイ自体の打ち切りは設計書どおり 30m。
+    OPEN_CAP_MIN: 4, OPEN_CAP_MAX: 30,
+  };
+
+  const clamp = (v, lo, hi) => (v < lo ? lo : v > hi ? hi : v);
+
+  // ── 1. 占有グリッド ───────────────────────────────────────────
+  // points: Float32Array(x,y,z,...) / count: 点数
+  // 返り値の counts は各ボクセルの点数（0-65535 でクリップ）。occupied() で判定する。
+  function buildOccupancy(points, count, opts) {
+    opts = opts || {};
+    let minX = Infinity, minY = Infinity, minZ = Infinity;
+    let maxX = -Infinity, maxY = -Infinity, maxZ = -Infinity;
+    for (let i = 0; i < count; i++) {
+      const x = points[i * 3], y = points[i * 3 + 1], z = points[i * 3 + 2];
+      if (!isFinite(x) || !isFinite(y) || !isFinite(z)) continue;
+      if (x < minX) minX = x; if (x > maxX) maxX = x;
+      if (y < minY) minY = y; if (y > maxY) maxY = y;
+      if (z < minZ) minZ = z; if (z > maxZ) maxZ = z;
+    }
+    if (!isFinite(minX)) return null;
+
+    // ★ 上方向の余白。目線高さ(床+1.5m)と headroom レイ(5m)がグリッドの外に
+    //   出ると候補ゼロになってしまう（平坦な広場のスキャン＝点群の最高点が
+    //   1m しかない、等）。空のボクセルを上へ足しておく。
+    maxY += P.EYE_HEIGHT + P.HEADROOM_CAP;
+
+    const extentX = maxX - minX, extentY = maxY - minY, extentZ = maxZ - minZ;
+    const horizExtent = Math.max(extentX, extentZ);
+    // 広い屋外は 0.5m へ自動緩和（設計書 §2-1）
+    let voxel = opts.voxel || (horizExtent > P.LARGE_SCENE_EXTENT ? P.VOXEL_LARGE : P.VOXEL);
+    // メモリ保護: ボクセル数が上限を超えるうちは粗くしていく
+    for (let guard = 0; guard < 12; guard++) {
+      const n = ((extentX / voxel) + 2) * ((extentY / voxel) + 2) * ((extentZ / voxel) + 2);
+      if (n <= P.MAX_VOXELS) break;
+      voxel *= 1.5;
+    }
+
+    const nx = Math.max(1, Math.floor(extentX / voxel) + 1);
+    const ny = Math.max(1, Math.floor(extentY / voxel) + 1);
+    const nz = Math.max(1, Math.floor(extentZ / voxel) + 1);
+    const counts = new Uint16Array(nx * ny * nz);
+    for (let i = 0; i < count; i++) {
+      const x = points[i * 3], y = points[i * 3 + 1], z = points[i * 3 + 2];
+      if (!isFinite(x) || !isFinite(y) || !isFinite(z)) continue;
+      const ix = clamp(Math.floor((x - minX) / voxel), 0, nx - 1);
+      const iy = clamp(Math.floor((y - minY) / voxel), 0, ny - 1);
+      const iz = clamp(Math.floor((z - minZ) / voxel), 0, nz - 1);
+      const k = (iy * nz + iz) * nx + ix;
+      if (counts[k] < 65535) counts[k]++;
+    }
+    return {
+      voxel, nx, ny, nz, counts,
+      min: { x: minX, y: minY, z: minZ },
+      max: { x: maxX, y: maxY, z: maxZ },
+      horizExtent,
+      minPoints: opts.minPoints != null ? opts.minPoints : P.OCCUPANCY_MIN_POINTS,
+    };
+  }
+
+  function occupied(g, ix, iy, iz) {
+    if (ix < 0 || iy < 0 || iz < 0 || ix >= g.nx || iy >= g.ny || iz >= g.nz) return false;
+    return g.counts[(iy * g.nz + iz) * g.nx + ix] >= g.minPoints;
+  }
+
+  // ── 2. 床面の検出 ─────────────────────────────────────────────
+  // 0.1m 刻みの Y ヒストグラム。累積5パーセンタイル以降・高さレンジ下40%以内の
+  // 「密なピーク」のうち最も点数の多いものを床とする（設計書 §2-2 の多層規定）。
+  function detectFloor(points, count) {
+    let minY = Infinity, maxY = -Infinity;
+    for (let i = 0; i < count; i++) {
+      const y = points[i * 3 + 1];
+      if (!isFinite(y)) continue;
+      if (y < minY) minY = y; if (y > maxY) maxY = y;
+    }
+    if (!isFinite(minY)) return null;
+    const span = Math.max(maxY - minY, 1e-6);
+    const nb = Math.max(1, Math.ceil(span / P.FLOOR_BIN) + 1);
+    const hist = new Int32Array(nb);
+    let valid = 0;
+    for (let i = 0; i < count; i++) {
+      const y = points[i * 3 + 1];
+      if (!isFinite(y)) continue;
+      hist[clamp(Math.floor((y - minY) / P.FLOOR_BIN), 0, nb - 1)]++;
+      valid++;
+    }
+    if (!valid) return null;
+
+    // 累積5パーセンタイル（地下・ノイズを避ける）
+    let cum = 0, startBin = 0;
+    const need = valid * P.FLOOR_PERCENTILE;
+    for (let b = 0; b < nb; b++) { cum += hist[b]; if (cum >= need) { startBin = b; break; } }
+    // 探索範囲は高さレンジの下 FLOOR_SEARCH_FRACTION まで（天井を床と誤らないため）
+    const endBin = Math.max(startBin, Math.min(nb - 1, Math.floor(nb * P.FLOOR_SEARCH_FRACTION)));
+
+    let globalMax = 0;
+    for (let b = startBin; b <= endBin; b++) if (hist[b] > globalMax) globalMax = hist[b];
+    if (globalMax <= 0) return { y: minY, confident: false, hist, minY, binSize: P.FLOOR_BIN };
+
+    // 局所ピーク（両隣以上）かつ最大ピークの FLOOR_PEAK_MIN_RATIO 以上を候補に。
+    // 候補が複数＝多層構造なので、そのうち最も点数の多い層を採る。
+    let bestBin = -1, bestVal = -1, peaks = 0;
+    for (let b = startBin; b <= endBin; b++) {
+      const v = hist[b];
+      if (v < globalMax * P.FLOOR_PEAK_MIN_RATIO) continue;
+      const prev = b > 0 ? hist[b - 1] : 0, next = b < nb - 1 ? hist[b + 1] : 0;
+      if (v < prev || v < next) continue;
+      peaks++;
+      if (v > bestVal) { bestVal = v; bestBin = b; }
+    }
+    if (bestBin < 0) { bestBin = startBin; bestVal = hist[startBin]; }
+    return {
+      y: minY + bestBin * P.FLOOR_BIN,
+      // 「はっきりした床」＝ピークが平均の2倍以上ある（信頼度に効かせる）
+      confident: bestVal >= (valid / nb) * 2,
+      peakCount: peaks, peakRatio: bestVal / valid,
+      minY, maxY, hist, binSize: P.FLOOR_BIN,
+    };
+  }
+
+  // ── 3. 水平レイ（2D DDA, Amanatides–Woo）────────────────────────
+  // 目線スライス(iy固定)上を進み、最初に占有ボクセルへ当たるまでの距離を返す。
+  // 当たらなければ maxDist（グリッド外へ出た場合も maxDist 扱い＝「開けている」）。
+  function castRay2D(g, iy, ox, oz, dx, dz, maxDist) {
+    let ix = clamp(Math.floor((ox - g.min.x) / g.voxel), 0, g.nx - 1);
+    let iz = clamp(Math.floor((oz - g.min.z) / g.voxel), 0, g.nz - 1);
+    const stepX = dx > 0 ? 1 : -1, stepZ = dz > 0 ? 1 : -1;
+    const invX = dx !== 0 ? 1 / Math.abs(dx) : Infinity;
+    const invZ = dz !== 0 ? 1 / Math.abs(dz) : Infinity;
+    const bx = g.min.x + (ix + (dx > 0 ? 1 : 0)) * g.voxel;
+    const bz = g.min.z + (iz + (dz > 0 ? 1 : 0)) * g.voxel;
+    let tMaxX = dx !== 0 ? Math.abs(bx - ox) * invX : Infinity;
+    let tMaxZ = dz !== 0 ? Math.abs(bz - oz) * invZ : Infinity;
+    const tDeltaX = g.voxel * invX, tDeltaZ = g.voxel * invZ;
+    let t = 0;
+    while (t <= maxDist) {
+      if (tMaxX < tMaxZ) { ix += stepX; t = tMaxX; tMaxX += tDeltaX; }
+      else { iz += stepZ; t = tMaxZ; tMaxZ += tDeltaZ; }
+      if (ix < 0 || iz < 0 || ix >= g.nx || iz >= g.nz) return maxDist;
+      if (t > maxDist) return maxDist;
+      if (occupied(g, ix, iy, iz)) return t;
+    }
+    return maxDist;
+  }
+
+  // 真上へのレイ（机の下・棚の中を弾く）
+  function castRayUp(g, ix, iy, iz, maxDist) {
+    const steps = Math.ceil(maxDist / g.voxel);
+    for (let s = 1; s <= steps; s++) {
+      const y = iy + s;
+      if (y >= g.ny) return maxDist;
+      if (occupied(g, ix, y, iz)) return Math.min(maxDist, s * g.voxel);
+    }
+    return maxDist;
+  }
+
+  // ── 4. 候補抽出 ───────────────────────────────────────────────
+  // 目線高さのスライスで「非占有 / 水平0.5m以内が空 / 真下1.5m以内に床」。
+  function findCandidates(g, eyeY, clearRadius) {
+    const iy = Math.floor((eyeY - g.min.y) / g.voxel);
+    if (iy < 0 || iy >= g.ny) return { iy, list: [] };
+    const r = Math.max(1, Math.ceil((clearRadius != null ? clearRadius : P.CLEAR_RADIUS) / g.voxel));
+    const below = Math.max(1, Math.ceil(P.FLOOR_BELOW / g.voxel));
+    const list = [];
+    for (let iz = 0; iz < g.nz; iz++) {
+      for (let ix = 0; ix < g.nx; ix++) {
+        if (occupied(g, ix, iy, iz)) continue;
+        let clear = true;
+        for (let dz = -r; dz <= r && clear; dz++) {
+          for (let dx = -r; dx <= r; dx++) {
+            if (occupied(g, ix + dx, iy, iz + dz)) { clear = false; break; }
+          }
+        }
+        if (!clear) continue;
+        let hasFloor = false;
+        for (let d = 1; d <= below; d++) {
+          if (occupied(g, ix, iy - d, iz)) { hasFloor = true; break; }
+        }
+        if (!hasFloor) continue;
+        list.push(ix, iz);
+      }
+    }
+    return { iy, list };
+  }
+
+  // ── 5. 採点 ───────────────────────────────────────────────────
+  function scoreCandidate(g, iy, ix, iz, ctx) {
+    const ox = g.min.x + (ix + 0.5) * g.voxel;
+    const oz = g.min.z + (iz + 0.5) * g.voxel;
+    let sum = 0, minD = Infinity, contentHits = 0;
+    for (let k = 0; k < P.RAYS; k++) {
+      const a = (k / P.RAYS) * Math.PI * 2;
+      const d = castRay2D(g, iy, ox, oz, Math.sin(a), Math.cos(a), P.RAY_MAX);
+      sum += d;
+      if (d < minD) minD = d;
+      if (d >= P.CONTENT_MIN && d < P.RAY_MAX) contentHits++;
+    }
+    const meanD = sum / P.RAYS;
+    const openness = clamp(meanD / ctx.openCap, 0, 1);
+    const content = contentHits / P.RAYS;
+    const dc = Math.hypot(ox - ctx.centroidX, oz - ctx.centroidZ);
+    const centrality = 1 - clamp(dc / ctx.centralityNorm, 0, 1);
+    const upDist = castRayUp(g, ix, iy, iz, P.HEADROOM_CAP);
+    const headroom = clamp(upDist / P.HEADROOM_CAP, 0, 1);
+    const score = P.W_OPEN * openness + P.W_CONTENT * content +
+                  P.W_CENTRALITY * centrality + P.W_HEADROOM * headroom;
+    return { ix, iz, x: ox, z: oz, score, openness, content, centrality, headroom, meanD, minD, upDist };
+  }
+
+  // ── 6. 向き（yaw）────────────────────────────────────────────
+  // 5°刻み72ビン。各点を「その点が入るビン」に距離重みで積み、最後に
+  // ±(画角/2) の窓で合計することで「視錐台内の密度」を O(N + bins) で得る。
+  // 前方ベクトルは (sin yaw, *, cos yaw)（既存 070_3d.js の規約）。
+  function chooseYaw(points, count, camX, camY, camZ) {
+    const bins = new Float64Array(P.YAW_BINS);
+    const stride = Math.max(1, Math.floor(count / P.MAX_POINTS_FOR_YAW));
+    let used = 0;
+    for (let i = 0; i < count; i += stride) {
+      const dx = points[i * 3] - camX;
+      const dy = points[i * 3 + 1] - camY;
+      const dz = points[i * 3 + 2] - camZ;
+      const d = Math.hypot(dx, dz);
+      if (d < P.YAW_MIN_DIST || d > P.YAW_MAX_DIST) continue;
+      // 仰角45°を超える点（真上のビル上部・真下の床）は「正面に見えるもの」では
+      // ないので数えない。
+      if (Math.abs(dy) > d) continue;
+      let a = Math.atan2(dx, dz);
+      if (a < 0) a += Math.PI * 2;
+      const b = Math.floor(a / (Math.PI * 2) * P.YAW_BINS) % P.YAW_BINS;
+      bins[b] += 1 / (1 + d / P.YAW_FALLOFF);
+      used++;
+    }
+    const half = Math.round((P.YAW_FOV_DEG / 2) / (360 / P.YAW_BINS));
+    let best = 0, bestVal = -1, total = 0;
+    for (let b = 0; b < P.YAW_BINS; b++) {
+      let s = 0;
+      for (let o = -half; o <= half; o++) s += bins[(b + o + P.YAW_BINS) % P.YAW_BINS];
+      total += s;
+      if (s > bestVal) { bestVal = s; best = b; }
+    }
+    const mean = total / P.YAW_BINS;
+    return {
+      yaw: (best + 0.5) * (Math.PI * 2 / P.YAW_BINS),
+      // 決定力: 最良ビンが平均の何倍か（1=どこを向いても同じ＝手掛かり無し）
+      decisiveness: mean > 0 ? bestVal / mean : 0,
+      usedPoints: used,
+    };
+  }
+
+  // ── 7. 総合 ───────────────────────────────────────────────────
+  // points: Float32Array(x,y,z...) / count: 点数
+  // 返り値: { failed, position, yaw, pitch, confidence, needsReview, diagnostics }
+  function autoPlaceCamera(points, count, opts) {
+    opts = opts || {};
+    const t0 = (typeof performance !== 'undefined' && performance.now) ? performance.now() : Date.now();
+    const fail = (reason, extra) => Object.assign({
+      failed: true, needsReview: true, confidence: 0, reason,
+      position: null, yaw: 0, pitch: 0, diagnostics: { sampleCount: count },
+    }, extra || {});
+
+    if (!points || count < 100) return fail('too-few-points');
+    const g = buildOccupancy(points, count, opts);
+    if (!g) return fail('no-valid-points');
+    const floor = detectFloor(points, count);
+    if (!floor) return fail('no-floor');
+
+    const eyeY = floor.y + P.EYE_HEIGHT;
+
+    // 候補ゼロなら 1度だけ条件を緩めて再試行（極端に狭い室内・柱だらけの空間）。
+    let cand = findCandidates(g, eyeY, P.CLEAR_RADIUS);
+    let relaxed = false;
+    if (cand.list.length === 0) {
+      cand = findCandidates(g, eyeY, g.voxel);   // 水平クリアランスを1ボクセルへ
+      relaxed = true;
+    }
+    if (cand.list.length === 0) {
+      return fail('no-candidate', { diagnostics: { sampleCount: count, floorY: floor.y, eyeY, voxel: g.voxel } });
+    }
+
+    // 水平重心（centrality 用）
+    let cxs = 0, czs = 0;
+    for (let i = 0; i < count; i++) { cxs += points[i * 3]; czs += points[i * 3 + 2]; }
+    const ctx = {
+      centroidX: cxs / count, centroidZ: czs / count,
+      centralityNorm: Math.max(g.horizExtent * 0.5, 1),
+      openCap: clamp(g.horizExtent * 0.5, P.OPEN_CAP_MIN, P.OPEN_CAP_MAX),
+    };
+
+    const nCand = cand.list.length / 2;
+    const stride = Math.max(1, Math.ceil(nCand / P.MAX_CANDIDATES_SCORED));
+    let best = null;
+    for (let i = 0; i < nCand; i += stride) {
+      const s = scoreCandidate(g, cand.iy, cand.list[i * 2], cand.list[i * 2 + 1], ctx);
+      if (!best || s.score > best.score) best = s;
+    }
+    if (!best) return fail('no-candidate');
+
+    const yawRes = chooseYaw(points, count, best.x, eyeY, best.z);
+
+    // pitch は 0（水平）が基本。天井が低い / 足元が遠いときだけ微調整（§2-5）。
+    let pitch = 0;
+    if (best.upDist < 1.0) pitch = -5 * Math.PI / 180;
+    // 目線スライスの真下に床がどれだけ離れているか（高所＝下を向かせる）
+    let floorDrop = 0;
+    for (let d = 1; d <= Math.ceil(P.FLOOR_BELOW / g.voxel); d++) {
+      if (occupied(g, best.ix, cand.iy - d, cand.iz)) { floorDrop = d * g.voxel; break; }
+    }
+    if (floorDrop > 2.5) pitch = -10 * Math.PI / 180;
+
+    // 信頼度（§2-6）。基本はスコアをそのまま 0-100 にし、明らかな失敗パターンは
+    // 上限でクリップして 70 を超えさせない。
+    let confidence = Math.round(best.score * 100);
+    const flags = [];
+    if (best.minD < P.WALL_TOO_CLOSE) { confidence = Math.min(confidence, P.WALL_PENALTY_CAP); flags.push('wall-too-close'); }
+    if (best.content < P.CONTENT_TOO_LOW) { confidence = Math.min(confidence, P.CONTENT_PENALTY_CAP); flags.push('low-content'); }
+    if (!floor.confident) { confidence = Math.min(confidence, 65); flags.push('floor-uncertain'); }
+    if (yawRes.decisiveness < 1.15) { confidence = Math.min(confidence, 65); flags.push('yaw-undecided'); }
+    if (relaxed) { confidence = Math.min(confidence, 60); flags.push('relaxed-clearance'); }
+    confidence = clamp(confidence, 0, 100);
+
+    const t1 = (typeof performance !== 'undefined' && performance.now) ? performance.now() : Date.now();
+    return {
+      failed: false,
+      position: { x: best.x, y: eyeY, z: best.z },
+      yaw: yawRes.yaw,
+      pitch,
+      confidence,
+      needsReview: confidence < P.CONFIDENCE_THRESHOLD,
+      flags,
+      diagnostics: {
+        sampleCount: count, voxel: g.voxel, floorY: floor.y, eyeY,
+        floorConfident: floor.confident, floorPeaks: floor.peakCount,
+        candidateCount: nCand, scoredCount: Math.ceil(nCand / stride), relaxed,
+        score: best.score, openness: best.openness, content: best.content,
+        centrality: best.centrality, headroom: best.headroom,
+        meanRayDist: best.meanD, minRayDist: best.minD, upDist: best.upDist,
+        yawDecisiveness: yawRes.decisiveness, floorDrop,
+        sceneExtent: g.horizExtent, openCap: ctx.openCap,
+        elapsedMs: Math.round(t1 - t0),
+      },
+    };
+  }
+
+  root.LocahunAutoCam = {
+    PARAMS: P,
+    buildOccupancy, occupied, detectFloor, findCandidates,
+    castRay2D, castRayUp, scoreCandidate, chooseYaw, autoPlaceCamera,
+  };
+})(typeof globalThis !== 'undefined' ? globalThis : this);
+// ══════════════════════════════════════════════════
+//  AUTO CAMERA PLACEMENT — ブラウザ側の配線
+//
+//  設計書: F:\Claude\docs\設計_カメラ初期位置の自動決定パイプライン_2026-08-13.md
+//
+//  役割は3つだけ:
+//    ① シーンの splat から CPU 側で点群を取り出す（Spark依存はここに閉じる）
+//    ② 174 の純粋エンジンへ渡して位置・向き・信頼度を得る
+//    ③ 結果を既存の初期視点（_initCamPos/_initYaw/_initPitch）へ書き込み、
+//       手動ボタン(📍)と同じ状態にする（気に入らなければ📍で上書きできる）
+// ══════════════════════════════════════════════════
+
+// ── half-float(IEEE 754 binary16) → number ──────────────────────
+// Spark の packed splat は中心座標を half で持つ。unpackSplat() を import すると
+// 010_state.js の import 行（オンライン版と共用）を触ることになるので、必要な
+// 「中心座標だけ」をここで自前に展開する。値の解釈は Spark の fromHalf と同一。
+const _AC_HALF_BUF = new ArrayBuffer(4);
+const _AC_HALF_U32 = new Uint32Array(_AC_HALF_BUF);
+const _AC_HALF_F32 = new Float32Array(_AC_HALF_BUF);
+function _acFromHalf(h){
+  const s = (h & 0x8000) << 16;
+  const e = (h >> 10) & 0x1f;
+  const m = h & 0x3ff;
+  if(e === 0){
+    if(m === 0){ _AC_HALF_U32[0] = s; return _AC_HALF_F32[0]; }
+    // subnormal: 正規化しなおす
+    let ex = -1, mm = m;
+    do { mm <<= 1; ex++; } while(!(mm & 0x400));
+    _AC_HALF_U32[0] = s | ((127 - 15 - ex) << 23) | ((mm & 0x3ff) << 13);
+    return _AC_HALF_F32[0];
+  }
+  if(e === 31){ _AC_HALF_U32[0] = s | 0x7f800000 | (m << 13); return _AC_HALF_F32[0]; }
+  _AC_HALF_U32[0] = s | ((e - 15 + 127) << 23) | (m << 13);
+  return _AC_HALF_F32[0];
+}
+
+// ── splat 点群の取り出し ────────────────────────────────────────
+// Spark 2.0 の CPU 側データ配置（vendor の SplatMesh.raycast() と同じ経路）:
+//   ・RAD(paged)      : mesh.paged.pager.packedTexture.value.image.data が
+//                       常駐ページの packed 配列、mesh.paged.dynoIndices…が
+//                       「描画順index → packed index」。＝いま実際に画面へ出て
+//                       いる LOD 解決済みの集合。設計書の「最粗LODで十分」は
+//                       ここから等間隔に間引くことで満たす。
+//   ・PLY/SPLAT 等    : mesh.packedSplats.packedArray（インデックス無し）
+// どちらも 1 splat = 4 × uint32。中心は word1(x,y) と word2 下位16bit(z)。
+// 座標はメッシュローカルなので matrixWorld を掛けてワールドへ。
+function _acCollectSplatPoints(targetCount){
+  const target = targetCount || 150000;   // 設計書 §2-0: 5万〜20万点
+  if(typeof layers === 'undefined' || !layers) return { points:null, count:0, meshes:0 };
+  const src = [];
+  let total = 0;
+  for(const L of layers){
+    if(!L || L.type !== 'splat' || !L.mesh || L.visible === false) continue;
+    const mesh = L.mesh;
+    let packed = null, indices = null, n = 0;
+    try {
+      if(mesh.paged && mesh.paged.pager && mesh.paged.pager.packedTexture){
+        packed  = mesh.paged.pager.packedTexture.value.image.data;
+        indices = mesh.paged.dynoIndices && mesh.paged.dynoIndices.value &&
+                  mesh.paged.dynoIndices.value.image ? mesh.paged.dynoIndices.value.image.data : null;
+        n = mesh.paged.numSplats || 0;
+      } else if(mesh.packedSplats && mesh.packedSplats.packedArray){
+        packed = mesh.packedSplats.packedArray;
+        n = mesh.packedSplats.numSplats || 0;
+      }
+    } catch(e){ console.warn('[autocam] splat 取り出し失敗:', e); }
+    if(!packed || !n) continue;
+    mesh.updateMatrixWorld(true);
+    src.push({ packed, indices, n, m: mesh.matrixWorld.elements });
+    total += n;
+  }
+  if(!total) return { points:null, count:0, meshes:0 };
+
+  const stride = Math.max(1, Math.floor(total / target));
+  const out = new Float32Array(Math.ceil(total / stride) * 3 + 3);
+  let o = 0;
+  for(const s of src){
+    const { packed, indices, n, m } = s;
+    for(let i = 0; i < n; i += stride){
+      const idx = indices ? indices[i] : i;
+      const b = idx * 4;
+      if(b + 3 >= packed.length) continue;
+      const w1 = packed[b + 1], w2 = packed[b + 2];
+      const lx = _acFromHalf(w1 & 0xffff);
+      const ly = _acFromHalf((w1 >>> 16) & 0xffff);
+      const lz = _acFromHalf(w2 & 0xffff);
+      if(!isFinite(lx) || !isFinite(ly) || !isFinite(lz)) continue;
+      if(o + 3 > out.length) break;
+      // matrixWorld（列優先）を手で掛ける。THREE.Vector3 を都度作らないため。
+      out[o++] = m[0]*lx + m[4]*ly + m[8]*lz  + m[12];
+      out[o++] = m[1]*lx + m[5]*ly + m[9]*lz  + m[13];
+      out[o++] = m[2]*lx + m[6]*ly + m[10]*lz + m[14];
+    }
+  }
+  return { points: out, count: (o / 3) | 0, meshes: src.length };
+}
+
+// ── 実行本体 ───────────────────────────────────────────────────
+// 戻り値は 174 のエンジンの結果そのまま（confidence / needsReview / failed /
+// position / yaw / pitch / diagnostics）。apply:false で「計算だけ」もできる。
+window.computeAutoInitialView = function(opts){
+  opts = opts || {};
+  const eng = (typeof LocahunAutoCam !== 'undefined') ? LocahunAutoCam : null;
+  if(!eng) return { failed:true, needsReview:true, confidence:0, reason:'engine-missing' };
+  const s = _acCollectSplatPoints(opts.targetCount);
+  if(!s.count) return { failed:true, needsReview:true, confidence:0, reason:'no-splats' };
+  const r = eng.autoPlaceCamera(s.points, s.count, opts);
+  r.splatMeshes = s.meshes;
+  return r;
+};
+
+// 自動決定 → 初期視点へ反映（画質パネルの📍ボタンと同じ場所を書き換える）
+window.applyAutoInitialView = function(result){
+  if(!result || result.failed || !result.position) return false;
+  _initCamPos.set(result.position.x, result.position.y, result.position.z);
+  _initYaw = result.yaw; _initPitch = result.pitch;
+  // 決めた視点をその場で見せる（確認できないと「効いたのか」が分からない）
+  camPos.copy(_initCamPos);
+  if(typeof setCamRotImmediate === 'function') setCamRotImmediate(_initYaw, _initPitch);
+  else { yaw = _initYaw; pitch = _initPitch; }
+  if(typeof markDirty === 'function') markDirty(10);
+  return true;
+};
+
+// 信頼度に応じて色を変えるトースト。showUndoToast は色を持たないので、ここで
+// 直接 #undo-toast の色を触り、表示が消える頃に既定色へ戻す（後続のトーストが
+// 警告色のまま出てしまうのを防ぐ）。
+let _acToastTimer = null;
+function _acToast(msg, level){
+  if(typeof showUndoToast === 'function') showUndoToast(msg);
+  const el = document.getElementById('undo-toast');
+  if(!el) return;
+  const color = level === 'warn' ? '#ffcc66' : (level === 'error' ? '#ff8a80' : '');
+  const border = level === 'warn' ? 'rgba(255,204,102,.45)' : (level === 'error' ? 'rgba(255,138,128,.45)' : '');
+  el.style.color = color || 'rgba(200,200,200,.6)';
+  if(border) el.style.borderColor = border;
+  clearTimeout(_acToastTimer);
+  _acToastTimer = setTimeout(()=>{
+    el.style.color = 'rgba(200,200,200,.6)';
+    el.style.borderColor = 'rgba(255,255,255,.15)';
+  }, 4200);
+}
+
+// 🎯 ボタン(画質パネル最下部)の入口。UI からは戻り値を使わないが、?autoinit=1 のバッチ経路は
+// 結果（信頼度・要確認）を必要とするので Promise で返す。
+window.autoPlaceInitialView = async function(){
+  const en = window._lang === 'en';
+  if(typeof layers === 'undefined' || !layers.some(L=>L && L.type==='splat' && L.mesh)){
+    _acToast(en ? 'No 3DGS scene loaded' : '3DGSシーンが読み込まれていません', 'error');
+    return { failed:true, needsReview:true, confidence:0, reason:'no-scene' };
+  }
+  _acToast(en ? '🎯 Computing initial view…' : '🎯 初期位置を計算中…');
+  // トーストを一度描画させてから重い計算に入る（同期実行だと「押しても無反応」
+  // に見えるため）。
+  await new Promise(r=>setTimeout(r, 30));
+  let r;
+  try { r = window.computeAutoInitialView(); }
+  catch(e){
+    console.error('[autocam]', e);
+    _acToast((en ? 'Auto placement failed: ' : '自動配置に失敗しました: ') + e.message, 'error');
+    return { failed:true, needsReview:true, confidence:0, reason:'exception: ' + e.message };
+  }
+  console.info('[autocam]', r);
+  if(r.failed){
+    _acToast(en
+      ? `Auto placement failed (${r.reason}) — position unchanged`
+      : `自動配置に失敗しました（${r.reason}）— 初期位置は変更していません`, 'error');
+    return r;
+  }
+  window.applyAutoInitialView(r);
+  if(r.needsReview){
+    _acToast(en
+      ? `Confidence ${r.confidence} — manual check recommended`
+      : `信頼度 ${r.confidence} — 手動での確認を推奨します`, 'warn');
+  } else {
+    _acToast(en
+      ? `Initial view set automatically (confidence ${r.confidence})`
+      : `初期位置を自動設定しました（信頼度 ${r.confidence}）`);
+  }
+  return r;
+};
 // ══════════════════════════════════════════════════
 //  SPLAT DECIMATION  (user-toggled "low-poly mode")
 // ══════════════════════════════════════════════════
@@ -12306,6 +12928,8 @@ async function loadSplatFile(file){
     // of how many additional splats are loaded later.
     mainL._splatCache = stats.cache;
     mainL._splatCacheCount = stats.cacheCount;
+    // プロジェクト名が未設定なら、読み込んだ 3DGS のファイル名で埋める。
+    if(typeof setProjectNameFromFile==='function') setProjectNameFromFile(file.name);
     selectLayer(mainL.id);
 
     setBar(78); setMsg(T('placing-cam'));
@@ -12338,7 +12962,7 @@ async function loadSplatFile(file){
     // Save as initial camera state for reset button
     _initCamPos.copy(camPos);
     _initYaw=yaw; _initPitch=0;
-
+  
     await sleep(400); setBar(100); await sleep(300);
     hideLd(); showHUD(); hideDZ();
     // Force continuous rendering while Spark streams/sorts the 3DGS (async).
@@ -13979,6 +14603,24 @@ function _flushGenericPending(){
   _genericPending.clear();
 }
 
+// ── Layer / folder rename undo (user 2026-08-14) ──
+// A rename is a discrete commit (Enter or blur), so it is pushed straight onto
+// the generic stack with NO debounce — pushGenericUndo's 700ms coalescing is for
+// slider drags and would merge two deliberate renames into one. Riding the
+// generic entry means Ctrl+Z and Ctrl+Y both work with zero new machinery.
+function pushRenameUndo(id, before, after){
+  if(before === after) return;
+  const apply = (name)=>{
+    const L = (typeof findLayer==='function') ? findLayer(id) : null;
+    if(!L) return;               // layer was deleted since — nothing to rename
+    L.name = name;
+    renderLayerList();
+    if(typeof renderTransformPanel==='function') renderTransformPanel();
+  };
+  pushGlobalUndo({ type:'generic', key:'rename:'+id, before, after, apply,
+                   undoKey:'undo-rename', redoKey:'redo-rename' });
+}
+
 function globalRedo(){
   _flushGenericPending();
   if(!globalRedoStack.length){ showUndoToast(T('redo-none')); return; }
@@ -13987,7 +14629,9 @@ function globalRedo(){
     globalUndoStack.push(s);
     _suppressUndoCapture = true;
     try { s.apply(s.after); } finally { _suppressUndoCapture = false; }
-    showUndoToast(T('redo-move'));
+    // `redoKey` lets a generic entry name its own toast (e.g. rename); the
+    // default stays the historical "layer move" wording.
+    showUndoToast(T(s.redoKey || 'redo-move'));
     markDirty(4);
     return;
   }
@@ -14094,9 +14738,11 @@ function globalRedo(){
   }
 }
 
-// Exposed for the top-bar "↩ 戻る" button (inline onclick runs in GLOBAL scope and
-// can't see the module-scoped globalUndo). Mirrors the Ctrl+Z behaviour: undo the
-// last measurement step while measuring, else the last scene action.
+// Global-scope entry point for undo. The top-bar "↩ 戻る" button that used to call
+// this was removed (user 2026-08-14) — undo is now keyboard-only (Ctrl+Z) — but the
+// export stays so any inline onclick / external harness keeps working. Mirrors the
+// Ctrl+Z behaviour: undo the last measurement step while measuring, else the last
+// scene action.
 window.topbarUndo = function(){
   if(typeof msr!=='undefined' && msr.active && msr.undoStack && msr.undoStack.length) window.undoMeasure();
   else globalUndo();
@@ -14109,7 +14755,7 @@ function globalUndo(){
     globalRedoStack.push(s);
     _suppressUndoCapture = true;
     try { s.apply(s.before); } finally { _suppressUndoCapture = false; }
-    showUndoToast(T('undo-move'));
+    showUndoToast(T(s.undoKey || 'undo-move'));
     markDirty(4);
     return;
   }
@@ -14562,8 +15208,8 @@ window.removeLayer=function(id){
   }
   renderLayerList();
   renderTransformPanel();
-  // (削除トーストは非表示 — user 2026-06-27「これ表示いらない」。取り消しは Ctrl+Z /
-  //  上メニューの「↩ 戻る」で可能。)
+  // (削除トーストは非表示 — user 2026-06-27「これ表示いらない」。取り消しは Ctrl+Z、
+  //  やり直しは Ctrl+Y で可能。)
   markDirty(8);
   if(typeof _haloMarkDirty === 'function') _haloMarkDirty();
   if(typeof _recountLayerActivity === 'function') _recountLayerActivity();
@@ -14761,6 +15407,9 @@ const I18N = {
     'lt-appear':'▸ 外観','lt-color':'色','lt-opacity':'透明度','lt-wire':'ワイヤーフレーム',
     'lt-size':'▸ サイズ','lt-yup':'Y 上','lt-zup':'Z 上',
     'lt-scale':'▸ スケール','lt-viewadj':'▸ 表示調整',
+    'init-view-set-msg':'📍 現在の視点を初期位置に設定しました',
+    'tt-set-init-view':'いま見ている視点を、カメラリセット時の初期位置として登録する',
+    'tt-auto-init-view':'splatの形状から初期位置と向きを自動で決める（気に入らなければ左のボタンで上書きできます）',
     'lt-flip-x':'X軸反転','lt-flip-y':'Y軸反転','lt-flip-z':'Z軸反転','lt-light':'▸ ライト設定','lt-light-color':'色',
     'lt-light-int':'強度','lt-pos-local':'ローカル','lt-pos-world':'ワールド',
     'onote-txt':'シーンが逆さまですか？','onote-btn':'Y軸を反転',
@@ -14774,6 +15423,7 @@ const I18N = {
     'redo-none':'これ以上進めません','undo-none':'これ以上戻れません',
     'redo-move':'↪ レイヤー移動を進めました','redo-del':'↪ レイヤー削除を進めました',
     'undo-move':'↩ レイヤー移動を戻しました（Y で進む）','undo-del':'↩ レイヤー削除を戻しました（Y で進む）',
+    'undo-rename':'↩ 名前の変更を戻しました（Y で進む）','redo-rename':'↪ 名前の変更を進めました',
     'undo-msr':'測定モードで Z を押してください',
     'undo-pose':'↩ ポーズを戻しました（Y で進む）','redo-pose':'↪ ポーズを進めました',
     'layer-def':'レイヤー','folder-name':'フォルダ','folder-added':'📁 フォルダを追加',
@@ -14825,6 +15475,11 @@ const I18N = {
   'em-zip-save-d':'全ファイル（Splat・3Dモデル・キューブ）をZIPに完全保存',
   'em-zip-load':'📂 プロジェクトZIP読込',
   'em-zip-load-d':'保存したZIPファイルからプロジェクトを完全復元',
+  'em-zip-lite':'📦 軽量保存（3DGS本体を除外）',
+  'em-zip-lite-d':'カメラ・注釈・レイアウトのみ保存（高速・低容量）。読込時に元の3DGSファイルの選択が必要です',
+  'rm-title':'📎 3DGSファイルの再選択が必要です',
+  'rm-pick':'📎 ファイルを選択',
+  'rm-skip':'スキップ（元データなしで復元）',
   'em-json':'💾 JSONのみ保存 (.json)',
   'em-recommended':'★推奨',
   'em-cancel':'キャンセル',
@@ -14881,6 +15536,9 @@ const I18N = {
     'lt-appear':'▸ Appearance','lt-color':'Color','lt-opacity':'Opacity','lt-wire':'Wireframe',
     'lt-size':'▸ Size','lt-yup':'Y Up','lt-zup':'Z Up',
     'lt-scale':'▸ Scale','lt-viewadj':'▸ View Adjust',
+    'init-view-set-msg':'📍 Current view saved as the initial position',
+    'tt-set-init-view':'Register the current view as the camera-reset position',
+    'tt-auto-init-view':'Decide the initial position and heading automatically from the splat geometry (override it with the button on the left)',
     'lt-flip-x':'Flip X-Axis','lt-flip-y':'Flip Y-Axis','lt-flip-z':'Flip Z-Axis','lt-light':'▸ Light Settings','lt-light-color':'Color',
     'lt-light-int':'Intensity','lt-pos-local':'Local','lt-pos-world':'World',
     'onote-txt':'Scene upside down?','onote-btn':'Flip Y-Axis',
@@ -14894,6 +15552,7 @@ const I18N = {
     'redo-none':'Nothing to redo','undo-none':'Nothing to undo',
     'redo-move':'↪ Redid layer move','redo-del':'↪ Redid layer delete',
     'undo-move':'↩ Undid layer move (Y to redo)','undo-del':'↩ Undid layer delete (Y to redo)',
+    'undo-rename':'↩ Undid rename (Y to redo)','redo-rename':'↪ Redid rename',
     'undo-msr':'Press Z in measure mode',
     'undo-pose':'↩ Undid pose (Y to redo)','redo-pose':'↪ Redid pose',
     'layer-def':'Layer','folder-name':'Folder','folder-added':'📁 Folder added',
@@ -14945,6 +15604,11 @@ const I18N = {
   'em-zip-save-d':'Saves all files (Splat / 3D models / cubes) into one ZIP',
   'em-zip-load':'📂 Load Project ZIP',
   'em-zip-load-d':'Restore project from a previously saved ZIP',
+  'em-zip-lite':'📦 Lite Save (excludes 3DGS data)',
+  'em-zip-lite-d':'Saves camera / annotations / layout only (fast, small). Loading it later asks you to re-select the original 3DGS file.',
+  'rm-title':'📎 3DGS file re-select needed',
+  'rm-pick':'📎 Select File',
+  'rm-skip':'Skip (restore without original data)',
   'em-json':'💾 Save JSON only (.json)',
   'em-recommended':'★Recommended',
   'em-cancel':'Cancel',
@@ -15007,7 +15671,7 @@ function applyI18n(){
   // 日照パネルの都市ドロップダウンを言語に合わせて翻訳
   if(typeof _sunApplyCityI18n==='function') _sunApplyCityI18n();
   // HUD labels
-  ['lbl-pos','lbl-spd','lbl-rot','lbl-measure','lbl-flip','lbl-addobj','lbl-quality','lbl-settings','lbl-file','lbl-cam-reset','lbl-camtool','lbl-env','lbl-help','orient-lock-msg','orient-lock-sub','lbl-addobj-top','lbl-addfig-top','tb-save-lbl','tb-undo-lbl','tb-load-lbl','tb-report-lbl','fp-btn-import-lbl','fp-btn-export-lbl','csp-shot-info','csp-cam-info','csp-meta-info','csp-shot-name','csp-rig','csp-env','csp-note','csp-capture','csp-burnin','csp-burnin-grid','csp-capture-btn','csp-salvage','csp-salvage-drop','csp-salvage-sub','ct-tool','ct-lens','ct-focal','ct-sensor','ct-sensor-ff','ct-sensor-apsc','ct-sensor-apsh','ct-sensor-mft','ct-sensor-1inch','ct-sensor-phone13','ct-sensor-phone17','ct-sensor-phone23','ct-sensor-m65','ct-sensor-s35','ct-sensor-bm','ct-sensor-cust','ct-sensor-w','ct-sensor-h','ct-cam-angle','ct-pan','ct-tilt','ct-roll','ct-roll-level','ct-wb','ct-wb-temp','ct-aspect','ct-aspect-sensor','ct-aspect-cust','ct-aspect-apply','ct-margin','ct-grid','ct-grid-multi','ct-grid-guide','ct-grid-off','ct-grid-thirds','ct-grid-golden','ct-grid-cross','ct-grid-diag','ct-grid-safe-cust','ct-grid-action','ct-grid-title','ct-grid-center','ct-grid-custom','ct-grid-cols','ct-grid-rows','ct-grid-opacity','dz-manual-text','dz-ar-label','env-h-title','env-p-off','env-p-day','env-p-morning','env-p-evening','env-p-night','env-p-cloudy','env-p-rain','env-p-overcast','env-p-twilight','env-l-rot','env-l-int','msr-active-lbl','msr-end-lbl','lp-h-scene','lp-empty','qt-title','qt-low','qt-mid','qt-high','qp-perf-t','qp-l-frame','qp-l-gpu','qp-l-head','qp-l-dc','qp-l-tris','qp-l-geos','qp-l-texs','dist-l','msr-clear','msr-undo','em-3dgs','em-3dgs-d','em-zip-save','em-zip-save-d','em-zip-load','em-zip-load-d','em-json','em-json-d','em-glb','em-glb-d','em-obj','em-obj-d','em-cancel','em-recommended','em-h-title','qp-settings-t','qp-lbl-lowpoly-main','qp-lbl-lowpoly-hint','qp-lbl-grid','qp-lbl-show','qp-lbl-fov','qp-lbl-spd','cl-title','cl-sub','cl-tag-init','cl-tag-v003','lbl-walk','lbl-save-camera','lbl-view-rec','lbl-view-rec-phone','lbl-cam-anim','giz-pt-a','giz-pt-b','giz-pt-c','giz-height-lbl','height-l','csp-jpeg-q','csp-4k-lbl','obj-add-cube','obj-add-sphere','obj-add-light','obj-add-event','obj-add-path','msr-end-lbl-init'].forEach(id=>{
+  ['lbl-pos','lbl-spd','lbl-rot','lbl-measure','lbl-flip','lbl-addobj','lbl-quality','lbl-settings','lbl-file','lbl-cam-reset','qp-init-h','lbl-set-init-view','lbl-auto-init-view','lbl-camtool','lbl-env','lbl-help','orient-lock-msg','orient-lock-sub','lbl-addobj-top','lbl-addfig-top','tb-save-lbl','tb-load-lbl','fp-btn-import-lbl','fp-btn-export-lbl','csp-shot-info','csp-cam-info','csp-meta-info','csp-shot-name','csp-rig','csp-env','csp-note','csp-capture','csp-burnin','csp-burnin-grid','csp-capture-btn','csp-salvage','csp-salvage-drop','csp-salvage-sub','ct-tool','ct-lens','ct-focal','ct-sensor','ct-sensor-ff','ct-sensor-apsc','ct-sensor-apsh','ct-sensor-mft','ct-sensor-1inch','ct-sensor-phone13','ct-sensor-phone17','ct-sensor-phone23','ct-sensor-m65','ct-sensor-s35','ct-sensor-bm','ct-sensor-cust','ct-sensor-w','ct-sensor-h','ct-cam-angle','ct-pan','ct-tilt','ct-roll','ct-roll-level','ct-wb','ct-wb-temp','ct-aspect','ct-aspect-sensor','ct-aspect-cust','ct-aspect-apply','ct-margin','ct-grid','ct-grid-multi','ct-grid-guide','ct-grid-off','ct-grid-thirds','ct-grid-golden','ct-grid-cross','ct-grid-diag','ct-grid-safe-cust','ct-grid-action','ct-grid-title','ct-grid-center','ct-grid-custom','ct-grid-cols','ct-grid-rows','ct-grid-opacity','dz-manual-text','dz-ar-label','env-h-title','env-p-off','env-p-day','env-p-morning','env-p-evening','env-p-night','env-p-cloudy','env-p-rain','env-p-overcast','env-p-twilight','env-l-rot','env-l-int','msr-active-lbl','msr-end-lbl','lp-h-scene','lp-empty','qt-title','qt-low','qt-mid','qt-high','qp-perf-t','qp-l-frame','qp-l-gpu','qp-l-head','qp-l-dc','qp-l-tris','qp-l-geos','qp-l-texs','dist-l','msr-clear','msr-undo','em-3dgs','em-3dgs-d','em-zip-save','em-zip-save-d','em-zip-load','em-zip-load-d','em-zip-lite','em-zip-lite-d','rm-title','rm-pick','rm-skip','em-json','em-json-d','em-glb','em-glb-d','em-obj','em-obj-d','em-cancel','em-recommended','em-h-title','qp-settings-t','qp-lbl-lowpoly-main','qp-lbl-lowpoly-hint','qp-lbl-grid','qp-lbl-show','qp-lbl-fov','qp-lbl-spd','cl-title','cl-sub','cl-tag-init','cl-tag-v003','lbl-walk','lbl-save-camera','lbl-view-rec','lbl-view-rec-phone','lbl-cam-anim','giz-pt-a','giz-pt-b','giz-pt-c','giz-height-lbl','height-l','csp-jpeg-q','csp-4k-lbl','obj-add-cube','obj-add-sphere','obj-add-light','obj-add-event','obj-add-path','msr-end-lbl-init'].forEach(id=>{
     const el=document.getElementById(id); if(el) el.textContent=T(id);
   });
   // HUD info-box edit tooltip + dropzone titles
@@ -15024,7 +15688,6 @@ function applyI18n(){
   _setTitle('#btnHelp','tt-help');
   _setTitle('#btnAddCubeTop','tt-add-obj');
   _setTitle('#tb-project-name','tt-edit-name');
-  _setTitle('#tb-undo-btn','tt-undo');
   _setTitle('#mf-collapse-btn','tt-mf-collapse');
   // Cam reset button has no stable id; locate via lbl-cam-reset child
   const _camResetBtn=document.getElementById('lbl-cam-reset');
@@ -15039,13 +15702,15 @@ function applyI18n(){
     ['btnViewRec',        'tt-view-rec'],
     ['btnViewRecPhone',   'tt-view-rec'],
     ['btnCamAnim',        'tt-cam-anim'],
+    ['qp-set-init-view',  'tt-set-init-view'],
+    ['qp-auto-init-view', 'tt-auto-init-view'],
   ];
   for(const [id, key] of _camTopBtns){
     const el = document.getElementById(id);
     if(el) el.title = T(key);
   }
-  // Other JA-authored title tooltips (bug-report button, quality badge).
-  const _moreTitles = [['tb-report-btn','tt-report'],['qi-badge','tt-qibadge']];
+  // Other JA-authored title tooltips (quality badge).
+  const _moreTitles = [['qi-badge','tt-qibadge']];
   for(const [id, key] of _moreTitles){
     const el = document.getElementById(id);
     if(el) el.title = T(key);
@@ -15111,14 +15776,6 @@ function applyI18n(){
   if(document.getElementById('lowpoly-hint') && typeof window.showLowPolyHint==='function') window.showLowPolyHint();
   // Re-render dynamic UI
   document.getElementById('html-root').lang = L;
-  // Refresh update-check button label according to current state
-  if(typeof _setUpdateBtn === 'function' && typeof _updateState !== 'undefined'){
-    _setUpdateBtn(_updateState.status === 'idle' ? 'idle' : _updateState.status);
-  }
-  // Refresh integrity badge tooltip in current language
-  if(typeof _setIntegrityIndicator === 'function'){
-    _setIntegrityIndicator();
-  }
   // Refresh the reset / reposition button label depending on walk mode
   if(typeof _refreshResetBtnLabel === 'function'){
     _refreshResetBtnLabel();
@@ -15281,6 +15938,18 @@ window.addFolder = function() {
   return L;
 };
 
+// UI(📁＋ボタン)専用の入口。ヘッダーのすぐ隣にあるため誤爆で空フォルダが量産される
+// 事故が多発していたので、ここでだけ確認を挟む (user 2026-08-13)。プログラム側の
+// 呼び出し(カメラレイヤー生成 / ZIP復元)は素の addFolder() を使うので影響しない。
+window.addFolderFromUI = function(ev){
+  if(ev) ev.stopPropagation();
+  const msg = (window._lang === 'en')
+    ? 'Add a new folder to the scene layers?'
+    : 'シーンレイヤーに新しいフォルダを追加しますか？';
+  if(!window.confirm(msg)) return null;
+  return window.addFolder();
+};
+
 window.toggleFolder = function(id, ev) {
   if(ev) ev.stopPropagation();
   const L = findLayer(id);
@@ -15302,14 +15971,35 @@ window.startRenameLayer = function(id, ev) {
   inp.onclick = e => e.stopPropagation();
   inp.ondblclick = e => e.stopPropagation();
   inp.ondragstart = e => e.stopPropagation();
-  inp.onkeydown = e => {
-    e.stopPropagation();
-    if(e.key==='Enter'||e.key==='Escape'){
-      if(e.key==='Enter') L.name = inp.value.trim() || L.name;
-      renderLayerList();
+  // Rename is undoable (Ctrl+Z) / redoable (Ctrl+Y) — user 2026-08-14.
+  // `_done` makes commit idempotent: Enter/Escape both call renderLayerList(),
+  // which rips the input out of the DOM and fires a trailing blur. Without the
+  // latch, Escape's blur would re-commit the abandoned text and a plain Enter
+  // would push the same rename onto the undo stack twice.
+  const _oldName = L.name;
+  let _done = false;
+  const _commit = (accept)=>{
+    if(_done) return;
+    _done = true;
+    if(accept){
+      const next = inp.value.trim() || _oldName;
+      if(next !== _oldName){
+        L.name = next;
+        pushRenameUndo(L.id, _oldName, next);
+        markDirty(4);
+      }
     }
+    renderLayerList();
   };
-  inp.onblur = () => { L.name = inp.value.trim() || L.name; renderLayerList(); };
+  inp.onkeydown = e => {
+    // Keep Ctrl+Z / Ctrl+Y (and every other key) inside the field: the global
+    // shortcut handler lives on window, so stopping propagation here leaves the
+    // browser's NATIVE text-edit undo in charge while the user is typing.
+    e.stopPropagation();
+    if(e.key==='Enter') _commit(true);
+    else if(e.key==='Escape') _commit(false);
+  };
+  inp.onblur = () => _commit(true);
   nameEl.replaceWith(inp);
   // iOS Safari only raises the on-screen keyboard when focus() runs
   // SYNCHRONOUSLY inside the tap gesture — a deferred (rAF-only) focus is
@@ -18690,6 +19380,8 @@ async function loadFromURL(url, displayName){
       mainL._isMain = true;
       mainL._rawExt = 'rad';
       mainL._streamUrl = url;
+      // プロジェクト名が未設定なら、読み込んだ 3DGS のファイル名で埋める。
+      if(typeof setProjectNameFromFile==='function') setProjectNameFromFile(name);
       // Demo scene (交差点) ships slightly below the grid floor and a touch
       // off-axis, so when we autoload it apply the curated transform the
       // gizmo panel shows (Pos Y 1.5, Rot Y -168°). The -168° yaw aligns the
@@ -20182,6 +20874,131 @@ if(/[?&]capture=1/.test(location.search)){
   })();
 }
 // ══════════════════════════════════════════════════
+//  ?autoinit=1 — カメラ初期位置を自動決定して ZIP を親へ返すバッチ入口
+//
+//  設計書 §3。298 の ?capture=1 と同じ設計（URLで明示されない限り完全に無効・
+//  postMessage で親へ返す・親が居なければ自動ダウンロードへフォールバック）。
+//
+//  フロー:
+//    ?autoload=<url>&autoinit=1
+//      → シーン読込を待つ → splat のストリームが収束するまで待つ
+//      → 自動配置（175）→ cameraInit を確定 → ZIP 生成
+//      → postMessage('autoinit-done', {blob, confidence, needsReview, …})
+//
+//  返すペイロードには必ず confidence / needsReview / failed / position / yaw /
+//  pitch を含める（信頼度の低い案件だけを人が開く運用のため）。
+// ══════════════════════════════════════════════════
+if(/[?&]autoinit=1/.test(location.search)){
+  (function(){
+    const params = new URLSearchParams(location.search);
+    // 収束待ちの上限（秒）。巨大な RAD ほどストリームに時間がかかる。
+    const MAX_WAIT_S = Math.min(900, Math.max(30, parseInt(params.get('autoinitWaitSec')||'180', 10) || 180));
+    const target = window.opener || (parent !== window ? parent : null);
+    const msg = (type, extra)=>{ try { if(target) target.postMessage(Object.assign({type}, extra||{}), '*'); } catch(_){} };
+
+    const hasScene = ()=> (typeof layers!=='undefined' && layers.some(L=>L&&L.mesh&&L.type!=='camera'));
+    const nSplat = ()=> typeof window.__nSplat==='function' ? window.__nSplat() : -1;
+    // 298 と同じ「RAD でも baked でも同じ数え方」。RAD は __nSplat()、baked は
+    // layers[].mesh.packedSplats.numSplats を合算する。
+    const anySplatCount = ()=>{
+      const rad = nSplat();
+      if(rad > 0) return rad;
+      try {
+        if(typeof layers==='undefined' || !layers) return rad;
+        let n = 0;
+        for(const L of layers){
+          if(!L || !L.mesh || L.type==='camera') continue;
+          const ps = L.mesh.packedSplats;
+          if(ps && ps.numSplats) n += ps.numSplats;
+          else if(typeof L.mesh.numSplats === 'number') n += L.mesh.numSplats;
+        }
+        return n > 0 ? n : rad;
+      } catch(_){ return rad; }
+    };
+
+    async function run(){
+      const t0 = performance.now();
+      try {
+        // Phase 1: レンダー可能なシーンになるまで（ZIP/大きい RAD は数分かかる）
+        msg('autoinit-progress',{phase:'loading', text:'3DGS 読み込み中…'});
+        const sceneReady = ()=> hasScene() || anySplatCount() > 0;
+        for(let i=0; i<MAX_WAIT_S*2 && !sceneReady(); i++) await new Promise(r=>setTimeout(r,500));
+        if(!sceneReady()){
+          msg('autoinit-error',{error:'no-scene'});
+          return;
+        }
+
+        // Phase 2: splat 数が増えなくなるまで待つ。幾何を測るので、まばらな
+        // 途中経過で判定すると床も壁も見つからない。
+        {
+          let last = -1, stableStart = -1;
+          const STABLE_MS = 3000, POLL_MS = 500, MAX_MS = MAX_WAIT_S*1000;
+          const start = performance.now();
+          while(performance.now() - start < MAX_MS){
+            await new Promise(r=>setTimeout(r, POLL_MS));
+            if(typeof markDirty==='function') markDirty(20); // ストリーミングを止めない
+            const elapsed = performance.now() - start;
+            const c = anySplatCount();
+            if(c > 0 && c === last){
+              if(stableStart < 0) stableStart = elapsed;
+              if(elapsed - stableStart >= STABLE_MS) break;
+            } else { stableStart = -1; last = c; }
+            msg('autoinit-progress',{phase:'loading',
+              text:'読み込み中… ' + (c>0 ? c.toLocaleString()+' splats' : '待機中'), splats:c});
+          }
+        }
+
+        // Phase 3: 自動配置
+        msg('autoinit-progress',{phase:'placing', text:'初期位置を計算中…'});
+        const r = await window.autoPlaceInitialView();
+        const result = r || { failed:true, needsReview:true, confidence:0, reason:'no-result' };
+
+        // Phase 4: ZIP 生成（失敗しても既定の初期位置のまま ZIP は作る＝設計書
+        // §2-6「failed は従来の既定位置のまま出力し、必ず人が見る」）
+        msg('autoinit-progress',{phase:'zip', text:'ZIP を作成中…'});
+        const blob = await window.saveProjectZip(false, { returnBlob:true });
+        if(!blob){ msg('autoinit-error',{error:'zip-failed', confidence:result.confidence}); return; }
+
+        const payload = {
+          blob, mimeType:'application/zip', ext:'zip',
+          projectName: (typeof _projectName!=='undefined' && _projectName) || '',
+          failed: !!result.failed,
+          reason: result.reason || null,
+          confidence: result.confidence,
+          needsReview: !!result.needsReview,
+          flags: result.flags || [],
+          position: result.position || null,
+          yaw: result.yaw, pitch: result.pitch,
+          yawDeg: result.yaw != null ? (result.yaw*180/Math.PI) : null,
+          pitchDeg: result.pitch != null ? (result.pitch*180/Math.PI) : null,
+          splats: anySplatCount(),
+          diagnostics: result.diagnostics || null,
+          elapsedMs: Math.round(performance.now() - t0),
+        };
+        if(target){
+          msg('autoinit-done', payload);
+        } else {
+          // 親が居ない（単体で開いた）ときはダウンロードへフォールバック。
+          console.info('[autoinit] postMessage 送信先が無いためダウンロードします', payload);
+          const a = document.createElement('a');
+          a.href = URL.createObjectURL(blob);
+          a.download = ((payload.projectName||'scene_project')
+            .replace(/[^a-zA-Z0-9_\-぀-ゟ゠-ヿ一-鿿]/g,'_')) + '.zip';
+          document.body.appendChild(a); a.click(); document.body.removeChild(a);
+          setTimeout(()=>URL.revokeObjectURL(a.href), 10000);
+        }
+        // Playwright 等が DOM から結果を読めるようにも置いておく（blob は除く）。
+        window.__autoInitResult = Object.assign({}, payload, { blob:undefined });
+      } catch(e){
+        console.error('[autoinit]', e);
+        msg('autoinit-error',{error:'exception: ' + ((e && e.message) || e)});
+        window.__autoInitResult = { failed:true, needsReview:true, confidence:0, reason:'exception: '+((e&&e.message)||e) };
+      }
+    }
+    setTimeout(run, 300);
+  })();
+}
+// ══════════════════════════════════════════════════
 //  EXPORT / SAVE / LOAD
 // ══════════════════════════════════════════════════
 window.openExportModal  = function(){ document.getElementById('export-modal').classList.add('show'); };
@@ -20397,7 +21214,17 @@ async function _fetchStreamUrlToBytes(url, label){
 }
 
 let _zipSaving = false;
-window.saveProjectZip = async function(){
+// forceLite: user-triggered "軽量保存" (export modal) — same code path the
+// phone-memory auto-guard below already used, just opt-in on any device
+// instead of gated behind the phone-viewport heuristic. Skips embedding
+// splat/model raw bytes; project.json still lists filenames so the load
+// path can prompt the user to re-select the original 3DGS file (see
+// _promptFilesForReattach in 311_zip_load_core.js).
+// opts.returnBlob: ダウンロード(Aタグclick)と完了トーストを行わず、生成した
+// ZIP の Blob をそのまま返す。?autoinit=1 のバッチ経路（299）が親ウィンドウへ
+// postMessage で渡すために使う。通常のUI呼び出し(引数なし)の挙動は不変。
+window.saveProjectZip = async function(forceLite, opts){
+  opts = opts || {};
   if(_zipSaving){ showUndoToast(T('zip-saving')); return; }
   _zipSaving = true;
   showUndoToast(T('zip-saving'));
@@ -20439,10 +21266,10 @@ window.saveProjectZip = async function(){
         _totalSplatBytes += L._rawBuffer.byteLength;
       }
     }
-    const _skipSplatData = _isPhoneClass && _totalSplatBytes > PHONE_SPLAT_BUDGET;
+    const _skipSplatData = !!forceLite || (_isPhoneClass && _totalSplatBytes > PHONE_SPLAT_BUDGET);
     if(_skipSplatData){
       const mb = Math.round(_totalSplatBytes / 1024 / 1024);
-      console.warn(`[saveZIP] phone-class device + ${mb} MB splat data — switching to lite save (project.json only)`);
+      console.warn(`[saveZIP] lite save (${forceLite?'user-requested':'phone-class device'}) — ${mb} MB splat data excluded`);
     }
 
     // Build file map and layer entries
@@ -20603,6 +21430,10 @@ window.saveProjectZip = async function(){
       appName:'ロケハン3D',
       projectName:_projectName||'Untitled Project',
       camera:{pos:{x:camPos.x,y:camPos.y,z:camPos.z},yaw,pitch},
+      // 「現在の視点を初期位置にする」で確定した初期視点。camera は保存時の
+      // 現在視点なので、確定後にうっかり動かしてから保存しても初期位置が
+      // 失われないよう別枠で持つ。旧ZIP(このキーが無い)は camera へフォールバック。
+      cameraInit:{pos:{x:_initCamPos.x,y:_initCamPos.y,z:_initCamPos.z},yaw:_initYaw,pitch:_initPitch},
       layerNextId:_layerNextId,
       layers:serialized,
       // 日照シミュの都道府県のみ保存（天気・日時・ON状態は流動的なので保存しない）。
@@ -20618,7 +21449,11 @@ window.saveProjectZip = async function(){
     // if the request fails (e.g. file:// origin + strict CORS) we just
     // skip the HTML inclusion and the rest of the save still succeeds.
     let _bundledHtml = false;
-    try {
+    // Skip for lite saves: without the splat payload the bundled HTML can't
+    // play anything standalone anyway, and re-fetching+re-zipping the whole
+    // viewer on every checkpoint save is exactly the "why is this so slow"
+    // cost a lite save exists to avoid.
+    if(!_skipSplatData) try {
       const res = await fetch(location.href, { cache: 'no-store' });
       if(res.ok){
         const htmlText = await res.text();
@@ -20642,9 +21477,11 @@ window.saveProjectZip = async function(){
     }
     const zipBuf = fflate.zipSync(zipEntries);
     const blob=new Blob([zipBuf],{type:'application/zip'});
+    if(opts.returnBlob) return blob;
     const a=document.createElement('a');
     a.href=URL.createObjectURL(blob);
-    a.download=(_projectName||'scene_project').replace(/[^a-zA-Z0-9_\\-\u3040-\u309F\u30A0-\u30FF\u4E00-\u9FFF]/g,'_')+'.zip';
+    const _liteSuffix=_skipSplatData?'_lite':'';
+    a.download=(_projectName||'scene_project').replace(/[^a-zA-Z0-9_\\-\u3040-\u309F\u30A0-\u30FF\u4E00-\u9FFF]/g,'_')+_liteSuffix+'.zip';
     document.body.appendChild(a); a.click(); document.body.removeChild(a);
     setTimeout(()=>URL.revokeObjectURL(a.href), 5000);
 
@@ -20671,8 +21508,8 @@ window.saveProjectZip = async function(){
     if(_skipSplatData){
       const mb = Math.round(_totalSplatBytes / 1024 / 1024);
       showUndoToast(_en
-        ? `📦 Lite save: skipped ${_skippedSplatCount} splat file(s) (${mb} MB) to fit phone memory. Re-attach after extracting.`
-        : `📦 軽量保存: スマホメモリ節約のため ${_skippedSplatCount} 件の Splat (${mb} MB) は除外。展開後に再アタッチしてください。`);
+        ? `📦 Lite save: skipped ${_skippedSplatCount} splat file(s) (${mb} MB). Loading this ZIP later will ask you to re-select the original 3DGS file.`
+        : `📦 軽量保存: Splat ${_skippedSplatCount}件 (${mb} MB) を除外して保存しました。次回読込時に元の3DGSファイルの選択が必要です。`);
     } else {
       showUndoToast(missing>0
         ?(_en?`⚠ ZIP save: ${missing} file(s) uncached (reload then save)`
@@ -20682,6 +21519,44 @@ window.saveProjectZip = async function(){
     }
   } catch(e){ console.error(e); showUndoToast(T('zip-fail')+e.message); } finally { _zipSaving = false; }
 };
+
+// Explains why a re-select is about to happen, via a blocking modal (not an
+// auto-hiding toast — a toast disappearing right as the OS file dialog pops
+// up left users staring at an unexplained picker with no idea why). Only
+// after the user clicks "ファイルを選択" does the native <input type=file>
+// picker open; "スキップ" resolves immediately with [], and callers treat an
+// empty result as "user skipped reattach, proceed with placeholders" rather
+// than an error — same fallback as before this modal existed. `cancel` fires
+// on current Chrome/Safari/Firefox for <input type=file>; if a browser never
+// fires it, the picker just sits open until the user picks a file or
+// navigates away (no hang risk to the app either way).
+function _promptFilesForReattach(missingEntries){
+  return new Promise((resolve)=>{
+    const modal=document.getElementById('reattach-modal');
+    const descEl=document.getElementById('rm-desc');
+    const pickBtn=document.getElementById('rm-pick-btn');
+    const skipBtn=document.getElementById('rm-skip-btn');
+    const _en=window._lang==='en';
+    const names=missingEntries.map(e=>e.name).join(_en?', ':'、');
+    descEl.textContent=_en
+      ? `This project was saved without its 3DGS data ("Lite Save"). To restore it, select the original file(s) again: ${names}`
+      : `このプロジェクトは3DGS本体を含めずに保存されています（軽量保存）。復元するには元の3DGSファイルを選び直してください: ${names}`;
+    const close=()=>{ modal.classList.remove('show'); pickBtn.onclick=null; skipBtn.onclick=null; };
+    pickBtn.onclick=()=>{
+      close();
+      const input=document.createElement('input');
+      input.type='file';
+      input.multiple=missingEntries.length>1;
+      input.accept='.rad,.ply,.spz,.ksplat,.splat,.sog,.pcsogs,.pcsogszip';
+      let _done=false;
+      input.onchange=(e)=>{ _done=true; resolve(Array.from(e.target.files||[])); };
+      input.oncancel=()=>{ if(!_done){ _done=true; resolve([]); } };
+      input.click();
+    };
+    skipBtn.onclick=()=>{ close(); resolve([]); };
+    modal.classList.add('show');
+  });
+}
 
 // ── Core ZIP load logic (callable directly with a File object) ──
 async function _loadProjectZipFromFile(file){
@@ -20803,6 +21678,35 @@ async function _loadProjectZipFromFile(file){
         console.warn(`[ZIP] ✗ "${entry.name}": ${entry.file}`);
       }
     }
+    // ── Lite-save reattach ──
+    // Splat entries that list a filename but have no bytes in this archive
+    // AND no streamUrl are checkpoints from "軽量保存"/forceLite (or the
+    // phone-memory auto-guard in saveProjectZip) — the 3DGS payload itself
+    // was deliberately left out. Ask the user to re-select the original
+    // file(s) so restoreProject can rebuild the scene instead of showing
+    // an empty placeholder. Cancelling just falls through to the existing
+    // "missing" behaviour below (unchanged).
+    const _missingSplats = project.layers.filter(e=>e.type==='splat' && e.file && !e._buf && !e.streamUrl);
+    if(_missingSplats.length){
+      setMsg(_en()?'Original 3DGS file needed…':'元の3DGSファイルが必要です…'); setBar(70);
+      const _picked = await _promptFilesForReattach(_missingSplats);
+      const _pool = _missingSplats.slice();
+      const _norm = s => (s||'').toLowerCase().replace(/[^a-z0-9]/g,'');
+      for(const f of _picked){
+        const stem = _norm(f.name.replace(/\.[^.]+$/,''));
+        let target = _pool.length===1 ? _pool[0]
+          : _pool.find(e => stem.includes(_norm(e.name)) || _norm(e.name).includes(stem));
+        if(!target) continue;
+        try{
+          target._buf = await _readFileArrayBufferChunked(f);
+          target._ext = f.name.split('.').pop().toLowerCase();
+          attached++; missing--;
+          _pool.splice(_pool.indexOf(target),1);
+          console.log(`[ZIP] ✓ reattached "${target.name}" ← ${f.name}`);
+        }catch(fe){ console.warn('[ZIP] reattach read failed for', f.name, fe); }
+      }
+    }
+
     setMsg(_en()?`${attached} file(s) attached, restoring...`:`${attached}ファイル割り当て完了、復元中...`); setBar(75);
     await restoreProject(project);
     hideLd();
@@ -21015,6 +21919,16 @@ async function restoreProject(project) {
     // Save as initial camera state for reset button
     _initCamPos.copy(camPos);
     _initYaw=yaw; _initPitch=pitch;
+  }
+  // 明示的に確定された初期視点があればそれを優先し、開いた直後の視点も揃える。
+  if(project.cameraInit && project.cameraInit.pos){
+    const ci=project.cameraInit;
+    _initCamPos.set(ci.pos.x,ci.pos.y,ci.pos.z);
+    if(typeof ci.yaw==='number') _initYaw=ci.yaw;
+    if(typeof ci.pitch==='number') _initPitch=ci.pitch;
+    camPos.copy(_initCamPos);
+    yaw=_initYaw; pitch=_initPitch;
+    if(typeof setCamRotImmediate==='function') setCamRotImmediate(_initYaw,_initPitch);
   }
   _layerNextId=project.layerNextId||100;
   if(project.projectName){
@@ -22014,6 +22928,9 @@ Object.assign(I18N.ja,{
   'lt-flip-y':'Y軸反転',
   'lt-flip-z':'Z軸反転',
   'lbl-cam-reset':'カメラリセット',
+  'qp-init-h':'📍 初期視点（カメラリセット先）',
+  'lbl-set-init-view':'現在の視点を初期位置にする',
+  'lbl-auto-init-view':'初期位置を自動で決める',
   'lbl-camtool':'カメラ',
   'lbl-env':'環境',
   'lbl-sun':'日照',
@@ -22091,22 +23008,8 @@ Object.assign(I18N.ja,{
   'ct-grid-rows':'行',
   'ct-grid-opacity':'不透明度',
   'tb-save-lbl':'Zip保存',
-  'tb-undo-lbl':'戻る',
   'tb-load-lbl':'読込',
-  'tb-report-lbl':'エラー報告',
-  'tt-report':'エラー / 不具合を開発者に報告',
   'tt-qibadge':'画質と設定',
-  'tb-update-check':'更新確認',
-  'tb-update-checking':'確認中…',
-  'tb-update-latest':'✓ 最新版',
-  'tb-update-new':'🔔 新版あり',
-  'tb-update-offline':'⚠ オフライン',
-  'tt-update-check':'更新を確認',
-  'tt-update-latest':'最新版を使用中です',
-  'tt-update-new':'新しいバージョンが公開されました',
-  'tt-update-offline':'オフラインのため確認できません',
-  'tt-integrity-ok':'ファイル整合性 OK (SHA-256 一致)',
-  'tt-integrity-bad':'⚠ ファイル整合性が一致しません — 改竄の可能性があります',
   'cl-title':'更新履歴',
   'cl-sub':'ベータ版',
   'cl-tag-init':'初版',
@@ -22235,7 +23138,6 @@ Object.assign(I18N.ja,{
   'tt-cam-reset':'カメラを初期位置にリセット',
   'tt-add-obj':'オブジェクト追加',
   'tt-edit-name':'クリックで名前を編集',
-  'tt-undo':'一つ前に戻す (Ctrl+Z)',
   'tt-folder-add':'フォルダを追加',
   'tt-mf-collapse':'折りたたむ',
   'tt-zip-save':'ZIPで保存',
@@ -22282,6 +23184,9 @@ Object.assign(I18N.en,{
   'lt-flip-y':'Flip Y-Axis',
   'lt-flip-z':'Flip Z-Axis',
   'lbl-cam-reset':'Cam Reset',
+  'qp-init-h':'📍 Initial view (camera-reset target)',
+  'lbl-set-init-view':'Set current view as initial',
+  'lbl-auto-init-view':'Decide initial view automatically',
   'lbl-camtool':'Camera',
   'lbl-env':'Env',
   'lbl-sun':'Sun',
@@ -22359,22 +23264,8 @@ Object.assign(I18N.en,{
   'ct-grid-rows':'Rows',
   'ct-grid-opacity':'Opacity',
   'tb-save-lbl':'Zip Save',
-  'tb-undo-lbl':'Undo',
   'tb-load-lbl':'Load',
-  'tb-report-lbl':'Report Bug',
-  'tt-report':'Report a bug or issue to the developer',
   'tt-qibadge':'Quality & settings',
-  'tb-update-check':'Check Updates',
-  'tb-update-checking':'Checking…',
-  'tb-update-latest':'✓ Up to date',
-  'tb-update-new':'🔔 Update Available',
-  'tb-update-offline':'⚠ Offline',
-  'tt-update-check':'Check for updates',
-  'tt-update-latest':'You are on the latest version',
-  'tt-update-new':'A new version is available',
-  'tt-update-offline':'Offline — cannot check for updates',
-  'tt-integrity-ok':'File integrity OK (SHA-256 match)',
-  'tt-integrity-bad':'⚠ File integrity mismatch — possible tampering',
   'cl-title':'Changelog',
   'cl-sub':'Beta',
   'cl-tag-init':'Initial',
@@ -22503,7 +23394,6 @@ Object.assign(I18N.en,{
   'tt-cam-reset':'Reset camera to initial position',
   'tt-add-obj':'Add Object',
   'tt-edit-name':'Click to edit name',
-  'tt-undo':'Undo last action (Ctrl+Z)',
   'tt-folder-add':'Add folder',
   'tt-mf-collapse':'Collapse',
   'tt-zip-save':'ZIP Save',
@@ -22548,6 +23438,12 @@ window.addEventListener('keydown',e=>{
   // in adjustment-tool inputs. Blur the input first so the global stack reflects the
   // committed value, then run the undo/redo.
   if((e.ctrlKey||e.metaKey) && (e.code==='KeyZ'||e.code==='KeyY')){
+    // EXCEPT the layer-rename field: while renaming, Ctrl+Z must be the
+    // browser's native text-edit undo, not an app undo. (The rename input also
+    // stopPropagation()s its own keydown, so this is a second line of defence
+    // for any future caller that dispatches the event straight at window.)
+    const _ae0 = document.activeElement;
+    if(_ae0 && _ae0.classList && _ae0.classList.contains('lr-name-input')) return;
     if(_isTypingInInput()){
       const ae=document.activeElement;
       if(ae && typeof ae.blur==='function') ae.blur();
@@ -23968,7 +24864,22 @@ document.querySelectorAll('#gizmo input[type=number]').forEach(inp=>{
 
 
 // PROJECT NAME
-let _projectName = 'Untitled Project';
+const _PROJECT_NAME_DEFAULT = 'Untitled Project';
+let _projectName = _PROJECT_NAME_DEFAULT;
+// 最初に読み込んだ 3DGS のファイル名をそのままプロジェクト名にする (user 2026-08-13)。
+// 従来は毎回 RAD のファイル名をコピペして書き換えていた手作業。既にユーザーが
+// 名前を付けている場合（＝既定値以外）は絶対に上書きしない。ZIP プロジェクトの
+// 復元も自前の名前を持つのでここは通らない。
+window.setProjectNameFromFile = function(fileName){
+  if(!fileName) return;
+  if(_projectName && _projectName !== _PROJECT_NAME_DEFAULT) return;
+  const base = String(fileName).replace(/\.[^.]+$/, '').trim();
+  if(!base) return;
+  _projectName = base;
+  const el = document.getElementById('tb-project-name');
+  if(el) el.textContent = base;
+  document.title = base + ' - ' + (window._lang==='en' ? 'LOCAHUN 3D' : 'ロケハン3D');
+};
 window.startEditProjectName = function(){
   const el = document.getElementById('tb-project-name');
   if(!el) return;
@@ -24090,404 +25001,6 @@ window.toggleChangelog = function(){
   body.hidden = !open;
   head.setAttribute('aria-expanded', String(open));
 };
-
-// ══════════════════════════════════════════════════
-//  UPDATE CHECK + INTEGRITY VERIFICATION
-//  Fetches a version manifest (JSON) from GitHub Pages and compares to CURRENT_VERSION.
-//  Manifest format:
-//    { "version":"0.0.2", "url":"...", "sha256":"<hex>", "notes":"..." }
-// ══════════════════════════════════════════════════
-const CURRENT_VERSION    = '0.2.0-beta';
-const UPDATE_MANIFEST_URL =
-  'https://raw.githubusercontent.com/nakamurakou1108/Locahun3D/main/version.json';
-
-// Hard-coded fallback used when the manifest's redirect URL fails origin
-// validation (compromised manifest mitigation). Always points to the project's
-// public releases page on github.com.
-const RELEASES_FALLBACK_URL =
-  'https://github.com/nakamurakou1108/Locahun3D/releases';
-
-// Allowlist of origins we will follow from the manifest's "url" field.
-// If the manifest "url" is absent or fails this check we fall back to
-// RELEASES_FALLBACK_URL — this prevents a tampered manifest from redirecting
-// users to phishing pages.
-const TRUSTED_UPDATE_HOST_PATTERNS = [
-  /^github\.com$/i,
-  /^[A-Za-z0-9_.-]+\.github\.io$/i,
-  /^raw\.githubusercontent\.com$/i,
-];
-function _isTrustedUpdateUrl(u){
-  try{
-    const parsed = new URL(u);
-    if(parsed.protocol !== 'https:') return false;
-    return TRUSTED_UPDATE_HOST_PATTERNS.some(rx=>rx.test(parsed.host));
-  } catch(_e){ return false; }
-}
-
-let _updateState = {
-  status:'idle', latest:null, url:null, notes:null,
-  expectedHash:null, integrity:null, urlTrusted:null
-};
-
-// Compare two semver-ish strings. Returns -1 / 0 / 1 (a < b / == / >).
-// Handles pre-release tags ("0.0.2" > "0.0.2-alpha.1" > "0.0.1").
-function _compareVersions(a, b){
-  const parse = v=>{
-    const [core, pre=''] = String(v).replace(/^v\s*/i,'').trim().split('-',2);
-    const nums = core.split('.').map(n=>parseInt(n,10)||0);
-    while(nums.length<3) nums.push(0);
-    return { nums, pre };
-  };
-  const A=parse(a), B=parse(b);
-  for(let i=0;i<3;i++){
-    if(A.nums[i] !== B.nums[i]) return A.nums[i] < B.nums[i] ? -1 : 1;
-  }
-  if(A.pre === B.pre) return 0;
-  if(!A.pre) return  1;   // release > prerelease
-  if(!B.pre) return -1;
-  return A.pre < B.pre ? -1 : 1;
-}
-
-function _setUpdateBtn(state){
-  const btn = document.getElementById('tb-update-btn');
-  const lbl = document.getElementById('tb-update-lbl');
-  if(!btn || !lbl) return;
-  btn.classList.remove('is-latest','has-update','is-checking','is-offline');
-  switch(state){
-    case 'checking':
-      btn.classList.add('is-checking');
-      lbl.textContent = T('tb-update-checking');
-      btn.title = T('tb-update-checking');
-      break;
-    case 'latest':
-      btn.classList.add('is-latest');
-      lbl.textContent = T('tb-update-latest');
-      btn.title = T('tt-update-latest');
-      break;
-    case 'available':
-      btn.classList.add('has-update');
-      lbl.textContent = T('tb-update-new');
-      btn.title = (T('tt-update-new')||'') +
-        (_updateState.latest ? ' → v ' + _updateState.latest : '');
-      break;
-    case 'offline':
-      btn.classList.add('is-offline');
-      lbl.textContent = T('tb-update-offline');
-      btn.title = T('tt-update-offline');
-      break;
-    default:
-      lbl.textContent = T('tb-update-check');
-      btn.title = T('tt-update-check');
-  }
-}
-
-// SHA-256 of the page bundle vs. the manifest "sha256" field.
-// Returns: true = match, false = mismatch, null = could not check.
-async function _verifyPageIntegrity(expectedHex){
-  try{
-    if(!expectedHex) return null;
-    if(!/^[A-Fa-f0-9]{64}$/.test(String(expectedHex).trim())) return null;
-    if(!location.href || !location.href.startsWith('http')) return null;
-    if(typeof crypto === 'undefined' || !crypto.subtle) return null;
-    const res = await fetch(location.href, {cache:'no-store'});
-    if(!res.ok) return null;
-    const buf = await res.arrayBuffer();
-    const hash = await crypto.subtle.digest('SHA-256', buf);
-    const hex = Array.from(new Uint8Array(hash))
-      .map(b=>b.toString(16).padStart(2,'0')).join('');
-    return hex.toLowerCase() === String(expectedHex).trim().toLowerCase();
-  } catch(_e){ return null; }
-}
-
-function _setIntegrityIndicator(){
-  const el = document.getElementById('tb-integrity');
-  if(!el) return;
-  const v = _updateState.integrity;
-  el.classList.remove('ok','bad','unknown');
-  if(v === true){
-    el.hidden = false;
-    el.textContent = '✓';
-    el.classList.add('ok');
-    el.title = T('tt-integrity-ok');
-  } else if(v === false){
-    el.hidden = false;
-    el.textContent = '⚠';
-    el.classList.add('bad');
-    el.title = T('tt-integrity-bad');
-  } else {
-    el.hidden = true;
-    el.classList.add('unknown');
-    el.textContent = '';
-    el.title = '';
-  }
-}
-
-// ── Error report (bug reporter) ───────────────────────────────────────────
-// Opens the user's default mail composer with diagnostic info pre-filled.
-// To change the recipient address, edit REPORT_EMAIL below.
-const REPORT_EMAIL = 'contact@locahun3d.com';   // Bug reports — opens user's local mail client via mailto:
-
-// ── Report-fallback modal ─────────────────────────────────────────────────
-// Some users have no `mailto:` handler registered with their browser (no
-// Outlook installed, no default web-mailto, Chrome blocked the protocol).
-// In that case opening `mailto:` is silently a no-op and looks broken.
-// _showReportFallback() puts the same prefilled body in a modal that lets
-// the user (a) copy the address, (b) copy the body, or (c) open Gmail Web
-// in a new tab with everything pre-filled.
-function _showReportFallback(to, subject, body){
-  const old = document.getElementById('report-fallback-modal');
-  if(old) old.remove();
-  const m = document.createElement('div');
-  m.id = 'report-fallback-modal';
-  m.setAttribute('style', 'position:fixed;inset:0;z-index:99999;display:flex;' +
-    'align-items:center;justify-content:center;background:rgba(0,0,0,.78);' +
-    'font-family:system-ui,"Segoe UI",sans-serif;color:#e8e8e8;');
-  const _en = (window._lang === 'en');
-  const _t = {
-    title:  _en ? '❗ Bug Report' : '❗ エラー報告',
-    intro:  _en ? 'Describe the symptom & steps below, then press Send. It is emailed directly — no mail app needed.'
-                : '下に症状・再現手順を書いて「送信」してください。メールアプリ不要で直接送られます。',
-    send:   _en ? '📧 Send' : '📧 送信',
-    mail:   _en ? 'Open in mail app' : 'メールアプリで開く',
-    gmail:  _en ? 'Gmail' : 'Gmail で開く',
-    copyBody:_en ? 'Copy text' : '本文をコピー',
-  };
-  m.innerHTML = `
-    <div style="background:#1a1a1c;border:1px solid #444;border-radius:10px;max-width:640px;
-                width:90%;max-height:86vh;display:flex;flex-direction:column;overflow:hidden;
-                box-shadow:0 8px 40px rgba(0,0,0,.7)">
-      <div style="padding:14px 18px;border-bottom:1px solid #2c2c2e;display:flex;
-                  justify-content:space-between;align-items:center;">
-        <strong>${_t.title}</strong>
-        <button id="rfb-close" style="background:none;border:0;color:#aaa;font-size:1.4em;
-                cursor:pointer;line-height:1">×</button>
-      </div>
-      <div style="padding:14px 18px 6px;font-size:.9em;line-height:1.55;color:#bbb">${_t.intro}</div>
-      <textarea id="rfb-body" style="margin:8px 18px 6px;flex:1;min-height:200px;
-                background:#0e0e10;color:#dadada;border:1px solid #333;border-radius:6px;
-                padding:10px 12px;font:.82em/1.5 ui-monospace,Menlo,Consolas,monospace;
-                resize:vertical;"></textarea>
-      <div id="rfb-status" style="padding:0 18px;font-size:.82em;color:#9ad59a;min-height:1.2em"></div>
-      <div style="padding:6px 18px 16px;display:flex;flex-wrap:wrap;gap:8px;align-items:center;">
-        <button id="rfb-send" style="background:#3a5b3a;border:1px solid #6abf6a;color:#dfffdf;
-                  padding:9px 18px;border-radius:6px;cursor:pointer;font-size:.95em;font-weight:600">${_t.send}</button>
-        <span style="flex:1"></span>
-        <a id="rfb-mail" href="#" style="color:#9ab;text-decoration:none;font-size:.82em">${_t.mail}</a>
-        <a id="rfb-gmail" href="#" target="_blank" rel="noopener" style="color:#9ab;text-decoration:none;font-size:.82em">${_t.gmail}</a>
-        <button id="rfb-copy-body" style="background:none;border:0;color:#9ab;cursor:pointer;font-size:.82em">${_t.copyBody}</button>
-      </div>
-    </div>`;
-  document.body.appendChild(m);
-  const ta = m.querySelector('#rfb-body');
-  ta.value = body;
-  const status = m.querySelector('#rfb-status');
-  const mailto = ()=> 'mailto:'+encodeURIComponent(to)+'?subject='+encodeURIComponent(subject)+'&body='+encodeURIComponent(ta.value);
-  const gmailUrl = ()=> 'https://mail.google.com/mail/?view=cm&fs=1&to='+encodeURIComponent(to)+'&su='+encodeURIComponent(subject)+'&body='+encodeURIComponent(ta.value);
-  m.querySelector('#rfb-mail').onclick  = (e)=>{ e.preventDefault(); try{ location.href = mailto(); }catch(_){} };
-  m.querySelector('#rfb-gmail').onclick = (e)=>{ e.preventDefault(); window.open(gmailUrl(),'_blank','noopener'); };
-  const close = () => m.remove();
-  m.querySelector('#rfb-close').onclick = close;
-  m.addEventListener('click', e => { if(e.target === m) close(); });
-  m.querySelector('#rfb-copy-body').onclick = async () => {
-    try{ await navigator.clipboard.writeText('To: '+to+'\nSubject: '+subject+'\n\n'+ta.value);
-      status.style.color='#9ad59a'; status.textContent = _en?'Copied':'コピーしました'; }
-    catch(_){ ta.select(); }
-  };
-  // ── 直接サーバー送信（/api/report → Worker → Resend）。メーラ不要。 ──
-  const sendBtn = m.querySelector('#rfb-send');
-  sendBtn.onclick = async () => {
-    sendBtn.disabled = true;
-    status.style.color = '#cdd'; status.textContent = _en ? 'Sending…' : '送信中…';
-    try {
-      const r = await fetch('/api/report', { method:'POST', headers:{'content-type':'application/json'},
-        body: JSON.stringify({ subject, body: ta.value }) });
-      const j = await r.json().catch(()=>({}));
-      if(r.ok && j && j.ok){
-        status.style.color='#9ad59a'; status.textContent = _en ? 'Sent ✓ — thank you!' : '送信しました ✓ ありがとうございます';
-        setTimeout(close, 1400);
-        return;
-      }
-      throw new Error((j && j.error) || ('HTTP '+r.status));
-    } catch(e){
-      sendBtn.disabled = false;
-      status.style.color = '#e6a';
-      status.textContent = (_en ? 'Send failed — use mail / Gmail / copy below. ' : '送信に失敗しました。下のメール/Gmail/コピーをご利用ください。 ') + (e && e.message ? '('+e.message+')' : '');
-    }
-  };
-}
-
-window.reportBug = function(){
-  try {
-    const ver  = (document.getElementById('tb-version')?.textContent || '').trim();
-    const ua   = navigator.userAgent || '';
-    const plat = navigator.platform  || '';
-    const dpr  = window.devicePixelRatio || 1;
-    const vp   = innerWidth + ' × ' + innerHeight;
-    const lc   = (typeof layers !== 'undefined' && Array.isArray(layers))
-                 ? layers.length + ' layers (' + layers.map(L=>L.type).join(',') + ')'
-                 : '(no scene loaded)';
-    let glRenderer = '';
-    try {
-      const gl = renderer && renderer.getContext && renderer.getContext();
-      if(gl){
-        const ext = gl.getExtension('WEBGL_debug_renderer_info');
-        if(ext) glRenderer = gl.getParameter(ext.UNMASKED_RENDERER_WEBGL) || '';
-      }
-    } catch(_){}
-    const _en = (window._lang === 'en');
-    const subject = (_en ? '[Locahun3D] Bug Report ' : '[ロケハン3D] エラー報告 ') + ver;
-    const bodyLines = [
-      _en ? '[What happened]' : '【発生内容】',
-      _en ? '(Describe the symptom, steps to reproduce, and what you were doing)'
-          : '（こちらに具体的な症状、再現手順、操作の流れを記入してください）',
-      '',
-      '',
-      _en ? '―――― auto-collected info ――――' : '―――― 自動収集情報 ――――',
-      'Version : ' + ver,
-      'Time    : ' + new Date().toISOString(),
-      'Viewport: ' + vp + '  DPR=' + dpr,
-      'Scene   : ' + lc,
-      'Platform: ' + plat,
-      'GPU     : ' + (glRenderer || '(unknown)'),
-      'UA      : ' + ua,
-    ].join('\n');
-    const body = bodyLines;
-    // メーラ依存をやめ、報告ダイアログを直接開く。ダイアログの「送信」ボタンが
-    // /api/report (Cloudflare Worker→Resend) で直接メール送信する（メーラ不要）。
-    // 送信できない環境向けに メールアプリ/Gmail/コピー の手段も残す。
-    _showReportFallback(REPORT_EMAIL, subject, body);
-  } catch(e){
-    console.warn('[reportBug] failed:', e);
-    if(typeof showUndoToast === 'function') showUndoToast('メール起動に失敗しました');
-  }
-};
-
-// Download the freshest viewer HTML as Locahun3D_OfflineViewer.html.
-// Fetches the same origin the page was served from (or the manifest's
-// trusted URL when running offline-bundled). Used by checkForUpdate()
-// when the user clicks the "🔔 新版あり" button — they get the new
-// HTML in their Downloads folder so they can replace their local copy
-// without manually navigating to GitHub.
-async function _downloadLatestViewerHtml(){
-  // The latest HTML lives in the SAME GitHub repo as the version manifest, and
-  // raw.githubusercontent.com is CORS-enabled — so this fetch succeeds even
-  // from a file:// offline copy. (The previous code fell back to location.href
-  // when the manifest's url failed the origin allowlist, which on a file://
-  // copy just re-downloaded the user's OWN stale HTML — the "押しても更新され
-  // ない" bug.) Derive the HTML URL from the manifest URL so they stay in sync.
-  const htmlUrl = UPDATE_MANIFEST_URL.replace(/version\.json(?=$|[?#])/i, 'Locahun3D_OfflineViewer.html');
-  try {
-    const res = await fetch(htmlUrl, { cache: 'no-store' });
-    if(!res.ok) throw new Error('HTTP ' + res.status);
-    const blob = await res.blob();
-    const dl = document.createElement('a');
-    dl.href = URL.createObjectURL(blob);
-    dl.download = 'Locahun3D_OfflineViewer.html';
-    document.body.appendChild(dl);
-    dl.click();
-    dl.remove();
-    setTimeout(()=>URL.revokeObjectURL(dl.href), 5000);
-    if(typeof showUndoToast === 'function'){
-      showUndoToast(window._lang === 'en'
-        ? '⬇ Downloaded the latest viewer — overwrite your local HTML file with it'
-        : '⬇ 最新版をダウンロードしました — お手元の HTML ファイルに上書き保存してください');
-    }
-    return true;
-  } catch(e){
-    console.warn('[update] HTML download failed:', e);
-    // Last resort: open the public releases page so the user can grab it manually.
-    try{ window.open(RELEASES_FALLBACK_URL, '_blank', 'noopener'); }catch(_){}
-    if(typeof showUndoToast === 'function'){
-      showUndoToast(window._lang === 'en'
-        ? '⚠ Download failed — opened the releases page instead'
-        : '⚠ ダウンロード失敗 — リリースページを開きました');
-    }
-    return false;
-  }
-}
-
-window.checkForUpdate = async function(userInitiated){
-  // If new version already detected, second click downloads the freshest
-  // viewer HTML AND opens the release URL (so the user can see release
-  // notes / sha hash). Download is best-effort; release page open is the
-  // reliable fallback.
-  if(_updateState.status === 'available'){
-    if(userInitiated){
-      // Get the new version IN PLACE — never bounce the user out to GitHub
-      // (user feedback 2026-06: clicking "新版あり" should not open the repo).
-      if(location.protocol === 'https:' || location.protocol === 'http:'){
-        // Online viewer (e.g. viewer.locahun3d.com): the freshest HTML is one
-        // reload away — Cloudflare serves the latest — so just reload in place.
-        // Use a cache-buster so a stale browser cache can't re-serve the old
-        // build (otherwise the click would appear to do nothing).
-        try{
-          const u = new URL(location.href);
-          u.searchParams.set('_v', String(Date.now()));
-          location.replace(u.toString());
-        }catch(_){ location.reload(); }
-      } else {
-        // Saved offline copy (file://): can't reload to a newer one (the browser
-        // can't overwrite a local file), so download the fresh viewer HTML from
-        // GitHub so the user can replace their local copy.
-        _downloadLatestViewerHtml();
-      }
-    }
-    return;
-  }
-  if(_updateState.status === 'checking') return;
-  _updateState.status = 'checking';
-  _setUpdateBtn('checking');
-  try{
-    const ctrl = new AbortController();
-    const t = setTimeout(()=>ctrl.abort(), 8000);
-    const res = await fetch(UPDATE_MANIFEST_URL, {cache:'no-store', signal:ctrl.signal});
-    clearTimeout(t);
-    if(!res.ok) throw new Error('HTTP ' + res.status);
-    const data = await res.json();
-    const latest = String(data.version || '').trim();
-    if(!latest) throw new Error('no version in manifest');
-    _updateState.latest       = latest;
-    _updateState.notes        = data.notes  || null;
-    _updateState.expectedHash = data.sha256 || null;
-    // Validate the redirect URL's origin before storing it
-    const rawUrl = data.url || null;
-    _updateState.urlTrusted = rawUrl ? _isTrustedUpdateUrl(rawUrl) : false;
-    _updateState.url        = _updateState.urlTrusted ? rawUrl : null;
-    if(rawUrl && !_updateState.urlTrusted){
-      console.warn('[update] manifest url failed origin allowlist; falling back', rawUrl);
-    }
-    if(_compareVersions(CURRENT_VERSION, latest) < 0){
-      _updateState.status = 'available';
-      _setUpdateBtn('available');
-    } else {
-      _updateState.status = 'latest';
-      _setUpdateBtn('latest');
-    }
-    // Run integrity check in the background; doesn't block update state
-    _verifyPageIntegrity(_updateState.expectedHash).then(ok=>{
-      _updateState.integrity = ok;
-      _setIntegrityIndicator();
-    });
-  } catch(err){
-    _updateState.status = 'offline';
-    _setUpdateBtn('offline');
-  }
-};
-
-// Auto-check on startup if online; refresh button label after i18n applies.
-window.addEventListener('load', ()=>{
-  _setUpdateBtn('idle');
-  if(navigator.onLine){
-    setTimeout(()=>window.checkForUpdate(false), 1200);
-  } else {
-    _setUpdateBtn('offline');
-  }
-});
-window.addEventListener('online', ()=>{
-  if(_updateState.status === 'offline' || _updateState.status === 'idle'){
-    window.checkForUpdate(false);
-  }
-});
 
 if(_protected){
   window.saveProjectZip = ()=>{ showUndoToast('オンライン閲覧モードではデータ保存できません'); };

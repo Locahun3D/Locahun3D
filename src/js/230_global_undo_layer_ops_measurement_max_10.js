@@ -48,6 +48,24 @@ function _flushGenericPending(){
   _genericPending.clear();
 }
 
+// ── Layer / folder rename undo (user 2026-08-14) ──
+// A rename is a discrete commit (Enter or blur), so it is pushed straight onto
+// the generic stack with NO debounce — pushGenericUndo's 700ms coalescing is for
+// slider drags and would merge two deliberate renames into one. Riding the
+// generic entry means Ctrl+Z and Ctrl+Y both work with zero new machinery.
+function pushRenameUndo(id, before, after){
+  if(before === after) return;
+  const apply = (name)=>{
+    const L = (typeof findLayer==='function') ? findLayer(id) : null;
+    if(!L) return;               // layer was deleted since — nothing to rename
+    L.name = name;
+    renderLayerList();
+    if(typeof renderTransformPanel==='function') renderTransformPanel();
+  };
+  pushGlobalUndo({ type:'generic', key:'rename:'+id, before, after, apply,
+                   undoKey:'undo-rename', redoKey:'redo-rename' });
+}
+
 function globalRedo(){
   _flushGenericPending();
   if(!globalRedoStack.length){ showUndoToast(T('redo-none')); return; }
@@ -56,7 +74,9 @@ function globalRedo(){
     globalUndoStack.push(s);
     _suppressUndoCapture = true;
     try { s.apply(s.after); } finally { _suppressUndoCapture = false; }
-    showUndoToast(T('redo-move'));
+    // `redoKey` lets a generic entry name its own toast (e.g. rename); the
+    // default stays the historical "layer move" wording.
+    showUndoToast(T(s.redoKey || 'redo-move'));
     markDirty(4);
     return;
   }
@@ -163,9 +183,11 @@ function globalRedo(){
   }
 }
 
-// Exposed for the top-bar "↩ 戻る" button (inline onclick runs in GLOBAL scope and
-// can't see the module-scoped globalUndo). Mirrors the Ctrl+Z behaviour: undo the
-// last measurement step while measuring, else the last scene action.
+// Global-scope entry point for undo. The top-bar "↩ 戻る" button that used to call
+// this was removed (user 2026-08-14) — undo is now keyboard-only (Ctrl+Z) — but the
+// export stays so any inline onclick / external harness keeps working. Mirrors the
+// Ctrl+Z behaviour: undo the last measurement step while measuring, else the last
+// scene action.
 window.topbarUndo = function(){
   if(typeof msr!=='undefined' && msr.active && msr.undoStack && msr.undoStack.length) window.undoMeasure();
   else globalUndo();
@@ -178,7 +200,7 @@ function globalUndo(){
     globalRedoStack.push(s);
     _suppressUndoCapture = true;
     try { s.apply(s.before); } finally { _suppressUndoCapture = false; }
-    showUndoToast(T('undo-move'));
+    showUndoToast(T(s.undoKey || 'undo-move'));
     markDirty(4);
     return;
   }

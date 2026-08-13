@@ -321,8 +321,8 @@ window.removeLayer=function(id){
   }
   renderLayerList();
   renderTransformPanel();
-  // (削除トーストは非表示 — user 2026-06-27「これ表示いらない」。取り消しは Ctrl+Z /
-  //  上メニューの「↩ 戻る」で可能。)
+  // (削除トーストは非表示 — user 2026-06-27「これ表示いらない」。取り消しは Ctrl+Z、
+  //  やり直しは Ctrl+Y で可能。)
   markDirty(8);
   if(typeof _haloMarkDirty === 'function') _haloMarkDirty();
   if(typeof _recountLayerActivity === 'function') _recountLayerActivity();

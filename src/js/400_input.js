@@ -22,6 +22,12 @@ window.addEventListener('keydown',e=>{
   // in adjustment-tool inputs. Blur the input first so the global stack reflects the
   // committed value, then run the undo/redo.
   if((e.ctrlKey||e.metaKey) && (e.code==='KeyZ'||e.code==='KeyY')){
+    // EXCEPT the layer-rename field: while renaming, Ctrl+Z must be the
+    // browser's native text-edit undo, not an app undo. (The rename input also
+    // stopPropagation()s its own keydown, so this is a second line of defence
+    // for any future caller that dispatches the event straight at window.)
+    const _ae0 = document.activeElement;
+    if(_ae0 && _ae0.classList && _ae0.classList.contains('lr-name-input')) return;
     if(_isTypingInInput()){
       const ae=document.activeElement;
       if(ae && typeof ae.blur==='function') ae.blur();
