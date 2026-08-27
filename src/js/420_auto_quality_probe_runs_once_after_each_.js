@@ -267,7 +267,18 @@ window.startEditProjectName = function(){
 window.toggleObjTypeMenuTop = function(btn){
   const menu = document.getElementById('obj-type-menu-top');
   if(!menu) return;
-  menu.style.display = menu.style.display === 'flex' ? 'none' : 'flex';
+  const open = menu.style.display !== 'flex';
+  menu.style.display = open ? 'flex' : 'none';
+  if(!open) return;
+  // ボタンはシーンレイヤーの見出し行にあり (user 2026-08-27)、行の折返し具合で
+  // 左端にも右端にも来る。開くたびに画面内へ収まる向きを選び直す。
+  menu.style.left = '0'; menu.style.right = 'auto';
+  if(menu.getBoundingClientRect().right > innerWidth - 8){
+    menu.style.left = 'auto'; menu.style.right = '0';
+  }
+  if(menu.getBoundingClientRect().left < 8){
+    menu.style.left = '0'; menu.style.right = 'auto';
+  }
 };
 window.closeObjTypeMenuTop = function(){
   const menu = document.getElementById('obj-type-menu-top');

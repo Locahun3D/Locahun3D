@@ -60,8 +60,6 @@ const I18N = {
   'qt-low':'低',
   'qt-mid':'中',
   'qt-high':'高',
-  'lbl-help':'使い方',
-  'help-title':'使い方マニュアルを開く',
   'demo-btn-lbl':'デモシーン(交差点)',
   'demo-btn-title':'デモ用の 3DGS シーンを Cloudflare R2 から読み込みます',
   'orient-lock-msg':'横画面でご利用ください',
@@ -189,8 +187,6 @@ const I18N = {
   'qt-low':'Low',
   'qt-mid':'Mid',
   'qt-high':'High',
-  'lbl-help':'Help',
-  'help-title':'Open the user manual',
   'demo-btn-lbl':'Demo Scene (Intersection)',
   'demo-btn-title':'Load the demo 3DGS scene from Cloudflare R2',
   'orient-lock-msg':'Please use in landscape',
@@ -286,21 +282,13 @@ function applyI18n(){
   // 日照パネルの都市ドロップダウンを言語に合わせて翻訳
   if(typeof _sunApplyCityI18n==='function') _sunApplyCityI18n();
   // HUD labels
-  ['lbl-pos','lbl-spd','lbl-rot','lbl-measure','lbl-flip','lbl-addobj','lbl-quality','lbl-settings','lbl-file','lbl-cam-reset','qp-init-h','lbl-set-init-view','lbl-auto-init-view','lbl-camtool','lbl-env','lbl-help','orient-lock-msg','orient-lock-sub','lbl-addobj-top','lbl-addfig-top','tb-save-lbl','tb-load-lbl','fp-btn-import-lbl','fp-btn-export-lbl','csp-shot-info','csp-cam-info','csp-meta-info','csp-shot-name','csp-rig','csp-env','csp-note','csp-capture','csp-burnin','csp-burnin-grid','csp-capture-btn','csp-salvage','csp-salvage-drop','csp-salvage-sub','ct-tool','ct-lens','ct-focal','ct-sensor','ct-sensor-ff','ct-sensor-apsc','ct-sensor-apsh','ct-sensor-mft','ct-sensor-1inch','ct-sensor-phone13','ct-sensor-phone17','ct-sensor-phone23','ct-sensor-m65','ct-sensor-s35','ct-sensor-bm','ct-sensor-cust','ct-sensor-w','ct-sensor-h','ct-cam-angle','ct-pan','ct-tilt','ct-roll','ct-roll-level','ct-wb','ct-wb-temp','ct-aspect','ct-aspect-sensor','ct-aspect-cust','ct-aspect-apply','ct-margin','ct-grid','ct-grid-multi','ct-grid-guide','ct-grid-off','ct-grid-thirds','ct-grid-golden','ct-grid-cross','ct-grid-diag','ct-grid-safe-cust','ct-grid-action','ct-grid-title','ct-grid-center','ct-grid-custom','ct-grid-cols','ct-grid-rows','ct-grid-opacity','dz-manual-text','dz-ar-label','env-h-title','env-p-off','env-p-day','env-p-morning','env-p-evening','env-p-night','env-p-cloudy','env-p-rain','env-p-overcast','env-p-twilight','env-l-rot','env-l-int','msr-active-lbl','msr-end-lbl','lp-h-scene','lp-empty','qt-title','qt-low','qt-mid','qt-high','qp-perf-t','qp-l-frame','qp-l-gpu','qp-l-head','qp-l-dc','qp-l-tris','qp-l-geos','qp-l-texs','dist-l','msr-clear','msr-undo','em-3dgs','em-3dgs-d','em-zip-save','em-zip-save-d','em-zip-load','em-zip-load-d','em-zip-lite','em-zip-lite-d','rm-title','rm-pick','rm-skip','em-json','em-json-d','em-glb','em-glb-d','em-obj','em-obj-d','em-cancel','em-recommended','em-h-title','qp-settings-t','qp-lbl-lowpoly-main','qp-lbl-lowpoly-hint','qp-lbl-grid','qp-lbl-show','qp-lbl-fov','qp-lbl-spd','cl-title','cl-sub','cl-tag-init','cl-tag-v003','lbl-walk','lbl-save-camera','lbl-view-rec','lbl-view-rec-phone','lbl-cam-anim','giz-pt-a','giz-pt-b','giz-pt-c','giz-height-lbl','height-l','csp-jpeg-q','csp-4k-lbl','obj-add-cube','obj-add-sphere','obj-add-light','obj-add-event','obj-add-path','msr-end-lbl-init'].forEach(id=>{
+  ['lbl-pos','lbl-spd','lbl-rot','lbl-measure','lbl-flip','lbl-addobj','lbl-quality','lbl-settings','lbl-file','lbl-cam-reset','qp-init-h','lbl-set-init-view','lbl-auto-init-view','lbl-camtool','lbl-env','orient-lock-msg','orient-lock-sub','lbl-addobj-top','lbl-addfig-top','tb-save-lbl','tb-load-lbl','fp-btn-import-lbl','fp-btn-export-lbl','csp-shot-info','csp-cam-info','csp-meta-info','csp-shot-name','csp-rig','csp-env','csp-note','csp-capture','csp-burnin','csp-burnin-grid','csp-capture-btn','csp-salvage','csp-salvage-drop','csp-salvage-sub','ct-tool','ct-lens','ct-focal','ct-sensor','ct-sensor-ff','ct-sensor-apsc','ct-sensor-apsh','ct-sensor-mft','ct-sensor-1inch','ct-sensor-phone13','ct-sensor-phone17','ct-sensor-phone23','ct-sensor-m65','ct-sensor-s35','ct-sensor-bm','ct-sensor-cust','ct-sensor-w','ct-sensor-h','ct-cam-angle','ct-pan','ct-tilt','ct-roll','ct-roll-level','ct-wb','ct-wb-temp','ct-aspect','ct-aspect-sensor','ct-aspect-cust','ct-aspect-apply','ct-margin','ct-grid','ct-grid-multi','ct-grid-guide','ct-grid-off','ct-grid-thirds','ct-grid-cross','ct-grid-diag','ct-grid-safe-cust','ct-grid-action','ct-grid-title','ct-grid-center','ct-grid-custom','ct-grid-cols','ct-grid-rows','ct-grid-opacity','dz-manual-text','dz-ar-label','env-h-title','env-p-off','env-p-day','env-p-morning','env-p-evening','env-p-night','env-p-cloudy','env-p-rain','env-p-overcast','env-p-twilight','env-l-rot','env-l-int','msr-active-lbl','msr-end-lbl','lp-h-scene','lp-empty','qt-title','qt-low','qt-mid','qt-high','qp-perf-t','qp-l-frame','qp-l-gpu','qp-l-head','qp-l-dc','qp-l-tris','qp-l-geos','qp-l-texs','dist-l','msr-clear','msr-undo','em-3dgs','em-3dgs-d','em-zip-save','em-zip-save-d','em-zip-load','em-zip-load-d','em-zip-lite','em-zip-lite-d','rm-title','rm-pick','rm-skip','em-json','em-json-d','em-glb','em-glb-d','em-obj','em-obj-d','em-cancel','em-recommended','em-h-title','qp-settings-t','qp-lbl-lowpoly-main','qp-lbl-lowpoly-hint','qp-lbl-grid','qp-lbl-show','qp-lbl-fov','qp-lbl-spd','cl-title','cl-sub','cl-tag-init','cl-tag-v003','lbl-walk','lbl-save-camera','lbl-view-rec','lbl-view-rec-phone','lbl-cam-anim','giz-pt-a','giz-pt-b','giz-pt-c','giz-height-lbl','height-l','csp-jpeg-q','csp-4k-lbl','obj-add-cube','obj-add-sphere','obj-add-light','obj-add-event','obj-add-path','msr-end-lbl-init'].forEach(id=>{
     const el=document.getElementById(id); if(el) el.textContent=T(id);
   });
   // HUD info-box edit tooltip + dropzone titles
   document.querySelectorAll('#hud .ibox .ibv').forEach(el=>{ el.title=T('tt-edit-dbl'); });
-  // Manual: header / nav / close button via data-i18n-key attributes
-  document.querySelectorAll('#manual-overlay [data-i18n-key]').forEach(el=>{
-    el.textContent=T(el.getAttribute('data-i18n-key'));
-  });
-  // Manual body: toggle JA/EN dual block visibility
-  const _mo=document.getElementById('manual-overlay');
-  if(_mo) _mo.classList.toggle('lang-en', L==='en');
   // Title attributes (tooltips) — not auto-handled by data-i18n
   const _setTitle=(sel,key)=>{ const el=document.querySelector(sel); if(el) el.title=T(key); };
-  _setTitle('#btnHelp','tt-help');
   _setTitle('#btnAddCubeTop','tt-add-obj');
   _setTitle('#tb-project-name','tt-edit-name');
   _setTitle('#mf-collapse-btn','tt-mf-collapse');
@@ -375,8 +363,6 @@ function applyI18n(){
   if(typeof _applyHeightUI==='function' && typeof msr!=='undefined') _applyHeightUI(msr.heightOn);
   // Quality badge (top-right) — labels are 低/中/高 -> Low/Mid/High.
   if(typeof _updateQiBadgeLabel==='function' && typeof qualIdx!=='undefined') _updateQiBadgeLabel(qualIdx);
-  // Help button tooltip (title attribute isn't covered by the textContent loop).
-  const _btnHelp=document.getElementById('btnHelp'); if(_btnHelp) _btnHelp.title=T('help-title');
   // Demo-scene dropzone button: label includes the file size, and the title
   // attribute needs translating too — neither is handled by the bulk loop.
   const _demoLbl=document.getElementById('dz-demo-lbl');

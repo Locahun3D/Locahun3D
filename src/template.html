@@ -66,6 +66,24 @@
        Hidden along with the rest of the panel content when collapsed. -->
   <div class="lp-footer" id="lp-footer-bar">
     <button onclick="triggerImportAny()" id="fp-btn-import">📁 <span id="fp-btn-import-lbl">読み込み</span></button>
+    <!-- 📦 モデル追加 — シーンレイヤー展開時の「読み込み」の右隣 (user 2026-08-27)。
+         .lp-footer は畳むと display:none なので、展開時だけ見える配置になる。 -->
+    <div style="position:relative">
+      <button id="btnAddCubeTop" onclick="toggleObjTypeMenuTop(this)" style="width:100%;background:#2A2A2C;border:1px solid rgba(255,255,255,.1);color:#686868;border-radius:5px;padding:4px 0;font-size:.68em;cursor:pointer;transition:all .2s;letter-spacing:.02em;white-space:nowrap;" onmouseover="this.style.background='rgba(255,200,80,.18)';this.style.borderColor='rgba(255,220,100,.45)';this.style.color='#D8D8D8'" onmouseout="this.style.background='#2A2A2C';this.style.borderColor='rgba(255,255,255,.1)';this.style.color='#686868'" title="モデル追加">📦 <span id="lbl-addobj-top">モデル追加</span> ▾</button>
+      <div id="obj-type-menu-top" style="display:none;position:absolute;top:calc(100% + 6px);left:0;right:auto;background:rgba(20,20,22,.97);border:1px solid rgba(255,255,255,.15);border-radius:8px;padding:5px;z-index:400;flex-direction:column;gap:4px;min-width:178px;box-shadow:0 4px 16px rgba(0,0,0,.5);">
+        <button onclick="_beginPlace('cube');window.closeObjTypeMenuTop()" style="background:rgba(255,221,68,.06);border:1px solid rgba(255,221,68,.15);color:#C0C0C0;border-radius:5px;padding:7px 14px;cursor:pointer;font-size:.8em;text-align:left;width:100%;white-space:nowrap;transition:background .15s;" onmouseover="this.style.background='rgba(255,221,68,.15)'" onmouseout="this.style.background='rgba(255,221,68,.06)'">📦 <span id="obj-add-cube">Cube (立方体)</span></button>
+        <div style="border-top:1px solid rgba(255,255,255,.07);margin:2px 0"></div>
+        <button onclick="_beginPlace('event');window.closeObjTypeMenuTop()" style="background:rgba(255,170,68,.06);border:1px solid rgba(255,170,68,.15);color:#C0C0C0;border-radius:5px;padding:7px 14px;cursor:pointer;font-size:.8em;text-align:left;width:100%;white-space:nowrap;transition:background .15s;" onmouseover="this.style.background='rgba(255,170,68,.18)'" onmouseout="this.style.background='rgba(255,170,68,.06)'">🟠 <span id="obj-add-event">Event (イベント)</span></button>
+        <div style="border-top:1px solid rgba(255,255,255,.07);margin:2px 0"></div>
+        <button onclick="_beginPlace('figure');window.closeObjTypeMenuTop()" style="background:rgba(255,140,200,.06);border:1px solid rgba(255,140,200,.18);color:#C0C0C0;border-radius:5px;padding:7px 14px;cursor:pointer;font-size:.8em;text-align:left;width:100%;white-space:nowrap;transition:background .15s;" onmouseover="this.style.background='rgba(255,140,200,.20)'" onmouseout="this.style.background='rgba(255,140,200,.06)'" title="フィギュア追加（リグ付き人型モデル・配置場所を左クリック）">👤 <span id="lbl-addfig-top">フィギュア (人型リグ)</span></button>
+        <div style="border-top:1px solid rgba(255,255,255,.07);margin:2px 0"></div>
+        <button onclick="addPathLayer();window.closeObjTypeMenuTop()" style="background:rgba(100,200,255,.06);border:1px solid rgba(100,200,255,.16);color:#C0C0C0;border-radius:5px;padding:7px 14px;cursor:pointer;font-size:.8em;text-align:left;width:100%;white-space:nowrap;transition:background .15s;" onmouseover="this.style.background='rgba(100,200,255,.18)'" onmouseout="this.style.background='rgba(100,200,255,.06)'" title="4点を左クリックで囲んで区画を作成（駐車スペース等）。中央にテキストを表示できます">🛣 <span id="obj-add-path">パス (区画＋ラベル)</span></button>
+        <!-- Sphere (球体) and Light (ライト) entries removed per user request.
+             addSphereLayer / addLightLayer remain as window.* functions for
+             programmatic use (e.g. ZIP project restore) but are no longer
+             reachable from the UI dropdown. -->
+      </div>
+    </div>
     <button onclick="saveCameraLayer()" id="btnSaveCamera" style="color:#9fd0ff" title="現在のカメラ位置・アングル・画角・アスペクト比を保存">🎥 <span id="lbl-save-camera">カメラ保存</span></button>
   </div>
   <!-- Layer list — always visible when the panel itself is expanded.
@@ -240,11 +258,8 @@
 </style>
 {{include:src/html/010_quality_view_buttons.html}}
 {{include:src/html/020_view_buttons_ar.html}}
-{{include:src/html/030_manual_modal_ja.html}}
-{{include:src/html/040_manual_modal_en.html}}
-<style>
-{{include:src/css/040_style_block.css}}
-</style>
+<!-- ユーザーマニュアルのモーダル(JA/EN)と専用スタイルは削除 (user 2026-08-27)。
+     開く導線が下部ツールバーの「使い方」ボタンだけで、そのボタンを撤去したため。 -->
 
 <!-- Motion edge vignette: subtle, feathered black rim that fades in during
      camera motion to mask Spark's async depth-sort lag at the frustum edges
@@ -433,7 +448,6 @@
       <div class="cm-row" style="gap:3px;flex-wrap:wrap">
         <button class="cm-grid-btn" onclick="setCamGrid('off')"     data-g="off" id="ct-grid-off">なし</button>
         <button class="cm-grid-btn" onclick="setCamGrid('thirds')"  data-g="thirds" id="ct-grid-thirds">三分割</button>
-        <button class="cm-grid-btn" onclick="setCamGrid('golden')"  data-g="golden" id="ct-grid-golden">黄金</button>
         <button class="cm-grid-btn" onclick="setCamGrid('cross')"   data-g="cross" id="ct-grid-cross">十字</button>
         <button class="cm-grid-btn" onclick="setCamGrid('diag')"    data-g="diag" id="ct-grid-diag">対角</button>
       </div>
@@ -744,7 +758,7 @@
     <span id="dz-back-site-lbl">← ロケハン3D サイトへ戻る</span>
   </a>
   <div class="dz-version-line">
-    <span id="tb-version">v 0.2.0-beta</span>
+    <span id="tb-version">v 0.2.1-beta</span>
   </div>
 </div>
 
@@ -775,7 +789,8 @@
     <!-- 画質 / 設定 buttons removed: quality is now an always-visible
          indicator at the top-right of the view (#qi-badge); grid / FOV /
          move-speed settings have been merged into the quality panel. -->
-    <button id="btnHelp"    onclick="openManual()" title="使い方"><span id="lbl-help">使い方</span></button>
+    <!-- 「使い方」ボタンとユーザーマニュアルのモーダルは削除 (user 2026-08-27)。
+         他に開く導線が無かったのでモーダル本体(src/html/030,040)ごと撤去した。 -->
   </div>
 </div>
 

@@ -144,10 +144,13 @@ window.salvageCamFromFile = async function(file){
       note:        meta.cam.note        || '',
     });
     // Migrate grid state: new payload uses an array; older payloads used a single string.
+    // 廃止した 'golden' は三分割へフォールバック（_camNormalizeGrids）。
+    const _norm = (v)=> (typeof window._camNormalizeGrids === 'function')
+      ? window._camNormalizeGrids(v) : new Set(v || []);
     if(Array.isArray(meta.cam.grids)){
-      cam.grids = new Set(meta.cam.grids);
+      cam.grids = _norm(meta.cam.grids);
     } else if(typeof meta.cam.grid === 'string'){
-      cam.grids = meta.cam.grid === 'off' ? new Set() : new Set([meta.cam.grid]);
+      cam.grids = meta.cam.grid === 'off' ? new Set() : _norm([meta.cam.grid]);
     }
     _camPushFields();
     _camGetEl('cm-sensor').value = cam.sensor;

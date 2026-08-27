@@ -48,10 +48,16 @@
            oninput="onSpeedSlider(this.value)" style="width:100%">
   </div>
 
-  <!-- ── パフォーマンスメトリクス ── （スマホでは丸ごと非表示・user 2026-06-28） -->
+  <!-- ── パフォーマンスメトリクス ── （スマホでは丸ごと非表示・user 2026-06-28）
+       既定は折りたたみ＝見出し(タブ)だけ見える。常時出しておく必要は無い
+       ものなので、開いたときだけ中身が出る (user 2026-08-27)。 -->
   <div id="qp-perf-section">
   <div class="qp-divider"></div>
-  <div class="qp-perf-title" id="qp-perf-t">📊 処理能力モニター</div>
+  <div class="qp-fold-head" onclick="toggleQpFold('qp-perf')">
+    <span class="qp-fold-chev" id="qp-perf-chev">▶</span>
+    <span class="qp-perf-title qp-fold-lbl" id="qp-perf-t">📊 処理能力モニター</span>
+  </div>
+  <div id="qp-perf-fold" style="display:none">
 
   <div class="qp-stat-row">
     <span class="qp-label">FPS</span>
@@ -86,15 +92,21 @@
   </div>
 
   <div style="margin-top:7px;font-size:.62em;color:#303030;text-align:right" id="qp-resolution">—</div>
+  </div><!-- /qp-perf-fold -->
   </div><!-- /qp-perf-section -->
 
   <!-- ══ 初期視点（運用担当だけが使う機能） ══
        一般ユーザーは触らないので上部ボタン行には出さず、画質パネルの最下部に
        小さく置く (user 2026-08-13)。押すと「カメラリセットで戻ってくる視点」が
-       確定する。自動のほうは splat の幾何から位置と向きを決める(174/175)。 -->
+       確定する。自動のほうは splat の幾何から位置と向きを決める(174/175)。
+       処理能力モニターと同じく既定は折りたたみ (user 2026-08-27)。 -->
   <div class="qp-divider"></div>
-  <div class="qp-perf-title" id="qp-init-h">📍 初期視点（カメラリセット先）</div>
-  <div class="qrow" style="display:flex;flex-direction:column;gap:4px;margin:4px 0 2px">
+  <div class="qp-fold-head" onclick="toggleQpFold('qp-init')">
+    <span class="qp-fold-chev" id="qp-init-chev">▶</span>
+    <span class="qp-perf-title qp-fold-lbl" id="qp-init-h">📍 初期視点（カメラリセット先）</span>
+  </div>
+  <div class="qrow" id="qp-init-fold" data-fold-display="flex"
+       style="display:none;flex-direction:column;gap:4px;margin:4px 0 2px">
     <button id="qp-set-init-view" onclick="setCurrentViewAsInitial()"
       title="いま見ている視点を、カメラリセット時の初期位置として登録する"
       style="background:#1a1a1a;border:1px solid rgba(255,255,255,.12);color:#9a9a9a;

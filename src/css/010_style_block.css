@@ -489,7 +489,13 @@ body.protected-mode #em-save-zip { display:none !important; }
    layer panel is hidden anyway so 50 % is the canvas centre too. */
 #hud .cbar{
   position:absolute;bottom:14px;
-  left:50%;
+  /* キャンバス（左のシーンレイヤーパネルを除いた表示領域）の左右中央に置く
+     — user 2026-08-27「下部ボタン列が中央になっていない」。--lp-width は
+     パネルが隠れている/畳まれている端末では 0px なので、その場合は従来どおり
+     ビューポート中央になる（_updateLpWidthVar @160_loading_helpers.js）。
+     ※2026-06 に一度ビューポート中央へ戻した経緯があるが、本人の最新判断で
+       キャンバス中央へ再変更。 */
+  left: calc((100% + var(--lp-width, 0px)) / 2);
   transform:translateX(-50%);
   display:flex;gap:8px;pointer-events:all;flex-wrap:wrap;justify-content:center;
   overflow:visible;

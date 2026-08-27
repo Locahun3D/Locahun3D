@@ -93,7 +93,6 @@
      the minimap is a desktop editing aid that doesn't fit a phone's
      thumb-driven UX, and the full keyboard-shortcut manual is meant
      for desktop. カメラ / 環境 / 画質 / 設定 stay visible. */
-  #btnHelp { display:none !important; }
 }
 
 /* Smartphone-only: hide the bottom action bar (📷 カメラ / 🌅 環境 /
@@ -131,6 +130,10 @@
      arrow group, whose top sits ≈200px from the bottom edge. iPad (≥600px)
      keeps its bottom-anchored cbar via the wider media query above. */
   #hud .cbar{bottom:212px !important;}
+  /* スマホはトップバーが 30px なのに #cam-panel の top は デスクトップ用の 46px
+     のままで、バーとパネル見出しのあいだに 16px の空白帯ができていた
+     （user 2026-08-27「カメラツールパネルの上に不自然な隙間」）。バー直下に詰める。 */
+  #cam-panel{ top:30px !important; max-height:calc(100vh - 30px) !important; }
   :root{ --lp-width: 0px !important; }
   #layer-panel,
   #lp-footer-bar,
@@ -440,7 +443,9 @@ body.immersive #immersive-exit{ display:inline-block; }
 @media (pointer:coarse) and (any-hover:none) and (orientation:landscape) and (max-height:500px){
   #hud .cbar > button{ padding:5px 8px !important; font-size:.56em !important; }
   #sun-panel{ max-height:calc(100vh - 96px) !important; width:min(180px, 40vw) !important; }
-  #cam-panel{ width:min(200px, 38vw) !important; max-height:calc(100vh - 36px) !important; top:34px !important; }
+  /* トップバーは 28px なので top も 28px に合わせる。34px だと見出しの上に
+     6px の空白帯が残る（user 2026-08-27 タッチ横向きの再現報告）。 */
+  #cam-panel{ width:min(200px, 38vw) !important; max-height:calc(100vh - 28px) !important; top:28px !important; }
   #quality-panel{ width:min(180px, 40vw) !important; max-height:calc(100vh - 80px) !important; }
   #gizmo{ width:min(190px, 40vw) !important; max-height:calc(100vh - 80px) !important; top:64px !important; }
   #cam-anim-panel{ max-height:calc(100vh - 80px) !important; width:min(200px, 40vw) !important; }

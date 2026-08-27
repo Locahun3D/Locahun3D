@@ -509,7 +509,13 @@ body.protected-mode #em-save-zip { display:none !important; }
    layer panel is hidden anyway so 50 % is the canvas centre too. */
 #hud .cbar{
   position:absolute;bottom:14px;
-  left:50%;
+  /* キャンバス（左のシーンレイヤーパネルを除いた表示領域）の左右中央に置く
+     — user 2026-08-27「下部ボタン列が中央になっていない」。--lp-width は
+     パネルが隠れている/畳まれている端末では 0px なので、その場合は従来どおり
+     ビューポート中央になる（_updateLpWidthVar @160_loading_helpers.js）。
+     ※2026-06 に一度ビューポート中央へ戻した経緯があるが、本人の最新判断で
+       キャンバス中央へ再変更。 */
+  left: calc((100% + var(--lp-width, 0px)) / 2);
   transform:translateX(-50%);
   display:flex;gap:8px;pointer-events:all;flex-wrap:wrap;justify-content:center;
   overflow:visible;
@@ -695,10 +701,14 @@ body.cam-active #view-tl-btns{
 #layer-panel.visible{opacity:1;}
 .lp-head{
   display:flex;align-items:center;justify-content:space-between;
+  /* 「📦 オブジェクト追加」を見出し行へ入れた (user 2026-08-27) ぶん幅がぎりぎり
+     なので、収まらない幅では単語を割らずに 2 行へ折り返す。 */
+  flex-wrap:wrap;row-gap:4px;
   padding:8px 10px;background:rgba(26,26,28,.96);border-bottom:1px solid rgba(255,255,255,.07);
   font-size:.8em;color:rgba(200,200,200,.7);font-weight:600;flex-shrink:0;letter-spacing:.03em;
   cursor:pointer;user-select:none;
 }
+.lp-head > span:first-child{ white-space:nowrap; }
 .lp-head:hover{background:rgba(32,32,36,.96);}
 .lp-head .lp-chev{
   display:inline-block;margin-right:4px;color:#888;font-size:.9em;
@@ -785,7 +795,9 @@ body.cam-active #view-tl-btns{
 }
 #layer-transform .lt-wire input{cursor:pointer;}
 .lp-footer{
-  display:grid;grid-template-columns:1fr 1fr;gap:6px;padding:6px;
+  /* 読み込み / モデル追加 / カメラ保存 の3つ。285px では 3 列、パネルを細く
+     すると自動で 2 列→1 列へ折り返す（user 2026-08-27）。 */
+  display:grid;grid-template-columns:repeat(auto-fit, minmax(72px, 1fr));gap:6px;padding:6px;
   background:rgba(26,26,28,.97);border-top:1px solid rgba(255,255,255,.12);
   pointer-events:all;flex-shrink:0;
 }
@@ -926,6 +938,19 @@ body.cam-active #view-tl-btns{
      were "faded" / hard to read. */
   font-size:.72em;color:rgba(220,220,220,.78);letter-spacing:.06em;margin-bottom:7px;
 }
+/* 折りたたみ見出し（処理能力モニター / 初期視点）。既定は閉じていて、この
+   行だけが「タブ」として見える。クリックで中身が開く (user 2026-08-27)。 */
+#quality-panel .qp-fold-head{
+  display:flex;align-items:center;gap:6px;cursor:pointer;user-select:none;
+  margin:0 -4px 6px;padding:3px 4px;border-radius:5px;transition:background .12s;
+}
+#quality-panel .qp-fold-head:hover{background:rgba(255,255,255,.06);}
+#quality-panel .qp-fold-head .qp-fold-chev{
+  font-size:.6em;color:rgba(200,200,200,.55);line-height:1;
+  transition:transform .16s;display:inline-block;
+}
+#quality-panel .qp-fold-head.open .qp-fold-chev{transform:rotate(90deg);}
+#quality-panel .qp-fold-head .qp-fold-lbl{margin-bottom:0;}
 #quality-panel .qp-stat-row{
   display:flex;align-items:center;justify-content:space-between;margin-bottom:4px;
 }
@@ -1232,7 +1257,6 @@ body.cam-active #view-tl-btns{
      the minimap is a desktop editing aid that doesn't fit a phone's
      thumb-driven UX, and the full keyboard-shortcut manual is meant
      for desktop. カメラ / 環境 / 画質 / 設定 stay visible. */
-  #btnHelp { display:none !important; }
 }
 
 /* Smartphone-only: hide the bottom action bar (📷 カメラ / 🌅 環境 /
@@ -1270,6 +1294,10 @@ body.cam-active #view-tl-btns{
      arrow group, whose top sits ≈200px from the bottom edge. iPad (≥600px)
      keeps its bottom-anchored cbar via the wider media query above. */
   #hud .cbar{bottom:212px !important;}
+  /* スマホはトップバーが 30px なのに #cam-panel の top は デスクトップ用の 46px
+     のままで、バーとパネル見出しのあいだに 16px の空白帯ができていた
+     （user 2026-08-27「カメラツールパネルの上に不自然な隙間」）。バー直下に詰める。 */
+  #cam-panel{ top:30px !important; max-height:calc(100vh - 30px) !important; }
   :root{ --lp-width: 0px !important; }
   #layer-panel,
   #lp-footer-bar,
@@ -1579,7 +1607,9 @@ body.immersive #immersive-exit{ display:inline-block; }
 @media (pointer:coarse) and (any-hover:none) and (orientation:landscape) and (max-height:500px){
   #hud .cbar > button{ padding:5px 8px !important; font-size:.56em !important; }
   #sun-panel{ max-height:calc(100vh - 96px) !important; width:min(180px, 40vw) !important; }
-  #cam-panel{ width:min(200px, 38vw) !important; max-height:calc(100vh - 36px) !important; top:34px !important; }
+  /* トップバーは 28px なので top も 28px に合わせる。34px だと見出しの上に
+     6px の空白帯が残る（user 2026-08-27 タッチ横向きの再現報告）。 */
+  #cam-panel{ width:min(200px, 38vw) !important; max-height:calc(100vh - 28px) !important; top:28px !important; }
   #quality-panel{ width:min(180px, 40vw) !important; max-height:calc(100vh - 80px) !important; }
   #gizmo{ width:min(190px, 40vw) !important; max-height:calc(100vh - 80px) !important; top:64px !important; }
   #cam-anim-panel{ max-height:calc(100vh - 80px) !important; width:min(200px, 40vw) !important; }
@@ -1702,6 +1732,24 @@ body.immersive #immersive-exit{ display:inline-block; }
        Hidden along with the rest of the panel content when collapsed. -->
   <div class="lp-footer" id="lp-footer-bar">
     <button onclick="triggerImportAny()" id="fp-btn-import">📁 <span id="fp-btn-import-lbl">読み込み</span></button>
+    <!-- 📦 モデル追加 — シーンレイヤー展開時の「読み込み」の右隣 (user 2026-08-27)。
+         .lp-footer は畳むと display:none なので、展開時だけ見える配置になる。 -->
+    <div style="position:relative">
+      <button id="btnAddCubeTop" onclick="toggleObjTypeMenuTop(this)" style="width:100%;background:#2A2A2C;border:1px solid rgba(255,255,255,.1);color:#686868;border-radius:5px;padding:4px 0;font-size:.68em;cursor:pointer;transition:all .2s;letter-spacing:.02em;white-space:nowrap;" onmouseover="this.style.background='rgba(255,200,80,.18)';this.style.borderColor='rgba(255,220,100,.45)';this.style.color='#D8D8D8'" onmouseout="this.style.background='#2A2A2C';this.style.borderColor='rgba(255,255,255,.1)';this.style.color='#686868'" title="モデル追加">📦 <span id="lbl-addobj-top">モデル追加</span> ▾</button>
+      <div id="obj-type-menu-top" style="display:none;position:absolute;top:calc(100% + 6px);left:0;right:auto;background:rgba(20,20,22,.97);border:1px solid rgba(255,255,255,.15);border-radius:8px;padding:5px;z-index:400;flex-direction:column;gap:4px;min-width:178px;box-shadow:0 4px 16px rgba(0,0,0,.5);">
+        <button onclick="_beginPlace('cube');window.closeObjTypeMenuTop()" style="background:rgba(255,221,68,.06);border:1px solid rgba(255,221,68,.15);color:#C0C0C0;border-radius:5px;padding:7px 14px;cursor:pointer;font-size:.8em;text-align:left;width:100%;white-space:nowrap;transition:background .15s;" onmouseover="this.style.background='rgba(255,221,68,.15)'" onmouseout="this.style.background='rgba(255,221,68,.06)'">📦 <span id="obj-add-cube">Cube (立方体)</span></button>
+        <div style="border-top:1px solid rgba(255,255,255,.07);margin:2px 0"></div>
+        <button onclick="_beginPlace('event');window.closeObjTypeMenuTop()" style="background:rgba(255,170,68,.06);border:1px solid rgba(255,170,68,.15);color:#C0C0C0;border-radius:5px;padding:7px 14px;cursor:pointer;font-size:.8em;text-align:left;width:100%;white-space:nowrap;transition:background .15s;" onmouseover="this.style.background='rgba(255,170,68,.18)'" onmouseout="this.style.background='rgba(255,170,68,.06)'">🟠 <span id="obj-add-event">Event (イベント)</span></button>
+        <div style="border-top:1px solid rgba(255,255,255,.07);margin:2px 0"></div>
+        <button onclick="_beginPlace('figure');window.closeObjTypeMenuTop()" style="background:rgba(255,140,200,.06);border:1px solid rgba(255,140,200,.18);color:#C0C0C0;border-radius:5px;padding:7px 14px;cursor:pointer;font-size:.8em;text-align:left;width:100%;white-space:nowrap;transition:background .15s;" onmouseover="this.style.background='rgba(255,140,200,.20)'" onmouseout="this.style.background='rgba(255,140,200,.06)'" title="フィギュア追加（リグ付き人型モデル・配置場所を左クリック）">👤 <span id="lbl-addfig-top">フィギュア (人型リグ)</span></button>
+        <div style="border-top:1px solid rgba(255,255,255,.07);margin:2px 0"></div>
+        <button onclick="addPathLayer();window.closeObjTypeMenuTop()" style="background:rgba(100,200,255,.06);border:1px solid rgba(100,200,255,.16);color:#C0C0C0;border-radius:5px;padding:7px 14px;cursor:pointer;font-size:.8em;text-align:left;width:100%;white-space:nowrap;transition:background .15s;" onmouseover="this.style.background='rgba(100,200,255,.18)'" onmouseout="this.style.background='rgba(100,200,255,.06)'" title="4点を左クリックで囲んで区画を作成（駐車スペース等）。中央にテキストを表示できます">🛣 <span id="obj-add-path">パス (区画＋ラベル)</span></button>
+        <!-- Sphere (球体) and Light (ライト) entries removed per user request.
+             addSphereLayer / addLightLayer remain as window.* functions for
+             programmatic use (e.g. ZIP project restore) but are no longer
+             reachable from the UI dropdown. -->
+      </div>
+    </div>
     <button onclick="saveCameraLayer()" id="btnSaveCamera" style="color:#9fd0ff" title="現在のカメラ位置・アングル・画角・アスペクト比を保存">🎥 <span id="lbl-save-camera">カメラ保存</span></button>
   </div>
   <!-- Layer list — always visible when the panel itself is expanded.
@@ -1943,10 +1991,16 @@ body.immersive #immersive-exit{ display:inline-block; }
            oninput="onSpeedSlider(this.value)" style="width:100%">
   </div>
 
-  <!-- ── パフォーマンスメトリクス ── （スマホでは丸ごと非表示・user 2026-06-28） -->
+  <!-- ── パフォーマンスメトリクス ── （スマホでは丸ごと非表示・user 2026-06-28）
+       既定は折りたたみ＝見出し(タブ)だけ見える。常時出しておく必要は無い
+       ものなので、開いたときだけ中身が出る (user 2026-08-27)。 -->
   <div id="qp-perf-section">
   <div class="qp-divider"></div>
-  <div class="qp-perf-title" id="qp-perf-t">📊 処理能力モニター</div>
+  <div class="qp-fold-head" onclick="toggleQpFold('qp-perf')">
+    <span class="qp-fold-chev" id="qp-perf-chev">▶</span>
+    <span class="qp-perf-title qp-fold-lbl" id="qp-perf-t">📊 処理能力モニター</span>
+  </div>
+  <div id="qp-perf-fold" style="display:none">
 
   <div class="qp-stat-row">
     <span class="qp-label">FPS</span>
@@ -1981,15 +2035,21 @@ body.immersive #immersive-exit{ display:inline-block; }
   </div>
 
   <div style="margin-top:7px;font-size:.62em;color:#303030;text-align:right" id="qp-resolution">—</div>
+  </div><!-- /qp-perf-fold -->
   </div><!-- /qp-perf-section -->
 
   <!-- ══ 初期視点（運用担当だけが使う機能） ══
        一般ユーザーは触らないので上部ボタン行には出さず、画質パネルの最下部に
        小さく置く (user 2026-08-13)。押すと「カメラリセットで戻ってくる視点」が
-       確定する。自動のほうは splat の幾何から位置と向きを決める(174/175)。 -->
+       確定する。自動のほうは splat の幾何から位置と向きを決める(174/175)。
+       処理能力モニターと同じく既定は折りたたみ (user 2026-08-27)。 -->
   <div class="qp-divider"></div>
-  <div class="qp-perf-title" id="qp-init-h">📍 初期視点（カメラリセット先）</div>
-  <div class="qrow" style="display:flex;flex-direction:column;gap:4px;margin:4px 0 2px">
+  <div class="qp-fold-head" onclick="toggleQpFold('qp-init')">
+    <span class="qp-fold-chev" id="qp-init-chev">▶</span>
+    <span class="qp-perf-title qp-fold-lbl" id="qp-init-h">📍 初期視点（カメラリセット先）</span>
+  </div>
+  <div class="qrow" id="qp-init-fold" data-fold-display="flex"
+       style="display:none;flex-direction:column;gap:4px;margin:4px 0 2px">
     <button id="qp-set-init-view" onclick="setCurrentViewAsInitial()"
       title="いま見ている視点を、カメラリセット時の初期位置として登録する"
       style="background:#1a1a1a;border:1px solid rgba(255,255,255,.12);color:#9a9a9a;
@@ -2023,22 +2083,8 @@ body.immersive #immersive-exit{ display:inline-block; }
     onmouseover="this.style.background='rgba(80,200,120,.18)';this.style.borderColor='rgba(100,255,160,.45)'"
     onmouseout="this.style.background='rgba(20,20,22,.88)';this.style.borderColor='rgba(255,255,255,.18)'"
     title="カメラを初期位置にリセット">🏠 <span id="lbl-cam-reset">カメラリセット</span></button>
-  <div style="position:relative;display:inline-block;">
-    <button id="btnAddCubeTop" onclick="toggleObjTypeMenuTop(this)" style="background:rgba(20,20,22,.88);border:1px solid rgba(255,255,255,.18);color:rgba(200,200,200,.85);border-radius:6px;padding:5px 12px;font-size:.72em;cursor:pointer;transition:all .2s;letter-spacing:.02em;white-space:nowrap;" onmouseover="this.style.background='rgba(255,200,80,.18)';this.style.borderColor='rgba(255,220,100,.45)'" onmouseout="this.style.background='rgba(20,20,22,.88)';this.style.borderColor='rgba(255,255,255,.18)'" title="オブジェクト追加">📦 <span id="lbl-addobj-top">オブジェクト追加</span> ▾</button>
-    <div id="obj-type-menu-top" style="display:none;position:absolute;top:calc(100% + 6px);left:0;background:rgba(20,20,22,.97);border:1px solid rgba(255,255,255,.15);border-radius:8px;padding:5px;z-index:400;flex-direction:column;gap:4px;min-width:178px;box-shadow:0 4px 16px rgba(0,0,0,.5);">
-      <button onclick="_beginPlace('cube');window.closeObjTypeMenuTop()" style="background:rgba(255,221,68,.06);border:1px solid rgba(255,221,68,.15);color:#C0C0C0;border-radius:5px;padding:7px 14px;cursor:pointer;font-size:.8em;text-align:left;width:100%;white-space:nowrap;transition:background .15s;" onmouseover="this.style.background='rgba(255,221,68,.15)'" onmouseout="this.style.background='rgba(255,221,68,.06)'">📦 <span id="obj-add-cube">Cube (立方体)</span></button>
-      <div style="border-top:1px solid rgba(255,255,255,.07);margin:2px 0"></div>
-      <button onclick="_beginPlace('event');window.closeObjTypeMenuTop()" style="background:rgba(255,170,68,.06);border:1px solid rgba(255,170,68,.15);color:#C0C0C0;border-radius:5px;padding:7px 14px;cursor:pointer;font-size:.8em;text-align:left;width:100%;white-space:nowrap;transition:background .15s;" onmouseover="this.style.background='rgba(255,170,68,.18)'" onmouseout="this.style.background='rgba(255,170,68,.06)'">🟠 <span id="obj-add-event">Event (イベント)</span></button>
-      <div style="border-top:1px solid rgba(255,255,255,.07);margin:2px 0"></div>
-      <button onclick="_beginPlace('figure');window.closeObjTypeMenuTop()" style="background:rgba(255,140,200,.06);border:1px solid rgba(255,140,200,.18);color:#C0C0C0;border-radius:5px;padding:7px 14px;cursor:pointer;font-size:.8em;text-align:left;width:100%;white-space:nowrap;transition:background .15s;" onmouseover="this.style.background='rgba(255,140,200,.20)'" onmouseout="this.style.background='rgba(255,140,200,.06)'" title="フィギュア追加（リグ付き人型モデル・配置場所を左クリック）">👤 <span id="lbl-addfig-top">フィギュア (人型リグ)</span></button>
-      <div style="border-top:1px solid rgba(255,255,255,.07);margin:2px 0"></div>
-      <button onclick="addPathLayer();window.closeObjTypeMenuTop()" style="background:rgba(100,200,255,.06);border:1px solid rgba(100,200,255,.16);color:#C0C0C0;border-radius:5px;padding:7px 14px;cursor:pointer;font-size:.8em;text-align:left;width:100%;white-space:nowrap;transition:background .15s;" onmouseover="this.style.background='rgba(100,200,255,.18)'" onmouseout="this.style.background='rgba(100,200,255,.06)'" title="4点を左クリックで囲んで区画を作成（駐車スペース等）。中央にテキストを表示できます">🛣 <span id="obj-add-path">パス (区画＋ラベル)</span></button>
-      <!-- Sphere (球体) and Light (ライト) entries removed per user request.
-           addSphereLayer / addLightLayer remain as window.* functions for
-           programmatic use (e.g. ZIP project restore) but are no longer
-           reachable from the UI dropdown. -->
-    </div>
-  </div>
+  <!-- 📦 オブジェクト追加 のドロップダウンは シーンレイヤーパネルの見出し行へ移設
+       (user 2026-08-27)。マークアップは src/template.html の .lp-head 内にある。 -->
   <!-- Camera work (🎞 カメラワーク) — was in the bottom cbar, moved up here
        2026-06-19 per user request to gather it with the other top controls.
        Renamed アニメーション→カメラワーク (i18n key lbl-cam-anim). Inline-styled
@@ -2126,1141 +2172,8 @@ body.immersive #immersive-exit{ display:inline-block; }
 <canvas id="overlay"></canvas>
 <canvas id="c"></canvas>
 
-<!-- ══════════════════════════════════════════════════
-     USER MANUAL MODAL
-     Opened from the dropzone "📖 ユーザーマニュアル" button
-     and from the cbar "❓" button during use.
-     ══════════════════════════════════════════════════ -->
-<div id="manual-overlay" style="display:none;position:fixed;inset:0;z-index:10000;
-  background:rgba(8,8,10,.92);backdrop-filter:blur(4px);
-  font-family:ui-sans-serif,system-ui,-apple-system,sans-serif;color:#e8e8e8">
-  <div id="manual-shell" style="position:absolute;inset:24px;background:#16161a;
-    border:1px solid rgba(255,255,255,.08);border-radius:12px;
-    display:grid;grid-template-columns:240px 1fr;grid-template-rows:auto 1fr;
-    grid-template-areas:'header header' 'nav body';overflow:hidden">
-
-    <!-- Header -->
-    <div style="grid-area:header;display:flex;align-items:center;justify-content:space-between;
-      padding:14px 22px;border-bottom:1px solid rgba(255,255,255,.07);
-      background:linear-gradient(to bottom, rgba(255,180,84,.06), transparent)">
-      <div style="display:flex;align-items:baseline;gap:14px">
-        <strong style="font-size:1.25em;letter-spacing:.04em" data-i18n-key="manual-title">📖 ロケハン3D ユーザーマニュアル</strong>
-        <span style="opacity:.55;font-size:.82em" data-i18n-key="manual-version">v 0.1.8-beta / 3DGS マルチビューア + プリビズ (ベータ版)</span>
-      </div>
-      <button onclick="closeManual()" style="background:transparent;border:1px solid rgba(255,255,255,.12);
-        color:#aab;border-radius:6px;padding:6px 12px;font-size:.92em;cursor:pointer;font-family:inherit"
-        data-i18n-key="manual-close">
-        閉じる ✕
-      </button>
-    </div>
-
-    <!-- Side navigation (sticky table of contents) -->
-    <nav id="manual-nav" style="grid-area:nav;border-right:1px solid rgba(255,255,255,.06);
-      background:rgba(10,10,12,.4);overflow-y:auto;padding:14px 0">
-      <div class="mn-grp" data-i18n-key="manual-grp-quick">クイックスタート</div>
-      <a href="#m-quick" class="mn-link" data-i18n-key="manual-link-quick">🚀 5分で使う</a>
-
-      <div class="mn-grp" data-i18n-key="manual-grp-basic">基本操作</div>
-      <a href="#m-cam"   class="mn-link" data-i18n-key="manual-link-cam">🎮 カメラを動かす</a>
-
-      <div class="mn-grp" data-i18n-key="manual-grp-layer">レイヤー</div>
-      <a href="#m-layers"  class="mn-link" data-i18n-key="manual-link-layers">📁 レイヤーパネル</a>
-      <a href="#m-trans"   class="mn-link" data-i18n-key="manual-link-trans">⇆ 位置・回転・拡縮</a>
-      <a href="#m-add"     class="mn-link" data-i18n-key="manual-link-add">＋ オブジェクトを追加</a>
-
-      <div class="mn-grp" data-i18n-key="manual-grp-tools">機能ツール</div>
-      <a href="#m-measure" class="mn-link" data-i18n-key="manual-link-measure">📐 距離測定</a>
-      <a href="#m-camtool" class="mn-link" data-i18n-key="manual-link-camtool">📷 カメラツール</a>
-      <a href="#m-env"     class="mn-link" data-i18n-key="manual-link-env">☀ 日照・天気</a>
-      <a href="#m-walkar"  class="mn-link" data-i18n-key="manual-link-walkar">🚶 アバター歩行・AR</a>
-
-      <div class="mn-grp" data-i18n-key="manual-grp-save">設定 / 保存</div>
-      <a href="#m-save"    class="mn-link" data-i18n-key="manual-link-save">💾 プロジェクト保存</a>
-
-      <div class="mn-grp" data-i18n-key="manual-grp-trouble">トラブル</div>
-      <a href="#m-faq"     class="mn-link" data-i18n-key="manual-link-faq">❓ よくある質問</a>
-    </nav>
-
-    <!-- Body (scrollable content) -->
-    <main id="manual-body" style="grid-area:body;overflow-y:auto;padding:24px 36px;
-      line-height:1.7;font-size:.94em;scroll-behavior:smooth">
-    <div class="m-ja">
-      <section id="m-quick">
-        <h2>🚀 5 分で使う</h2>
-        <p style="color:#aab">ロケハン3Dは、3Dスキャン（3DGS）を読み込んでロケハン・絵コンテ・プリビズに使うビューアーです。まずはこの3ステップ。</p>
-        <ol style="line-height:1.9">
-          <li><b>読み込む</b> — 最初の画面の「📂」エリアに 3DGS ファイル（.splat / .ply など）をドラッグ。試すだけなら「デモシーン」ボタン。</li>
-          <li><b>動かす</b> — マウス<b>右ドラッグ</b>で視点回転、<kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd>で移動。</li>
-          <li><b>使う</b> — 画面下のボタンで「カメラ / 日照 / 測定」、上のボタンで「オブジェクト追加」。左のレイヤーパネルで管理。</li>
-        </ol>
-      </section>
-
-      <section id="m-cam">
-        <h2>🎮 カメラを動かす</h2>
-        <ul style="line-height:1.9">
-          <li><b>視点を回す</b>：マウス右ドラッグ</li>
-          <li><b>移動</b>：<kbd>W</kbd>前 / <kbd>S</kbd>後 / <kbd>A</kbd>左 / <kbd>D</kbd>右 / <kbd>Q</kbd>下 / <kbd>E</kbd>上</li>
-          <li><b>移動速度</b>：マウスホイール（または画質パネルのスライダー）</li>
-          <li><b>視点リセット</b>：上部「🏠 カメラリセット」</li>
-        </ul>
-        <p style="color:#889">スマホ / iPad では、左下のジョイスティックで移動、画面ドラッグで視点回転します。</p>
-      </section>
-
-      <section id="m-devices">
-        <h2>📱 デバイス別の対応機能</h2>
-        <p style="color:#889">デバイスによって使える機能・操作が異なります（◯=対応 / △=一部・非推奨 / －=非対応）。</p>
-        <table class="m-tbl">
-          <tr><th>機能</th><th>PC<br>(マウス/キー)</th><th>スマホ/<br>タブレット</th><th>VR<br>(Vision Pro/Quest)</th><th>TV/ゲーム機<br>(リモコン/パッド)</th></tr>
-          <tr><td>視点回転・閲覧</td><td>◯</td><td>◯</td><td>◯</td><td>◯</td></tr>
-          <tr><td>移動（WASD / ジョイスティック）</td><td>◯ WASD</td><td>◯ ジョイ</td><td>◯</td><td>△ D-pad</td></tr>
-          <tr><td>日照・天気シミュレーション</td><td>◯</td><td>◯</td><td>◯</td><td>◯</td></tr>
-          <tr><td>距離測定</td><td>◯</td><td>◯</td><td>△</td><td>△</td></tr>
-          <tr><td>カメラツール（プリビズ）</td><td>◯</td><td>◯</td><td>△</td><td>△</td></tr>
-          <tr><td>オブジェクト追加・編集</td><td>◯</td><td>◯</td><td>△</td><td>△</td></tr>
-          <tr><td>アバター歩行</td><td>◯</td><td>△</td><td>◯</td><td>－</td></tr>
-          <tr><td>AR（背面カメラ重畳）</td><td>－</td><td>◯</td><td>－</td><td>－</td></tr>
-          <tr><td>フォーカス操作（D-pad/視線）</td><td>－</td><td>－</td><td>◯</td><td>◯</td></tr>
-        </table>
-        <p style="color:#889">※ AR はスマホ / タブレットのみ（端末の「設定 &gt; Safari &gt; モーションと画面の向きのアクセス」を ON に）。VR は閲覧・歩行に最適。細かな編集は PC を推奨します。</p>
-      </section>
-
-      <section id="m-layers">
-        <h2>📁 レイヤーとフォルダー</h2>
-        <p>左の「シーンレイヤー」に、読み込んだファイルや追加オブジェクトが並びます。</p>
-        <ul style="line-height:1.9">
-          <li>👁 表示 / 非表示の切替</li>
-          <li>✏️ 名前を変更（ダブルクリックでも可）</li>
-          <li>🗑 削除（<kbd>Ctrl</kbd>+<kbd>Z</kbd> で元に戻せます）</li>
-          <li>ドラッグで並べ替え・フォルダーへ収納</li>
-          <li>🔒 <b>フォルダーをロック</b>：中身の移動・編集・削除をまとめて無効化（誤操作防止）。もう一度押すと解除。</li>
-        </ul>
-      </section>
-
-      <section id="m-trans">
-        <h2>⇆ 位置・回転・拡縮</h2>
-        <p>オブジェクトを選ぶと、3Dハンドル（ギズモ）と数値入力が出ます。</p>
-        <ul style="line-height:1.9">
-          <li>矢印＝移動 / リング＝回転 / キューブ＝拡縮</li>
-          <li>「ローカル / ワールド」で座標系を切替（新規・読み込みは既定でローカル）</li>
-          <li>位置・回転・拡縮・寸法の数値入力は <b>0.01 刻み</b>で微調整できます</li>
-          <li>iPad / スマホではギズモ（矢印・リング・ピボット）を<b>指でドラッグ</b>して操作できます</li>
-        </ul>
-      </section>
-
-      <section id="m-add">
-        <h2>＋ オブジェクトを追加</h2>
-        <p>上部「📦 オブジェクト追加」から種類を選び、<b>シーン内を左クリック長押し</b>して配置します（押して位置を探り、離して確定。<kbd>Esc</kbd>で中止）。</p>
-        <ul style="line-height:1.9">
-          <li>📦 <b>Cube</b> — 寸法の目安・あたり</li>
-          <li>🟠 <b>Event</b> — 注目ポイント。画像を貼れます</li>
-          <li>👤 <b>Figure</b> — 人型。身長を変えてスケール感・アイレベルを確認。<b>関節を選んで回転</b>、または<b>IKハンドル</b>を引いてポーズ付けできます</li>
-          <li>🛣 <b>パス</b> — 4点で囲む区画＋中央ラベル（駐車区画など）。ラベルは複数行OK</li>
-        </ul>
-      </section>
-
-      <section id="m-measure">
-        <h2>📐 距離測定</h2>
-        <p>画面下「📐 測定」をON。スキャン表面の2点間の<b>実距離</b>を測ります。</p>
-        <ul style="line-height:1.9">
-          <li>左クリック長押しで点をプレビュー → 離して確定（点A → 点B）</li>
-          <li>「+ 高さを図る」で3点目（高さ）も測定</li>
-          <li>マーカーは矢印（軸）・XZ面で微調整、🗑 でクリア</li>
-          <li>iPad / スマホでも、矢印・マーカーを<b>指でドラッグ</b>して微調整できます</li>
-          <li>距離・高さ・成分は <b>0.01 m（1cm）単位</b>で表示します</li>
-        </ul>
-      </section>
-
-      <section id="m-camtool">
-        <h2>📷 カメラツール / アニメーション</h2>
-        <p><b>カメラツール</b>（下「📷 カメラ」）：実機のレンズ・センサー・アスペクト比を設定し、構図枠とグリッドを表示。JPEG撮影でカメラ情報も焼き込めます。</p>
-        <p><b>カメラアニメーション</b>（上「🎞 アニメーション」）：カメラ位置を複数登録してパスを作り、MP4で書き出し。動きは「イージング（緩急） / リニア（等速）」を選べます。</p>
-      </section>
-
-      <section id="m-env">
-        <h2>☀ 日照・天気</h2>
-        <p>画面下「☀ 日照」：日付・時刻・都道府県から太陽の位置と光のムードを再現します。</p>
-        <ul style="line-height:1.9">
-          <li>時刻スライダーで朝〜夜の光をスクラブ</li>
-          <li>天気（晴れ / 曇り / 雨）で空の雰囲気を変更</li>
-          <li>「🌐 実際の天気予報を取得」でオンラインの実天気に追従（任意）</li>
-        </ul>
-      </section>
-
-      <section id="m-walkar">
-        <h2>🚶 アバター歩行・📱 AR</h2>
-        <p><b>アバター歩行</b>（上「🚶 アバター歩行」）：人の目線でシーンを歩いて確認できます。<kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd>でアバターを移動、視点は通常どおり。実際に立ったときの見え方・アイレベル・スケール感のチェックに。もう一度押すと解除。</p>
-        <p><b>AR モード</b>（上「📱 AR」・スマホ / タブレットのみ）：背面カメラの映像に 3DGS を重ねて表示し、端末を傾けて見回せます。現地で実寸の重なりを確認するときに。</p>
-        <p style="color:#889">※ iOS は初回に「設定 &gt; Safari &gt; モーションと画面の向きのアクセス」を ON にし、ページを再読み込みすると AR が使えます。</p>
-      </section>
-
-      <section id="m-save">
-        <h2>💾 保存・読み込み</h2>
-        <ul style="line-height:1.9">
-          <li><b>Zip保存</b>（左上）：シーン全体を1つのZIPに保存。レイヤー・オブジェクト・カメラ・設定をまるごと復元できます。</li>
-          <li><b>読み込み</b>（レイヤーパネル上の「📁 読み込み」）：ZIPや 3DGS / モデルを追加。</li>
-          <li><b>🎥 カメラ保存</b>：今のカメラ位置をレイヤーとして保存。</li>
-        </ul>
-      </section>
-
-      <section id="m-faq">
-        <h2>❓ よくある質問・ショートカット</h2>
-        <ul style="line-height:1.9">
-          <li><b>シーンが上下逆 / 横倒し</b> → レイヤーを選び「軸反転」または角度入力で調整。</li>
-          <li><b>動作が重い</b> → 右上の画質チップで「低」に。描画は最大60fpsです。</li>
-          <li><b>言語</b> → 右上「EN / 日本語」で切替。</li>
-        </ul>
-        <p style="color:#889"><b>ショートカット</b>：<kbd>Ctrl</kbd>+<kbd>Z</kbd> 取り消し / <kbd>Ctrl</kbd>+<kbd>Y</kbd> やり直し / <kbd>Ctrl</kbd>+<kbd>D</kbd> 複製</p>
-      </section>
-    </div><!-- /.m-ja (new) -->
-    <div class="m-old" style="display:none" aria-hidden="true">
-
-      <!-- ── QUICK START ── -->
-      <section id="m-quick">
-        <h2>🚀 5 分で使う</h2>
-        <p style="color:#aab">最低限これだけで動かせます。詳細は各セクションへ。</p>
-        <div class="m-steps">
-          <div class="m-step">
-            <div class="m-step-n">1</div>
-            <div>
-              <strong>PLY / SPLAT ファイルをドロップ</strong><br>
-              <span style="opacity:.75">最初の画面の「📂」エリアにドラッグ。複数ファイル同時 OK。</span>
-            </div>
-          </div>
-          <div class="m-step">
-            <div class="m-step-n">2</div>
-            <div>
-              <strong>WASD で移動・<u>右</u>ドラッグで視点回転</strong><br>
-              <span style="opacity:.75">向きが上下逆ならレイヤー選択→「X軸反転 / Y軸反転」を試す。</span>
-            </div>
-          </div>
-          <div class="m-step">
-            <div class="m-step-n">3</div>
-            <div>
-              <strong>📷 カメラボタンで撮影 → JPEG 出力</strong><br>
-              <span style="opacity:.75">焦点距離・センサーを選び、左下パネルの「📸 撮影」。</span>
-            </div>
-          </div>
-        </div>
-
-        <h3>初回チェックリスト</h3>
-        <ul class="m-check">
-          <li><kbd>M</kbd> で測定モードに入れる</li>
-          <li>レイヤーパネル (左) でシーンを管理する</li>
-          <li>cbar (中央下) のボタンで全機能にアクセス</li>
-          <li>分からなくなったら <kbd>❓</kbd> ボタンでこのマニュアルへ</li>
-        </ul>
-      </section>
-
-      <!-- ── LOAD ── -->
-      <section id="m-load">
-        <h2>📂 ファイルを開く</h2>
-        <p>ホーム画面 (起動直後) のドロップゾーンが入口です。</p>
-        <div class="m-grid2">
-          <div class="m-card">
-            <h4>📁 対応形式</h4>
-            <ul>
-              <li>3D Gaussian Splatting: <code>.ply</code> <code>.splat</code> <code>.spz</code> <code>.ksplat</code> <code>.rad</code> <code>.sog</code></li>
-              <li>3D モデル: <code>.obj</code> <code>.glb</code> <code>.gltf</code> <code>.fbx</code></li>
-              <li>プロジェクト: <code>.zip</code> (ロケハン3Dで保存したもの)</li>
-            </ul>
-          </div>
-          <div class="m-card">
-            <h4>📥 読み込み方</h4>
-            <ul>
-              <li>クリック → ファイル選択 (Ctrl で複数選択可)</li>
-              <li>ドラッグ&ドロップ (複数同時 OK)</li>
-              <li>1 つ目はメインシーン、残りは追加レイヤー</li>
-            </ul>
-          </div>
-        </div>
-        <div class="m-tip">
-          <b>💡 ヒント:</b> 大きい PLY (100MB+) は読み込みに数十秒かかります。読み込み中はプログレスが表示されます。
-        </div>
-      </section>
-
-      <!-- ── CAMERA ── -->
-      <section id="m-cam">
-        <h2>🎮 カメラを動かす</h2>
-        <p>キーボードで前後左右上下、マウスで視点回転。</p>
-
-        <!-- Keyboard SVG diagram -->
-        <div class="m-fig">
-          <svg viewBox="0 0 320 200" style="width:100%;max-width:480px;height:auto">
-            <defs>
-              <linearGradient id="key-grad" x1="0" x2="0" y1="0" y2="1">
-                <stop offset="0" stop-color="#3a3a40"/>
-                <stop offset="1" stop-color="#1a1a1d"/>
-              </linearGradient>
-            </defs>
-            <!-- Q W E -->
-            <g font-family="ui-monospace,monospace" font-size="14" fill="#ddd" text-anchor="middle">
-              <rect x="50"  y="20" width="40" height="40" rx="6" fill="url(#key-grad)" stroke="#555"/>
-              <text x="70" y="46">Q</text>
-              <text x="70" y="78" font-size="9" fill="#9bf">下</text>
-
-              <rect x="100" y="20" width="40" height="40" rx="6" fill="url(#key-grad)" stroke="#555"/>
-              <text x="120" y="46">W</text>
-              <text x="120" y="78" font-size="9" fill="#9bf">前</text>
-
-              <rect x="150" y="20" width="40" height="40" rx="6" fill="url(#key-grad)" stroke="#555"/>
-              <text x="170" y="46">E</text>
-              <text x="170" y="78" font-size="9" fill="#9bf">上</text>
-
-              <!-- A S D -->
-              <rect x="100" y="90" width="40" height="40" rx="6" fill="url(#key-grad)" stroke="#555"/>
-              <text x="120" y="116">S</text>
-              <text x="120" y="148" font-size="9" fill="#9bf">後</text>
-
-              <rect x="50"  y="90" width="40" height="40" rx="6" fill="url(#key-grad)" stroke="#555"/>
-              <text x="70" y="116">A</text>
-              <text x="70" y="148" font-size="9" fill="#9bf">左</text>
-
-              <rect x="150" y="90" width="40" height="40" rx="6" fill="url(#key-grad)" stroke="#555"/>
-              <text x="170" y="116">D</text>
-              <text x="170" y="148" font-size="9" fill="#9bf">右</text>
-
-              <!-- Shift -->
-              <rect x="220" y="90" width="80" height="40" rx="6" fill="url(#key-grad)" stroke="#555"/>
-              <text x="260" y="116" font-size="13">Shift</text>
-              <text x="260" y="148" font-size="9" fill="#fc8">押しながら 5× 高速</text>
-            </g>
-          </svg>
-        </div>
-
-        <h3>速度を変える</h3>
-        <ul>
-          <li><kbd>Shift</kbd> 押している間だけ 5 倍速</li>
-          <li>マウスホイールで巡航速度自体を変更</li>
-          <li>右下に現在の速度が表示されます (HUD)</li>
-        </ul>
-      </section>
-
-      <!-- ── MOUSE ── -->
-      <section id="m-mouse">
-        <h2>🖱 マウス操作</h2>
-        <div class="m-fig">
-          <svg viewBox="0 0 260 200" style="width:160px;height:auto">
-            <!-- Mouse body -->
-            <path d="M60,30 Q60,10 90,10 L170,10 Q200,10 200,30 L200,160 Q200,190 130,190 Q60,190 60,160 Z"
-              fill="#222" stroke="#555" stroke-width="1.5"/>
-            <!-- Left button -->
-            <path d="M60,30 Q60,10 90,10 L128,10 L128,90 L60,90 Z" fill="#88aaff" opacity=".55" stroke="#88aaff"/>
-            <!-- Right button -->
-            <path d="M132,10 L170,10 Q200,10 200,30 L200,90 L132,90 Z" fill="#ff8866" opacity=".55" stroke="#ff8866"/>
-            <!-- Scroll wheel -->
-            <rect x="120" y="35" width="20" height="40" rx="6" fill="#444" stroke="#777"/>
-            <text x="130" y="115" font-size="10" fill="#88aaff" text-anchor="middle">左 = 選択</text>
-            <text x="130" y="130" font-size="10" fill="#ff8866" text-anchor="middle">右ドラッグ = 視点回転</text>
-            <text x="130" y="145" font-size="10" fill="#ff8866" text-anchor="middle">右(測定中) = 配置</text>
-            <text x="130" y="175" font-size="9"  fill="#aaa"   text-anchor="middle">ホイール = FOV変更</text>
-          </svg>
-        </div>
-        <table class="m-tbl">
-          <tr><th>操作</th><th>動作</th></tr>
-          <tr><td>右ドラッグ</td><td>視点を回す (パン/ティルト)</td></tr>
-          <tr><td>左クリック長押し (測定中)</td><td>配置点をプレビュー / 離して確定</td></tr>
-          <tr><td>ホイール</td><td>FOV (画角) を変更 — 拡大/縮小に近い感覚</td></tr>
-          <tr><td>左クリック (オブジェクト上)</td><td>レイヤー選択</td></tr>
-          <tr><td>左ドラッグ (3Dハンドル)</td><td>位置/回転/スケール ハンドルの操作</td></tr>
-          <tr><td>Ctrl + 左クリック (レイヤーパネル)</td><td>複数選択</td></tr>
-        </table>
-      </section>
-
-      <!-- ── ORIENT ── -->
-      <section id="m-orient">
-        <h2>🔄 シーンの向きを直す</h2>
-        <p>PLY の出力ソフトによってシーンが上下逆 / 横倒しに見えることがあります。</p>
-        <div class="m-grid2">
-          <div class="m-card">
-            <h4>🎯 上下が逆 / 横倒しの場合</h4>
-            <ol>
-              <li>レイヤーを選択</li>
-              <li>右パネル「表示調整」の <b>X軸反転 / Y軸反転 / Z軸反転</b> を試す</li>
-              <li>それでもズレるなら下の角度入力で直接調整</li>
-            </ol>
-          </div>
-          <div class="m-card">
-            <h4>🔁 微調整</h4>
-            <ul>
-              <li><b>X / Y / Z 軸反転</b> を組み合わせて試す (3 軸独立トグル)</li>
-              <li>ダメなら下の <b>位置/回転/サイズ</b> 入力で手動補正</li>
-            </ul>
-          </div>
-        </div>
-      </section>
-
-      <!-- ── LAYERS ── -->
-      <section id="m-layers">
-        <h2>📁 レイヤーパネル</h2>
-        <p>左サイドの「シーンレイヤー」が中心。読み込んだファイルやオブジェクトはすべてここに並びます。</p>
-        <ul>
-          <li><b>👁</b> 表示 / 非表示</li>
-          <li><b>🗑</b> 削除 (<kbd>Z</kbd> で取り消し可、最大10ステップ)</li>
-          <li><b>ダブルクリック</b> 名前を変更</li>
-          <li><b>ドラッグ</b> 並べ替え / フォルダ階層化</li>
-          <li><b>Ctrl+クリック</b> 複数選択 → <kbd>Delete</kbd> で一括削除</li>
-        </ul>
-      </section>
-
-      <!-- ── TRANSFORM ── -->
-      <section id="m-trans">
-        <h2>⇆ 位置・回転・拡縮</h2>
-        <p>レイヤーを選択すると左パネル下部に「Transform」が表示されます。</p>
-        <ul>
-          <li><b>X / Y / Z</b> の数値入力 (位置/回転/スケール)</li>
-          <li>3D ビューに表示される<b>矢印ハンドル</b>を直接ドラッグでも動かせます</li>
-          <li>水平面ハンドル (□) で XZ 平面移動</li>
-          <li>回転リング (<b>↻ X/Y/Z</b>) でその軸まわりの回転</li>
-          <li>キューブハンドルで軸別スケール</li>
-        </ul>
-        <div class="m-tip"><b>💡:</b> <kbd>Z</kbd> で操作を最大10回まで戻せます。<kbd>Y</kbd> で進む。</div>
-      </section>
-
-      <!-- ── ADD ── -->
-      <section id="m-add">
-        <h2>＋ オブジェクトを追加</h2>
-        <p>左上の「<b>オブジェクト追加 ▾</b>」メニュー から:</p>
-        <ul>
-          <li><b>＋ 3DGS</b> — 追加の splat ファイル (PLY/SPLAT/SPZ/KSPLAT)</li>
-          <li><b>＋ OBJ/GLB</b> — 3Dモデル (OBJ/GLTF/GLB/FBX)</li>
-          <li><b>📦 キューブ / ⚽ 球 / 📁 フォルダ / 💡 ライト / 🟠 イベント</b> — シーン構成用のヘルパー</li>
-        </ul>
-      </section>
-
-      <!-- ── MEASURE ── -->
-      <section id="m-measure">
-        <h2>📐 距離測定</h2>
-        <p>splat 表面上の 2 点間の実距離を測ります。</p>
-        <ol>
-          <li><kbd>M</kbd> または cbar の「📐 測定」で測定モードに入る</li>
-          <li><b>左クリック長押し</b> → カーソル先にゴーストマーカーが追従</li>
-          <li>離した瞬間に点 A が確定</li>
-          <li>もう一度同じ操作で点 B → 距離が画面上に表示</li>
-          <li>マーカーを矢印 (X/Y/Z) でドラッグして微調整可</li>
-        </ol>
-        <div class="m-tip">
-          <b>📏 精度:</b> splat の表面の最近接点を自動でスナップします。シーンサイズに応じて
-          最大 200 万点をキャッシュして高精度に判定。
-        </div>
-      </section>
-
-      <!-- ── CAMERA TOOL ── -->
-      <section id="m-camtool">
-        <h2>📷 カメラツール (プリビズ機能)</h2>
-        <p>実機カメラのようにレンズ・センサーを設定して JPEG 出力。Blender Photographer 風。</p>
-
-        <h3>パネル構成</h3>
-        <div class="m-grid2">
-          <div class="m-card">
-            <h4>右パネル — 技術設定</h4>
-            <ul>
-              <li>🔍 <b>レンズ</b> 焦点距離 (14 / 35 / 50 / 85 / … プリセット)</li>
-              <li>⬛ <b>センサー</b> FF / APS-C / MFT / S35 / 65mm / カスタム</li>
-              <li>🎯 <b>角度</b> パン / ティルト / ロール (ダッチアングル)</li>
-              <li>☀ <b>WB</b> 色温度 K (2000–12000)</li>
-              <li>🎬 <b>アスペクト</b> 16:9 / 2.39 / 1:1 / カスタム</li>
-              <li># <b>グリッド</b> 三分割 / 黄金 / セーフ / カスタム (複数 OK)</li>
-            </ul>
-          </div>
-          <div class="m-card">
-            <h4>左下パネル — ショット情報</h4>
-            <ul>
-              <li>📷 <b>カメラ情報</b> リアルタイム表示</li>
-              <li>📝 <b>メタ</b> ショット名 / 機材 / 環境 / 備考</li>
-              <li>📸 <b>キャプチャ</b> バーンインON/OFF + 画質 + 撮影</li>
-              <li>📥 <b>サルベージ</b> 過去JPEGをドロップで復元</li>
-            </ul>
-          </div>
-        </div>
-
-        <h3>センサーとレンズの関係</h3>
-        <p>焦点距離 + センサーサイズから視野角 (FOV) が自動計算されます (実機と同じピンホール式):</p>
-        <ul>
-          <li>FF 36×24mm + 35mm レンズ → 水平 54.4° / 垂直 38.6°</li>
-          <li>APS-C で同じ画角を得たい場合: 35÷1.5 ≈ 24mm</li>
-          <li>HUD には常に <b>35mm 換算</b>も表示</li>
-        </ul>
-
-        <h3>セーフフレームと余白</h3>
-        <p>選択したアスペクトの枠が表示され、外側が暗くマスクされます。「外側余白」スライダで枠を内側にオフセット。</p>
-      </section>
-
-      <!-- ── SALVAGE ── -->
-      <section id="m-salvage">
-        <h2>📥 サルベージ (カメラ位置の復元)</h2>
-        <p>ロケハン3Dで撮った JPEG にはカメラ位置・角度・全設定が <b>JPEG COM セグメント</b> に埋め込まれています。</p>
-        <ol>
-          <li>カメラツールを起動</li>
-          <li>左下パネル下部の点線エリアに以前撮った JPEG をドラッグ</li>
-          <li>カメラ位置 / 向き / レンズ / WB / グリッド設定がすべて復元</li>
-        </ol>
-        <div class="m-tip">
-          <b>⚠ 注意:</b> JPEG を別アプリで再保存すると埋め込みデータが失われる場合があります。
-          オリジナルの撮って出しを保管してください。
-        </div>
-      </section>
-
-      <!-- ── ENVIRONMENT ── -->
-      <section id="m-env">
-        <h2>🌅 環境 (疑似HDRI)</h2>
-        <p>cbar の「🌅 環境」ボタンから。空の色とシーン全体の色味を一括変更。</p>
-        <ul>
-          <li><b>9 プリセット:</b> ☀ 昼 / 🌅 朝 / 🌇 夕方 / 🌃 夜 / ☁ 曇り / ⛅ 薄曇 / 🌧 雨 / 🌌 黄昏 / なし</li>
-          <li><b>回転スライダ</b> 空を 0–360° 回せる (光の方向を合わせる)</li>
-          <li><b>強度スライダ</b> 0–200% (100% で標準, 200% で強めにライティング感)</li>
-        </ul>
-        <p>選んだ環境で splat やモデルにも乗算ティントがかかり、夜なら全体が暗青、夕方なら暖色寄りに見えます。</p>
-      </section>
-
-      <!-- ── MAP ── -->
-      <section id="m-map">
-        <h2>🗺 ミニマップ</h2>
-        <p>cbar の「🗺 マップ」をクリックで表示/非表示。</p>
-        <ul>
-          <li><b>右クリック長押し</b> → 離した位置に瞬間移動</li>
-          <li>表示距離: <b>10 / 50 / 100 / 500 m</b> (デフォルト 100m)</li>
-          <li>クリックでマップ拡大表示</li>
-        </ul>
-      </section>
-
-      <!-- ── QUALITY ── -->
-      <section id="m-quality">
-        <h2>🖥 画質と速度</h2>
-        <p>cbar の「🖥 画質」で描画品質を切替。</p>
-        <ul>
-          <li>低品質 = 動作軽快 (大きい PLY や非力 GPU 用)</li>
-          <li>標準 / 高品質 = 通常使用</li>
-          <li>カメラ動作中は自動的に解像度を 65% に下げ、停止後に復元 (Spark のソート遅延対策)</li>
-        </ul>
-      </section>
-
-      <!-- ── SAVE ── -->
-      <section id="m-save">
-        <h2>💾 プロジェクト保存</h2>
-        <ul>
-          <li>左上の <b>📁 保存</b> ボタン → ZIP でダウンロード (シーン全体 + カメラ設定)</li>
-          <li><kbd>Ctrl</kbd>+<kbd>S</kbd> でも同じ</li>
-          <li>左上 <b>📥 読込</b> または起動画面「📦 プロジェクトを開く」で復元</li>
-          <li>「▶ 編集を続ける」(起動画面) は前回の編集状態を継続</li>
-        </ul>
-      </section>
-
-      <!-- ── SHORTCUTS ── -->
-      <section id="m-shortcut">
-        <h2>⌨ ショートカット早見表</h2>
-        <table class="m-tbl">
-          <tr><th>キー</th><th>動作</th></tr>
-          <tr><td><kbd>↑</kbd> <kbd>↓</kbd> <kbd>←</kbd> <kbd>→</kbd> / <kbd>W</kbd> <kbd>A</kbd> <kbd>S</kbd> <kbd>D</kbd></td><td>移動 (前 / 後 / 左 / 右パン)</td></tr>
-          <tr><td><kbd>Ctrl</kbd> + <kbd>↑↓←→</kbd></td><td>視点を回す / 上下チルト</td></tr>
-          <tr><td><kbd>Page Up</kbd> / <kbd>Page Down</kbd> ・ <kbd>+</kbd> / <kbd>-</kbd></td><td>ズームイン / アウト</td></tr>
-          <tr><td><kbd>Q</kbd> / <kbd>E</kbd> ・ <kbd>R</kbd> / <kbd>F</kbd></td><td>上昇 / 下降</td></tr>
-          <tr><td><kbd>Shift</kbd> (押しながら)</td><td>5× 高速移動</td></tr>
-          <tr><td>マウスホイール</td><td>巡航速度を変更</td></tr>
-          <tr><td><kbd>M</kbd></td><td>測定モード ON / OFF</td></tr>
-          <tr><td><kbd>Z</kbd></td><td>取り消し (Undo, 最大 10)</td></tr>
-          <tr><td><kbd>Y</kbd></td><td>やり直し (Redo)</td></tr>
-          <tr><td><kbd>Ctrl</kbd> + <kbd>S</kbd></td><td>プロジェクト保存</td></tr>
-          <tr><td><kbd>Delete</kbd> / <kbd>Backspace</kbd></td><td>選択レイヤー削除</td></tr>
-          <tr><td><kbd>Esc</kbd></td><td>測定モード終了</td></tr>
-          <tr><td>右ドラッグ (通常)</td><td>視点を回す</td></tr>
-          <tr><td>左クリック長押し (測定中)</td><td>配置点プレビュー → 離して確定</td></tr>
-          <tr><td>Ctrl + クリック (レイヤー)</td><td>複数選択</td></tr>
-        </table>
-      </section>
-
-      <!-- ── FAQ ── -->
-      <section id="m-faq">
-        <h2>❓ よくある質問</h2>
-        <div class="m-faq">
-          <h4>Q. 読み込んだシーンが上下逆さま</h4>
-          <p>A. レイヤー選択 → 表示調整の「X軸反転 / Y軸反転 / Z軸反転」を試してください。</p>
-        </div>
-        <div class="m-faq">
-          <h4>Q. カメラを振ったとき画面端が黒い / にじむ</h4>
-          <p>A. Spark のソート遅延です。動作中は自動で解像度が下がり、停止すれば復元されます。
-             どうしても気になる場合は cbar の「🖥 画質」を一段下げてみてください。</p>
-        </div>
-        <div class="m-faq">
-          <h4>Q. 測定が表面を貫通して奥に置かれる</h4>
-          <p>A. キャッシュ密度を上げ済 (最大 2M 点)。それでもズレる場合は、選択中のレイヤーが
-             正しく メイン splat を含んでいるか確認してください。</p>
-        </div>
-        <div class="m-faq">
-          <h4>Q. 撮った JPEG をサルベージしたら復元されない</h4>
-          <p>A. 別ソフトで再エンコードされた可能性があります。ロケハン3Dの撮って出しのみ対応します。</p>
-        </div>
-        <div class="m-faq">
-          <h4>Q. F値や ISO がない</h4>
-          <p>A. 仮想カメラなので被写界深度や露出はありません。色温度 (WB) のみ画作りに反映します。</p>
-        </div>
-        <div class="m-faq">
-          <h4>Q. もう一度マニュアルを開きたい</h4>
-          <p>A. 画面下中央の「<kbd>❓</kbd>」ボタンからいつでも開けます。</p>
-        </div>
-      </section>
-
-      <div style="height:60px"></div>
-    </div><!-- /.m-ja -->
-
-    <div class="m-en">
-      <section id="m-quick">
-        <h2>🚀 5-Minute Quickstart</h2>
-        <p style="color:#aab">Locahun3D is a viewer for loading 3D scans (3DGS) for location scouting, storyboards and previz. Start with these three steps.</p>
-        <ol style="line-height:1.9">
-          <li><b>Load</b> — drag a 3DGS file (.splat / .ply, etc.) onto the “📂” area on the start screen, or hit “Demo scene” to try it.</li>
-          <li><b>Move</b> — <b>right-drag</b> the mouse to look around; <kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd> to move.</li>
-          <li><b>Use</b> — bottom buttons: Camera / Sun / Measure. Top button: Add object. Manage everything in the left layer panel.</li>
-        </ol>
-      </section>
-
-      <section id="m-cam">
-        <h2>🎮 Moving the camera</h2>
-        <ul style="line-height:1.9">
-          <li><b>Look around</b>: right-drag the mouse</li>
-          <li><b>Move</b>: <kbd>W</kbd>fwd / <kbd>S</kbd>back / <kbd>A</kbd>left / <kbd>D</kbd>right / <kbd>Q</kbd>down / <kbd>E</kbd>up</li>
-          <li><b>Speed</b>: mouse wheel (or the slider in the quality panel)</li>
-          <li><b>Reset view</b>: “🏠 Camera reset” at the top</li>
-        </ul>
-        <p style="color:#889">On phone / iPad, use the bottom-left joystick to move and drag the screen to look around.</p>
-      </section>
-
-      <section id="m-devices">
-        <h2>📱 Features by device</h2>
-        <p style="color:#889">Available features and controls differ by device (◯=yes / △=partial or not recommended / －=no).</p>
-        <table class="m-tbl">
-          <tr><th>Feature</th><th>PC<br>(mouse/key)</th><th>Phone/<br>Tablet</th><th>VR<br>(Vision Pro/Quest)</th><th>TV/Console<br>(remote/pad)</th></tr>
-          <tr><td>Look around / view</td><td>◯</td><td>◯</td><td>◯</td><td>◯</td></tr>
-          <tr><td>Move (WASD / joystick)</td><td>◯ WASD</td><td>◯ joy</td><td>◯</td><td>△ D-pad</td></tr>
-          <tr><td>Sun / weather sim</td><td>◯</td><td>◯</td><td>◯</td><td>◯</td></tr>
-          <tr><td>Distance measure</td><td>◯</td><td>◯</td><td>△</td><td>△</td></tr>
-          <tr><td>Camera tool (previz)</td><td>◯</td><td>◯</td><td>△</td><td>△</td></tr>
-          <tr><td>Add / edit objects</td><td>◯</td><td>◯</td><td>△</td><td>△</td></tr>
-          <tr><td>Avatar walk</td><td>◯</td><td>△</td><td>◯</td><td>－</td></tr>
-          <tr><td>AR (rear-camera overlay)</td><td>－</td><td>◯</td><td>－</td><td>－</td></tr>
-          <tr><td>Focus nav (D-pad / gaze)</td><td>－</td><td>－</td><td>◯</td><td>◯</td></tr>
-        </table>
-        <p style="color:#889">AR is phone / tablet only (enable “Settings &gt; Safari &gt; Motion &amp; Orientation Access”). VR is best for viewing &amp; walking; use a PC for detailed editing.</p>
-      </section>
-
-      <section id="m-layers">
-        <h2>📁 Layers &amp; folders</h2>
-        <p>Loaded files and added objects appear in “Scene layers” on the left.</p>
-        <ul style="line-height:1.9">
-          <li>👁 toggle visibility</li>
-          <li>✏️ rename (double-click also works)</li>
-          <li>🗑 delete (<kbd>Ctrl</kbd>+<kbd>Z</kbd> to undo)</li>
-          <li>drag to reorder / drop into a folder</li>
-          <li>🔒 <b>Lock a folder</b> to disable moving, editing and deleting its contents (prevents accidents). Click again to unlock.</li>
-        </ul>
-      </section>
-
-      <section id="m-trans">
-        <h2>⇆ Move / rotate / scale</h2>
-        <p>Select an object to get the 3D handles (gizmo) and numeric inputs.</p>
-        <ul style="line-height:1.9">
-          <li>arrows = move / rings = rotate / cubes = scale</li>
-          <li>switch coordinate space with “Local / World” (new &amp; imported objects default to Local)</li>
-          <li>position / rotation / scale / size inputs step by <b>0.01</b> for fine adjustment</li>
-          <li>on iPad / phone you can <b>drag the gizmo (arrows, rings, pivot) with your finger</b></li>
-        </ul>
-      </section>
-
-      <section id="m-add">
-        <h2>＋ Adding objects</h2>
-        <p>Pick a type from “📦 Add object” at the top, then <b>long-press (left-click) in the scene</b> to place it (hold to aim, release to confirm; <kbd>Esc</kbd> to cancel).</p>
-        <ul style="line-height:1.9">
-          <li>📦 <b>Cube</b> — size reference / blocking</li>
-          <li>🟠 <b>Event</b> — a point of interest; you can attach an image</li>
-          <li>👤 <b>Figure</b> — a human; adjust height to check scale &amp; eye level, and pose it by <b>selecting joints to rotate</b> or pulling the <b>IK handles</b></li>
-          <li>🛣 <b>Path</b> — a 4-point area with a centre label (e.g. parking bays). Labels can be multi-line.</li>
-        </ul>
-      </section>
-
-      <section id="m-measure">
-        <h2>📐 Distance measure</h2>
-        <p>Turn on “📐 Measure” at the bottom. Measures the <b>real distance</b> between two points on the scan surface.</p>
-        <ul style="line-height:1.9">
-          <li>long-press to preview a point, release to confirm (point A → point B)</li>
-          <li>“+ Measure height” adds a 3rd point for height</li>
-          <li>fine-tune markers with the arrows (axis) or the XZ plane; 🗑 to clear</li>
-          <li>on iPad / phone you can also <b>drag the arrows and markers with your finger</b></li>
-          <li>distance, height &amp; components read out in <b>0.01 m (1 cm)</b> steps</li>
-        </ul>
-      </section>
-
-      <section id="m-camtool">
-        <h2>📷 Camera tool / animation</h2>
-        <p><b>Camera tool</b> (“📷 Camera” at the bottom): set a real lens, sensor and aspect ratio, show the framing box and grid, and capture JPEGs with camera metadata burned in.</p>
-        <p><b>Camera animation</b> (“🎞 Animation” at the top): add several camera keys to build a path and export an MP4. Motion can be <b>Ease in/out</b> or <b>Linear</b>.</p>
-      </section>
-
-      <section id="m-env">
-        <h2>☀ Sun &amp; weather</h2>
-        <p>“☀ Sun” at the bottom: reproduces the sun position and lighting mood from date, time and prefecture.</p>
-        <ul style="line-height:1.9">
-          <li>scrub the time slider from morning to night</li>
-          <li>change the sky mood with weather (clear / cloudy / rain)</li>
-          <li>“🌐 Get live forecast” follows real online weather (optional)</li>
-        </ul>
-      </section>
-
-      <section id="m-walkar">
-        <h2>🚶 Avatar walk / 📱 AR</h2>
-        <p><b>Avatar walk</b> (“🚶 Avatar walk” at the top): explore the scene from a person’s eye level. Move the avatar with <kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd>; look around as usual. Great for checking sightlines, eye level and sense of scale. Click again to exit.</p>
-        <p><b>AR mode</b> (“📱 AR” at the top; phone / tablet only): overlays the 3DGS on the rear-camera feed so you can tilt the device to look around — handy for checking the real-scale overlay on location.</p>
-        <p style="color:#889">Note: on iOS, first enable “Settings &gt; Safari &gt; Motion &amp; Orientation Access”, then reload the page to use AR.</p>
-      </section>
-
-      <section id="m-save">
-        <h2>💾 Save &amp; load</h2>
-        <ul style="line-height:1.9">
-          <li><b>Zip save</b> (top-left): saves the whole scene into a single ZIP — layers, objects, camera and settings all restore.</li>
-          <li><b>Load</b> (“📁 Load” above the layer panel): add a ZIP or a 3DGS / model.</li>
-          <li><b>🎥 Save camera</b>: stores the current camera position as a layer.</li>
-        </ul>
-      </section>
-
-      <section id="m-faq">
-        <h2>❓ FAQ &amp; shortcuts</h2>
-        <ul style="line-height:1.9">
-          <li><b>Scene upside-down / sideways</b> → select the layer and use “Flip axis” or the angle inputs.</li>
-          <li><b>Running slow</b> → set the quality chip (top-right) to “Low”. Rendering is capped at 60 fps.</li>
-          <li><b>Language</b> → toggle “EN / 日本語” at the top-right.</li>
-        </ul>
-        <p style="color:#889"><b>Shortcuts</b>: <kbd>Ctrl</kbd>+<kbd>Z</kbd> undo / <kbd>Ctrl</kbd>+<kbd>Y</kbd> redo / <kbd>Ctrl</kbd>+<kbd>D</kbd> duplicate</p>
-      </section>
-    </div><!-- /.m-en (new) -->
-    <div class="m-old" style="display:none" aria-hidden="true">
-      <!-- ── QUICK START (EN) ── -->
-      <section>
-        <h2>🚀 5-Minute Quickstart</h2>
-        <p style="color:#aab">Bare minimum to get going. See each section below for details.</p>
-        <div class="m-steps">
-          <div class="m-step">
-            <div class="m-step-n">1</div>
-            <div>
-              <strong>Drop a PLY / SPLAT file</strong><br>
-              <span style="opacity:.75">Drag onto the "📂" zone on the home screen. Multiple files OK.</span>
-            </div>
-          </div>
-          <div class="m-step">
-            <div class="m-step-n">2</div>
-            <div>
-              <strong>WASD to move · <u>Right</u>-drag to look around</strong><br>
-              <span style="opacity:.75">If the scene is upside-down, select the layer → try the X / Y / Z axis flip buttons.</span>
-            </div>
-          </div>
-          <div class="m-step">
-            <div class="m-step-n">3</div>
-            <div>
-              <strong>📷 Camera button → 📸 Capture to JPEG</strong><br>
-              <span style="opacity:.75">Pick focal length / sensor, then "📸 Capture" in the bottom-left panel.</span>
-            </div>
-          </div>
-        </div>
-
-        <h3>First-time checklist</h3>
-        <ul class="m-check">
-          <li>Press <kbd>M</kbd> to enter measure mode</li>
-          <li>Manage the scene from the Layer panel (left)</li>
-          <li>All major features live in the bottom centre cbar</li>
-          <li>Lost? Hit the <kbd>❓</kbd> button to open this manual</li>
-        </ul>
-      </section>
-
-      <!-- ── LOAD ── -->
-      <section>
-        <h2>📂 Open a file</h2>
-        <p>The drop zone on the home screen (right after launch) is your entry point.</p>
-        <div class="m-grid2">
-          <div class="m-card">
-            <h4>📁 Supported formats</h4>
-            <ul>
-              <li>3D Gaussian Splatting: <code>.ply</code> <code>.splat</code> <code>.spz</code> <code>.ksplat</code> <code>.rad</code> <code>.sog</code></li>
-              <li>3D models: <code>.obj</code> <code>.glb</code> <code>.gltf</code> <code>.fbx</code></li>
-              <li>Project: <code>.zip</code> (saved from LOCAHUN 3D)</li>
-            </ul>
-          </div>
-          <div class="m-card">
-            <h4>📥 How to load</h4>
-            <ul>
-              <li>Click → file picker (Ctrl-click for multi-select)</li>
-              <li>Drag & drop (multiple files at once OK)</li>
-              <li>First file becomes the main scene; the rest are added as layers</li>
-            </ul>
-          </div>
-        </div>
-        <div class="m-tip">
-          <b>💡 Tip:</b> Large PLYs (100MB+) take tens of seconds to load. A progress bar appears while loading.
-        </div>
-      </section>
-
-      <!-- ── CAMERA ── -->
-      <section>
-        <h2>🎮 Move the camera</h2>
-        <p>Keyboard for forward/back/left/right/up/down · mouse to look around.</p>
-
-        <div class="m-fig">
-          <svg viewBox="0 0 320 200" style="width:100%;max-width:480px;height:auto">
-            <defs>
-              <linearGradient id="key-grad-en" x1="0" x2="0" y1="0" y2="1">
-                <stop offset="0" stop-color="#3a3a40"/>
-                <stop offset="1" stop-color="#1a1a1d"/>
-              </linearGradient>
-            </defs>
-            <g font-family="ui-monospace,monospace" font-size="14" fill="#ddd" text-anchor="middle">
-              <rect x="50"  y="20" width="40" height="40" rx="6" fill="url(#key-grad-en)" stroke="#555"/>
-              <text x="70" y="46">Q</text><text x="70" y="78" font-size="9" fill="#fff">DOWN</text>
-              <rect x="100" y="20" width="40" height="40" rx="6" fill="url(#key-grad-en)" stroke="#555"/>
-              <text x="120" y="46">W</text><text x="120" y="78" font-size="9" fill="#fff">FWD</text>
-              <rect x="150" y="20" width="40" height="40" rx="6" fill="url(#key-grad-en)" stroke="#555"/>
-              <text x="170" y="46">E</text><text x="170" y="78" font-size="9" fill="#fff">UP</text>
-              <rect x="100" y="90" width="40" height="40" rx="6" fill="url(#key-grad-en)" stroke="#555"/>
-              <text x="120" y="116">S</text><text x="120" y="148" font-size="9" fill="#fff">BACK</text>
-              <rect x="50"  y="90" width="40" height="40" rx="6" fill="url(#key-grad-en)" stroke="#555"/>
-              <text x="70" y="116">A</text><text x="70" y="148" font-size="9" fill="#fff">LEFT</text>
-              <rect x="150" y="90" width="40" height="40" rx="6" fill="url(#key-grad-en)" stroke="#555"/>
-              <text x="170" y="116">D</text><text x="170" y="148" font-size="9" fill="#fff">RIGHT</text>
-              <rect x="220" y="90" width="80" height="40" rx="6" fill="url(#key-grad-en)" stroke="#555"/>
-              <text x="260" y="116" font-size="13">Shift</text>
-              <text x="260" y="148" font-size="9" fill="#fc8">Hold for 5× speed</text>
-            </g>
-          </svg>
-        </div>
-
-        <h3>Speed</h3>
-        <ul>
-          <li>Hold <kbd>Shift</kbd> for 5× speed</li>
-          <li>Mouse wheel changes the cruise speed itself</li>
-          <li>Current speed is shown in the HUD (top-left)</li>
-        </ul>
-      </section>
-
-      <!-- ── MOUSE ── -->
-      <section>
-        <h2>🖱 Mouse controls</h2>
-        <div class="m-fig">
-          <svg viewBox="0 0 260 200" style="width:160px;height:auto">
-            <path d="M60,30 Q60,10 90,10 L170,10 Q200,10 200,30 L200,160 Q200,190 130,190 Q60,190 60,160 Z"
-              fill="#222" stroke="#555" stroke-width="1.5"/>
-            <path d="M60,30 Q60,10 90,10 L128,10 L128,90 L60,90 Z" fill="#fff" opacity=".25" stroke="#fff"/>
-            <path d="M132,10 L170,10 Q200,10 200,30 L200,90 L132,90 Z" fill="#ff8866" opacity=".55" stroke="#ff8866"/>
-            <rect x="120" y="35" width="20" height="40" rx="6" fill="#444" stroke="#777"/>
-            <text x="130" y="115" font-size="10" fill="#fff" text-anchor="middle">L = select</text>
-            <text x="130" y="130" font-size="10" fill="#ff8866" text-anchor="middle">R-drag = orbit</text>
-            <text x="130" y="145" font-size="10" fill="#ff8866" text-anchor="middle">R (measure) = place</text>
-            <text x="130" y="175" font-size="9"  fill="#aaa" text-anchor="middle">Wheel = FOV</text>
-          </svg>
-        </div>
-        <table class="m-tbl">
-          <tr><th>Action</th><th>Effect</th></tr>
-          <tr><td>Right-drag</td><td>Look around (pan/tilt)</td></tr>
-          <tr><td>Left-click hold (in measure)</td><td>Preview a placement point — release to commit</td></tr>
-          <tr><td>Wheel</td><td>Change FOV (zoom-in/out feel)</td></tr>
-          <tr><td>Left-click on object</td><td>Select layer</td></tr>
-          <tr><td>Left-drag on 3D handle</td><td>Move / rotate / scale via gizmo</td></tr>
-          <tr><td>Ctrl + click (Layer panel)</td><td>Multi-select</td></tr>
-        </table>
-      </section>
-
-      <!-- ── ORIENT ── -->
-      <section>
-        <h2>🔄 Fix scene orientation</h2>
-        <p>PLYs from different exporters may appear upside-down or rotated.</p>
-        <div class="m-grid2">
-          <div class="m-card">
-            <h4>🎯 Upside-down / sideways</h4>
-            <ol>
-              <li>Select the layer</li>
-              <li>In the right panel, try the <b>Flip X / Y / Z Axis</b> buttons</li>
-              <li>For finer control use the rotation number fields below</li>
-            </ol>
-          </div>
-          <div class="m-card">
-            <h4>🔁 Fine adjustment</h4>
-            <ul>
-              <li>Try the <b>X / Y / Z flip</b> toggles (3 axes, independent)</li>
-              <li>If still off, dial in <b>Position / Rotation / Size</b> manually</li>
-            </ul>
-          </div>
-        </div>
-      </section>
-
-      <!-- ── LAYERS ── -->
-      <section>
-        <h2>📁 Layer panel</h2>
-        <p>The "Scene Layers" sidebar on the left is the hub. Every loaded file or object lives here.</p>
-        <ul>
-          <li><b>👁</b> show / hide</li>
-          <li><b>🗑</b> delete (<kbd>Z</kbd> to undo, up to 10 steps)</li>
-          <li><b>Double-click</b> rename</li>
-          <li><b>Drag</b> reorder / nest into folders</li>
-          <li><b>Ctrl + click</b> multi-select → <kbd>Delete</kbd> to remove all</li>
-        </ul>
-      </section>
-
-      <!-- ── TRANSFORM ── -->
-      <section>
-        <h2>⇆ Position / Rotation / Scale</h2>
-        <p>Selecting a layer reveals the "Transform" panel at the bottom of the left sidebar.</p>
-        <ul>
-          <li>Numeric <b>X / Y / Z</b> input (position / rotation / scale)</li>
-          <li>Drag the <b>arrow handles</b> in the 3D view directly</li>
-          <li>Flat handle (□) for XZ-plane translation</li>
-          <li>Rotation rings (<b>↻ X/Y/Z</b>) for axis rotation</li>
-          <li>Cube handles for per-axis scaling</li>
-        </ul>
-        <div class="m-tip"><b>💡:</b> <kbd>Z</kbd> undoes up to 10 steps. <kbd>Y</kbd> redoes.</div>
-      </section>
-
-      <!-- ── ADD ── -->
-      <section>
-        <h2>＋ Add objects</h2>
-        <p>From the top-left "<b>Add Object ▾</b>" menu:</p>
-        <ul>
-          <li><b>＋ 3DGS</b> — additional splat file (PLY/SPLAT/SPZ/KSPLAT)</li>
-          <li><b>＋ OBJ/GLB</b> — 3D model (OBJ/GLTF/GLB/FBX)</li>
-          <li><b>📦 Cube / ⚽ Sphere / 📁 Folder / 💡 Light / 🟠 Event</b> — scene helpers</li>
-        </ul>
-      </section>
-
-      <!-- ── MEASURE ── -->
-      <section>
-        <h2>📐 Distance measure</h2>
-        <p>Measure the real distance between two points on a splat surface.</p>
-        <ol>
-          <li>Press <kbd>M</kbd> or click "📐 Measure" in the cbar to enter measure mode</li>
-          <li><b>Left-click hold</b> → a ghost marker tracks the cursor</li>
-          <li>Release to commit point A</li>
-          <li>Repeat to set point B → distance shown on screen</li>
-          <li>Drag the X/Y/Z arrows on each marker to fine-tune</li>
-        </ol>
-        <div class="m-tip">
-          <b>📏 Accuracy:</b> Snaps to the nearest splat surface point automatically. Up to 2 million points are cached for high-precision detection in large scenes.
-        </div>
-      </section>
-
-      <!-- ── CAMERA TOOL ── -->
-      <section>
-        <h2>📷 Camera tool (previz)</h2>
-        <p>Set lens / sensor like a real camera and export JPEGs. Blender Photographer-style.</p>
-
-        <h3>Panel layout</h3>
-        <div class="m-grid2">
-          <div class="m-card">
-            <h4>Right panel — technical settings</h4>
-            <ul>
-              <li>🔍 <b>Lens</b> focal length (14 / 35 / 50 / 85 / … presets)</li>
-              <li>⬛ <b>Sensor</b> FF / APS-C / MFT / S35 / 65mm / Custom</li>
-              <li>🎯 <b>Angle</b> pan / tilt / roll (Dutch angle)</li>
-              <li>☀ <b>WB</b> colour temperature K (2000–12000)</li>
-              <li>🎬 <b>Aspect</b> 16:9 / 2.39 / 1:1 / Custom</li>
-              <li># <b>Grid</b> rule-of-thirds / golden / safe / custom (multi-select OK)</li>
-            </ul>
-          </div>
-          <div class="m-card">
-            <h4>Bottom-left — shot info</h4>
-            <ul>
-              <li>📷 <b>Camera info</b> live readout</li>
-              <li>📝 <b>Meta</b> shot name / rig / env / notes</li>
-              <li>📸 <b>Capture</b> burn-in toggle + quality + shutter</li>
-              <li>📥 <b>Salvage</b> drop a past JPEG to restore camera state</li>
-            </ul>
-          </div>
-        </div>
-
-        <h3>Sensor & lens relation</h3>
-        <p>FOV is computed automatically from focal length + sensor (the same pinhole formula real cameras use):</p>
-        <ul>
-          <li>FF 36×24mm + 35mm lens → 54.4° H / 38.6° V</li>
-          <li>To match this on APS-C: 35÷1.5 ≈ 24mm</li>
-          <li>The HUD always shows the <b>35mm-equivalent</b> as well</li>
-        </ul>
-
-        <h3>Safe frame & margin</h3>
-        <p>The chosen aspect is drawn as a frame; the outside is masked dark. The "Outer margin" slider insets the frame.</p>
-      </section>
-
-      <!-- ── SALVAGE ── -->
-      <section>
-        <h2>📥 Salvage (restore camera state)</h2>
-        <p>JPEGs captured by LOCAHUN 3D embed full camera state into a <b>JPEG COM segment</b>.</p>
-        <ol>
-          <li>Open the camera tool</li>
-          <li>Drop a past JPEG onto the dashed area at the bottom of the bottom-left panel</li>
-          <li>Camera position / orientation / lens / WB / grid settings all restore</li>
-        </ol>
-        <div class="m-tip">
-          <b>⚠ Note:</b> Re-saving the JPEG in another app may strip the embedded data. Keep the original capture file.
-        </div>
-      </section>
-
-      <!-- ── ENVIRONMENT ── -->
-      <section>
-        <h2>🌅 Environment (pseudo HDRI)</h2>
-        <p>Toggle from "🌅 Env" in the cbar. Changes the sky colour and global tint at once.</p>
-        <ul>
-          <li><b>9 presets:</b> ☀ Day / 🌅 Morning / 🌇 Sunset / 🌃 Night / ☁ Overcast / ⛅ Hazy / 🌧 Rain / 🌌 Twilight / Off</li>
-          <li><b>Rotation slider</b> rotates the sky 0–360° (align light direction)</li>
-          <li><b>Intensity slider</b> 0–200% (100% standard, 200% emphasises lighting)</li>
-        </ul>
-        <p>Splats and models receive a multiplicative tint — night turns deep blue, sunset goes warm.</p>
-      </section>
-
-      <!-- ── MAP ── -->
-      <section>
-        <h2>🗺 Minimap</h2>
-        <p>Toggle the minimap from the cbar's "🗺 Map" button.</p>
-        <ul>
-          <li><b>Right-click hold</b> on the map → release to teleport</li>
-          <li>Range: <b>10 / 50 / 100 / 500 m</b> (default 100m)</li>
-          <li>Click to expand the minimap view</li>
-        </ul>
-      </section>
-
-      <!-- ── QUALITY ── -->
-      <section>
-        <h2>🖥 Quality & speed</h2>
-        <p>Toggle render quality from the cbar's "🖥 Quality" button.</p>
-        <ul>
-          <li>Low = fast (for big PLYs / weak GPUs)</li>
-          <li>Medium / High = normal use</li>
-          <li>While the camera moves, resolution drops to 65 % automatically and restores on idle (Spark sort-lag mitigation)</li>
-        </ul>
-      </section>
-
-      <!-- ── SAVE ── -->
-      <section>
-        <h2>💾 Save project</h2>
-        <ul>
-          <li>Top-left <b>📁 Save</b> button → ZIP download (full scene + camera state)</li>
-          <li><kbd>Ctrl</kbd>+<kbd>S</kbd> works too</li>
-          <li>Top-left <b>📥 Open</b> or the home screen "📦 Open project" to restore</li>
-          <li>"▶ Continue editing" (home screen) keeps your previous state</li>
-        </ul>
-      </section>
-
-      <!-- ── SHORTCUTS ── -->
-      <section>
-        <h2>⌨ Shortcuts cheatsheet</h2>
-        <table class="m-tbl">
-          <tr><th>Key</th><th>Action</th></tr>
-          <tr><td><kbd>↑</kbd> <kbd>↓</kbd> <kbd>←</kbd> <kbd>→</kbd> / <kbd>W</kbd> <kbd>A</kbd> <kbd>S</kbd> <kbd>D</kbd></td><td>Move (forward / back / left / right pan)</td></tr>
-          <tr><td><kbd>Ctrl</kbd> + <kbd>↑↓←→</kbd></td><td>Rotate / tilt the view</td></tr>
-          <tr><td><kbd>Page Up</kbd> / <kbd>Page Down</kbd> · <kbd>+</kbd> / <kbd>-</kbd></td><td>Zoom in / out</td></tr>
-          <tr><td><kbd>Q</kbd> / <kbd>E</kbd> · <kbd>R</kbd> / <kbd>F</kbd></td><td>Up / Down</td></tr>
-          <tr><td><kbd>Shift</kbd> (hold)</td><td>5× speed boost</td></tr>
-          <tr><td>Mouse wheel</td><td>Change cruise speed</td></tr>
-          <tr><td><kbd>M</kbd></td><td>Measure mode ON / OFF</td></tr>
-          <tr><td><kbd>Z</kbd></td><td>Undo (up to 10)</td></tr>
-          <tr><td><kbd>Y</kbd></td><td>Redo</td></tr>
-          <tr><td><kbd>Ctrl</kbd> + <kbd>S</kbd></td><td>Save project</td></tr>
-          <tr><td><kbd>Delete</kbd> / <kbd>Backspace</kbd></td><td>Delete selected layer</td></tr>
-          <tr><td><kbd>Esc</kbd></td><td>Exit measure mode</td></tr>
-          <tr><td>Right-drag (normal)</td><td>Look around</td></tr>
-          <tr><td>Left-click hold (measure)</td><td>Preview placement → release to commit</td></tr>
-          <tr><td>Ctrl + click (layer)</td><td>Multi-select</td></tr>
-        </table>
-      </section>
-
-      <!-- ── FAQ ── -->
-      <section>
-        <h2>❓ FAQ</h2>
-        <div class="m-faq">
-          <h4>Q. The loaded scene is upside down</h4>
-          <p>A. Select the layer → try the X / Y / Z axis flip buttons under "View adjust".</p>
-        </div>
-        <div class="m-faq">
-          <h4>Q. The screen edges go black / smear when I pan</h4>
-          <p>A. Spark sort-lag. Resolution drops automatically while moving and restores on idle. If it still bothers you, drop the cbar's "🖥 Quality" one notch.</p>
-        </div>
-        <div class="m-faq">
-          <h4>Q. The measure tool punches through the surface to the back</h4>
-          <p>A. Cache density is already maxed (2M points). If still off, verify the active layer actually contains the main splat.</p>
-        </div>
-        <div class="m-faq">
-          <h4>Q. Salvage doesn't restore my JPEG</h4>
-          <p>A. The image was likely re-encoded by another app. Only the original capture from LOCAHUN 3D is supported.</p>
-        </div>
-        <div class="m-faq">
-          <h4>Q. No aperture or ISO?</h4>
-          <p>A. This is a virtual camera — no DOF or exposure simulation. Only WB (colour temperature) affects the look.</p>
-        </div>
-        <div class="m-faq">
-          <h4>Q. How do I open the manual again?</h4>
-          <p>A. The "<kbd>❓</kbd>" button at the bottom-centre of the screen opens it any time.</p>
-        </div>
-      </section>
-
-      <div style="height:60px"></div>
-    </div><!-- /.m-en -->
-    </main>
-  </div>
-</div>
-
-<style>
-/* Dual-language manual: only one block visible at a time */
-#manual-overlay .m-en{display:none}
-#manual-overlay.lang-en .m-ja{display:none}
-#manual-overlay.lang-en .m-en{display:block}
-#manual-overlay h2{font-size:1.45em;margin:0 0 8px;color:#fff;letter-spacing:.02em;
-  border-bottom:1px solid rgba(255,255,255,.08);padding-bottom:8px}
-#manual-overlay h3{font-size:1.05em;margin:22px 0 6px;color:#ffe4b3;letter-spacing:.03em}
-#manual-overlay h4{font-size:.95em;margin:0 0 6px;color:#dde}
-#manual-overlay section{margin-bottom:48px;scroll-margin-top:18px}
-#manual-overlay code{background:rgba(255,180,84,.1);padding:1px 6px;border-radius:3px;
-  font-family:ui-monospace,Consolas,monospace;font-size:.88em;color:#ffe4b3}
-#manual-overlay kbd{display:inline-block;background:#2a2a30;border:1px solid #555;
-  border-bottom:2px solid #444;border-radius:4px;padding:2px 7px;font-size:.82em;
-  font-family:ui-monospace,Consolas,monospace;color:#eee;margin:0 2px;min-width:14px;text-align:center}
-#manual-overlay ul,#manual-overlay ol{padding-left:22px;margin:6px 0}
-#manual-overlay ul li,#manual-overlay ol li{margin:3px 0}
-
-#manual-nav .mn-grp{padding:14px 18px 4px;font-size:.72em;color:#779;letter-spacing:.1em;
-  text-transform:uppercase;font-weight:600}
-#manual-nav .mn-link{display:block;padding:6px 18px;color:#cdd;text-decoration:none;
-  font-size:.88em;border-left:2px solid transparent;transition:all .12s}
-#manual-nav .mn-link:hover{background:rgba(255,180,84,.08);color:#fff;
-  border-left-color:rgba(255,180,84,.55)}
-
-.m-steps{display:flex;flex-direction:column;gap:12px;margin:16px 0}
-.m-step{display:flex;gap:14px;align-items:center;background:rgba(255,180,84,.05);
-  border:1px solid rgba(255,180,84,.18);border-radius:8px;padding:14px 18px}
-.m-step-n{flex:0 0 auto;width:36px;height:36px;border-radius:50%;
-  background:linear-gradient(135deg,#88aaff,#5588cc);
-  display:flex;align-items:center;justify-content:center;font-weight:700;font-size:1.15em;color:#fff}
-
-.m-check{list-style:none;padding-left:0}
-.m-check li::before{content:'☐ ';color:#fff;font-weight:700}
-
-.m-grid2{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin:14px 0}
-.m-card{background:rgba(255,255,255,.03);border:1px solid rgba(255,255,255,.08);
-  border-radius:8px;padding:14px 16px}
-
-.m-fig{margin:14px 0;padding:18px;background:rgba(255,255,255,.025);
-  border:1px solid rgba(255,255,255,.05);border-radius:8px;display:flex;justify-content:center}
-
-.m-tbl{width:100%;border-collapse:collapse;margin:10px 0;font-size:.92em}
-.m-tbl th,.m-tbl td{border-bottom:1px solid rgba(255,255,255,.06);padding:7px 10px;text-align:left}
-.m-tbl th{color:#9bf;font-weight:600;font-size:.85em;letter-spacing:.04em;
-  background:rgba(255,180,84,.04)}
-.m-tbl td:first-child{color:#dde;font-family:ui-monospace,Consolas,monospace;width:38%}
-
-.m-tip{background:rgba(255,200,80,.07);border-left:3px solid rgba(255,200,80,.6);
-  padding:10px 14px;margin:14px 0;border-radius:0 6px 6px 0;font-size:.92em}
-
-.m-faq{margin-bottom:14px;padding:12px 16px;background:rgba(255,255,255,.025);
-  border:1px solid rgba(255,255,255,.06);border-radius:6px}
-.m-faq h4{margin:0 0 4px;color:#9bf}
-.m-faq p{margin:0;color:#bcc;font-size:.92em}
-
-@media (max-width:760px){
-  #manual-shell{grid-template-columns:1fr;grid-template-areas:'header' 'body' !important}
-  #manual-nav{display:none}
-  .m-grid2{grid-template-columns:1fr}
-}
-#btnHelp{font-size:1em}
-</style>
+<!-- ユーザーマニュアルのモーダル(JA/EN)と専用スタイルは削除 (user 2026-08-27)。
+     開く導線が下部ツールバーの「使い方」ボタンだけで、そのボタンを撤去したため。 -->
 
 <!-- Motion edge vignette: subtle, feathered black rim that fades in during
      camera motion to mask Spark's async depth-sort lag at the frustum edges
@@ -3449,7 +2362,6 @@ body.immersive #immersive-exit{ display:inline-block; }
       <div class="cm-row" style="gap:3px;flex-wrap:wrap">
         <button class="cm-grid-btn" onclick="setCamGrid('off')"     data-g="off" id="ct-grid-off">なし</button>
         <button class="cm-grid-btn" onclick="setCamGrid('thirds')"  data-g="thirds" id="ct-grid-thirds">三分割</button>
-        <button class="cm-grid-btn" onclick="setCamGrid('golden')"  data-g="golden" id="ct-grid-golden">黄金</button>
         <button class="cm-grid-btn" onclick="setCamGrid('cross')"   data-g="cross" id="ct-grid-cross">十字</button>
         <button class="cm-grid-btn" onclick="setCamGrid('diag')"    data-g="diag" id="ct-grid-diag">対角</button>
       </div>
@@ -3835,7 +2747,7 @@ body.ar-active #dz{display:none !important;}
     <span id="dz-back-site-lbl">← ロケハン3D サイトへ戻る</span>
   </a>
   <div class="dz-version-line">
-    <span id="tb-version">v 0.2.0-beta</span>
+    <span id="tb-version">v 0.2.1-beta</span>
   </div>
 </div>
 
@@ -3866,7 +2778,8 @@ body.ar-active #dz{display:none !important;}
     <!-- 画質 / 設定 buttons removed: quality is now an always-visible
          indicator at the top-right of the view (#qi-badge); grid / FOV /
          move-speed settings have been merged into the quality panel. -->
-    <button id="btnHelp"    onclick="openManual()" title="使い方"><span id="lbl-help">使い方</span></button>
+    <!-- 「使い方」ボタンとユーザーマニュアルのモーダルは削除 (user 2026-08-27)。
+         他に開く導線が無かったのでモーダル本体(src/html/030,040)ごと撤去した。 -->
   </div>
 </div>
 
@@ -7388,7 +6301,7 @@ const cam = {
   aspect: 16/9,     // default delivery aspect (FHD 16:9). null = use sensor.
   margin: 5,
   // grids: SET of active grid types — multi-select. Each toggles independently.
-  // Members: thirds | golden | cross | diag | safe-action | safe-title | center-mark | custom
+  // Members: thirds | cross | diag | safe-action | safe-title | center-mark | custom
   grids: new Set(['thirds']),
   gridOpacity: 0.85,
   gridCols: 3,
@@ -7690,9 +6603,16 @@ window.setCamAspect = function(ar){
     applyCamSettings();
   });
 };
+// 「黄金（黄金比）」は廃止 (user 2026-08-27)。保存済みプロジェクト／JPEGメタに
+// 'golden' が残っていても読込でこけないよう、三分割へ寄せて受け入れる。
+window._camNormalizeGrids = function(vals){
+  const out = new Set();
+  for(const v of (vals || [])) out.add(v === 'golden' ? 'thirds' : v);
+  return out;
+};
 // Multi-select grid toggle. 'off' clears all; any other key flips its membership.
 function _applyCamGrids(setVals){
-  cam.grids = new Set(setVals || []);
+  cam.grids = window._camNormalizeGrids(setVals);
   document.querySelectorAll('#cam-panel .cm-grid-btn').forEach(b=>{
     const k = b.dataset.g;
     if(k === 'off') b.classList.toggle('on', cam.grids.size === 0);
@@ -7914,14 +6834,6 @@ function drawCamGrid(){
     lines.push(vline(33.333), vline(66.667));
     lines.push(hline(33.333), hline(66.667));
   }
-  if(G.has('golden')){
-    const phi = 0.382;          // 1 - 1/φ
-    const gc = 'rgb(255,200,80)';
-    lines.push(vline(phi*100, gc));
-    lines.push(vline((1-phi)*100, gc));
-    lines.push(hline(phi*100, gc));
-    lines.push(hline((1-phi)*100, gc));
-  }
   if(G.has('cross')){
     lines.push(vline(50));
     lines.push(hline(50));
@@ -8030,50 +6942,11 @@ function _wireSalvageZone(){
 }
 
 // ══════════════════════════════════════════════════
-//  USER MANUAL  (modal opened from dropzone or cbar ❓)
+//  CAMERA TOOL の開閉 ＋ 画面まわりのレイアウト補正
+//
+//  （元はユーザーマニュアルのモーダルもここにあったが、開く導線だった
+//    下部ツールバーの「使い方」ボタンごと削除した — user 2026-08-27。）
 // ══════════════════════════════════════════════════
-window.openManual = function(){
-  const ov = document.getElementById('manual-overlay');
-  if(!ov) return;
-  ov.style.display = 'block';
-  document.body.style.overflow = 'hidden';
-  // Reset scroll to top
-  const body = document.getElementById('manual-body');
-  if(body) body.scrollTop = 0;
-  // Wire side-nav anchors so they reliably scroll inside manual-body
-  // (default href="#id" jump is unreliable for a nested scroll container under
-  // a fixed overlay, so we attach explicit handlers once on first open).
-  if(!ov._navWired){
-    document.querySelectorAll('#manual-nav .mn-link').forEach(a=>{
-      a.addEventListener('click', e=>{
-        const href = a.getAttribute('href') || '';
-        if(!href.startsWith('#')) return;
-        const target = document.getElementById(href.slice(1));
-        if(!target || !body) return;
-        e.preventDefault();
-        const top = target.getBoundingClientRect().top
-                  - body.getBoundingClientRect().top
-                  + body.scrollTop;
-        body.scrollTo({top, behavior:'smooth'});
-      });
-    });
-    ov._navWired = true;
-  }
-};
-window.closeManual = function(){
-  const ov = document.getElementById('manual-overlay');
-  if(!ov) return;
-  ov.style.display = 'none';
-  document.body.style.overflow = '';
-};
-// Close on Esc
-window.addEventListener('keydown', e=>{
-  if(e.key === 'Escape'){
-    const ov = document.getElementById('manual-overlay');
-    if(ov && ov.style.display === 'block') closeManual();
-  }
-});
-
 window.toggleCamTool = function(){
   const wasActive = cam.active;
   // Mutual-exclusion: opening カメラ closes 測定 / 環境 / マップ / 画質, but KEEPS
@@ -8148,6 +7021,10 @@ function _layoutCamMode(){
     root.style.removeProperty('--cam-top-left');
     root.style.removeProperty('--cam-top-maxw');
     document.body.classList.remove('cam-cramped');
+    // カメラモード中は _layoutTopRow が手を出さない約束なので、抜けた直後に
+    // 上部帯を置き直す（そうしないとカメラを閉じたあと中央寄せのままになり、
+    // 狭い画面でシーンレイヤーパネルに食い込む）。
+    setTimeout(()=>{ try{ _layoutTopRow(); }catch(_){} }, 0);
     return;
   }
   const panLeft = pan.getBoundingClientRect().left;   // right edge of the free zone
@@ -8179,6 +7056,56 @@ function _layoutCamMode(){
   document.body.classList.toggle('cam-cramped', cramped);
 }
 window._layoutCamMode = _layoutCamMode;   // exposed for resize hooks / debugging
+
+// ── 上部ボタン行 × シーンレイヤーパネルの重なり回避 ──────────────
+//  #view-tl-btns は「ビューポートの中央」に置くのが本人の指示（レイヤーパネルの
+//  幅に追従させない）。ただし画面が狭いと、中央寄せのままでは行の左端が左端
+//  固定のレイヤーパネル(0〜285px, 全高)へ食い込む（user 2026-08-27 報告。
+//  例: 幅820px で行 151〜669 とパネル 0〜285 が 134px 重なる）。
+//  そこで「重なる時だけ」パネルの右の空きへ寄せる。広い画面では従来どおり
+//  ビューポート中央のまま＝挙動は変わらない。
+function _layoutTopRow(){
+  const row = document.getElementById('view-tl-btns');
+  if(!row) return;
+  // カメラモード中は _layoutCamMode() が --cam-top-left で位置を持つので触らない。
+  if(document.body.classList.contains('cam-active')) return;
+  if(getComputedStyle(row).display === 'none') return;
+  // 素の（折返し無しの）幅を測る
+  row.style.maxWidth = '';
+  row.style.flexWrap = '';
+  const GAP = 10;
+  const vw = innerWidth;
+  const rr = row.getBoundingClientRect();
+  const w = rr.width;
+  let wall = 0;                       // 行の高さ帯を塞ぐ左側の壁の右端
+  const lp = document.getElementById('layer-panel');
+  if(lp && getComputedStyle(lp).display !== 'none'){
+    const lr = lp.getBoundingClientRect();
+    if(lr.bottom > rr.top && lr.top < rr.bottom) wall = lr.right;
+  }
+  const free = vw - wall - GAP * 2;   // パネル右〜画面右端の空き
+  if(wall <= 0 || vw / 2 - w / 2 >= wall + GAP){
+    // 重ならない → 従来どおりビューポート中央
+    row.style.left = '50%';
+    return;
+  }
+  if(w <= free){
+    // 1行のまま、空きの中央へ寄せる
+    row.style.left = Math.round(wall + GAP + free / 2) + 'px';
+    return;
+  }
+  // 1行では入らない → 空きいっぱいに折り返す
+  row.style.maxWidth = Math.max(140, free) + 'px';
+  row.style.flexWrap = 'wrap';
+  row.style.left = Math.round(wall + GAP + Math.max(140, free) / 2) + 'px';
+}
+window._layoutTopRow = _layoutTopRow;
+addEventListener('resize', _layoutTopRow);
+addEventListener('orientationchange', ()=> setTimeout(_layoutTopRow, 250));
+// パネルの開閉・リサイズ・言語切替でも行幅／壁が変わるので、クリック後に追従。
+document.addEventListener('click', ()=> setTimeout(_layoutTopRow, 40), true);
+setTimeout(_layoutTopRow, 500);
+setTimeout(_layoutTopRow, 1500);
 
 // スマホ: 日照/測定/カメラワーク パネルの top を「上UI(上部ボタン行)の下端」から決めて
 // かぶらないようにする。上ボタンが隠れている(cam-cramped等)ときはトップバー直下に置く。
@@ -9186,18 +8113,8 @@ function _camAnimRenderPanel(){
           style="accent-color:#b594ff;cursor:pointer"> ${t('Hide paths & events','区画パス・イベントを非表示')}
       </label>
     </div>
-    <div style="margin-bottom:6px">
-      <label style="display:flex;align-items:center;gap:6px;font-size:.82em;cursor:pointer">
-        <input type="checkbox" id="ca-burnin-grid"
-          style="accent-color:#b594ff;cursor:pointer"> ${t('Burn in grid / safe zone','グリッド/セーフ枠を焼き込み')}
-      </label>
-    </div>
-    <div style="margin-bottom:6px">
-      <label style="display:flex;align-items:center;gap:6px;font-size:.82em;cursor:pointer">
-        <input type="checkbox" id="ca-export-4k"
-          style="accent-color:#b594ff;cursor:pointer"> ${t('4K recording','4K 録画')}
-      </label>
-    </div>
+    <!-- 「グリッド/セーフ枠を焼き込み」「4K 録画」のチェックは削除 (user 2026-08-27)。
+         焼き込みは常にOFF、録画解像度は既定(FHD相当)に固定。 -->
     <div style="display:flex;gap:4px">
       <button onclick="window.camAnimPreview()" ${ready ? '' : 'disabled'}
         style="flex:1;padding:5px 6px;background:rgba(120,200,255,.18);
@@ -9532,7 +8449,8 @@ window.camAnimRecordExport = function(){
   // toggle uses, so cropped recordings share that logic instead of duplicating
   // it). Pins the auto-quality watchdog for the duration — otherwise it would
   // see the sudden resolution jump as "too slow" and immediately reverse it.
-  const _export4K = !!(document.getElementById('ca-export-4k') || {}).checked;
+  // 4K 録画のチェックは廃止 (user 2026-08-27) — 常に既定解像度で録る。
+  const _export4K = false;
   const _prevExport4K = cam.export4K;
   const _prevPixelRatio = renderer.getPixelRatio();
   const _prevWatchdogPin = window._gpuWatchdog ? window._gpuWatchdog.manualOverride : undefined;
@@ -9555,8 +8473,9 @@ window.camAnimRecordExport = function(){
   // An offscreen canvas at the target delivery resolution receives a copy
   // of the frame rect after every render; the MediaRecorder captures it.
   const _useCamFrame = cam.active;
-  const _recBurnGrid = _useCamFrame
-    && !!(document.getElementById('ca-burnin-grid') || {}).checked;
+  // 焼き込みのチェックは廃止 (user 2026-08-27) — 録画出力に構図グリッド／
+  // セーフフレームは入れない。
+  const _recBurnGrid = false;
   // Always mirror into an offscreen 2D canvas (cropped to the camera frame,
   // or a 1:1 full-viewport copy) rather than ever handing the live WebGL
   // canvas straight to VideoFrame. The renderer runs with
@@ -9863,11 +8782,6 @@ function _drawGridOnCanvas(ctx, W, H){
   if(G.has('thirds')){
     Vline(33.333); Vline(66.667);
     Hline(33.333); Hline(66.667);
-  }
-  if(G.has('golden')){
-    const phi = 0.382, gc = 'rgb(255,200,80)';
-    Vline(phi*100, gc); Vline((1-phi)*100, gc);
-    Hline(phi*100, gc); Hline((1-phi)*100, gc);
   }
   if(G.has('cross')){ Vline(50); Hline(50); }
   if(G.has('diag')){
@@ -10432,10 +9346,13 @@ window.salvageCamFromFile = async function(file){
       note:        meta.cam.note        || '',
     });
     // Migrate grid state: new payload uses an array; older payloads used a single string.
+    // 廃止した 'golden' は三分割へフォールバック（_camNormalizeGrids）。
+    const _norm = (v)=> (typeof window._camNormalizeGrids === 'function')
+      ? window._camNormalizeGrids(v) : new Set(v || []);
     if(Array.isArray(meta.cam.grids)){
-      cam.grids = new Set(meta.cam.grids);
+      cam.grids = _norm(meta.cam.grids);
     } else if(typeof meta.cam.grid === 'string'){
-      cam.grids = meta.cam.grid === 'off' ? new Set() : new Set([meta.cam.grid]);
+      cam.grids = meta.cam.grid === 'off' ? new Set() : _norm([meta.cam.grid]);
     }
     _camPushFields();
     _camGetEl('cm-sensor').value = cam.sensor;
@@ -15445,8 +14362,6 @@ const I18N = {
   'qt-low':'低',
   'qt-mid':'中',
   'qt-high':'高',
-  'lbl-help':'使い方',
-  'help-title':'使い方マニュアルを開く',
   'demo-btn-lbl':'デモシーン(交差点)',
   'demo-btn-title':'デモ用の 3DGS シーンを Cloudflare R2 から読み込みます',
   'orient-lock-msg':'横画面でご利用ください',
@@ -15574,8 +14489,6 @@ const I18N = {
   'qt-low':'Low',
   'qt-mid':'Mid',
   'qt-high':'High',
-  'lbl-help':'Help',
-  'help-title':'Open the user manual',
   'demo-btn-lbl':'Demo Scene (Intersection)',
   'demo-btn-title':'Load the demo 3DGS scene from Cloudflare R2',
   'orient-lock-msg':'Please use in landscape',
@@ -15671,21 +14584,13 @@ function applyI18n(){
   // 日照パネルの都市ドロップダウンを言語に合わせて翻訳
   if(typeof _sunApplyCityI18n==='function') _sunApplyCityI18n();
   // HUD labels
-  ['lbl-pos','lbl-spd','lbl-rot','lbl-measure','lbl-flip','lbl-addobj','lbl-quality','lbl-settings','lbl-file','lbl-cam-reset','qp-init-h','lbl-set-init-view','lbl-auto-init-view','lbl-camtool','lbl-env','lbl-help','orient-lock-msg','orient-lock-sub','lbl-addobj-top','lbl-addfig-top','tb-save-lbl','tb-load-lbl','fp-btn-import-lbl','fp-btn-export-lbl','csp-shot-info','csp-cam-info','csp-meta-info','csp-shot-name','csp-rig','csp-env','csp-note','csp-capture','csp-burnin','csp-burnin-grid','csp-capture-btn','csp-salvage','csp-salvage-drop','csp-salvage-sub','ct-tool','ct-lens','ct-focal','ct-sensor','ct-sensor-ff','ct-sensor-apsc','ct-sensor-apsh','ct-sensor-mft','ct-sensor-1inch','ct-sensor-phone13','ct-sensor-phone17','ct-sensor-phone23','ct-sensor-m65','ct-sensor-s35','ct-sensor-bm','ct-sensor-cust','ct-sensor-w','ct-sensor-h','ct-cam-angle','ct-pan','ct-tilt','ct-roll','ct-roll-level','ct-wb','ct-wb-temp','ct-aspect','ct-aspect-sensor','ct-aspect-cust','ct-aspect-apply','ct-margin','ct-grid','ct-grid-multi','ct-grid-guide','ct-grid-off','ct-grid-thirds','ct-grid-golden','ct-grid-cross','ct-grid-diag','ct-grid-safe-cust','ct-grid-action','ct-grid-title','ct-grid-center','ct-grid-custom','ct-grid-cols','ct-grid-rows','ct-grid-opacity','dz-manual-text','dz-ar-label','env-h-title','env-p-off','env-p-day','env-p-morning','env-p-evening','env-p-night','env-p-cloudy','env-p-rain','env-p-overcast','env-p-twilight','env-l-rot','env-l-int','msr-active-lbl','msr-end-lbl','lp-h-scene','lp-empty','qt-title','qt-low','qt-mid','qt-high','qp-perf-t','qp-l-frame','qp-l-gpu','qp-l-head','qp-l-dc','qp-l-tris','qp-l-geos','qp-l-texs','dist-l','msr-clear','msr-undo','em-3dgs','em-3dgs-d','em-zip-save','em-zip-save-d','em-zip-load','em-zip-load-d','em-zip-lite','em-zip-lite-d','rm-title','rm-pick','rm-skip','em-json','em-json-d','em-glb','em-glb-d','em-obj','em-obj-d','em-cancel','em-recommended','em-h-title','qp-settings-t','qp-lbl-lowpoly-main','qp-lbl-lowpoly-hint','qp-lbl-grid','qp-lbl-show','qp-lbl-fov','qp-lbl-spd','cl-title','cl-sub','cl-tag-init','cl-tag-v003','lbl-walk','lbl-save-camera','lbl-view-rec','lbl-view-rec-phone','lbl-cam-anim','giz-pt-a','giz-pt-b','giz-pt-c','giz-height-lbl','height-l','csp-jpeg-q','csp-4k-lbl','obj-add-cube','obj-add-sphere','obj-add-light','obj-add-event','obj-add-path','msr-end-lbl-init'].forEach(id=>{
+  ['lbl-pos','lbl-spd','lbl-rot','lbl-measure','lbl-flip','lbl-addobj','lbl-quality','lbl-settings','lbl-file','lbl-cam-reset','qp-init-h','lbl-set-init-view','lbl-auto-init-view','lbl-camtool','lbl-env','orient-lock-msg','orient-lock-sub','lbl-addobj-top','lbl-addfig-top','tb-save-lbl','tb-load-lbl','fp-btn-import-lbl','fp-btn-export-lbl','csp-shot-info','csp-cam-info','csp-meta-info','csp-shot-name','csp-rig','csp-env','csp-note','csp-capture','csp-burnin','csp-burnin-grid','csp-capture-btn','csp-salvage','csp-salvage-drop','csp-salvage-sub','ct-tool','ct-lens','ct-focal','ct-sensor','ct-sensor-ff','ct-sensor-apsc','ct-sensor-apsh','ct-sensor-mft','ct-sensor-1inch','ct-sensor-phone13','ct-sensor-phone17','ct-sensor-phone23','ct-sensor-m65','ct-sensor-s35','ct-sensor-bm','ct-sensor-cust','ct-sensor-w','ct-sensor-h','ct-cam-angle','ct-pan','ct-tilt','ct-roll','ct-roll-level','ct-wb','ct-wb-temp','ct-aspect','ct-aspect-sensor','ct-aspect-cust','ct-aspect-apply','ct-margin','ct-grid','ct-grid-multi','ct-grid-guide','ct-grid-off','ct-grid-thirds','ct-grid-cross','ct-grid-diag','ct-grid-safe-cust','ct-grid-action','ct-grid-title','ct-grid-center','ct-grid-custom','ct-grid-cols','ct-grid-rows','ct-grid-opacity','dz-manual-text','dz-ar-label','env-h-title','env-p-off','env-p-day','env-p-morning','env-p-evening','env-p-night','env-p-cloudy','env-p-rain','env-p-overcast','env-p-twilight','env-l-rot','env-l-int','msr-active-lbl','msr-end-lbl','lp-h-scene','lp-empty','qt-title','qt-low','qt-mid','qt-high','qp-perf-t','qp-l-frame','qp-l-gpu','qp-l-head','qp-l-dc','qp-l-tris','qp-l-geos','qp-l-texs','dist-l','msr-clear','msr-undo','em-3dgs','em-3dgs-d','em-zip-save','em-zip-save-d','em-zip-load','em-zip-load-d','em-zip-lite','em-zip-lite-d','rm-title','rm-pick','rm-skip','em-json','em-json-d','em-glb','em-glb-d','em-obj','em-obj-d','em-cancel','em-recommended','em-h-title','qp-settings-t','qp-lbl-lowpoly-main','qp-lbl-lowpoly-hint','qp-lbl-grid','qp-lbl-show','qp-lbl-fov','qp-lbl-spd','cl-title','cl-sub','cl-tag-init','cl-tag-v003','lbl-walk','lbl-save-camera','lbl-view-rec','lbl-view-rec-phone','lbl-cam-anim','giz-pt-a','giz-pt-b','giz-pt-c','giz-height-lbl','height-l','csp-jpeg-q','csp-4k-lbl','obj-add-cube','obj-add-sphere','obj-add-light','obj-add-event','obj-add-path','msr-end-lbl-init'].forEach(id=>{
     const el=document.getElementById(id); if(el) el.textContent=T(id);
   });
   // HUD info-box edit tooltip + dropzone titles
   document.querySelectorAll('#hud .ibox .ibv').forEach(el=>{ el.title=T('tt-edit-dbl'); });
-  // Manual: header / nav / close button via data-i18n-key attributes
-  document.querySelectorAll('#manual-overlay [data-i18n-key]').forEach(el=>{
-    el.textContent=T(el.getAttribute('data-i18n-key'));
-  });
-  // Manual body: toggle JA/EN dual block visibility
-  const _mo=document.getElementById('manual-overlay');
-  if(_mo) _mo.classList.toggle('lang-en', L==='en');
   // Title attributes (tooltips) — not auto-handled by data-i18n
   const _setTitle=(sel,key)=>{ const el=document.querySelector(sel); if(el) el.title=T(key); };
-  _setTitle('#btnHelp','tt-help');
   _setTitle('#btnAddCubeTop','tt-add-obj');
   _setTitle('#tb-project-name','tt-edit-name');
   _setTitle('#mf-collapse-btn','tt-mf-collapse');
@@ -15760,8 +14665,6 @@ function applyI18n(){
   if(typeof _applyHeightUI==='function' && typeof msr!=='undefined') _applyHeightUI(msr.heightOn);
   // Quality badge (top-right) — labels are 低/中/高 -> Low/Mid/High.
   if(typeof _updateQiBadgeLabel==='function' && typeof qualIdx!=='undefined') _updateQiBadgeLabel(qualIdx);
-  // Help button tooltip (title attribute isn't covered by the textContent loop).
-  const _btnHelp=document.getElementById('btnHelp'); if(_btnHelp) _btnHelp.title=T('help-title');
   // Demo-scene dropzone button: label includes the file size, and the title
   // attribute needs translating too — neither is handled by the bulk loop.
   const _demoLbl=document.getElementById('dz-demo-lbl');
@@ -18177,6 +17080,19 @@ function updatePerfStats(){
     '  (×' + pr.toFixed(2) + ')';
 }
 
+// ── 画質パネル内の折りたたみセクション ──
+//  「📊 処理能力モニター」「📍 初期視点」は常時見えている必要が無いので、
+//  既定は見出し(タブ)だけ。クリックで中身を出す (user 2026-08-27)。
+//  key は 'qp-perf' / 'qp-init'（<key>-fold が中身、<key>-chev が ▶）。
+window.toggleQpFold=function(key){
+  const box = document.getElementById(key + '-fold');
+  if(!box) return;
+  const open = getComputedStyle(box).display === 'none';
+  box.style.display = open ? (box.dataset.foldDisplay || 'block') : 'none';
+  const head = document.querySelector('#quality-panel .qp-fold-head [id="' + key + '-chev"]');
+  if(head && head.parentElement) head.parentElement.classList.toggle('open', open);
+};
+
 // ── Quality Panel Toggle ──
 let _qualPanelOpen=false;
 window.toggleQualityPanel=function(){
@@ -20436,8 +19352,30 @@ function updateLightHalos(){
 //     window.toggleCamTool / window.addFigureLayer / window.toggleLayerPanelCollapse）
 //     をそのまま呼ぶ。ユーザーがボタンを押したのと同じ経路を通る。
 //   • 章は必ず try/catch で包む。失敗した章は黙って飛ばして次へ進む。
-//   • ユーザー操作 (pointerdown / wheel / touchstart / keydown) で即中断し、
-//     開いたツールを初期状態へ戻して操作を渡す。
+//
+//   • ユーザーが操作してもツアーは中断しない（2026-08-27 本人FB
+//     「操作すると中断しちゃうのよくない」）。触りながら見られるのが自然なので、
+//     章は予定どおり最後まで進む。実際に競合するのは「カメラを誰が動かすか」
+//     だけなので、ユーザー入力を検知したら *進行中の章のカメラ演出だけ* を譲る
+//     （周回パンと構図リセット goHome を止める）。計測・日照・カメラツール・
+//     フィギュア配置・パネル開閉といった中身はそのまま続行する。
+//     明示的にやめる手段はチップの「✕ 終了」ただ一つ（restoreAll して片付ける）。
+//
+//   • キャプションチップは既存UIと重ねない（同FB「案内チップがUIにかぶる」）。
+//     かつ、全章を通して *定位置* から動かさない（同FB「場所が変わりすぎてて
+//     みずらい　酔う」）。この2つを両立させるため、ツアー中に開きうるパネルを
+//     display:none のまま実測（visibility:hidden で display だけ戻す＝画面に
+//     出ない）し、その“最悪ケース”の空き矩形から 1 か所を選んで固定する
+//     （layoutChip / probeRects）。動かすのは画面サイズが変わった時だけ。
+//     狭くて full の字組みが入らない幅では、位置を動かさずチップ側を
+//     compact / tight / micro へ畳んで収める。
+//
+//   • キャプションは実際のボタン表記を DOM から引いて埋め込む（同FB「どこから
+//     触るとどうなるのかわからない」）。UI 側の改名や EN 切替に自動追従する。
+//
+//   • 章のキャプションと動作は同時に始める（同FB「ずれててきもちわるい」）。
+//     読込待ちがある章（フィギュア）は、出てからキャプションを切り替える。
+//
 //   • URL で明示されない限り完全に無効（通常利用へのオーバーヘッドはゼロ）。
 //
 //  シーン指定が無い ?showcase=1 単独ならデモシーンを自動読込する
@@ -20447,80 +19385,555 @@ if(/[?&]showcase=1/.test(location.search)){
   (function(){
     // ── 文言（JA/EN）。250_i18n.js の辞書は本体UI用なので、ツアー専用文言は
     //    ここに閉じ込める。EN 切替時は現在表示中のチップを即座に描き直す。
+    //  ── 画面に出ている実際のボタン表記をそのまま引く ──
+    //  本人FB 2026-08-27「どこから触るとどうなるのかわからない」。文言に実UI名を
+    //  ハードコードすると本体の改名でズレるので、DOM から取って一字一句一致させる
+    //  （EN 切替にも自動で追従する）。
+    function uiLabel(sel, fallback){
+      try{
+        const el = document.querySelector(sel);
+        if(el){
+          const t = (el.textContent || '').replace(/\s+/g, ' ').trim();
+          if(t) return t;
+        }
+      }catch(_){}
+      return fallback;
+    }
+    function uiLabelParent(sel, fallback){
+      try{
+        const el = document.querySelector(sel);
+        if(el && el.parentElement){
+          const t = (el.parentElement.textContent || '').replace(/\s+/g, ' ').trim();
+          if(t) return t;
+        }
+      }catch(_){}
+      return uiLabel(sel, fallback);
+    }
+    //  ── 端末ごとに「その機能が存在するか」を実DOMで見る ──
+    //  本人FB 2026-08-27「端末ごとに機能が違うのを対応できていない」。
+    //  メディアクエリを二重管理せず、本体UIが実際に出しているかどうかで判定する。
+    //    スマホ(≤600px・pointer:coarse): シーンレイヤーパネルが display:none →
+    //      レイヤーの章と、その見出しにある📦オブジェクト追加からのフィギュアの章は
+    //      「そもそも触れない」ので飛ばす。移動はジョイスティック。
+    //    タブレット(iPad): パネルもボタンも出る＝PCと同じ章立て。移動はジョイスティック。
+    //    PC: ジョイスティック非表示＝移動は W/A/S/D、見回しはドラッグ。
+    function isVis(sel, ignoreOpacity){
+      try{
+        const el = document.querySelector(sel);
+        if(!el) return false;
+        const cs = getComputedStyle(el);
+        if(cs.display === 'none' || cs.visibility === 'hidden') return false;
+        if(!ignoreOpacity && parseFloat(cs.opacity || '1') < 0.05) return false;
+        const r = el.getBoundingClientRect();
+        return r.width > 1 && r.height > 1;
+      }catch(_){ return false; }
+    }
+    const HAS = {
+      joystick: ()=> isVis('#joy'),
+      elevPad:  ()=> isVis('#joy-vert'),
+      measure:  ()=> isVis('#btnMeasure'),
+      sun:      ()=> isVis('#btn-sun'),
+      cam:      ()=> isVis('#btnCamTool'),
+      // 📦モデル追加はシーンレイヤーを *展開したとき* だけ見える行にある。
+      // 畳んでいる間は非表示なので「存在するか」はパネル自体の有無で見る。
+      addObj:   ()=> isVis('#layer-panel', true) && !!document.getElementById('btnAddCubeTop'),
+      layers:   ()=> isVis('#layer-panel', true),
+    };
+    const UI = {
+      measure: ()=> uiLabel('#btnMeasure',      '📐 測定'),
+      sun:     ()=> uiLabel('#btn-sun',         '☀ 日照'),
+      cam:     ()=> uiLabel('#btnCamTool',      '📷 カメラ'),
+      addObj:  ()=> uiLabel('#btnAddCubeTop',   '📦 オブジェクト追加 ▾'),
+      figure:  ()=> uiLabelParent('#lbl-addfig-top', '👤 フィギュア (人型リグ)'),
+      layers:  ()=> uiLabel('#lp-h-scene',      'シーンレイヤー'),
+      wx:      (k)=> uiLabel('#sun-wx-' + k,    k),
+    };
+    const B = (s)=> '【' + s + '】';
+
     const TXT = {
-      intro:   { ja:['ロケハン3D','機能ツアーを再生します'],
-                 en:['LOCAHUN 3D','A quick tour of what this viewer does'] },
-      orbit:   { ja:['① 見回す','ドラッグで自由に回り込めます'],
-                 en:['1 — Look around','Drag to orbit the scan freely'] },
-      measure: { ja:['② 計測','スキャン上の2点を実寸で測れます'],
-                 en:['2 — Measure','Pick any two points for a real-world distance'] },
-      sun:     { ja:['③ 日照','日付と時刻から太陽の位置を再現'],
-                 en:['3 — Daylight','Real sun position from date, time and location'] },
-      camtool: { ja:['④ カメラ','焦点距離とセーフフレームで画角を検討'],
-                 en:['4 — Camera','Check the frame with real focal lengths'] },
-      figure:  { ja:['⑤ フィギュア','人物を置いてスケール感を確認'],
-                 en:['5 — Figure','Drop in a person to read the scale'] },
-      layers:  { ja:['⑥ レイヤー','置いたものはレイヤーで管理'],
-                 en:['6 — Layers','Everything you place is managed here'] },
-      outro:   { ja:['ツアー終了','自由に操作してみてください'],
-                 en:["That's the tour",'Now go ahead and explore'] },
-      skip:    { ja:'スキップ ▸', en:'Skip ▸' },
+      intro:   ()=> isEN() ? ['LOCAHUN 3D', 'A quick tour of what this viewer does']
+                           : ['ロケハン3D', '機能ツアーを再生します'],
+      orbit:   ()=>{
+        // 案内する操作名は「その端末に実在する操作」だけにする。
+        if(HAS.joystick()){
+          const up = HAS.elevPad() ? (isEN() ? ' (▲▼ for height)' : '（▲▼で上下）') : '';
+          return isEN() ? ['Look around', 'Swipe to look around, and move with the on-screen joystick' + up]
+                        : ['見回す',      'スワイプで見回し、ジョイスティックで移動できます' + up];
+        }
+        return isEN() ? ['Look around', 'Drag to look around, and move with W / A / S / D']
+                      : ['見回す',      'ドラッグで見回し、W / A / S / D で移動できます'];
+      },
+      measure: ()=> isEN() ? ['Measure',
+                              'Press ' + B(UI.measure()) + ' in the bottom bar, then click two points']
+                           : ['計測',
+                              '下部ツールバーの' + B(UI.measure()) + 'を押して2点をクリックすると実寸が出ます'],
+      sun:     ()=> isEN() ? ['Daylight',
+                              'Press ' + B(UI.sun()) + ' to set the date, time and weather']
+                           : ['日照',
+                              '下部ツールバーの' + B(UI.sun()) + 'で日付・時刻・天気を設定できます'],
+      camtool: ()=> isEN() ? ['Camera',
+                              'Press ' + B(UI.cam()) + ' to check the frame with real focal lengths']
+                           : ['カメラ',
+                              '下部ツールバーの' + B(UI.cam()) + 'で焦点距離とセーフフレームを検討できます'],
+      figure:  ()=> isEN() ? ['Figure',
+                              B(UI.addObj()) + ' → ' + B(UI.figure()) + ' places a person for scale']
+                           : ['フィギュア',
+                              B(UI.addObj()) + '→' + B(UI.figure()) + 'で人物を置いてスケールを確認できます'],
+      layers:  ()=> isEN() ? ['Layers',
+                              'Everything you place is listed in the ' + B(UI.layers()) + ' panel on the left']
+                           : ['レイヤー',
+                              '置いたものは左の' + B(UI.layers()) + 'パネルにまとまります'],
+      outro:   ()=> isEN() ? ["That's the tour", 'Now go ahead and explore']
+                           : ['ツアー終了', '自由に操作してみてください'],
+    };
+    const BTNTXT = {
+      skip: { ja:'スキップ ▸', en:'Skip ▸' },
+      end:  { ja:'✕ 終了',    en:'✕ End'  },
     };
     const isEN = ()=> window._lang === 'en';
-    const tx   = (k)=> (TXT[k] && (isEN() ? TXT[k].en : TXT[k].ja)) || ['',''];
+    const tx   = (k)=> (TXT[k] ? TXT[k]() : ['','']);
 
     // ── キャプションチップ ──────────────────────────
+    //  位置・幅・字組みは layoutChip() が起動時（とリサイズ時）に実測で決める。CSS の固定オフセットは
+    //  モバイルで .cbar が bottom:212px まで跳ね上がる等の分岐に追従できないので
+    //  一切使わない（ここに書くのは見た目の素材だけ）。
     const chip = document.createElement('div');
     chip.id = 'sc-chip';
     chip.style.cssText =
-      'position:fixed;left:50%;bottom:5.5%;transform:translateX(-50%) translateY(10px);z-index:6000;'+
-      'display:flex;align-items:center;gap:18px;color:#fff;opacity:0;'+
+      'position:fixed;left:50%;bottom:80px;transform:translateX(-50%) translateY(10px);z-index:6000;'+
+      'display:flex;align-items:center;flex-wrap:wrap;gap:12px 16px;color:#fff;opacity:0;'+
       'transition:opacity .5s ease, transform .5s ease;pointer-events:none;'+
       'background:linear-gradient(180deg,rgba(0,0,0,.42),rgba(0,0,0,.62));'+
-      'padding:11px 16px 11px 24px;border-radius:14px;border:1px solid rgba(255,255,255,.16);'+
+      'padding:11px 16px 11px 20px;border-radius:14px;border:1px solid rgba(255,255,255,.16);'+
       'backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);'+
-      'box-shadow:0 10px 34px rgba(0,0,0,.5);max-width:min(88vw,720px)';
+      'box-shadow:0 10px 34px rgba(0,0,0,.5);box-sizing:border-box;max-width:720px';
     const body = document.createElement('div');
-    body.style.cssText = 'flex:1;min-width:0;text-align:left';
+    body.style.cssText = 'flex:1 1 140px;min-width:0;text-align:left';
     const main = document.createElement('div');
-    main.style.cssText = 'font:700 clamp(15px,2.0vw,23px)/1.35 ui-sans-serif,system-ui,sans-serif;letter-spacing:.02em';
+    main.style.cssText = 'letter-spacing:.02em;overflow-wrap:anywhere';
     const sub  = document.createElement('div');
-    sub.style.cssText  = 'font:500 clamp(11px,1.3vw,15px)/1.4 ui-sans-serif,system-ui,sans-serif;opacity:.92;margin-top:3px;color:#ffd9a8';
+    sub.style.cssText  = 'opacity:.92;margin-top:3px;color:#ffd9a8;overflow-wrap:anywhere';
     const step = document.createElement('div');
     step.style.cssText = 'font:600 11px/1 ui-sans-serif,system-ui,sans-serif;opacity:.5;letter-spacing:.12em;margin-bottom:5px';
-    const skipBtn = document.createElement('button');
-    skipBtn.id = 'sc-skip';
-    skipBtn.type = 'button';
-    skipBtn.style.cssText =
-      'pointer-events:auto;flex:0 0 auto;cursor:pointer;white-space:nowrap;'+
-      'background:rgba(255,255,255,.10);border:1px solid rgba(255,255,255,.28);color:#fff;'+
-      'border-radius:9px;padding:7px 13px;font:600 12px/1 ui-sans-serif,system-ui,sans-serif';
+
+    // アクション: 「スキップ ▸」= 章送り / 「✕ 終了」= ツアー自体をやめる。
+    const acts = document.createElement('div');
+    acts.style.cssText = 'flex:0 0 auto;margin-left:auto;display:flex;align-items:center;gap:8px';
+    const mkBtn = (id, extra)=>{
+      const b = document.createElement('button');
+      b.id = id; b.type = 'button';
+      b.style.cssText =
+        'pointer-events:auto;flex:0 0 auto;cursor:pointer;white-space:nowrap;'+
+        'background:rgba(255,255,255,.10);border:1px solid rgba(255,255,255,.28);color:#fff;'+
+        'border-radius:9px;padding:7px 13px;font:600 12px/1 ui-sans-serif,system-ui,sans-serif;'+
+        'transition:background .15s,border-color .15s;' + (extra || '');
+      return b;
+    };
+    const skipBtn = mkBtn('sc-skip');
+    const endBtn  = mkBtn('sc-end',
+      'background:rgba(255,120,110,.14);border-color:rgba(255,140,130,.42);color:#ffd9d5');
+    acts.appendChild(skipBtn); acts.appendChild(endBtn);
     body.appendChild(step); body.appendChild(main); body.appendChild(sub);
-    chip.appendChild(body); chip.appendChild(skipBtn);
+    chip.appendChild(body); chip.appendChild(acts);
     document.body.appendChild(chip);
 
+    // ── 表示密度モード ─────────────────────────────
+    //  置ける空きが狭いほど下のモードへ落とす。狭幅でレイヤーパネルが全高を
+    //  占めて「余白が無い」状況（本人指摘）は、重ねて誤魔化すのではなく
+    //  チップ自身を小さく畳んで“空いている所へ入る”ことで解く。
+    //  micro は縦積み＋アイコンボタンで、幅 120px 前後の隙間にも収まる。
+    const FF = ' ui-sans-serif,system-ui,sans-serif';
+    const MODES = [
+      { k:'full',    step:1, sub:1, icons:0, col:0,
+        mainF:'700 22px/1.35', subF:'500 14px/1.45',
+        pad:'11px 16px 11px 20px', gap:'12px 16px', btn:'7px 13px', btnF:'600 12px/1' },
+      { k:'compact', step:1, sub:1, icons:0, col:0,
+        mainF:'700 17px/1.3',  subF:'500 12.5px/1.4',
+        pad:'9px 12px 9px 14px', gap:'8px 12px', btn:'6px 11px', btnF:'600 11.5px/1' },
+      { k:'tight',   step:0, sub:1, icons:1, col:0,
+        mainF:'700 14px/1.3',  subF:'500 11.5px/1.35',
+        pad:'7px 9px', gap:'6px 8px', btn:'5px 8px', btnF:'600 12px/1' },
+      // micro でも説明文(sub)は残す。スマホではカメラパネルが右 210px を
+      // 占めるので幅 150px 前後しか空かないが、そこで説明を落とすと
+      // 「読める」を満たせない。幅は空きいっぱいに広げ、行数で受ける。
+      { k:'micro',   step:0, sub:1, icons:1, col:1,
+        mainF:'700 12.5px/1.35', subF:'500 11px/1.45',
+        pad:'6px 8px', gap:'5px', btn:'4px 7px', btnF:'600 12px/1' },
+    ];
+    let curIcons = 0, modeKey = null;
+    function paintBtnLabels(){
+      const sTxt = isEN() ? BTNTXT.skip.en : BTNTXT.skip.ja;
+      const eTxt = isEN() ? BTNTXT.end.en  : BTNTXT.end.ja;
+      skipBtn.textContent = curIcons ? '▸' : sTxt;
+      endBtn.textContent  = curIcons ? '✕' : eTxt;
+      skipBtn.title = sTxt; endBtn.title = eTxt;
+      skipBtn.setAttribute('aria-label', sTxt);
+      endBtn.setAttribute('aria-label', eTxt);
+    }
+    function applyMode(m){
+      if(modeKey === m.k) return;
+      modeKey = m.k; curIcons = m.icons;
+      chip.style.flexDirection = m.col ? 'column' : 'row';
+      chip.style.alignItems    = m.col ? 'stretch' : 'center';
+      chip.style.padding       = m.pad;
+      chip.style.gap           = m.gap;
+      chip.style.borderRadius  = m.col ? '11px' : '14px';
+      body.style.flex   = m.col ? '1 1 auto' : '1 1 140px';
+      step.style.display = m.step ? 'block' : 'none';
+      sub.style.display  = m.sub  ? 'block' : 'none';
+      main.style.font    = m.mainF + FF;
+      sub.style.font     = m.subF  + FF;
+      acts.style.marginLeft     = m.col ? '0' : 'auto';
+      acts.style.justifyContent = m.col ? 'flex-end' : 'flex-start';
+      for(const b of [skipBtn, endBtn]){ b.style.padding = m.btn; b.style.font = m.btnF + FF; }
+      paintBtnLabels();
+    }
+
     let curKey = null, curIdx = 0;
-    const CHAPTER_COUNT = 6;
+    //  章数は端末で変わる（スマホはレイヤー／フィギュアが無い）ので run() で確定する。
+    let CHAPTER_COUNT = 6;
+    const CIRCLED = ['①','②','③','④','⑤','⑥','⑦','⑧','⑨'];
     function paint(){
       const [m, s] = tx(curKey || 'intro');
-      main.textContent = m; sub.textContent = s;
+      main.textContent = (curIdx > 0 ? (CIRCLED[curIdx - 1] || curIdx) + ' ' : '') + m;
+      sub.textContent = s;
       step.textContent = curIdx > 0 ? (curIdx + ' / ' + CHAPTER_COUNT) : '';
-      skipBtn.textContent = isEN() ? TXT.skip.en : TXT.skip.ja;
+      paintBtnLabels();
+      // ★ここで位置を計算し直さない。チップは全章を通して定位置（本人FB）。
     }
     function say(key, idx){ curKey = key; if(idx !== undefined) curIdx = idx; paint(); }
     const fade = (on)=>{
       chip.style.opacity = on ? '1' : '0';
       chip.style.transform = 'translateX(-50%) translateY(' + (on ? '0' : '10px') + ')';
     };
+
+    // ── チップの当たり判定回避レイアウト ────────────
+    //  「かぶらない位置」を CSS の決め打ちではなく実測で出す。対象は本人が挙げた
+    //  上部バー・下部バー・レイヤーパネル・開いた各パネルの全部。
+    //  pointer-events:none の全画面オーバーレイ（#cam-hud のセーフフレーム、
+    //  環境ティント等）は「UI」ではないので除外する — これらは inset:0 なので
+    //  障害物に数えると回避先が存在しなくなる。
+    const OBSTACLES = [
+      '#topbar', '#view-tl-btns', '#qi-badge', '#immersive-exit',
+      '#hud > *',                                  // .cbar / .ibox など（装飾は下で除外）
+      '#joy', '#joy-vert',
+      '#layer-panel', '#lp-footer-bar', '#lp-divider', '#layer-transform',
+      '#sun-panel', '#cam-panel', '#cam-shot-panel', '#cam-anim-panel',
+      '#gizmo', '#quality-panel', '#helpbox', '#msr-hint', '#onote', '#undo-toast',
+      '.guide-banner',
+    ];
+    //  「いま開いているUI」ではなく「ツアー中に開きうるUI全部」を避けたいので、
+    //  display:none のパネルも *見えないまま* 実測する（visibility:hidden の
+    //  まま display を戻して測り、すぐ元へ返す＝画面には一切出ない）。
+    //  これで、章ごとにチップを動かさずに済む定位置が求まる。
+    //  列挙するのは「ツアーが実際に開くもの」だけ。画質パネルやカメラワーク
+    //  パネルまで足すと空きが痩せすぎて、チップが画面の真ん中に浮く結果になる。
+    //  （それらはツアー中に開かない。ユーザーが自分で開いた場合は、そのとき
+    //   前面に出るのはそちらで良い。）
+    const PROBE = [
+      '#sun-panel',        // 章3
+      '#cam-panel',        // 章4
+      '#gizmo',            // 章2（測定パネル）
+      '#layer-transform', '#lp-footer-bar', '#lp-divider',   // 章6（レイヤー展開）
+      '#joy', '#joy-vert',
+    ];
+    //  中央寄せで幅が変わる横帯は、幅いっぱいを予約する（下の理由参照）。
+    const WIDEN = ['#hud > *', '#view-tl-btns'];
+    const GAP = 10;      // チップと UI のあいだに残す余白(px)
+    const PAD = 8;       // 画面端に残す余白(px)
+    function probeRects(){
+      const out = [];
+      for(const sel of PROBE){
+        let els;
+        try{ els = document.querySelectorAll(sel); }catch(_){ continue; }
+        for(const el of els){
+          let cs;
+          try{ cs = getComputedStyle(el); }catch(_){ continue; }
+          if(cs.display !== 'none') continue;          // 開いていれば通常の計測で拾える
+          const pd = el.style.display, pv = el.style.visibility;
+          el.style.visibility = 'hidden';
+          el.style.display = 'block';
+          // 開くときに JS で置き直されるパネルは、その置き直しを先に適用して
+          // から測る（#sun-panel は開くたび _sunUpdatePanelPos() で
+          // 「レイヤーパネルの右隣」へ動く＝CSS 既定位置とは別物）。
+          try{ if(sel === '#sun-panel' && typeof _sunUpdatePanelPos === 'function') _sunUpdatePanelPos(); }catch(_){}
+          const r = el.getBoundingClientRect();
+          el.style.display = pd; el.style.visibility = pv;
+          if(r.width < 2 || r.height < 2) continue;
+          if(r.width * r.height > innerWidth * innerHeight * 0.7) continue;
+          // 画面外に置かれている（未初期化）ものは無視
+          if(r.bottom <= 0 || r.top >= innerHeight || r.right <= 0 || r.left >= innerWidth) continue;
+          out.push(r);
+        }
+      }
+      return out;
+    }
+    //  レイヤーパネルは章6で展開されて「左端・全高」になる。畳んだ状態のまま
+    //  測ると、その下を空きだと誤認して章6でチップに被る。常に全高ぶん予約する。
+    function layerPanelFullRect(){
+      const el = document.getElementById('layer-panel');
+      if(!el) return [];
+      let cs;
+      try{ cs = getComputedStyle(el); }catch(_){ return []; }
+      if(cs.display === 'none' || cs.visibility === 'hidden') return [];
+      const r = el.getBoundingClientRect();
+      if(r.width < 2 || r.right <= 0 || r.left >= innerWidth) return [];
+      return [{ left:r.left, top:r.top, right:r.right, bottom:innerHeight }];
+    }
+    function obstacleRects(){
+      const out = [];
+      for(const sel of OBSTACLES){
+        let els;
+        try{ els = document.querySelectorAll(sel); }catch(_){ continue; }
+        for(const el of els){
+          if(!el || el === chip || chip.contains(el) || el.contains(chip)) continue;
+          let cs;
+          try{ cs = getComputedStyle(el); }catch(_){ continue; }
+          if(cs.display === 'none' || cs.visibility === 'hidden') continue;
+          if(parseFloat(cs.opacity || '1') < 0.05) continue;
+          if(cs.pointerEvents === 'none') continue;   // 装飾オーバーレイ
+          // 祖先ごと隠れている場合も除外（読込前の #hud{opacity:0} 配下など）
+          if(typeof el.checkVisibility === 'function' &&
+             !el.checkVisibility({ opacityProperty:true, visibilityProperty:true, contentVisibilityAuto:true })) continue;
+          const r = el.getBoundingClientRect();
+          if(r.width < 2 || r.height < 2) continue;
+          if(r.bottom <= 0 || r.top >= innerHeight || r.right <= 0 || r.left >= innerWidth) continue;
+          // 画面をほぼ覆う要素は「UI部品」ではなく背景／オーバーレイ。障害物に
+          // 数えると逃げ場が消えるので除外する。
+          if(r.width * r.height > innerWidth * innerHeight * 0.7) continue;
+          // 中央寄せの横長バーは、モードによって見えるボタンが増減して幅も
+          // 中心もズレる（例: スマホの日照/カメラ中は .cbar が 1 ボタンになって
+          // 左へ寄る）。位置を固定する以上、その帯は幅いっぱい予約しておく。
+          if(WIDEN.indexOf(sel) >= 0){
+            out.push({ left:0, top:r.top, right:innerWidth, bottom:r.bottom,
+                       width:innerWidth, height:r.height });
+            continue;
+          }
+          out.push(r);
+        }
+      }
+      return out;
+    }
+    const hits = (a, b)=> !(a.right <= b.left || a.left >= b.right || a.bottom <= b.top || a.top >= b.bottom);
+
+    //  空き矩形の列挙。障害物を GAP ぶん膨らませておき、その左右端を x の
+    //  切れ目の候補にする。各 x 帯について「その帯を塞ぐ障害物の y 区間」を
+    //  抜いた残りが、その帯で縦に最大の空き矩形になる。障害物は 10〜20 個
+    //  程度なので総当たりで足りる（1 回 1ms 未満）。
+    function freeRects(obs, vw, vh){
+      const xs = [PAD, vw - PAD];
+      for(const o of obs){
+        if(o.left  > PAD && o.left  < vw - PAD) xs.push(o.left);
+        if(o.right > PAD && o.right < vw - PAD) xs.push(o.right);
+      }
+      xs.sort((a,b)=>a-b);
+      const X = xs.filter((v,i)=> i === 0 || v - xs[i-1] > 1);
+      const out = [];
+      for(let i = 0; i < X.length - 1; i++){
+        for(let j = i + 1; j < X.length; j++){
+          const x1 = X[i], x2 = X[j];
+          if(x2 - x1 < 96) continue;
+          const bars = [];
+          for(const o of obs) if(o.right > x1 && o.left < x2) bars.push(o);
+          bars.sort((a,b)=> a.top - b.top);
+          let y = PAD;
+          for(const b of bars){
+            if(b.top > y) out.push([x1, x2, y, Math.min(b.top, vh - PAD)]);
+            if(b.bottom > y) y = b.bottom;
+            if(y >= vh - PAD) break;
+          }
+          if(y < vh - PAD) out.push([x1, x2, y, vh - PAD]);
+        }
+      }
+      return out.filter(c => c[3] - c[2] >= 40 && c[2] >= PAD - 0.5);
+    }
+
+    //  置き場所の好み。下寄り・中央寄り・広いほど良い。「読める」を優先して
+    //  full/compact が入る幅には強めのボーナスを付ける。
+    //  「中央」の基準は *キャンバスの中央*（左のシーンレイヤーパネルを除いた
+    //  表示領域の中心）。下部ツールバーもこの基準に揃えたので合わせる
+    //  （user 2026-08-27）。パネルが無い端末ではビューポート中央と同じ。
+    function canvasCenterX(vw){
+      const lp = document.getElementById('layer-panel');
+      let left = 0;
+      try{
+        if(lp && getComputedStyle(lp).display !== 'none' && lp.classList.contains('visible')){
+          const r = lp.getBoundingClientRect();
+          if(r.width > 4 && r.left <= 0) left = r.right;
+        }
+      }catch(_){}
+      return (left + vw) / 2;
+    }
+    function scoreRect(c, vw, vh){
+      const w = c[1] - c[0], h = c[3] - c[2];
+      const cx = (c[0] + c[1]) / 2;
+      const c0 = canvasCenterX(vw);
+      const span = Math.max(1, vw - c0);
+      let s = 0;
+      s += (w >= 440 ? 260 : w >= 300 ? 170 : w >= 190 ? 80 : 0);
+      s += Math.min(w, 640) / 640 * 90;
+      s += (c[3] / vh) * 70;                                   // 下にあるほど良い
+      s += (1 - Math.min(1, Math.abs(cx - c0) / span)) * 45;   // キャンバス中央寄り
+      s += Math.min(h, 220) / 220 * 15;
+      return s;
+    }
+
+    //  定位置は「全章ぶんの文言のうち一番背が高くなるもの」が収まる場所でないと
+    //  いけない。章が進んで文が伸びたときに動かせない（動かすと酔う）ため、
+    //  最初から最大の高さで場所を選ぶ。JA/EN 両方＋章番号ありで測る。
+    const _CAP_KEYS = ['intro','orbit','measure','sun','camtool','figure','layers','outro'];
+    const _hCache = new Map();
+    function maxCaptionHeight(ww){
+      const key = modeKey + '|' + ww;
+      if(_hCache.has(key)) return _hCache.get(key);
+      const sm = main.textContent, ss = sub.textContent, sp = step.textContent, sl = window._lang;
+      let maxH = 0;
+      for(const lang of ['ja', 'en']){
+        window._lang = lang;
+        paintBtnLabels();
+        for(const k of _CAP_KEYS){
+          const t = tx(k);
+          main.textContent = t[0]; sub.textContent = t[1]; step.textContent = '6 / 6';
+          const hh = chip.getBoundingClientRect().height;
+          if(hh > maxH) maxH = hh;
+        }
+      }
+      window._lang = sl;
+      main.textContent = sm; sub.textContent = ss; step.textContent = sp;
+      paintBtnLabels();
+      maxH += 10;                     // 実測距離や時刻など動的な差しこみぶんの余白
+      _hCache.set(key, maxH);
+      return maxH;
+    }
+
+    let _lastPick = null;   // 検証用（どの空きを選んだか）
+    function place(c, obs, vh){
+      const w = c[1] - c[0], h = c[3] - c[2];
+      let mi = w >= 440 ? 0 : w >= 300 ? 1 : w >= 190 ? 2 : 3;
+      for(; mi < MODES.length; mi++){
+        applyMode(MODES[mi]);
+        // 幅は「空きいっぱい」に固定する。縮めて成り行きにすると、狭い端末で
+        // 文字が細長い柱になって読めない。高さ（行数）で受けるほうが読める。
+        const ww = Math.min(w, 720);
+        chip.style.width    = ww + 'px';
+        chip.style.maxWidth = ww + 'px';
+        chip.style.left     = Math.round((c[0] + c[1]) / 2) + 'px';
+        chip.style.bottom   = Math.round(vh - c[3]) + 'px';
+        const needH = maxCaptionHeight(ww);
+        if(needH > h + 0.5) continue;
+        // 一番背が高い文言の状態で当たり判定する（＝どの章でも当たらない）。
+        const cr = chip.getBoundingClientRect();
+        const probe = { left:cr.left, right:cr.right, bottom:cr.bottom, top:cr.bottom - needH };
+        if(probe.right - probe.left > w + 0.5) continue;
+        let bad = false;
+        for(const o of obs){ if(hits(probe, o)){ bad = true; break; } }
+        if(!bad) return true;
+      }
+      return false;
+    }
+
+    //  ── 定位置（ドック）を 1 回だけ決める ────────────
+    //  本人FB 2026-08-27「ポップアップUIの場所が変わりすぎててみずらい　酔う」。
+    //  章やパネル開閉でチップを動かすのは禁止。ツアー中に開きうるUIを全部
+    //  足し合わせた“最悪ケース”の空きから 1 か所を選び、以後そこに固定する。
+    //  動かすのは画面サイズが変わった時だけ。
+    function layoutChip(){
+      const vw = innerWidth, vh = innerHeight;
+      if(!vw || !vh) return;
+      const inflate = (list)=> list.map(r=>({
+        left: r.left - GAP, top: r.top - GAP, right: r.right + GAP, bottom: r.bottom + GAP,
+      }));
+      const visible = obstacleRects();
+      // 段階的に妥協する。①開きうるUI全部を避ける ②パネル類は諦めて常設UI＋
+      // レイヤーパネル全高だけ避ける ③常設UIだけ避ける。極端に低い/狭い
+      // ビューポート（パネル自身が画面を超える）でも、最低限バーには被らない。
+      const LEVELS = [
+        inflate(visible.concat(probeRects()).concat(layerPanelFullRect())),
+        inflate(visible.concat(layerPanelFullRect())),
+        inflate(visible),
+      ];
+
+      // フェード用の translateY(10px) が入ったまま測ると 10px ぶんズレるので、
+      // 測定中だけ「表示位置」の transform に固定する（同一フレーム内なので
+      // ちらつかない）。
+      // ★transition を切ってから transform を書くこと。つけたまま書くと
+      //   getBoundingClientRect が *アニメーション途中* の座標を返し、まだ
+      //   10px 下にいる状態で当たり判定してしまう（＝広い空きが全部「当たる」
+      //   と誤判定され、狭い場所に小さく置かれる）。2026-08-27 の実測で判明。
+      const prevTr = chip.style.transform;
+      const prevTs = chip.style.transition;
+      chip.style.transition = 'none';
+      chip.style.transform = 'translateX(-50%) translateY(0)';
+      try{
+        _hCache.clear();
+        let cands = [];
+        for(let lv = 0; lv < LEVELS.length; lv++){
+          const obs = LEVELS[lv];
+          cands = freeRects(obs, vw, vh);
+          cands.sort((a,b)=> scoreRect(b, vw, vh) - scoreRect(a, vw, vh));
+          for(let i = 0; i < cands.length && i < 16; i++){
+            if(place(cands[i], obs, vh)){
+              _lastPick = { lv, i, c: cands[i].slice(), mode: modeKey, n: cands.length };
+              return;
+            }
+          }
+        }
+        _lastPick = { lv:-1, i:-1, n: cands.length };
+        // どこにも収まらない（UI が画面を埋め尽くしている）— いちばんマシな
+        // 空きへ最小モードで入れる。空きが 1 つも無ければ従来どおり下中央。
+        applyMode(MODES[MODES.length - 1]);
+        const c = cands[0];
+        if(c){
+          const ww = Math.max(96, Math.min(c[1] - c[0], 720));
+          chip.style.width = chip.style.maxWidth = ww + 'px';
+          chip.style.left     = Math.round((c[0] + c[1]) / 2) + 'px';
+          chip.style.bottom   = Math.round(vh - c[3]) + 'px';
+        } else {
+          const ww = Math.round(vw * 0.86);
+          chip.style.width = chip.style.maxWidth = ww + 'px';
+          chip.style.left = Math.round(vw / 2) + 'px';
+          chip.style.bottom = '14px';
+        }
+      } finally {
+        chip.style.transform = prevTr;
+        void chip.offsetWidth;              // 戻しを確定させてから transition を復帰
+        chip.style.transition = prevTs;
+      }
+    }
+    // 検証用フック（?showcase=1 のときしか存在しない）。3幅の重なり検査で
+    // 「なぜその場所を選んだか」を外から確認できるようにしておく。
+    window.__scTour = {
+      chip, layoutChip,
+      obstacles: ()=> obstacleRects().map(r=>({l:r.left|0,t:r.top|0,r:r.right|0,b:r.bottom|0})),
+      probes: ()=> probeRects().map(r=>({l:r.left|0,t:r.top|0,r:r.right|0,b:r.bottom|0})),
+      candidates: ()=>{
+        const vw = innerWidth, vh = innerHeight;
+        const obs = obstacleRects().concat(probeRects()).concat(layerPanelFullRect())
+          .map(r=>({left:r.left-GAP, top:r.top-GAP, right:r.right+GAP, bottom:r.bottom+GAP}));
+        return freeRects(obs, vw, vh)
+          .map(c=>({x1:c[0]|0, x2:c[1]|0, y1:c[2]|0, y2:c[3]|0, score:Math.round(scoreRect(c, vw, vh))}))
+          .sort((a,b)=> b.score - a.score).slice(0, 8);
+      },
+      mode: ()=> modeKey,
+      pick: ()=> _lastPick,
+      cam:  ()=> ({ yaw, pitch, x:camPos.x, y:camPos.y, z:camPos.z, yield:camYield, aborted }),
+    };
+    // 位置を動かすのは画面サイズが変わった時だけ（章やパネル開閉では動かさない）。
+    let layoutTimer = null;
+    const onResize = ()=>{ try{ layoutChip(); }catch(_){} };
+    addEventListener('resize', onResize);
+    addEventListener('orientationchange', onResize);
+
     // EN切替に追従（showcase=1 のときだけ差し込む安全なラップ）。
     const _origToggleLang = window.toggleLang;
     if(typeof _origToggleLang === 'function'){
       window.toggleLang = function(){ _origToggleLang.apply(this, arguments); try{ paint(); }catch(_){} };
     }
+    applyMode(MODES[0]);
     paint();
 
-    // ── 中断 / 章スキップ ──────────────────────────
-    let aborted = false;
+    // ── 終了 / 章スキップ / カメラの明け渡し ────────
+    let aborted = false;        // 「✕ 終了」でのみ true になる
     let skipToken = 0;          // 章スキップのたびに増える
     const waiters = new Set();
     function releaseWaits(){ for(const w of waiters){ clearTimeout(w.t); w.res(); } waiters.clear(); }
@@ -20531,29 +19944,60 @@ if(/[?&]showcase=1/.test(location.search)){
         waiters.add(w);
       });
     }
-    // 章の中断判定: 全体中断 or この章がスキップされた
+    // 章の中断判定: ツアー終了 or この章がスキップされた
     const chapterOver = (token)=> aborted || token !== skipToken;
 
-    function abort(){
+    // カメラの明け渡し。ユーザーがビューを触った瞬間から、その章の
+    // カメラ演出（周回パン・goHome）は行わない。章の頭でリセットするが、
+    // 直前まで触っていた場合は続けて譲る（カメラを引ったくらないため）。
+    let camYield = false, lastUserInputAt = 0;
+    const CAM_YIELD_GRACE = 3000;
+    function noteUserInput(){ lastUserInputAt = performance.now(); camYield = true; orbitStop = true; }
+    function beginChapterCam(){
+      camYield = (performance.now() - lastUserInputAt) < CAM_YIELD_GRACE;
+    }
+    // ビューを動かす入力だけを拾う。パネルやチップ上のクリック／スクロールは
+    // カメラを動かさないので数えない（数えると日照パネルを見ただけで
+    // 以降の構図リセットが止まってしまう）。
+    function isViewInput(ev){
+      const t = ev && ev.target;
+      try{
+        if(t && t.closest && t.closest('#sc-chip')) return false;
+        if(ev.type === 'keydown'){
+          const tag = t && t.tagName;
+          if(tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT') return false;
+          if(t && t.isContentEditable) return false;
+          return true;                      // WASD / 矢印 などはカメラ操作
+        }
+        if(t && t.closest && t.closest('#c')) return true;   // ビューポート canvas
+        if(t && (t.id === 'c' || t.id === 'joy' || t.id === 'joy-vert')) return true;
+        if(t && t.closest && (t.closest('#joy') || t.closest('#joy-vert'))) return true;
+        return t === document.body || t === document.documentElement;
+      }catch(_){ return false; }
+    }
+    function onUserInput(ev){ if(isViewInput(ev)) noteUserInput(); }
+    const INPUT_EVENTS = ['pointerdown','wheel','touchstart','keydown'];
+    INPUT_EVENTS.forEach(ev =>
+      window.addEventListener(ev, onUserInput, { passive:true, capture:true }));
+
+    function teardownListeners(){
+      INPUT_EVENTS.forEach(ev => window.removeEventListener(ev, onUserInput, { capture:true }));
+      removeEventListener('resize', onResize);
+      removeEventListener('orientationchange', onResize);
+      if(layoutTimer){ clearInterval(layoutTimer); layoutTimer = null; }
+    }
+    // 「✕ 終了」— ツアーをやめて、開いたツールを全部たたんで操作を渡す。
+    function endTour(){
       if(aborted) return;
       aborted = true;
+      orbitStop = true;
       releaseWaits();
+      teardownListeners();
       fade(false);
       setTimeout(()=>{ try{ chip.remove(); }catch(_){} }, 700);
       try{ restoreAll(); }catch(e){ console.warn('[showcase] restore failed', e); }
     }
-    function onUserInput(ev){
-      // 例外は2つだけ:
-      //  • スキップボタン → 現在の章を打ち切って次章へ（ツアーは続く）
-      //  • EN/JA 切替 → シーンを触る操作ではないので、言語を変えて見続けられる
-      try{
-        const t = ev && ev.target;
-        if(t && t.closest && (t.closest('#sc-chip') || t.closest('#tb-lang-btn'))) return;
-      }catch(_){}
-      abort();
-    }
-    ['pointerdown','wheel','touchstart','keydown'].forEach(ev =>
-      window.addEventListener(ev, onUserInput, { passive:true, capture:true }));
+    endBtn.addEventListener('click', (e)=>{ e.stopPropagation(); endTour(); });
     skipBtn.addEventListener('click', (e)=>{
       e.stopPropagation();
       skipToken++;          // 現在の章を打ち切って次へ
@@ -20564,16 +20008,19 @@ if(/[?&]showcase=1/.test(location.search)){
     const snap = {
       camGrids: null, camFocal: null, camAspect: null, camWasActive: false,
       sunWasActive: false, sunTimeMin: null, envPreset: null,
+      sunWx: null, sunFcAuto: null, sunFc: null,
       lpCollapsed: null,
       figureLayerId: null,
       // ツアー開始時のカメラ姿勢（＝シーンの既定＝いちばん見栄えのする画）。
       // 各章の頭でここへ戻すので、章ごとに構図が破綻しない。
+      // ただしユーザーがカメラを触っていたら戻さない（camYield）。
       homePos: null, homeYaw: 0, homePitch: 0,
     };
     function captureHome(){
       snap.homePos = camPos.clone(); snap.homeYaw = yaw; snap.homePitch = pitch;
     }
     function goHome(){
+      if(camYield) return;              // カメラはユーザーのもの
       if(!snap.homePos) return;
       camPos.copy(snap.homePos);
       setCamRotImmediate(snap.homeYaw, snap.homePitch);
@@ -20584,6 +20031,19 @@ if(/[?&]showcase=1/.test(location.search)){
     // ツアー前の見え方に復帰する。
     function restoreSky(){
       if(typeof sun === 'undefined') return;
+      // 天気（ツアーで切り替えたぶん）を戻す。予報の自動追従フラグも一緒に。
+      if(snap.sunWx != null){
+        sun.weather = snap.sunWx;
+        sun._fcAuto = snap.sunFcAuto;
+        if(snap.sunFc){
+          sun._fcCloudAmt = snap.sunFc.c; sun._fcRainLevel = snap.sunFc.r;
+          sun._fcSnowLevel = snap.sunFc.s; sun._fcPrecip = snap.sunFc.p;
+        }
+        try{
+          document.querySelectorAll('#sun-panel .sun-wx-btn')
+            .forEach(b=> b.classList.toggle('on', b.dataset.wx === sun.weather));
+        }catch(_){}
+      }
       if(snap.sunTimeMin != null){
         sun.timeMin = snap.sunTimeMin;
         if(typeof updateSunMode === 'function') updateSunMode();
@@ -20654,11 +20114,13 @@ if(/[?&]showcase=1/.test(location.search)){
     let orbitStop = false;
     function panAround(sweepRad, durMs, token){
       return new Promise(resolve=>{
+        if(camYield) return resolve();        // 最初から譲る
         const y0 = yaw, p0 = pitch;
         const t0 = performance.now();
         orbitStop = false;
         (function loop(now){
-          if(orbitStop || chapterOver(token)) return resolve();
+          // camYield: ユーザーが触った瞬間にパンを止めて操作を渡す（ツアーは続く）
+          if(orbitStop || camYield || chapterOver(token)) return resolve();
           const t = Math.min(1, (now - t0) / durMs);
           // ease-in-out で回り始め／止まり際を滑らかに
           const e = t < 0.5 ? 2*t*t : 1 - Math.pow(-2*t + 2, 2) / 2;
@@ -20670,18 +20132,43 @@ if(/[?&]showcase=1/.test(location.search)){
       });
     }
 
-    async function chOrbit(token){
-      say('orbit', 1); fade(true);
-      await wait(900); if(chapterOver(token)) return;
-      await panAround(Math.PI * 2, 8200, token);
+    //  前進。「見回す」だけでなく「歩ける」ことも見せる（本人FB 2026-08-27）。
+    function flyForward(meters, durMs, token){
+      return new Promise(resolve=>{
+        if(camYield) return resolve();
+        const p0  = camPos.clone();
+        const fwd = V3().set(Math.sin(yaw), 0, Math.cos(yaw)).normalize();
+        const t0  = performance.now();
+        orbitStop = false;
+        (function loop(now){
+          if(orbitStop || camYield || chapterOver(token)) return resolve();
+          const t = Math.min(1, (now - t0) / durMs);
+          const e = t < 0.5 ? 2*t*t : 1 - Math.pow(-2*t + 2, 2) / 2;
+          camPos.copy(p0).addScaledVector(fwd, meters * e);
+          if(typeof markDirty === 'function') markDirty(2);
+          if(t >= 1) return resolve();
+          requestAnimationFrame(loop);
+        })(performance.now());
+      });
+    }
+
+    async function chOrbit(token, idx){
+      // キャプションと動きは同時に始める（本人FB「ずれててきもちわるい」）。
+      // 先に wait を挟むと説明だけ出て絵が止まって見えるので挟まない。
+      say('orbit', idx); fade(true);
+      await panAround(Math.PI, 4200, token);      // その場で半周
       if(chapterOver(token)) return;
-      goHome();
+      await flyForward(4.5, 2600, token);         // 数メートル前進（＝歩ける）
+      if(chapterOver(token)) return;
+      await panAround(Math.PI, 4200, token);      // 残り半周（合計 1 周）
+      if(chapterOver(token)) return;
+      goHome();                                   // 位置・向きとも既定へ戻す
       await wait(500);
     }
 
     // ── 章2: 計測 ───────────────────────────────────
-    async function chMeasure(token){
-      say('measure', 2);
+    async function chMeasure(token, idx){
+      say('measure', idx);
       if(typeof window.toggleMeasure !== 'function') return;
       if(typeof msr !== 'undefined' && !msr.active) window.toggleMeasure();
       await wait(1000); if(chapterOver(token)) return;
@@ -20718,12 +20205,17 @@ if(/[?&]showcase=1/.test(location.search)){
     }
 
     // ── 章3: 日照 ───────────────────────────────────
-    async function chSun(token){
-      say('sun', 3);
+    async function chSun(token, idx){
+      say('sun', idx);
       if(typeof sun === 'undefined' || typeof window.toggleSunMode !== 'function') return;
       snap.sunWasActive = !!sun.active;
       if(snap.sunTimeMin == null) snap.sunTimeMin = sun.timeMin;
       if(snap.envPreset == null && typeof env !== 'undefined') snap.envPreset = env.preset;
+      if(snap.sunWx == null){
+        snap.sunWx     = sun.weather;
+        snap.sunFcAuto = sun._fcAuto;
+        snap.sunFc     = { c:sun._fcCloudAmt, r:sun._fcRainLevel, s:sun._fcSnowLevel, p:sun._fcPrecip };
+      }
       if(!sun.active) window.toggleSunMode();
       await wait(900); if(chapterOver(token)) return;
 
@@ -20743,15 +20235,27 @@ if(/[?&]showcase=1/.test(location.search)){
         await wait(TICK);
       }
       if(chapterOver(token)) return;
-      await wait(900);
-      // 空・時刻・環境プリセットまで戻す（残しておくと以降の章が夕焼けのまま）
+      await wait(600);
+
+      // 天気も切り替えて見せる（本人FB 2026-08-27）。日照パネルの
+      // 「🌤 天気」ボタンと同じ経路（onSunWeather）を通す。
+      if(typeof window.onSunWeather === 'function'){
+        for(const wx of ['cloudy', 'rain', 'clear']){
+          if(chapterOver(token)) break;
+          window.onSunWeather(wx);
+          sub.textContent = (isEN() ? 'Weather  ' : '天気  ') + UI.wx(wx);
+          await wait(2000);
+        }
+      }
+      if(chapterOver(token)) return;
+      // 空・時刻・天気・環境プリセットまで戻す（残しておくと以降の章が夕焼けのまま）
       restoreSky();
       await wait(300);
     }
 
     // ── 章4: カメラツール ───────────────────────────
-    async function chCamTool(token){
-      say('camtool', 4);
+    async function chCamTool(token, idx){
+      say('camtool', idx);
       if(typeof cam === 'undefined' || typeof window.toggleCamTool !== 'function') return;
       snap.camWasActive = !!cam.active;
       if(!snap.camGrids)         snap.camGrids  = Array.from(cam.grids || []);
@@ -20785,14 +20289,17 @@ if(/[?&]showcase=1/.test(location.search)){
     }
 
     // ── 章5: フィギュア ─────────────────────────────
-    async function chFigure(token){
-      say('figure', 5);
+    async function chFigure(token, idx){
       if(typeof window.addFigureLayer !== 'function') return;
       // カメラの少し前・床(y=0)に立たせる
       const fwd = V3().set(Math.sin(yaw), 0, Math.cos(yaw)).normalize();
       const spot = camPos.clone().addScaledVector(fwd, 3.2); spot.y = 0;
       const before = (typeof layers !== 'undefined') ? layers.map(l=>l.id) : [];
+      // モデル読込は数秒かかる。待っているあいだに説明だけ先に出すと
+      // 「ずれてる」ので、実際に立った瞬間にキャプションを切り替える。
       await window.addFigureLayer(spot);
+      if(chapterOver(token)) return;
+      say('figure', idx);
       if(typeof layers !== 'undefined'){
         const added = layers.find(l => l && l.type === 'figure' && before.indexOf(l.id) === -1);
         if(added) snap.figureLayerId = added.id;
@@ -20802,8 +20309,8 @@ if(/[?&]showcase=1/.test(location.search)){
     }
 
     // ── 章6: レイヤーパネル ─────────────────────────
-    async function chLayers(token){
-      say('layers', 6);
+    async function chLayers(token, idx){
+      say('layers', idx);
       const lp = document.getElementById('layer-panel');
       if(!lp || typeof window.toggleLayerPanelCollapse !== 'function') return;
       if(snap.lpCollapsed === null) snap.lpCollapsed = lp.classList.contains('collapsed');
@@ -20816,8 +20323,17 @@ if(/[?&]showcase=1/.test(location.search)){
     // ── 実行 ────────────────────────────────────────
     const hasScene = ()=> (typeof layers !== 'undefined' && layers.some(L=>L && L.mesh && L.type !== 'camera'));
 
-    const CHAPTERS = [chOrbit, chMeasure, chSun, chCamTool, chFigure, chLayers];
+    //  端末に存在しない機能の章は出さない（存在しないボタン名で案内しない）。
+    const ALL_CHAPTERS = [
+      { fn: chOrbit,   when: ()=> true },
+      { fn: chMeasure, when: HAS.measure },   // 下部ツールバーの📐測定
+      { fn: chSun,     when: HAS.sun },       // 下部ツールバーの☀日照
+      { fn: chCamTool, when: HAS.cam },       // 下部ツールバーの📷カメラ
+      { fn: chFigure,  when: HAS.addObj },    // 📦オブジェクト追加（シーンレイヤー見出し内）
+      { fn: chLayers,  when: HAS.layers },    // シーンレイヤーパネル
+    ];
 
+    let CHAPTERS = ALL_CHAPTERS;
     async function run(){
       // シーン指定が無ければデモシーンを自動読込
       try{
@@ -20835,17 +20351,28 @@ if(/[?&]showcase=1/.test(location.search)){
       if(aborted) return;
       captureHome();
 
+      // チップの定位置をここで 1 回だけ決める（以後は動かさない）。
+      // UI が出そろってから測る必要があるので、シーン読込後のこの位置。
+      try{ layoutChip(); }catch(e){ console.warn('[showcase] layout failed', e); }
+
+      // 端末に実在する機能だけで章立てを作る（ここで初めて確定する）。
+      CHAPTERS = ALL_CHAPTERS.filter(c=>{ try{ return c.when(); }catch(_){ return false; } });
+      CHAPTER_COUNT = CHAPTERS.length;
+      try{ window.__scTour.chapters = CHAPTERS.length; }catch(_){}
+
       // イントロ
       say('intro', 0); fade(true);
       await wait(3600);
       if(aborted) return;
 
-      for(const ch of CHAPTERS){
+      for(let ci = 0; ci < CHAPTERS.length; ci++){
+        const ch = CHAPTERS[ci].fn;
         if(aborted) break;
         const token = skipToken;
         try {
-          goHome();          // 章ごとに既定の構図から始める
-          await ch(token);
+          beginChapterCam();  // 章ごとに「カメラを譲るか」を判定し直す
+          goHome();           // 章ごとに既定の構図から始める（譲っていれば何もしない）
+          await ch(token, ci + 1);
         } catch(e){
           console.warn('[showcase] chapter skipped:', (e && e.message) || e);
         }
@@ -20865,6 +20392,7 @@ if(/[?&]showcase=1/.test(location.search)){
       fade(true);
       await wait(6000);
       if(aborted) return;
+      teardownListeners();
       fade(false);
       setTimeout(()=>{ try{ chip.remove(); }catch(_){} }, 700);
     }
@@ -23297,7 +22825,7 @@ Object.assign(I18N.ja,{
   'sun-rl-rise':'🌅 日の出','sun-rl-set':'🌇 日の入り','sun-rl-noon':'☀ 南中',
   'sun-rl-len':'⏱ 昼の長さ','sun-rl-alt':'↕ 高度','sun-rl-az':'↗ 方位',
   'sun-city-custom':'カスタム','env-sun-lock-txt':'日照モード中 — プリセットを押すと手動に戻ります',
-  'lbl-addobj-top':'オブジェクト追加',
+  'lbl-addobj-top':'モデル追加',
   'lbl-addfig-top':'フィギュア追加',
   'csp-shot-info':'ショット情報',
   'csp-cam-info':'カメラ情報',
@@ -23349,7 +22877,6 @@ Object.assign(I18N.ja,{
   'ct-grid-guide':'構図ガイド',
   'ct-grid-off':'なし',
   'ct-grid-thirds':'三分割',
-  'ct-grid-golden':'黄金',
   'ct-grid-cross':'十字',
   'ct-grid-diag':'対角',
   'ct-grid-safe-cust':'セーフ / カスタム',
@@ -23487,9 +23014,8 @@ Object.assign(I18N.ja,{
   'manual-link-save':'💾 プロジェクト保存',
   'manual-link-shortcut':'⌨ ショートカット早見表',
   'manual-link-faq':'❓ よくある質問',
-  'tt-help':'ユーザーマニュアル',
   'tt-cam-reset':'カメラを初期位置にリセット',
-  'tt-add-obj':'オブジェクト追加',
+  'tt-add-obj':'モデル追加',
   'tt-edit-name':'クリックで名前を編集',
   'tt-folder-add':'フォルダを追加',
   'tt-mf-collapse':'折りたたむ',
@@ -23553,7 +23079,7 @@ Object.assign(I18N.en,{
   'sun-rl-rise':'🌅 Sunrise','sun-rl-set':'🌇 Sunset','sun-rl-noon':'☀ Solar noon',
   'sun-rl-len':'⏱ Day length','sun-rl-alt':'↕ Altitude','sun-rl-az':'↗ Azimuth',
   'sun-city-custom':'Custom','env-sun-lock-txt':'Sun mode active — pick a preset to return to manual',
-  'lbl-addobj-top':'Add Object',
+  'lbl-addobj-top':'Add Model',
   'lbl-addfig-top':'Add Figure',
   'csp-shot-info':'Shot Info',
   'csp-cam-info':'Camera Info',
@@ -23605,7 +23131,6 @@ Object.assign(I18N.en,{
   'ct-grid-guide':'Composition Guide',
   'ct-grid-off':'None',
   'ct-grid-thirds':'Thirds',
-  'ct-grid-golden':'Golden',
   'ct-grid-cross':'Cross',
   'ct-grid-diag':'Diagonal',
   'ct-grid-safe-cust':'Safe / Custom',
@@ -23743,9 +23268,8 @@ Object.assign(I18N.en,{
   'manual-link-save':'💾 Save project',
   'manual-link-shortcut':'⌨ Shortcuts cheatsheet',
   'manual-link-faq':'❓ FAQ',
-  'tt-help':'User Manual',
   'tt-cam-reset':'Reset camera to initial position',
-  'tt-add-obj':'Add Object',
+  'tt-add-obj':'Add Model',
   'tt-edit-name':'Click to edit name',
   'tt-folder-add':'Add folder',
   'tt-mf-collapse':'Collapse',
@@ -25268,7 +24792,18 @@ window.startEditProjectName = function(){
 window.toggleObjTypeMenuTop = function(btn){
   const menu = document.getElementById('obj-type-menu-top');
   if(!menu) return;
-  menu.style.display = menu.style.display === 'flex' ? 'none' : 'flex';
+  const open = menu.style.display !== 'flex';
+  menu.style.display = open ? 'flex' : 'none';
+  if(!open) return;
+  // ボタンはシーンレイヤーの見出し行にあり (user 2026-08-27)、行の折返し具合で
+  // 左端にも右端にも来る。開くたびに画面内へ収まる向きを選び直す。
+  menu.style.left = '0'; menu.style.right = 'auto';
+  if(menu.getBoundingClientRect().right > innerWidth - 8){
+    menu.style.left = 'auto'; menu.style.right = '0';
+  }
+  if(menu.getBoundingClientRect().left < 8){
+    menu.style.left = '0'; menu.style.right = 'auto';
+  }
 };
 window.closeObjTypeMenuTop = function(){
   const menu = document.getElementById('obj-type-menu-top');

@@ -87,18 +87,8 @@ function _camAnimRenderPanel(){
           style="accent-color:#b594ff;cursor:pointer"> ${t('Hide paths & events','区画パス・イベントを非表示')}
       </label>
     </div>
-    <div style="margin-bottom:6px">
-      <label style="display:flex;align-items:center;gap:6px;font-size:.82em;cursor:pointer">
-        <input type="checkbox" id="ca-burnin-grid"
-          style="accent-color:#b594ff;cursor:pointer"> ${t('Burn in grid / safe zone','グリッド/セーフ枠を焼き込み')}
-      </label>
-    </div>
-    <div style="margin-bottom:6px">
-      <label style="display:flex;align-items:center;gap:6px;font-size:.82em;cursor:pointer">
-        <input type="checkbox" id="ca-export-4k"
-          style="accent-color:#b594ff;cursor:pointer"> ${t('4K recording','4K 録画')}
-      </label>
-    </div>
+    <!-- 「グリッド/セーフ枠を焼き込み」「4K 録画」のチェックは削除 (user 2026-08-27)。
+         焼き込みは常にOFF、録画解像度は既定(FHD相当)に固定。 -->
     <div style="display:flex;gap:4px">
       <button onclick="window.camAnimPreview()" ${ready ? '' : 'disabled'}
         style="flex:1;padding:5px 6px;background:rgba(120,200,255,.18);
@@ -433,7 +423,8 @@ window.camAnimRecordExport = function(){
   // toggle uses, so cropped recordings share that logic instead of duplicating
   // it). Pins the auto-quality watchdog for the duration — otherwise it would
   // see the sudden resolution jump as "too slow" and immediately reverse it.
-  const _export4K = !!(document.getElementById('ca-export-4k') || {}).checked;
+  // 4K 録画のチェックは廃止 (user 2026-08-27) — 常に既定解像度で録る。
+  const _export4K = false;
   const _prevExport4K = cam.export4K;
   const _prevPixelRatio = renderer.getPixelRatio();
   const _prevWatchdogPin = window._gpuWatchdog ? window._gpuWatchdog.manualOverride : undefined;
@@ -456,8 +447,9 @@ window.camAnimRecordExport = function(){
   // An offscreen canvas at the target delivery resolution receives a copy
   // of the frame rect after every render; the MediaRecorder captures it.
   const _useCamFrame = cam.active;
-  const _recBurnGrid = _useCamFrame
-    && !!(document.getElementById('ca-burnin-grid') || {}).checked;
+  // 焼き込みのチェックは廃止 (user 2026-08-27) — 録画出力に構図グリッド／
+  // セーフフレームは入れない。
+  const _recBurnGrid = false;
   // Always mirror into an offscreen 2D canvas (cropped to the camera frame,
   // or a 1:1 full-viewport copy) rather than ever handing the live WebGL
   // canvas straight to VideoFrame. The renderer runs with
@@ -764,11 +756,6 @@ function _drawGridOnCanvas(ctx, W, H){
   if(G.has('thirds')){
     Vline(33.333); Vline(66.667);
     Hline(33.333); Hline(66.667);
-  }
-  if(G.has('golden')){
-    const phi = 0.382, gc = 'rgb(255,200,80)';
-    Vline(phi*100, gc); Vline((1-phi)*100, gc);
-    Hline(phi*100, gc); Hline((1-phi)*100, gc);
   }
   if(G.has('cross')){ Vline(50); Hline(50); }
   if(G.has('diag')){

@@ -54,7 +54,7 @@ const cam = {
   aspect: 16/9,     // default delivery aspect (FHD 16:9). null = use sensor.
   margin: 5,
   // grids: SET of active grid types — multi-select. Each toggles independently.
-  // Members: thirds | golden | cross | diag | safe-action | safe-title | center-mark | custom
+  // Members: thirds | cross | diag | safe-action | safe-title | center-mark | custom
   grids: new Set(['thirds']),
   gridOpacity: 0.85,
   gridCols: 3,
@@ -356,9 +356,16 @@ window.setCamAspect = function(ar){
     applyCamSettings();
   });
 };
+// 「黄金（黄金比）」は廃止 (user 2026-08-27)。保存済みプロジェクト／JPEGメタに
+// 'golden' が残っていても読込でこけないよう、三分割へ寄せて受け入れる。
+window._camNormalizeGrids = function(vals){
+  const out = new Set();
+  for(const v of (vals || [])) out.add(v === 'golden' ? 'thirds' : v);
+  return out;
+};
 // Multi-select grid toggle. 'off' clears all; any other key flips its membership.
 function _applyCamGrids(setVals){
-  cam.grids = new Set(setVals || []);
+  cam.grids = window._camNormalizeGrids(setVals);
   document.querySelectorAll('#cam-panel .cm-grid-btn').forEach(b=>{
     const k = b.dataset.g;
     if(k === 'off') b.classList.toggle('on', cam.grids.size === 0);
@@ -579,14 +586,6 @@ function drawCamGrid(){
   if(G.has('thirds')){
     lines.push(vline(33.333), vline(66.667));
     lines.push(hline(33.333), hline(66.667));
-  }
-  if(G.has('golden')){
-    const phi = 0.382;          // 1 - 1/φ
-    const gc = 'rgb(255,200,80)';
-    lines.push(vline(phi*100, gc));
-    lines.push(vline((1-phi)*100, gc));
-    lines.push(hline(phi*100, gc));
-    lines.push(hline((1-phi)*100, gc));
   }
   if(G.has('cross')){
     lines.push(vline(50));

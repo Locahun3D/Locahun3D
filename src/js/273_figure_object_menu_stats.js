@@ -348,6 +348,19 @@ function updatePerfStats(){
     '  (×' + pr.toFixed(2) + ')';
 }
 
+// ── 画質パネル内の折りたたみセクション ──
+//  「📊 処理能力モニター」「📍 初期視点」は常時見えている必要が無いので、
+//  既定は見出し(タブ)だけ。クリックで中身を出す (user 2026-08-27)。
+//  key は 'qp-perf' / 'qp-init'（<key>-fold が中身、<key>-chev が ▶）。
+window.toggleQpFold=function(key){
+  const box = document.getElementById(key + '-fold');
+  if(!box) return;
+  const open = getComputedStyle(box).display === 'none';
+  box.style.display = open ? (box.dataset.foldDisplay || 'block') : 'none';
+  const head = document.querySelector('#quality-panel .qp-fold-head [id="' + key + '-chev"]');
+  if(head && head.parentElement) head.parentElement.classList.toggle('open', open);
+};
+
 // ── Quality Panel Toggle ──
 let _qualPanelOpen=false;
 window.toggleQualityPanel=function(){
