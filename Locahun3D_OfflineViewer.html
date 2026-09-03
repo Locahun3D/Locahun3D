@@ -19634,12 +19634,19 @@ if(/[?&]showcase=1/.test(location.search)){
     //  パネルまで足すと空きが痩せすぎて、チップが画面の真ん中に浮く結果になる。
     //  （それらはツアー中に開かない。ユーザーが自分で開いた場合は、そのとき
     //   前面に出るのはそちらで良い。）
+    //  その章が「この端末で実際に走るか」も条件にする。走らない章のパネルまで
+    //  場所を予約すると、空きが痩せてチップが隅に押しやられる。例: スマホは
+    //  シーンレイヤーが display:none で章6ごと飛ばすのに、そのパネル3枚ぶんの
+    //  面積を避けていた（user 2026-08-14）。null は「常に予約」。
     const PROBE = [
-      '#sun-panel',        // 章3
-      '#cam-panel',        // 章4
-      '#gizmo',            // 章2（測定パネル）
-      '#layer-transform', '#lp-footer-bar', '#lp-divider',   // 章6（レイヤー展開）
-      '#joy', '#joy-vert',
+      ['#sun-panel',       ()=>HAS.sun()],      // 章3
+      ['#cam-panel',       ()=>HAS.cam()],      // 章4
+      ['#gizmo',           ()=>HAS.measure()],  // 章2（測定パネル）
+      ['#layer-transform', ()=>HAS.layers()],   // 章6（レイヤー展開）
+      ['#lp-footer-bar',   ()=>HAS.layers()],
+      ['#lp-divider',      ()=>HAS.layers()],
+      ['#joy',             null],
+      ['#joy-vert',        null],
     ];
     //  中央寄せで幅が変わる横帯は、幅いっぱいを予約する（下の理由参照）。
     const WIDEN = ['#hud > *', '#view-tl-btns'];
@@ -19647,7 +19654,10 @@ if(/[?&]showcase=1/.test(location.search)){
     const PAD = 8;       // 画面端に残す余白(px)
     function probeRects(){
       const out = [];
-      for(const sel of PROBE){
+      for(const entry of PROBE){
+        const sel = entry[0], when = entry[1];
+        // この端末で走らない章のパネルは場所を空けておく必要がない
+        if(when){ let ok = true; try{ ok = !!when(); }catch(_){ ok = true; } if(!ok) continue; }
         let els;
         try{ els = document.querySelectorAll(sel); }catch(_){ continue; }
         for(const el of els){
@@ -19696,9 +19706,14 @@ if(/[?&]showcase=1/.test(location.search)){
           if(cs.display === 'none' || cs.visibility === 'hidden') continue;
           if(parseFloat(cs.opacity || '1') < 0.05) continue;
           if(cs.pointerEvents === 'none') continue;   // 装飾オーバーレイ
-          // 祖先ごと隠れている場合も除外（読込前の #hud{opacity:0} 配下など）
+          // 祖先ごと隠れている場合も除外。ただし *opacity* は見ない：#hud は
+          // ツアー中に一時的に opacity:0 へフェードすることがあり、その瞬間に
+          // 測ると .cbar ごと「存在しない」ことになって、チップが下部バーに
+          // 重なる位置で固定されてしまう（user 2026-08-14 実測）。ボタン自体は
+          // 消えていないので、幾何としては障害物のまま扱う。要素自身の
+          // opacity:0（トースト類）は上の行で除外済み。
           if(typeof el.checkVisibility === 'function' &&
-             !el.checkVisibility({ opacityProperty:true, visibilityProperty:true, contentVisibilityAuto:true })) continue;
+             !el.checkVisibility({ visibilityProperty:true, contentVisibilityAuto:true })) continue;
           const r = el.getBoundingClientRect();
           if(r.width < 2 || r.height < 2) continue;
           if(r.bottom <= 0 || r.top >= innerHeight || r.right <= 0 || r.left >= innerWidth) continue;
@@ -20381,9 +20396,26 @@ if(/[?&]showcase=1/.test(location.search)){
       if(aborted) return;
       captureHome();
 
-      // チップの定位置をここで 1 回だけ決める（以後は動かさない）。
-      // UI が出そろってから測る必要があるので、シーン読込後のこの位置。
-      try{ layoutChip(); }catch(e){ console.warn('[showcase] layout failed', e); }
+      // チップの定位置をここで決める（以後は動かさない）。
+      // ただし「UI が出そろってから」の判定が甘く、スマホではジョイスティック
+      // 表示と .cbar の bottom:212px 化がこの後に効くことがある。古い座標で
+      // 測ると下部ツールバーに重なったまま固定されてしまう（user 2026-08-14
+      // 実測: chip bottom 602 が cbar 575-600 に重なる → 測り直しで解消）。
+      // チップはまだ opacity:0 なので、障害物の配置が安定するまで測り直しても
+      // 画面上は一切動かない＝「定位置から動かさない」原則は保てる。
+      try{
+        layoutChip();
+        let prevSig = '';
+        for(let i = 0; i < 4; i++){
+          await wait(350);
+          if(aborted) return;
+          const sig = JSON.stringify(
+            obstacleRects().map(r => [r.left|0, r.top|0, r.right|0, r.bottom|0]));
+          if(sig === prevSig) break;      // 2回続けて同じ＝レイアウト確定
+          prevSig = sig;
+          layoutChip();
+        }
+      }catch(e){ console.warn('[showcase] layout failed', e); }
 
       // 端末に実在する機能だけで章立てを作る（ここで初めて確定する）。
       CHAPTERS = ALL_CHAPTERS.filter(c=>{ try{ return c.when(); }catch(_){ return false; } });
