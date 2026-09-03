@@ -719,6 +719,13 @@ window.toggleSunMode = function(){
     // 日照と測定は排他（user request 2026-06-19）。パネルが画面上でぶつかるため、
     // 日照を開くなら測定を閉じる。
     if(typeof msr!=='undefined' && msr.active && typeof _closeMeasureOnly==='function') _closeMeasureOnly();
+    // 狭い端末（スマホ縦）では日照とカメラも排他（user 2026-08-14）。両方開くと
+    // パネルで画面が埋まる。PC/タブレットは従来どおり併用できる。
+    if(typeof window._isNarrowPhoneUI === 'function' && window._isNarrowPhoneUI() &&
+       typeof cam !== 'undefined' && cam && cam.active &&
+       typeof window.toggleCamTool === 'function'){
+      try{ window.toggleCamTool(); }catch(_){}
+    }
     _setSunActive(true);   // 点灯
     _sunShowPanel(true);   // 操作パネルを開く
   } else {

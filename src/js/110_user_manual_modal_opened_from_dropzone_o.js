@@ -4,8 +4,25 @@
 //  （元はユーザーマニュアルのモーダルもここにあったが、開く導線だった
 //    下部ツールバーの「使い方」ボタンごと削除した — user 2026-08-27。）
 // ══════════════════════════════════════════════════
+//  スマホ縦のように「レイヤーパネル〜カメラパネルの間」が元々狭い端末では、
+//  日照パネルとカメラパネルが同時に開くと画面が埋まって操作できない
+//  — user 2026-08-14「日照時にカメラ機能が起動するとスマホだと狭くなりすぎる」。
+//  PC / タブレットは従来どおり併用できる（2026-06 の設計: 日照は closeAllPanels
+//  の対象外で、カメラと同時に触れるのが利点）。ここで排他にするのは狭い端末だけ。
+window._isNarrowPhoneUI = function(){
+  try{
+    return window.matchMedia('(pointer:coarse) and (any-hover:none)').matches
+        && window.innerWidth <= 600;
+  }catch(_){ return false; }
+};
 window.toggleCamTool = function(){
   const wasActive = cam.active;
+  // 狭い端末では日照とカメラを併用しない（開く側が相手を閉じる）
+  if(!wasActive && window._isNarrowPhoneUI() &&
+     typeof sun !== 'undefined' && sun && sun.active &&
+     typeof window.toggleSunMode === 'function'){
+    try{ window.toggleSunMode(); }catch(_){}
+  }
   // Mutual-exclusion: opening カメラ closes 測定 / 環境 / マップ / 画質, but KEEPS
   // the カメラアニメ panel open so the user can add path keys that capture this
   // camera's framing (user request 2026-06). closeAllPanels also closes the
