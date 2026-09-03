@@ -161,7 +161,7 @@ if(/[?&]showcase=1/.test(location.search)){
     chip.style.cssText =
       'position:fixed;left:50%;bottom:80px;transform:translateX(-50%) translateY(10px);z-index:6000;'+
       'display:flex;align-items:center;flex-wrap:wrap;gap:12px 16px;color:#fff;opacity:0;'+
-      'transition:opacity .5s ease, transform .5s ease;pointer-events:none;'+
+      'transition:opacity .5s ease, transform .5s ease, left .45s ease, bottom .45s ease;pointer-events:none;'+
       'background:linear-gradient(180deg,rgba(0,0,0,.42),rgba(0,0,0,.62));'+
       'padding:11px 16px 11px 20px;border-radius:14px;border:1px solid rgba(255,255,255,.16);'+
       'backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);'+
@@ -511,7 +511,10 @@ if(/[?&]showcase=1/.test(location.search)){
     //  章やパネル開閉でチップを動かすのは禁止。ツアー中に開きうるUIを全部
     //  足し合わせた“最悪ケース”の空きから 1 か所を選び、以後そこに固定する。
     //  動かすのは画面サイズが変わった時だけ。
-    function layoutChip(){
+    //  opts.ignoreProbes: 「いま開いているUI」だけを避ける（＝これから開くかも
+    //  しれないパネルは無視）。狭い端末で中央に寄せるための FREE ドック計算用。
+    function layoutChip(opts){
+      const useProbes = !(opts && opts.ignoreProbes);
       const vw = innerWidth, vh = innerHeight;
       if(!vw || !vh) return;
       const inflate = (list)=> list.map(r=>({
@@ -521,9 +524,11 @@ if(/[?&]showcase=1/.test(location.search)){
       // 段階的に妥協する。①開きうるUI全部を避ける ②パネル類は諦めて常設UI＋
       // レイヤーパネル全高だけ避ける ③常設UIだけ避ける。極端に低い/狭い
       // ビューポート（パネル自身が画面を超える）でも、最低限バーには被らない。
-      const LEVELS = [
+      const LEVELS = useProbes ? [
         inflate(visible.concat(probeRects()).concat(layerPanelFullRect())),
         inflate(visible.concat(layerPanelFullRect())),
+        inflate(visible),
+      ] : [
         inflate(visible),
       ];
 
@@ -600,10 +605,69 @@ if(/[?&]showcase=1/.test(location.search)){
         chip.style.transition = prevTs;
       }
     }
+
+    //  ── ドック2つ持ち（狭い端末で「普段は中央」を成立させる）──────
+    //  スマホでは #cam-panel が画面右半分を全高で覆うため、「開きうるUIを全部
+    //  避ける」1点固定だと中央に置けず、常に左端へ寄ってしまう（実測 -97px）。
+    //  本人判断 2026-08-14「どうしても無理なら少しずらしてもいい」を受けて、
+    //    FREE = いま見えているUIだけ避けた位置（＝中央寄り。普段はこちら）
+    //    SAFE = 開きうるUIも全部避けた位置（＝従来の1点固定）
+    //  の2つを持ち、パネルが *実際に開いて* FREE と重なる間だけ SAFE へ退避する。
+    //  章ごとに動くわけではないので「場所が変わりすぎて酔う」には戻らない。
+    //  PC/タブレットは FREE と SAFE が一致する（中央で当たらない）ので不動。
+    let DOCK_FREE = null, DOCK_SAFE = null, dockNow = '';
+    function captureDock(){
+      const r = chip.getBoundingClientRect();
+      return { left: chip.style.left, bottom: chip.style.bottom,
+               width: chip.style.width, maxWidth: chip.style.maxWidth, mode: modeKey,
+               rect: { left:r.left, top:r.top, right:r.right, bottom:r.bottom } };
+    }
+    function applyDock(d){
+      if(!d) return;
+      const m = MODES.find(x => x.k === d.mode);
+      if(m) applyMode(m);
+      chip.style.width = d.width; chip.style.maxWidth = d.maxWidth;
+      chip.style.left  = d.left;  chip.style.bottom   = d.bottom;
+    }
+    const sameDock = (a, b)=> !!a && !!b && a.left === b.left && a.bottom === b.bottom &&
+                              a.width === b.width && a.mode === b.mode;
+    function computeDocks(){
+      layoutChip();                            // 最悪ケース回避＝SAFE
+      DOCK_SAFE = captureDock();
+      layoutChip({ ignoreProbes:true });       // いま見えているUIだけ回避＝FREE
+      DOCK_FREE = captureDock();
+      applyDock(DOCK_FREE); dockNow = 'free';
+    }
+    //  FREE の位置に、いま実際に開いているパネルが被っているか
+    function probeCoversFree(){
+      if(!DOCK_FREE || sameDock(DOCK_FREE, DOCK_SAFE)) return false;
+      const f = DOCK_FREE.rect;
+      for(const entry of PROBE){
+        const el = document.querySelector(entry[0]);
+        if(!el) continue;
+        let cs; try{ cs = getComputedStyle(el); }catch(_){ continue; }
+        if(cs.display === 'none' || cs.visibility === 'hidden') continue;
+        if(parseFloat(cs.opacity || '1') < 0.05) continue;
+        const r = el.getBoundingClientRect();
+        if(r.width < 2 || r.height < 2) continue;
+        if(!(r.right <= f.left - GAP || r.left >= f.right + GAP ||
+             r.bottom <= f.top - GAP || r.top >= f.bottom + GAP)) return true;
+      }
+      return false;
+    }
+    function syncDock(){
+      if(!DOCK_FREE || sameDock(DOCK_FREE, DOCK_SAFE)) return;   // 動く必要なし
+      const want = probeCoversFree() ? 'safe' : 'free';
+      if(want === dockNow) return;
+      dockNow = want;
+      applyDock(want === 'safe' ? DOCK_SAFE : DOCK_FREE);
+    }
+
     // 検証用フック（?showcase=1 のときしか存在しない）。3幅の重なり検査で
     // 「なぜその場所を選んだか」を外から確認できるようにしておく。
     window.__scTour = {
-      chip, layoutChip,
+      chip, layoutChip, computeDocks, syncDock,
+      docks: ()=>({ free: DOCK_FREE, safe: DOCK_SAFE, now: dockNow }),
       obstacles: ()=> obstacleRects().map(r=>({l:r.left|0,t:r.top|0,r:r.right|0,b:r.bottom|0})),
       probes: ()=> probeRects().map(r=>({l:r.left|0,t:r.top|0,r:r.right|0,b:r.bottom|0})),
       candidates: ()=>{
@@ -620,7 +684,7 @@ if(/[?&]showcase=1/.test(location.search)){
     };
     // 位置を動かすのは画面サイズが変わった時だけ（章やパネル開閉では動かさない）。
     let layoutTimer = null;
-    const onResize = ()=>{ try{ layoutChip(); }catch(_){} };
+    const onResize = ()=>{ try{ computeDocks(); syncDock(); }catch(_){} };
     addEventListener('resize', onResize);
     addEventListener('orientationchange', onResize);
 
@@ -1059,7 +1123,7 @@ if(/[?&]showcase=1/.test(location.search)){
       // チップはまだ opacity:0 なので、障害物の配置が安定するまで測り直しても
       // 画面上は一切動かない＝「定位置から動かさない」原則は保てる。
       try{
-        layoutChip();
+        computeDocks();
         let prevSig = '';
         for(let i = 0; i < 4; i++){
           await wait(350);
@@ -1068,8 +1132,11 @@ if(/[?&]showcase=1/.test(location.search)){
             obstacleRects().map(r => [r.left|0, r.top|0, r.right|0, r.bottom|0]));
           if(sig === prevSig) break;      // 2回続けて同じ＝レイアウト確定
           prevSig = sig;
-          layoutChip();
+          computeDocks();
         }
+        // パネルの開閉に追従してドックを切り替える（FREE と SAFE が同じ端末では何もしない）
+        if(layoutTimer) clearInterval(layoutTimer);
+        layoutTimer = setInterval(()=>{ try{ syncDock(); }catch(_){} }, 400);
       }catch(e){ console.warn('[showcase] layout failed', e); }
 
       // 端末に実在する機能だけで章立てを作る（ここで初めて確定する）。
