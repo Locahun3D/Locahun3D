@@ -32,7 +32,11 @@ function _updateLpWidthVar(){
     document.documentElement.style.setProperty('--lp-width', '0px');
     return;
   }
-  const visible = panel.classList.contains('visible');
+  // 折りたたみ中（.collapsed）はヘッダーの帯（高さ ~35px）だけになり、キャンバス
+  // 下部は全幅使える。ここを見ずに .visible だけで判定していたため、畳んでいても
+  // cbar がパネル幅の半分（285/2 ≈ 143px）だけ右へずれていた — user 2026-08-14。
+  const visible = panel.classList.contains('visible')
+               && !panel.classList.contains('collapsed');
   const w = visible ? (parseInt(window.getComputedStyle(panel).width) || 285) : 0;
   document.documentElement.style.setProperty('--lp-width', w + 'px');
 }

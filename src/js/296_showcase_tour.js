@@ -526,6 +526,32 @@ if(/[?&]showcase=1/.test(location.search)){
       try{
         _hCache.clear();
         let cands = [];
+        // ① まず「ビューポートのど真ん中」に置けるか試す。②の空き探索は空きの
+        //    中央に寄せるので、左のレイヤーパネルぶんだけ常に右へ寄り「中心から
+        //    ずれている」と見えていた — user 2026-08-14。中央に置いてもどの障害物
+        //    にも当たらないなら中央を優先し、当たる狭い端末だけ②へ落とす。
+        //    ここも「一度決めたら動かさない」原則は維持（最悪ケースの LEVELS[0]
+        //    で判定しているので、ツアー中にパネルが開いても動かす必要がない）。
+        {
+          const cx = vw / 2;
+          const centred = freeRects(LEVELS[0], vw, vh)
+            .filter(c => c[0] < cx && c[1] > cx)
+            .map(c => {
+              const half = Math.min(c[1] - cx, cx - c[0]);
+              return [cx - half, cx + half, c[2], c[3]];
+            })
+            // 中央に寄せた結果が細すぎる（compact も入らない）なら、中央より
+            // 「読めること」を優先して②の空き探索に任せる。中央の細い柱に
+            // 押し込むと文字が縦に伸びて逆に読めない。
+            .filter(c => c[1] - c[0] >= 300)
+            .sort((a, b) => scoreRect(b, vw, vh) - scoreRect(a, vw, vh));
+          for(let i = 0; i < centred.length && i < 8; i++){
+            if(place(centred[i], LEVELS[0], vh)){
+              _lastPick = { lv:'centred', i, c: centred[i].slice(), mode: modeKey, n: centred.length };
+              return;
+            }
+          }
+        }
         for(let lv = 0; lv < LEVELS.length; lv++){
           const obs = LEVELS[lv];
           cands = freeRects(obs, vw, vh);
