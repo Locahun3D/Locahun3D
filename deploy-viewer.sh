@@ -16,6 +16,8 @@ echo "=== Syncing viewer-dist ==="
 cp "$DIR/index.html"                       "$DIST/"
 cp "$DIR/Locahun3D_OfflineViewer.html"     "$DIST/"
 cp "$DIR/version.json"                     "$DIST/"
+# レスポンスヘッダー定義（HTMLの charset=utf-8。無いとDiscord等のOGP展開が文字化け）
+cp "$DIR/_headers"                         "$DIST/"
 cp "$DIR/favicon.ico"                      "$DIST/"
 cp "$DIR/favicon.svg"                      "$DIST/"
 cp "$DIR/favicon.png"                      "$DIST/"

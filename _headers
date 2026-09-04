@@ -1,0 +1,15 @@
+# Workers 静的アセットのレスポンスヘッダー（Cloudflare の _headers 形式）。
+#
+# ⚠ なぜ必要か: 拡張子なしURL（/Locahun3D_OfflineViewer）は Content-Type が
+#   "text/html" だけで charset が付かず、Discord 等のリンク展開（OGP取得）が
+#   HTTPヘッダーだけを見て Latin-1 で解釈し「ロケハン3D」が化けた
+#   （本人報告 2026-09-04、Discord のプレビューで文字化け）。ブラウザは
+#   <meta charset> で救われるが、クローラは救われない。HTMLは全て charset を明示する。
+/Locahun3D_OfflineViewer
+  Content-Type: text/html; charset=utf-8
+/Locahun3D_OfflineViewer.html
+  Content-Type: text/html; charset=utf-8
+/
+  Content-Type: text/html; charset=utf-8
+/index.html
+  Content-Type: text/html; charset=utf-8
