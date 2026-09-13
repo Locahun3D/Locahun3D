@@ -69,7 +69,7 @@ export async function prepareLocalNavigation({root,output,regions,onProgress=()=
     payloads.push(...bundle.payloads);
     if(payloads.reduce((n,p)=>n+p.bytes.length,0)>64*1024**2)throw Error('Navigation bundle size limit');
    }
-   if(regions.length===2){
+   if(regions.length>=2&&regions.length<=4){
     onProgress('Verifying region transition clearance');
     const graph=await prepareNavigationTransitions(manifest,payloads);
     if(graph){manifest.graph=graph.entry;payloads.push({name:graph.name,bytes:graph.bytes});}
