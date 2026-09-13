@@ -14,6 +14,7 @@ export async function prepareProjectNavigation(input){
  if(!whole)return {project,status:'missing-collision'};
  const collision=bytes(whole.data,22000000);
  const index=await context.LocahunWholeCollision.decodeTiles(collision,whole.key);
+ if(project.walk.cellSize!==undefined&&(!Number.isFinite(project.walk.cellSize)||Math.abs(index.cellSize-project.walk.cellSize)>1e-6))throw new Error('Collision cell size mismatch');
  if(Math.abs(index.cellSize-.1)>1e-6){
   delete project.walk.navigation;
   return {project,status:'unsupported-cell-size'};

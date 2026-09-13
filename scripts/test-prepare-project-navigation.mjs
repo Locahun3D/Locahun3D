@@ -8,7 +8,7 @@ const ctx=vm.createContext({Uint8Array,DataView,Float32Array,Uint32Array,Blob,Co
 for(const name of ['216b_whole_collision','403_navigation_cache'])vm.runInContext(fs.readFileSync(new URL('../src/js/'+name+'.js',import.meta.url),'utf8'),ctx);
 const key='ab'.repeat(32);
 async function fixture(cellSize=.1){
- const size=cellSize===.1?1:.9;
+ const size=cellSize*6;
  const bytes=await ctx.LocahunWholeCollision.encodeTiles([{coord:[0,-1,0],boxes:[{center:[size,-cellSize,size],half:[size,cellSize,size]}]}],key,cellSize);
  return {version:3,layers:[],walk:{cellSize,signature:'source-transform',whole:{key,data:Buffer.from(bytes).toString('base64')}}};
 }
@@ -30,4 +30,15 @@ test('wrong proxy identity fails rather than installing an unrelated route',asyn
  assert.equal(typeof prepare,'function');
  const project=await fixture();project.walk.whole.key='cd'.repeat(32);
  await assert.rejects(prepare(project),/source/i);
+});
+
+test('declared cell size must match the decoded collision before accepting preparation',async()=>{
+ for(const cell of [.1,.15,.25]){
+  const input=await fixture(cell),before=JSON.stringify(input);
+  input.walk.cellSize=cell===.25?.5:.25;
+  const unchanged=JSON.stringify(input);
+  await assert.rejects(prepare(input),/cell size mismatch/i);
+  assert.equal(JSON.stringify(input),unchanged);
+  assert.notEqual(unchanged,before);
+ }
 });
