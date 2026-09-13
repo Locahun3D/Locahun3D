@@ -6,10 +6,12 @@ import {createRequire} from 'node:module';
 import {startLocalProjectServer} from './local-project-server.mjs';
 import {applyLocalNavigation} from './apply-local-navigation.mjs';
 import {prepareNavigationRegion} from './prepare-navigation-region.mjs';
+import {validateNavigationBundle} from './validate-navigation-bundle.mjs';
 const require=createRequire('F:/Htlml/3DGS/locahun3d_online/package.json'),{chromium}=require('playwright');
 const source='C:/Users/askgg/Dropbox/KWI/Products/Locahun3D/01_3DData/StudioPleaseGreen/260907/3_LocalViewer/2FStudio';
 const preparedFile=process.argv[2];assert(preparedFile,'Pass a verified prepared-project.json fixture');
-const project=JSON.parse(await fs.readFile(preparedFile,'utf8'));
+const applied=process.argv.includes('--applied');
+const project=applied?JSON.parse(await fs.readFile(path.join(source,'project-state.json'),'utf8')).project:JSON.parse(await fs.readFile(preparedFile,'utf8'));
 const stagedRegional=!!project.walk?.navigationRegions;
 assert(stagedRegional||project.walk?.navigation?.key===project.walk?.whole?.key);
 const regional=stagedRegional||process.argv.includes('--regional');let bundle;
@@ -31,7 +33,12 @@ try{
  }
  await fs.copyFile(new URL('../Locahun3D_OfflineViewer.html',import.meta.url),path.join(root,'viewer.html'));
  if(bundle)for(const item of bundle.payloads)await fs.writeFile(path.join(root,'assets',item.name),item.bytes,{flag:'wx'});
- if(project._navigationPreparation&&(!regional||stagedRegional)){
+ if(applied){
+  assert(stagedRegional,'Applied package must contain regional navigation');
+  const verified=await validateNavigationBundle(project.walk.navigationRegions,name=>fs.readFile(path.join(source,name)));
+  for(const [name,bytes] of verified.files)await fs.writeFile(path.join(root,name),bytes,{flag:'wx'});
+  await fs.writeFile(path.join(root,'project-state.json'),original);
+ }else if(project._navigationPreparation&&(!regional||stagedRegional)){
   await fs.writeFile(path.join(root,'project-state.json'),original);
   report.applied=await applyLocalNavigation({root,prepared:preparedFile});
  }else await fs.writeFile(path.join(root,'project-state.json'),JSON.stringify({revision:0,status:'draft',project}));
