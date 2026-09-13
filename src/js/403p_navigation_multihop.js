@@ -6,7 +6,7 @@
  const hash=s=>typeof s==='string'&&/^[a-f0-9]{64}$/.test(s);
  const bounds=b=>Array.isArray(b)&&b.length===2&&b.every(v=>Array.isArray(v)&&v.length===3&&v.every(Number.isFinite))&&b[1].every((v,i)=>v>b[0][i]);
  globalThis.LocahunNavigationMultihop={async find(io){
-  if(!hash(io?.source)||!valid(io.from)||!valid(io.to)||distance(io.from,io.to)>30||
+  if(!hash(io?.source)||!valid(io.from)||!valid(io.to)||distance(io.from,io.to)>100||
    !Array.isArray(io.entries)||io.entries.length>32||!Array.isArray(io.portals)||io.portals.length>256||
    !['prepare','current','accept'].every(k=>typeof io[k]==='function')||!io.current())return null;
   const from={...io.from},to={...io.to},entries=new Map();
@@ -32,7 +32,7 @@
    for(const link of edges.get(last.key)||[]){
     if(state.keys.includes(link.b.key))continue;
     const length=state.length+distance(state.point,link.a.point)+distance(link.a.point,link.b.point),score=length+distance(link.b.point,to);
-    if(score>30)continue;
+    if(score>100)continue;
     queue.push({keys:[...state.keys,link.b.key],links:[...state.links,link],point:link.b.point,length,score});
     if(queue.length>32){queue.sort((a,b)=>a.score-b.score);queue.length=32;}
    }
@@ -52,7 +52,7 @@
      const segment=raw.map(p=>({...p}));
      if(points.length&&distance(points.at(-1),segment[0])>.025){failed=true;break;}
      for(const p of segment){if(points.length)length+=distance(points.at(-1),p);points.push(p);}
-     if(points.length>1024||length>30){failed=true;break;}
+     if(points.length>1024||length>100){failed=true;break;}
     }catch{failed=true;break;}
    }
    if(failed)continue;if(!io.current()||checked++>=4)return null;

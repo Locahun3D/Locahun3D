@@ -21,11 +21,11 @@
         const corners=route||[to],path=[{point:from,at:0}];let length=0,previous=from;
         for(const corner of corners){
           const segment=distance(previous,corner),count=Math.ceil(segment/.1);
-          if(length+segment>30||path.length+count>2048)return false;
+          if(length+segment>100||path.length+count>2048)return false;
           for(let i=1;i<=count;i++)path.push({point:mix(previous,corner,i/count),at:length+segment*i/count});
           length+=segment;previous={...corner};
         }
-        if(length<.01||length>30)return false;
+        if(length<.01||length>100)return false;
         move={from,to,last:from,path,cursor:1,length,epoch:io.epoch(),start:now,previous:now,duration:Math.max(450,length/5*1000)};
         stopReason='moving';
         return true;
@@ -104,15 +104,15 @@
       const feetY=floor+(ground.y-floor)*progress+.02,height=p.y+.2-feetY;
       return height>=.3&&core.isCapsuleClear({x:p.x,y:feetY,z:p.z},height,.15);
     };
-  },createGesture(){
+  },createGesture({slop=5,suppressDoubleTap=true}={}){
     let pending=null,lastTap=-Infinity;
     return {reset(){pending=null;},arm(p,now){pending={...p,at:now,moved:false};},
-      move(p){if(pending&&(p.id!==pending.id||Math.hypot(p.x-pending.x,p.y-pending.y)>=5))pending.moved=true;},
+      move(p){if(pending&&(p.id!==pending.id||Math.hypot(p.x-pending.x,p.y-pending.y)>=slop))pending.moved=true;return !!pending&&!pending.moved;},
       take(p,now,consumed){
         const old=pending;pending=null;
-        if(!old||consumed||old.moved||p.id!==old.id||now-old.at>600||now<old.at||Math.hypot(p.x-old.x,p.y-old.y)>=5)return null;
+        if(!old||consumed||old.moved||p.id!==old.id||now-old.at>600||now<old.at||Math.hypot(p.x-old.x,p.y-old.y)>=slop)return null;
         const double=now-lastTap<300;lastTap=now;
-        return double?null:p;
+        return double&&suppressDoubleTap?null:p;
       }};
   }};
 })();
@@ -196,7 +196,7 @@ function _clickNavigateAt(clientX,clientY,preview=false,preparedHit=null,prepare
       if(typeof pickWorldPos!=='function')return false;
       const depth=msr.placeDepth;let point;
       try{point=pickWorldPos(clientX,clientY,{strictVisible:true});}finally{msr.placeDepth=depth;}
-      if(!point||Math.hypot(point.x-camPos.x,point.y+1.8-camPos.y,point.z-camPos.z)>30||!_clickNavigationCoverage(camPos,point))return false;
+      if(!point||Math.hypot(point.x-camPos.x,point.y+1.8-camPos.y,point.z-camPos.z)>100||!_clickNavigationCoverage(camPos,point))return false;
     }
     const picked=preparedHit||walkSetup.core.raycastSurface(ray.ray.origin,ray.ray.direction,Math.min(1000,pickCamera.far));
     if(!picked)return false;
@@ -288,7 +288,7 @@ function _clickNavigateAt(clientX,clientY,preview=false,preparedHit=null,prepare
   }catch(_error){if(!preview)_cancelClickNavigation();return false;}
 }
 
-const _clickGestures={mouse:LocahunClickNavigation.createGesture(),touch:LocahunClickNavigation.createGesture()};
+const _clickGestures={mouse:LocahunClickNavigation.createGesture(),touch:LocahunClickNavigation.createGesture({slop:12,suppressDoubleTap:false})};
 let _clickSuppressMouseUntil=0;
 function _clickPointerStart(kind,e){
   if(typeof _navigationHoldReset==='function')_navigationHoldReset();
@@ -311,7 +311,8 @@ function _clickPointerArm(kind,e){
 function _clickPointerMove(kind,e){
   if(typeof _navigationHoldMove==='function'&&_navigationHoldMove(kind,e))return true;
   if(kind==='touch'&&e.touches.length!==1){_clickGestures.touch.reset();return;}
-  const p=_clickPointerPoint(kind,e);if(p)_clickGestures[kind].move(p);
+  const p=_clickPointerPoint(kind,e);
+  if(p){const candidate=_clickGestures[kind].move(p);return kind==='touch'&&candidate;}
 }
 function _clickPointerTake(kind,e,consumed=false){
   if(typeof _navigationHoldTake==='function'){

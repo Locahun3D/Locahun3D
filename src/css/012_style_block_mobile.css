@@ -40,6 +40,18 @@
    radius are scaled the same factor so the analog feel is preserved.
    Anchored low (bottom:24 px, near the iPadOS home bar) so it sits exactly
    where the thumb naturally rests. */
+#walk-jump-button{
+  position:fixed;right:calc(24px + env(safe-area-inset-right,0px));
+  bottom:calc(var(--joy-viewport-bottom,24px) + 53px);
+  width:70px;height:70px;padding:0;box-sizing:border-box;border-radius:50%;
+  background:rgba(255,255,255,.15);border:2px solid rgba(255,255,255,.4);
+  z-index:98;touch-action:none;user-select:none;-webkit-user-select:none;
+  -webkit-touch-callout:none;cursor:pointer;
+}
+#walk-jump-button[hidden]{display:none!important;}
+#walk-jump-button.held{background:rgba(255,255,255,.3);border-color:rgba(255,255,255,.8);}
+#walk-jump-button:focus-visible{outline:2px solid white;outline-offset:4px;}
+body.walk-active #joy-vert{display:none!important;}
 #joy{
   position:fixed;bottom:var(--joy-viewport-bottom,24px);left:24px;width:176px;height:176px;
   display:none;pointer-events:all;z-index:60;touch-action:none;
@@ -147,7 +159,7 @@
      joystick group (bottom:212px, below), so the daylight + view-recording
      tools the user works with on phone fit too — they wrap to a tidy 2nd row.
      🗺マップ / 使い方 stay hidden to keep the bar to ≤2 rows (user choice). */
-  #hud .cbar > button:not(#btnMeasure):not(#btnCamTool):not(#btn-sun):not(#btnViewRec){display:none !important;}
+  #hud .cbar > button:not(#btnMeasure):not(#btnCamTool):not(#btnCamAnim):not(#btn-sun):not(#btnViewRec){display:none !important;}
   /* Center the surviving buttons so they don't anchor to the cbar's
      original (off-center) origin. */
   #hud .cbar{justify-content:center !important;}

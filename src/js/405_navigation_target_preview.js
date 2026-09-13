@@ -44,8 +44,8 @@ function _navigationHoldMove(kind,e){
     _navigationHoldReset();return false;
   }
   if(!h.active){
-    if(Math.hypot(point.x-h.point.x,point.y-h.point.y)>=5)_navigationHoldReset();
-    return false;
+    if(Math.hypot(point.x-h.point.x,point.y-h.point.y)>=(kind==='touch'?12:5)){_navigationHoldReset();return false;}
+    return kind==='touch';
   }
   h.point=point;_navigationHoldPreview();return true;
 }

@@ -39,8 +39,18 @@ test('six equipment choices build finite lightweight geometry with feet at zero'
 test('vehicle bodies retain selected manufacturer dimensions, not normalized import size', () => {
   assert(ctx.LocahunEquipment, 'equipment geometry is available');
   for (const [id, x, y, z] of expected) {
-    const size = new THREE.Box3().setFromObject(ctx.LocahunEquipment.build(THREE, id)).getSize(new THREE.Vector3());
+    const root=ctx.LocahunEquipment.build(THREE,id);
+    for(const child of [...root.children])if(child.userData.mirror)root.remove(child);
+    const size = new THREE.Box3().setFromObject(root).getSize(new THREE.Vector3());
     for (const axis of ['x', 'y', 'z']) assert(Math.abs(size[axis] - ({ x, y, z })[axis]) < .001, id + ' ' + axis);
+  }
+});
+test('Japanese vehicles have external mirrors and trucks have dual rear wheels',()=>{
+  for(const [id] of expected){
+    const root=ctx.LocahunEquipment.build(THREE,id);
+    assert.equal(root.children.filter(p=>p.name==='mirror-housing').length,2);
+    assert(root.getObjectByName('door-seam'));
+    if(id!=='hiace')assert.equal(root.children.filter(p=>p.name==='tire').length,6);
   }
 });
 test('HiAce wheel-arch outline is simple and windshield follows the body surface', () => {

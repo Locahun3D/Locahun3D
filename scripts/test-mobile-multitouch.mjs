@@ -1,0 +1,35 @@
+import fs from 'node:fs';
+import assert from 'node:assert/strict';
+import {createRequire} from 'node:module';
+const read=p=>fs.readFileSync(new URL('../'+p,import.meta.url),'utf8');
+const {chromium}=createRequire('F:/Htlml/3DGS/locahun3d_online/package.json')('playwright');
+const template=read('src/template.html');
+const joy=read('src/js/402_input_shared_drag_touch.js').split('// Joystick\n')[1];
+const browser=await chromium.launch({channel:'chrome',headless:true});
+try{
+ const page=await browser.newPage({viewport:{width:844,height:390},hasTouch:true});
+ const css=read('src/css/012_style_block_mobile.css')+(fs.existsSync(new URL('../src/css/063_touch_layout.css',import.meta.url))?read('src/css/063_touch_layout.css'):'');
+ await page.setContent('<style>'+css+'</style>'+template.slice(template.indexOf('<!-- Mobile joystick -->'),template.indexOf('{{include:src/assets/equipment_models.html}}')));
+ await page.addScriptTag({content:'var joyDX=0,joyDY=0;var layers=[];var walkMode={active:true};function markDirty(){};'+joy+'\n'+read('src/js/406_walk_jump_button.js')+'\n_syncWalkJumpButton();'});
+ const cdp=await page.context().newCDPSession(page);
+ await page.evaluate(()=>{window.touchLog=[];for(const type of ['touchstart','touchmove','touchend','touchcancel'])window.addEventListener(type,e=>touchLog.push({type,changed:[...e.changedTouches].map(t=>t.identifier),touches:[...e.touches].map(t=>t.identifier),dx:joyDX,dy:joyDY}));});
+ const touch=(type,points)=>cdp.send('Input.dispatchTouchEvent',{type,touchPoints:points});
+ const jr=await page.locator('#joy').boundingBox(),br=await page.locator('#walk-jump-button').boundingBox();
+ const a={id:1,x:jr.x+88,y:jr.y+88},b={id:2,x:br.x+br.width/2,y:br.y+br.height/2};
+ await touch('touchStart',[a]);a.y-=55;await touch('touchMove',[a]);
+ assert((await page.evaluate(()=>Math.hypot(joyDX,joyDY)))>.78,'joystick running');
+ await touch('touchStart',[a,b]);
+ assert.equal(await page.evaluate(()=>walkMode.jumpRequested),true,'second finger jumps immediately while joystick remains held');
+ await page.evaluate(()=>walkMode.jumpRequested=false);
+ await touch('touchEnd',[b]);
+ assert.equal(await page.evaluate(()=>walkMode.jumpRequested),false,'release does not queue a second jump');
+ assert((await page.evaluate(()=>Math.hypot(joyDX,joyDY)))>.78,'releasing jump preserves sprint: '+JSON.stringify(await page.evaluate(()=>touchLog)));
+ await touch('touchStart',[a,b]);
+ assert.equal(await page.evaluate(()=>walkMode.jumpRequested),true,'repeated jump with same running finger');
+ await touch('touchCancel',[]);
+ assert.equal(await page.evaluate(()=>Math.hypot(joyDX,joyDY)),0,'cancel clears movement');
+ assert.equal(br.width,br.height,'jump is circular');
+ assert.equal(await page.locator('#walk-jump-button').innerText(),'','jump uses a circle without text');
+ assert.equal(await page.locator('#walk-jump-button').getAttribute('aria-label'),'ジャンプ');
+ console.log('PASS: real two-finger sprint/jump, repeat, release, cancellation and circular UI');
+}finally{await browser.close();}
