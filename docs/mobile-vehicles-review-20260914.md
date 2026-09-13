@@ -34,6 +34,18 @@ These are original lightweight planning representations, not manufacturer CAD or
 
 ## Reproduce
 
+## Publication verified
+
+- Offline source commit: `638ed04`; online sync: `9548cfa`. Both pushed.
+- Standalone Worker: `449a398b-3b07-41d2-ac23-24b03a3d4e7b`.
+- Standalone release: `7e07874f8fb94efc93dccfea1d3b460e3bd5d78bfdfec9b966c92397cddd5982`.
+- Online release: `301498a37ad73c1564595adbeee73efc030034d4f9163df409dc4d7c29abf905`.
+- Online Actions run `34780029626` completed successfully. Published viewer hash/stamp, toolbar interaction and zero page exceptions verified. Standalone demo screenshot reviewed and file-origin startup update passed.
+- The standalone wrapper returned a nonzero exit after promotion without a final diagnostic; direct live HTML hash, complete release-asset verification, startup update and demo UI checks were subsequently rerun and passed.
+- Dropbox: 10 known-old viewer HTML files replaced, backups at `F:/Codex/locahun-navigation-20260913/distribution-1789330641859`; 18,282 non-viewer files retained unchanged metadata.
+
+## Commands
+
 ```powershell
 node scripts/test-touch-feature-layout.mjs
 node scripts/test-touch-nested-controls.mjs

@@ -18,7 +18,7 @@ try{
  assert.equal(await page.evaluate(()=>window.__locahunBuildRelease),release);
  assert.equal(await page.locator('#hud .cbar #btnCamAnim').count(),1);
  if(!online){await page.locator('[id^="lr-"]').first().waitFor({state:'attached',timeout:90000});await page.waitForTimeout(10000);}
- else await page.evaluate(()=>loadEmptyProject());
+ else {await page.locator('#emptyBtn').click();await page.locator('#dz').waitFor({state:'hidden'});}
  await page.waitForFunction(()=>document.getElementById('lbl-walk')?.textContent==='歩行',null,{timeout:60000});
  const file=new URL((online?'online':new URL(origin).hostname)+'-desktop.png',out).pathname.replace(/^\/(\w:)/,'$1');
  await page.screenshot({path:file});
