@@ -1,6 +1,12 @@
 # Cross-Region Navigation Design
 
-Status: proposed continuation; not implemented or deployed.
+Status: offline surface-candidate discovery implemented and tested; graph,
+collision-verified transitions and runtime integration not implemented/deployed.
+
+`scripts/navigation-transition-candidates.mjs` returns explicitly unverified
+pairs with triangle indices. Synthetic tests reject stacked floors, gaps and
+boundary-only overlap. An actual studio split produced 242 candidates (27 near
+the staircase). These are not proof of capsule clearance or connectivity.
 
 ## Scope
 
