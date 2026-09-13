@@ -1,0 +1,82 @@
+# Cross-Region Navigation Design
+
+Status: proposed continuation; not implemented or deployed.
+
+## Scope
+
+Continue a click journey through adjacent precomputed regions, including stairs,
+without increasing ordinary viewer startup work or replacing the renderer.
+Preserve the current 30m maximum journey initially. A longer journey is a
+separate change, not a reason to remove resource limits here.
+
+## Existing Constraints
+
+- 403h requires both endpoints inside one region with a 0.35m interior margin.
+- 403f caches at most two query objects and evicts/disposes older ones.
+- 403j acquires a single region collision payload and one corridor core.
+- Region keys bind geometry identity, bounds and the fixed navigation profile.
+- Vertically overlapping region bounds do not establish a walkable connection.
+- Current LNV meshes are generated independently and cannot be safely joined
+  merely by concatenating vertices or snapping nearest boundary points.
+
+## Chosen Direction
+
+Generate explicit, verified transition points on the authoring PC. Prefer this
+to runtime union/baking or loading every region to search for overlaps. Retain
+existing single-region routing as the first, cheaper path.
+
+A transition binds two region keys and two floor points. The two points must
+belong to corresponding walkable surfaces in the overlap, within a small
+validated tolerance. Same X/Z on different floors is not a connection. Generate
+candidate points from actual navmesh surfaces, not AABB centers. Verify the
+short crossing against the paired fine collision, including body clearance,
+step height, floor support and both directions. Do not infer a connection where
+the overlap has insufficient clearance.
+
+Offline transition records must additionally retain each endpoint's connected
+component. A region may contain disconnected floors or rooms; a graph node is
+therefore a transition endpoint, not just a region ID. Intra-region graph edges
+are accepted only after the existing query proves connectivity between their
+endpoints. Record route lengths, not straight-line distances, as edge weights.
+
+Version the graph separately from the existing schema-1 manifest. Bind its
+digest and bytes to the exact ordered region payload identities and source.
+Keep old projects and viewers on their existing single-region behavior.
+
+## Runtime Integration
+
+1. Try the current single-region selector unchanged.
+2. Only when needed, use bounded graph search over verified offline edges.
+3. Load region queries sequentially; do not retain query objects across LRU
+   eviction. Copy validated route points before loading the next region.
+4. Check all endpoints, source/epoch/intent, cumulative length and point limits
+   after each asynchronous operation. An invalid segment rejects the journey.
+5. Build collision for the complete accepted corridor before moving. Initially
+   cap a journey to two regions and retain the current corridor box budget.
+   Reject over-budget requests instead of freezing mid-flight while loading.
+6. Preserve look-drag behavior, explicit translation cancellation, destination
+   preview, body clearance, ground +1.8m camera height and lease disposal.
+
+The two-region limit is an initial verified rollout, not full arbitrary-building
+coverage. Extend it only after resource measurements and longer-chain tests.
+
+## Required Evidence Before Enabling
+
+- Positive: overlapping regions, different tessellation, stairs, both directions.
+- Negative: adjacent but disconnected rooms, wall in overlap, stacked floors,
+  low ceiling, gap, changed transform/source, corrupted or missing graph/payload.
+- Async: new click, source edit, cancellation, query eviction and late response.
+- Limits: graph bytes/nodes/edges, total journey length, corridor boxes and
+  pair count. No extra startup requests on the ordinary public demo.
+- Real studio: choose endpoints that no individual region can cover, verify
+  travel crosses the actual seam and cannot pass through the stair wall.
+- ZIP and local save/restart preserve graph records and fail closed on mismatch.
+- Visual desktop/mobile Chrome checks; physical iPad Safari remains a separate
+  unresolved verification requirement when no device is available.
+
+## Publication Gate
+
+Do not change public schema or enable a runtime fallback from this design alone.
+First build and test the offline transition validator on synthetic and real
+studio data. Then integrate graph persistence, runtime routing, corridor resource
+limits, browser verification and the existing guarded release workflow.
