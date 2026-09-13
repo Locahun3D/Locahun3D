@@ -10,8 +10,15 @@ import {preparePortableCompletion} from './prepare-portable-completion.mjs';
 
 test('relocated portable package exports a human-completed save without canonical dependencies', {timeout:120000}, async t=>{
  const base=await fs.mkdtemp(path.join(os.tmpdir(),'portable-completion-'));
- let child;
- t.after(async()=>{if(child&&child.exitCode===null){child.kill();await once(child,'exit');}assert.equal(path.dirname(base),path.resolve(os.tmpdir()));await fs.rm(base,{recursive:true,force:true});});
+ let child,serverPid;
+ t.after(async()=>{
+  if(child&&child.exitCode===null){child.kill();await once(child,'exit');}
+  if(serverPid){try{process.kill(serverPid);}catch(e){if(e.code!=='ESRCH')throw e;}
+   for(let i=0;i<100;i++){try{process.kill(serverPid,0);}catch(e){if(e.code==='ESRCH')break;throw e;}await new Promise(r=>setTimeout(r,50));}
+   assert.throws(()=>process.kill(serverPid,0),{code:'ESRCH'});
+  }
+  assert.equal(path.dirname(base),path.resolve(os.tmpdir()));await fs.rm(base,{recursive:true,force:true,maxRetries:10,retryDelay:100});
+ });
  const ZIP=loadZipLibrary(),zip=new ZIP();
  zip.file('project.json',JSON.stringify({version:4,layers:[{id:1,type:'splat',file:'a.rad'}]}));zip.file('a.rad','unchanged-source');
  const source=path.join(base,'source.zip');await fs.writeFile(source,await zip.generateAsync({type:'nodebuffer'}));
@@ -22,10 +29,16 @@ test('relocated portable package exports a human-completed save without canonica
  assert.equal(path.dirname(out),base);await fs.rm(out,{recursive:true,force:true});
  const launch=await fs.readFile(path.join(moved,'Start_AutoExport.cmd'),'utf8');
  assert.match(launch,/%~dp0/);assert.doesNotMatch(launch,/F:|askgg|SESSION/i);
- const script=`import {startCompletedProjectServer} from './tools/scripts/completed-project-server.mjs';const s=await startCompletedProjectServer({root:'Project',jobs:'Exports',autoUpdate:false});console.log(s.url);process.on('SIGTERM',async()=>{await s.close();process.exit();});`;
- child=spawn(path.join(moved,'Project/runtime/node.exe'),['--input-type=module','-e',script],{cwd:moved,env:{...process.env,USERPROFILE:base,HOME:base,NODE_PATH:'',LOCAHUN_ADMIN_SESSION:''},stdio:['ignore','pipe','pipe']});
+ assert.match(launch,/LOCAHUN_NO_OPEN/);
+ child=spawn('cmd.exe',['/d','/c','Start_AutoExport.cmd'],{cwd:moved,windowsHide:true,env:{...process.env,USERPROFILE:base,HOME:base,NODE_PATH:'',LOCAHUN_ADMIN_SESSION:'',LOCAHUN_NO_OPEN:'1'},stdio:['ignore','pipe','pipe']});
  let err='';child.stderr.on('data',b=>err+=b);
- const url=await new Promise((resolve,reject)=>{let output='';child.stdout.on('data',b=>{output+=b;if(output.includes('\n'))resolve(output.trim());});child.once('exit',code=>reject(Error(`Child ${code}: ${err}`)));});
+ assert.equal((await once(child,'exit'))[0],0,err);
+ let url;
+ for(let i=0;i<100;i++){
+  try{const lock=JSON.parse(await fs.readFile(path.join(moved,'Project/.local-project.lock')));assert.equal(lock.root,path.join(moved,'Project'));serverPid=lock.pid;url=lock.url;if(url)break;}catch(e){if(e.code!=='ENOENT'&&!(e instanceof SyntaxError))throw e;}
+  await new Promise(r=>setTimeout(r,100));
+ }
+ assert.ok(url,await fs.readFile(path.join(moved,'server-error.log'),'utf8'));
  assert.deepEqual(await fs.readdir(path.join(moved,'Exports')),[]);
  const state=JSON.parse(await fs.readFile(path.join(moved,'Project/project-state.json')));
  assert.equal(state.status,'draft');

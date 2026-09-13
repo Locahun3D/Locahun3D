@@ -16,11 +16,13 @@ No session, online scene mapping or upload authorization is included.
 Viewer external dependencies still mean this is not a fully offline viewer.
 
 Test: a synthetic package is copied to a path containing spaces, the original
-package removed, and the bundled Node starts the server there with an isolated
-home directory. Draft produces no export; an actual HTTP editing-complete save
+package removed, and the actual Windows CMD/PowerShell launcher starts the bundled
+Node server there with an isolated home directory. Draft produces no export; an actual HTTP editing-complete save
 produces a verified archive whose embedded source bytes match. Input ZIP is
-unchanged. The Windows double-click launcher itself and another physical PC have
-not yet been exercised. Failed builds retain only the new incomplete directory
+unchanged. The same launcher used by double-click has been executed on this PC;
+another physical PC has not yet been exercised. Test mode sets `LOCAHUN_NO_OPEN=1`
+to pass `--no-open` to the completion server, avoiding an unsolicited browser tab.
+Normal launch still opens the viewer. Failed builds retain only the new incomplete directory
 for inspection; do not use incomplete output. Original 2FStudio is not repackaged.
 
 ## Connected Workflow (2026-09-14)

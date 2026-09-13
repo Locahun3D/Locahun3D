@@ -15,12 +15,16 @@ export async function startCompletedProjectServer({root,jobs,port=0,autoUpdate=t
 }
 
 if(process.argv[1]&&path.resolve(process.argv[1])===fileURLToPath(import.meta.url)){
- const args=process.argv.slice(2),options={};
- for(let i=0;i<args.length;i+=2){if(!['--root','--jobs','--port'].includes(args[i])||!args[i+1]||options[args[i]])throw Error('Usage: --root PROJECT --jobs EXPORT_DIRECTORY [--port PORT]');options[args[i]]=args[i+1];}
+ const args=process.argv.slice(2),options={};let noOpen=false;
+ for(let i=0;i<args.length;i++){
+  if(args[i]==='--no-open'&&!noOpen){noOpen=true;continue;}
+  if(!['--root','--jobs','--port'].includes(args[i])||!args[i+1]||args[i+1].startsWith('--')||options[args[i]])throw Error('Usage: --root PROJECT --jobs EXPORT_DIRECTORY [--port PORT] [--no-open]');
+  options[args[i]]=args[++i];
+ }
  if(!options['--root']||!options['--jobs'])throw Error('Required --root and --jobs');
  const running=await startCompletedProjectServer({root:options['--root'],jobs:options['--jobs'],port:Number(options['--port']||0),onProgress:phase=>console.error(phase)});
  console.log(running.url);
- openBrowser(running.url);
+ if(!noOpen)openBrowser(running.url);
  const stop=()=>running.close().catch(()=>{process.exitCode=1;});
  process.once('SIGINT',stop);process.once('SIGTERM',stop);
 }
