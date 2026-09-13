@@ -23,9 +23,14 @@ const hook=`window.roomQA={
   points.sort((a,b)=>b.area-a.area);
   const nearby=points.filter(p=>Math.hypot(p.x-camPos.x,p.z-camPos.z)<6&&Math.abs(p.y-(camPos.y-1.8))<1);
   const support=walkSetup.core.raycastSurface({x:camPos.x,y:camPos.y,z:camPos.z},{x:0,y:-1,z:0},10);
+  const cr=await fetch(new URL('assets/'+e.key+'.lcp',location.href));if(!cr.ok)throw Error('Fine collision unavailable');
+  const fine=await LocahunWalkCollision.create();let fineSupport;
+  try{fine.rebuild({boxes:await LocahunWholeCollision.decode(new Uint8Array(await cr.arrayBuffer()),e.key)});fineSupport=fine.raycastSurface({x:camPos.x,y:camPos.y,z:camPos.z},{x:0,y:-1,z:0},10);}finally{fine.dispose();}
   const pairs=[];for(const a of support?.point?[support.point]:[]){for(const b of nearby){const d=Math.hypot(a.x-b.x,a.z-b.z);if(d<.75||d>3||Math.abs(a.y-b.y)>.2)continue;
    const lease=await provider.acquire(a,b);if(!lease)continue;const safe=LocahunRouteClearance(lease.points,lease.core,LocahunClickNavigation);lease.dispose();
-   if(safe){pairs.push({a,b});break;}}if(pairs.length===6)break;}return {pairs,support,cellSize:walkSetup.wholeIndex.cellSize,triangles:points.length,position:camPos.toArray(),sample:points.slice(0,20)};
+   if(safe){pairs.push({a,b});break;}}if(pairs.length===6)break;}
+  const visible=[{x:640,y:700},{x:500,y:700},{x:900,y:700}].map(pixel=>{const p=pickWorldPos(pixel.x,pixel.y,{strictVisible:true});return {pixel,point:p?{x:p.x,y:p.y,z:p.z}:null,support:p?walkSetup.core.raycastSurface({x:p.x,y:p.y+.3,z:p.z},{x:0,y:-1,z:0},2):null};});
+  return {pairs,support,fineSupport,visible,cellSize:walkSetup.wholeIndex.cellSize,triangles:points.length,position:camPos.toArray(),sample:points.slice(0,20)};
  },
  aim({a,b}){camPos.set(a.x,a.y+1.8,a.z);const d=new THREE.Vector3(b.x,b.y,b.z).sub(camPos);setCamRotImmediate(Math.atan2(d.x,d.z),Math.atan2(d.y,Math.hypot(d.x,d.z)));updateCamera();markDirty(120);},
  state(){return {pos:camPos.toArray(),active:!!_clickNavigationController?.active,reason:_clickNavigationController?.stopReason};}
@@ -37,6 +42,7 @@ try{
  await page.route('**/?localProject=1',async route=>{const response=await route.fetch(),html=await response.text(),at=html.lastIndexOf('</script>');assert(at>0);await route.fulfill({response,body:html.slice(0,at)+hook+html.slice(at)});});
  await page.goto(server.url,{waitUntil:'domcontentloaded'});
  await page.waitForFunction(()=>window.localProject?.ready,null,{timeout:60000});
+ await page.waitForTimeout(5000);
  report.prepared=await page.evaluate(()=>roomQA.prepare());await page.screenshot({path:out+'/initial.png'});assert(report.prepared.pairs.length);assert(report.prepared.cellSize>=.15);
  await page.waitForTimeout(2500);
  for(const pair of report.prepared.pairs){
