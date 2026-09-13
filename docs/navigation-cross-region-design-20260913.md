@@ -1,12 +1,14 @@
 # Cross-Region Navigation Design
 
-Status: offline surface-candidate discovery implemented and tested; graph,
-collision-verified transitions and runtime integration not implemented/deployed.
+Status: offline surface-candidate discovery and local collision-clearance gate
+implemented and tested; graph and runtime integration not implemented/deployed.
 
 `scripts/navigation-transition-candidates.mjs` returns explicitly unverified
 pairs with triangle indices. Synthetic tests reject stacked floors, gaps and
 boundary-only overlap. An actual studio split produced 242 candidates (27 near
-the staircase). These are not proof of capsule clearance or connectivity.
+the staircase). The separate clearance gate accepts 129 pairs (19 near stairs)
+against actual Rapier collision, rejecting injected walls and low ceilings.
+This is still not proof of per-region connectivity or complete journeys.
 
 ## Scope
 

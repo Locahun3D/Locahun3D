@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import vm from 'node:vm';
 import {createHash} from 'node:crypto';
+import {createRequire} from 'node:module';
 const url=new URL('./navigation-transition-candidates.mjs',import.meta.url);
 const find=fs.existsSync(url)?(await import(url)).findTransitionCandidates:null;
 const source='a'.repeat(64),bounds=[[-1,-2,-1],[5,6,5]];
@@ -44,4 +45,32 @@ if(process.argv.includes('--studio'))test('real studio independently generated o
  const candidates=find(...meshes,boundsA,boundsB);
  assert(candidates.length>0);assert(candidates.every(p=>p.status==='unverified'));
  console.log(JSON.stringify({studioTransitionCandidates:candidates.length,stairs:candidates.filter(p=>p.a.z>0&&p.a.z<3&&p.a.y>-1&&p.a.y<2).length}));
+ if(process.argv.includes('--clearance')){
+  const {verifyTransitionClearance}=await import('./navigation-transition-clearance.mjs');
+  const {selectNavigationRegionBoxes}=await import('./navigation-region-boxes.mjs');
+  const boxes=selectNavigationRegionBoxes([...index.tiles.values()].flatMap(t=>index.boxes(t)),[[5.5,-10,-8],[9,30,24]]);
+  const require=createRequire(new URL('../../locahun3d_online/package.json',import.meta.url)),{chromium}=require('playwright');
+  let html=fs.readFileSync(new URL('../Locahun3D_OfflineViewer.html',import.meta.url),'utf8');
+  const hook=`window.verifySeam=async({boxes,candidates})=>{
+   const verify=${verifyTransitionClearance.toString()},core=await LocahunWalkCollision.create();
+   try{core.rebuild({boxes});const accepted=candidates.filter(p=>verify(p,core));
+    if(!accepted.length)return {accepted:0};
+    const p=accepted[0].a;
+    core.rebuild({boxes:[...boxes,{center:[p.x,p.y+1,p.z],half:[.3,1,.3]}]});
+    const blocked=verify(accepted[0],core);
+    core.rebuild({boxes:[...boxes,{center:[p.x,p.y+1.5,p.z],half:[.4,.1,.4]}]});
+    return {accepted:accepted.length,stairs:accepted.filter(p=>p.a.z>0&&p.a.z<3&&p.a.y>-1&&p.a.y<2).length,blocked,lowCeiling:verify(accepted[0],core)};
+   }finally{core.dispose();}
+  };`;
+  const at=html.lastIndexOf('</script>');html=html.slice(0,at)+hook+html.slice(at);
+  const browser=await chromium.launch({channel:'chrome',headless:true}),timer=setTimeout(()=>browser.close(),90000);
+  try{
+   const page=await browser.newPage(),errors=[];page.on('pageerror',e=>errors.push(e.message));
+   await page.route('http://127.0.0.1:18995/',r=>r.fulfill({contentType:'text/html',body:html}));
+   await page.goto('http://127.0.0.1:18995/');await page.waitForFunction(()=>window.verifySeam);
+   const result=await page.evaluate(input=>verifySeam(input),{boxes,candidates});
+   assert(result.accepted>0);assert.equal(result.blocked,false);assert.equal(result.lowCeiling,false);assert.deepEqual(errors,[]);
+   console.log(JSON.stringify({actualRapierClearance:result,boxes:boxes.length}));
+  }finally{clearTimeout(timer);await browser.close();}
+ }
 });
