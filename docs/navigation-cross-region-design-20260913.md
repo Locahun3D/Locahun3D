@@ -14,9 +14,11 @@ The offline two-region query probe now produces a 3.062m real studio staircase
 route with bounds A ending at X8.5 and B starting at X6.4. Actual browser
 controller/Rapier replay completes both directions and rejects an injected wall.
 Narrower overlap (B starts X6.8 or X7) yielded connected paths that physically
-stopped near the stair wall. Therefore every proposed route remains explicitly
-unverified until a full-route physical gate passes; connectivity alone is not
-enough. Runtime graph integration and persistence remain pending.
+stopped near the stair wall. The offline full-route gate now rejects that narrow
+case and injected walls, while accepting the wider route in both directions.
+It reuses the shipped controller with floor/body/sweep checks. The route probe
+still returns unverified output until the caller runs this gate; bounded
+candidate fallback, runtime graph integration and persistence remain pending.
 
 ## Scope
 

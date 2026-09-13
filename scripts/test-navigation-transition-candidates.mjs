@@ -37,7 +37,7 @@ if(process.argv.includes('--studio'))test('real studio independently generated o
  const collisionSource=createHash('sha256').update(JSON.stringify(['whole-tiles-v1',.1,sources.map(s=>({identity:'sha256:'+s.sha256,matrix:s.matrix}))])).digest('hex');
  const index=await c.LocahunWholeCollision.decodeTiles(new Uint8Array(fs.readFileSync(root+'/studio-full-fine.lct')),meta.source);
  const collision=await c.LocahunWholeCollision.encodeTiles([...index.tiles.values()].map(t=>({coord:t.coord,boxes:index.boxes(t)})),collisionSource,.1);
- const boundsA=[[-8,-10,-8],[8.5,30,24]],boundsB=[[process.argv.includes('--cross-route')?6.4:6,-10,-8],[24,30,24]],meshes=[];
+ const boundsA=[[-8,-10,-8],[8.5,30,24]],boundsB=[[process.argv.includes('--narrow')?6.8:process.argv.includes('--cross-route')?6.4:6,-10,-8],[24,30,24]],meshes=[];
  for(const bounds of [boundsA,boundsB]){
   const bundle=await prepareNavigationRegion({sources,bounds,collision,collisionSource});
   meshes.push(await c.LocahunNavigationCache.decode(bundle.payloads[0].bytes,bundle.manifest.regions[0].navigation.key));
@@ -47,6 +47,7 @@ if(process.argv.includes('--studio'))test('real studio independently generated o
  console.log(JSON.stringify({studioTransitionCandidates:candidates.length,stairs:candidates.filter(p=>p.a.z>0&&p.a.z<3&&p.a.y>-1&&p.a.y<2).length}));
  if(process.argv.includes('--clearance')){
   const {verifyTransitionClearance}=await import('./navigation-transition-clearance.mjs');
+  const {verifyRouteClearance}=await import('./navigation-route-clearance.mjs');
   const {selectNavigationRegionBoxes}=await import('./navigation-region-boxes.mjs');
   const boxes=selectNavigationRegionBoxes([...index.tiles.values()].flatMap(t=>index.boxes(t)),[[5.5,-10,-8],[9,30,24]]);
   const require=createRequire(new URL('../../locahun3d_online/package.json',import.meta.url)),{chromium}=require('playwright');
@@ -74,7 +75,11 @@ if(process.argv.includes('--studio'))test('real studio independently generated o
     return {accepted,reason:nav.stopReason,position};
    }finally{core.dispose();}
   };`;
-  const at=html.lastIndexOf('</script>');html=html.slice(0,at)+hook+html.slice(at);
+  const fullGate=`window.verifyFullRoute=async({boxes,points,wall})=>{const core=await LocahunWalkCollision.create();try{
+   core.rebuild({boxes:wall?[...boxes,{center:[7.5,1.5,1.7],half:[.15,2,2]}]:boxes});
+   return (${verifyRouteClearance.toString()})(points,core,LocahunClickNavigation);
+  }finally{core.dispose();}};`;
+  const at=html.lastIndexOf('</script>');html=html.slice(0,at)+hook+fullGate+html.slice(at);
   const browser=await chromium.launch({channel:'chrome',headless:true}),timer=setTimeout(()=>browser.close(),90000);
   try{
    const page=await browser.newPage(),errors=[];page.on('pageerror',e=>errors.push(e.message));
@@ -95,6 +100,12 @@ if(process.argv.includes('--studio'))test('real studio independently generated o
      const route=findTwoRegionRoute({from:{x:6.6,y:-.47,z:2.25},to:{x:8.6,y:1.1,z:1.2},candidates:safe,
       a:{key:meshes[0].source,bounds:boundsA,query:queries[0]},b:{key:meshes[1].source,bounds:boundsB,query:queries[1]},clearance:p=>safe.includes(p)});
      assert(route,'Real cross-region staircase route missing');
+     if(process.argv.includes('--narrow')){
+      assert.equal(await page.evaluate(input=>verifyFullRoute(input),{boxes,points:route.points}),false,'Wall-adjacent narrow route must fail the full-trip gate');
+      console.log('Narrow overlap route rejected by full-trip gate');return;
+     }
+     assert.equal(await page.evaluate(input=>verifyFullRoute(input),{boxes,points:route.points}),true,'Full route gate must pass');
+     assert.equal(await page.evaluate(input=>verifyFullRoute(input),{boxes,points:route.points,wall:true}),false,'Full route gate must reject wall');
      console.log(JSON.stringify({crossRegionRoute:route}));
      const upward=await page.evaluate(input=>verifySeamRoute(input),{boxes,points:route.points});
      const downward=await page.evaluate(input=>verifySeamRoute(input),{boxes,points:[...route.points].reverse()});
