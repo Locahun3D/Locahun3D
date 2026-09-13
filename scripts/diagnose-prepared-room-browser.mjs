@@ -12,10 +12,14 @@ const original=await fs.readFile(path.join(root,'project-state.json'));
 const out='F:/Codex/locahun-navigation-20260913/room-browser-'+Date.now();await fs.mkdir(out);
 const report={errors:[],attempts:[]};let browser,server;
 const timer=setTimeout(()=>browser?.close(),120000);
-const hook=`window.roomQA={
+const hook=`window.roomTrace=[];
+const originalCreate=LocahunClickNavigation.create;
+LocahunClickNavigation.create=io=>originalCreate({...io,coverage:(a,b)=>{const result=io.coverage(a,b);if(!result)window.roomTrace.push({stage:'coverage',a,b,result});return result;},clear:(p,t)=>{const result=io.clear(p,t);if(!result)window.roomTrace.push({stage:'clear',p,t,result});return result;}});
+window.roomQA={
  async prepare(){
   if(!await _walkGenerateCollision({automatic:true}))throw Error(walkSetup.status);
   const provider=await _prepareRegionalNavigationProvider();if(!provider)throw Error('Provider unavailable');
+  const originalAcquire=provider.acquire.bind(provider);provider.acquire=async(from,to)=>{const result=await originalAcquire(from,to);window.roomTrace.push({stage:'acquire',from,to,accepted:!!result,points:result?.points});return result;};
   const e=walkSetup.settings.navigationRegions.regions[0].navigation;
   const r=await fetch(new URL('assets/'+e.key+'.lnv',location.href));if(!r.ok)throw Error('Navigation asset unavailable');
   const mesh=await LocahunNavigationCache.decode(new Uint8Array(await r.arrayBuffer()),e.key),points=[];
@@ -70,8 +74,8 @@ const hook=`window.roomQA={
   }
   return {pairs,support,fineSupport,automatic,autoSupport,autoClear,centers,visible,cellSize:walkSetup.wholeIndex.cellSize,triangles:points.length,position:camPos.toArray(),sample:points.slice(0,20)};
  },
- aim({a,b}){camPos.set(a.x,a.y+1.8,a.z);const d=new THREE.Vector3(b.x,b.y,b.z).sub(camPos);setCamRotImmediate(Math.atan2(d.x,d.z),Math.atan2(d.y,Math.hypot(d.x,d.z)));updateCamera();markDirty(120);},
- state(){return {pos:camPos.toArray(),active:!!_clickNavigationController?.active,reason:_clickNavigationController?.stopReason};}
+ aim({position,b}){camPos.fromArray(position);const d=new THREE.Vector3(b.x,b.y,b.z).sub(camPos);setCamRotImmediate(Math.atan2(d.x,d.z),Math.atan2(d.y,Math.hypot(d.x,d.z)));updateCamera();markDirty(120);},
+ state(){return {pos:camPos.toArray(),active:!!_clickNavigationController?.active,reason:_clickNavigationController?.stopReason,trace:window.roomTrace};}
 };LocahunCollisionBake.generate=()=>{throw Error('Prepared project must not rebake');};`;
 try{
  server=await startLocalProjectServer({root});browser=await chromium.launch({channel:'chrome',headless:true});
@@ -86,7 +90,9 @@ try{
  await page.screenshot({path:out+'/initial.png'});assert(report.prepared.pairs.length);assert(report.prepared.cellSize>=.15);
  await page.waitForTimeout(2500);
  for(const pair of report.prepared.pairs){
-  await page.evaluate(pair=>roomQA.aim(pair),pair);await page.waitForTimeout(100);await page.mouse.click(640,400);await page.waitForTimeout(2200);
+  await page.evaluate(args=>roomQA.aim(args),{position:report.prepared.position,b:pair.b});
+  const start=await page.evaluate(()=>roomQA.state());assert.deepEqual(start.pos,report.prepared.position,'Do not repair saved camera height in diagnostic');
+  await page.waitForTimeout(100);await page.mouse.click(640,400);await page.waitForTimeout(2200);
   const end=await page.evaluate(()=>roomQA.state()),distance=Math.hypot(end.pos[0]-pair.a.x,end.pos[2]-pair.a.z);report.attempts.push({pair,end,distance});
   if(end.reason==='complete'&&distance>1){report.passed=true;break;}
  }

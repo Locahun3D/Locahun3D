@@ -49,3 +49,22 @@ test('initial 1.2m eye rises continuously to target1.8 using real bounded floor 
  assert.equal(ctx.LocahunClickNavigation.createClearance(c,{x:0,y:.2,z:0},hit.point),null);
  const airborne=ctx.LocahunClickNavigation.createClearance(c,{x:0,y:5,z:0},hit.point);assert(airborne({x:0,y:5,z:0},0));
 });
+
+test('prepared low-eye lift uses actual floor and still stops at a thin wall or ceiling',async t=>{
+ for(const kind of ['open','wall','ceiling']){
+  const c=await ctx.LocahunWalkCollision.create({rapier:RAPIER});t.after(()=>c.dispose());
+  const boxes=[{center:[0,-.1,0],half:[10,.1,10]}];
+  if(kind==='wall')boxes.push({center:[2,1,0],half:[.005,1,1]});
+  if(kind==='ceiling')boxes.push({center:[0,1.75,0],half:[.5,.1,.5]});
+  c.rebuild({boxes});let p={x:0,y:1.3,z:0};const points=[{x:0,y:0,z:0},{x:4,y:0,z:0}];
+  assert(Math.abs(ctx.LocahunClickNavigation.resolveOrigin(c,p).y)<1e-5);
+  const clear=ctx.LocahunClickNavigation.createRouteClearance(c,p,points),ground=ctx.LocahunClickNavigation.createRouteGround(p,points);
+  const nav=ctx.LocahunClickNavigation.create({position:()=>p,setPosition:q=>p=q,ready:()=>true,blocked:()=>false,epoch:()=>1,
+   coverage:(a,b)=>[a,b].every(q=>Math.abs(ground(q).y)<.001),clear,sweep:(a,b)=>c.moveCamera(a,{x:b.x-a.x,y:b.y-a.y,z:b.z-a.z},.15)});
+  assert(nav.start({point:points[1],normal:{x:0,y:1,z:0}},0,points.map(q=>({...q,y:q.y+1.8}))));
+  assert.equal(p.y,1.3);
+  for(let ms=16;ms<2500&&nav.active;ms+=16)nav.tick(ms);
+  if(kind==='open'){assert.equal(nav.stopReason,'complete');assert.equal(p.x,4);assert.equal(p.y,1.8);}
+  else {assert.notEqual(nav.stopReason,'complete');assert(p.x<1.85);if(kind==='ceiling')assert.equal(p.x,0);}
+ }
+});

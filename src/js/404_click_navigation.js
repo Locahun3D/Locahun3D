@@ -72,6 +72,24 @@
     if(!valid(floor?.point)||!valid(floor?.normal)||!Number.isFinite(floor.distance)||floor.distance<0||floor.distance>3.5||floor.point.y>from.y)return null;
     const normalLength=Math.hypot(floor.normal.x,floor.normal.y,floor.normal.z);
     return normalLength>1e-8&&floor.normal.y/normalLength>=Math.SQRT1_2?floor:null;
+  },resolveOrigin(core,from){
+    const nominal={x:from.x,y:from.y-1.8,z:from.z};
+    const support=core.raycastSurface(from,{x:0,y:-1,z:0},1.8);
+    if(valid(support?.point)&&valid(support?.normal)&&Number.isFinite(support.distance)&&
+      support.distance>=.6&&support.distance<=1.8&&support.point.y<from.y&&support.normal.y>=Math.SQRT1_2&&
+      Math.hypot(support.point.x-from.x,support.point.z-from.z)<.001)return {...support.point};
+    return nominal;
+  },createRouteGround(from,points){
+    from={...from};
+    const first=points[0],sameColumn=valid(first)&&Math.hypot(first.x-from.x,first.z-from.z)<.001;
+    const lift=sameColumn&&from.y-first.y>=.6&&from.y-first.y<1.8;
+    // Only the initial vertical segment adapts to a saved low eye height.
+    // Every pose, including the rise to normal height, retains capsule/sweep checks.
+    return p=>({x:p.x,z:p.z,y:lift&&Math.hypot(p.x-from.x,p.z-from.z)<.001&&p.y>=from.y-.0001&&p.y<=first.y+1.8?first.y:p.y-1.8});
+  },createRouteClearance(core,from,points){
+    const ground=this.createRouteGround(from,points);
+    return p=>{const base=ground(p).y+.3,height=p.y+.2-base;
+      return height>=.3&&core.isCapsuleClear({x:p.x,y:base,z:p.z},height,.15);};
   },createClearance(core,from,ground){
     if(!valid(from)||!valid(ground))return null;
     const support=core.raycastSurface(from,{x:0,y:-1,z:0},1.8);
@@ -193,7 +211,7 @@ function _clickNavigateAt(clientX,clientY,preview=false,preparedHit=null,prepare
       if(preview&&!hold?.active)return {point:hit.point,valid:false};
       if(hold?.navigationPending)return {point:hit.point,valid:false};
       if(hold)hold.navigationPending=true;
-      provider.acquire({x:position.x,y:position.y-1.8,z:position.z},hit.point).then(lease=>{
+      provider.acquire(LocahunClickNavigation.resolveOrigin(walkSetup.core,position),hit.point).then(lease=>{
         if(!lease)return;
         let adopted=false;
         try{
@@ -219,7 +237,7 @@ function _clickNavigateAt(clientX,clientY,preview=false,preparedHit=null,prepare
       const points=preparedLease.points;
       if(!Array.isArray(points)||!points.length)return false;
       hit={...hit,point:points.at(-1)};route=points.map(p=>({x:p.x,y:p.y+1.8,z:p.z}));
-      clear=p=>movementCore.isCapsuleClear({x:p.x,y:p.y-1.5,z:p.z},1.7,.15);
+      clear=LocahunClickNavigation.createRouteClearance(movementCore,camPos,points);
     }else if(walkSetup.settings?.navigation){
       const query=_getNavigationQuery();
       if(!query){
@@ -235,17 +253,18 @@ function _clickNavigateAt(clientX,clientY,preview=false,preparedHit=null,prepare
         }).finally(()=>{if(hold)hold.navigationPending=false;});
         return preview?{point:hit.point,valid:false}:false;
       }
-      const points=query.find({x:camPos.x,y:camPos.y-1.8,z:camPos.z},hit.point,walkSetup.settings.navigation.key);
+      const points=query.find(LocahunClickNavigation.resolveOrigin(walkSetup.core,camPos),hit.point,walkSetup.settings.navigation.key);
       if(!points)return preview?{point:hit.point,valid:false}:false;
       hit={...hit,point:points.at(-1)};route=points.map(p=>({x:p.x,y:p.y+1.8,z:p.z}));
-      clear=p=>walkSetup.core.isCapsuleClear({x:p.x,y:p.y-1.5,z:p.z},1.7,.15);
+      clear=LocahunClickNavigation.createRouteClearance(walkSetup.core,camPos,points);
     }else clear=LocahunClickNavigation.createClearance(walkSetup.core,camPos,hit.point);
     if(!clear)return preview?{point:hit.point,valid:false}:false;
+    const routeGround=preparedLease?LocahunClickNavigation.createRouteGround(camPos,preparedLease.points):null;
     const controller=LocahunClickNavigation.create({
       position:()=>camPos,setPosition:p=>{camPos.set(p.x,p.y,p.z);markDirty(3);if(typeof bumpSplatActive==='function')bumpSplatActive(500);},
       ready:()=>!!globalThis.getCameraCollisionState?.().ready&&(!preparedLease||preparedLease.valid()),
       epoch:()=>walkSetup.epoch,blocked:_clickNavigationBusy,
-      coverage:preparedLease?(a,b)=>[a,b].every(p=>preparedLease.covers({x:p.x,y:p.y-1.8,z:p.z})):_clickNavigationCoverage,
+      coverage:preparedLease?(a,b)=>[a,b].every(p=>preparedLease.covers(routeGround(p))):_clickNavigationCoverage,
       clear,
       sweep:(a,b)=>movementCore.moveCamera(a,{x:b.x-a.x,y:b.y-a.y,z:b.z-a.z},.15)
     });

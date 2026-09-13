@@ -6,7 +6,7 @@ import * as THREE from './navigation-assets/node_modules/three/build/three.modul
 function fixture(){
  let now=0,release,ready=false,picks=0;
  const to={x:0,y:3,z:3},route=[{x:0,y:0,z:0},{x:3,y:0,z:0},{x:3,y:3,z:3},to];
- const camPos=new THREE.Vector3(0,1.8,0),core={raycastSurface(){picks++;return {point:to,normal:{x:0,y:1,z:0}};},isCapsuleClear:()=>true,moveCamera:(a,d)=>({x:a.x+d.x,y:a.y+d.y,z:a.z+d.z})};
+ const camPos=new THREE.Vector3(0,1.8,0),core={raycastSurface(from,dir){if(dir.y===-1)return null;picks++;return {point:to,normal:{x:0,y:1,z:0}};},isCapsuleClear:()=>true,moveCamera:(a,d)=>({x:a.x+d.x,y:a.y+d.y,z:a.z+d.z})};
  const c=vm.createContext({THREE,camPos,camera:new THREE.PerspectiveCamera(),canvas:{getBoundingClientRect:()=>({left:0,top:0,width:100,height:100})},
  performance:{now:()=>now},setTimeout:()=>1,clearTimeout(){},_useOrtho:false,msr:{active:false},walkSetup:{core,epoch:1,settings:{navigation:{key:'a'}}},
  getCameraCollisionState:()=>({ready:true}),_walkNeedsRegion:()=>false,markDirty(){},_getNavigationQuery:()=>ready?{find:()=>route}:null,
@@ -38,7 +38,7 @@ test('released or replaced hold does not refresh after an earlier load',async()=
 
 test('prepared journey uses its own collision without replacing the scene core',()=>{
  const f=fixture(),original=f.c.walkSetup.core;let disposed=0;
- const point={x:0,y:0,z:3},lease={valid:()=>true,points:[{x:0,y:0,z:0},point],covers:()=>true,
+ const point={x:0,y:0,z:3},lease={valid:()=>true,points:[{x:0,y:0,z:0},point],covers:p=>Math.abs(p.y)<.1,
   core:{isCapsuleClear:()=>true,moveCamera:(a,d)=>({x:a.x+d.x,y:a.y+d.y,z:a.z+d.z})},dispose(){disposed++;}};
  original.isCapsuleClear=()=>{throw Error('Coarse core must not check fine route');};
  assert.equal(f.c._clickNavigateAt(50,50,false,{point,normal:{x:0,y:1,z:0}},lease),true);
@@ -49,6 +49,24 @@ test('prepared journey uses its own collision without replacing the scene core',
 test('invalid prepared journey cannot start travel',()=>{
  const f=fixture();assert.equal(f.c._clickNavigateAt(50,50,false,{point:{x:0,y:0,z:3},normal:{x:0,y:1,z:0}},{valid:()=>false}),false);
  assert.equal(f.c.camPos.z,0);
+});
+
+test('regional query starts at observed support for a saved low camera',async()=>{
+ const f=fixture();f.c.camPos.y=1.3;let origin;
+ f.c.walkSetup.core.raycastSurface=(from,dir)=>dir.y===-1?{point:{x:from.x,y:0,z:from.z},normal:{x:0,y:1,z:0},distance:1.3}:{point:{x:0,y:0,z:3},normal:{x:0,y:1,z:0}};
+ f.c.provider={cancel(){},acquire:async from=>{origin=from;return null;}};
+ vm.runInContext('_clickNavigationJourney=provider',f.c);
+ f.c._clickNavigateAt(50,50);await new Promise(r=>setImmediate(r));
+ assert.equal(origin.y,0);assert.equal(f.c.camPos.y,1.3);
+});
+
+test('prepared route raises a low camera without placing its capsule under the floor',()=>{
+ const f=fixture();f.c.camPos.y=1.3;const checked=[];
+ const point={x:0,y:0,z:3},lease={valid:()=>true,points:[{x:0,y:0,z:0},point],covers:p=>Math.abs(p.y)<.1,
+  core:{isCapsuleClear:(p,h)=>{checked.push({p,h});return p.y>=0;},moveCamera:(a,d)=>({x:a.x+d.x,y:a.y+d.y,z:a.z+d.z})},dispose(){}};
+ assert.equal(f.c._clickNavigateAt(50,50,false,{point,normal:{x:0,y:1,z:0}},lease),true);
+ assert.equal(f.c.camPos.y,1.3);f.run();assert.equal(f.c.camPos.y,1.8);assert.equal(f.c.camPos.z,3);
+ assert(checked.every(({p,h})=>p.y>=0&&h>=.3));
 });
 
 test('regional provider asynchronously resumes click and never uses legacy query',async()=>{
