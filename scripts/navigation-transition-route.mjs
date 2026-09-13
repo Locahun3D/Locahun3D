@@ -1,5 +1,5 @@
 // Offline two-region probe. Callers own verified queries and collision clearance.
-export function findTwoRegionRoute({from,to,candidates,a,b,clearance}){
+function* candidateRoutes({from,to,candidates,a,b,clearance}){
  const valid=p=>p&&['x','y','z'].every(k=>Number.isFinite(p[k])&&Math.abs(p[k])<=10000);
  const distance=(a,b)=>Math.hypot(a.x-b.x,a.y-b.y,a.z-b.z);
  const inside=(p,bounds)=>['x','y','z'].every((k,i)=>p[k]>=bounds[0][i]&&p[k]<=bounds[1][i]);
@@ -16,8 +16,26 @@ export function findTwoRegionRoute({from,to,candidates,a,b,clearance}){
    if(!routeOK(left,from,pair.a,a.bounds,.35,.025)||!routeOK(right,pair.b,to,b.bounds,.025,.25)||distance(left.at(-1),right[0])>.025)continue;
    const points=[...left,...right].map(p=>({...p}));if(points.length>1024)continue;
    let length=0;for(let i=1;i<points.length;i++)length+=distance(points[i-1],points[i]);if(length>30)continue;
-   return {status:'unverified-route',keys:[a.key,b.key],points,length,transition:{a:{...left.at(-1)},b:{...right[0]}}};
+   yield {status:'unverified-route',keys:[a.key,b.key],points,length,transition:{a:{...left.at(-1)},b:{...right[0]}}};
   }catch{/* A failed region query is not a cross-region connection. */}
+ }
+ return null;
+}
+export function findTwoRegionRoute(input){return candidateRoutes(input).next().value||null;}
+export async function selectVerifiedTwoRegionRoute(input,verify,{signal}={}){
+ if(typeof verify!=='function'||signal?.aborted)return null;
+ // Snapshot all candidate paths before asynchronous clearance can change source objects.
+ const routes=[];
+ for(const route of candidateRoutes(input)){routes.push(route);if(routes.length===16)break;}
+ for(const route of routes){
+  if(signal?.aborted)return null;
+  const snapshot=structuredClone(route);
+  for(const p of snapshot.points)Object.freeze(p);
+  Object.freeze(snapshot.points);Object.freeze(snapshot.keys);
+  Object.freeze(snapshot.transition.a);Object.freeze(snapshot.transition.b);Object.freeze(snapshot.transition);Object.freeze(snapshot);
+  let accepted=false;try{accepted=await verify(snapshot)===true;}catch{}
+  if(signal?.aborted)return null;
+  if(accepted)return {...route,status:'verified-route'};
  }
  return null;
 }

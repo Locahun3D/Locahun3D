@@ -17,8 +17,10 @@ Narrower overlap (B starts X6.8 or X7) yielded connected paths that physically
 stopped near the stair wall. The offline full-route gate now rejects that narrow
 case and injected walls, while accepting the wider route in both directions.
 It reuses the shipped controller with floor/body/sweep checks. The route probe
-still returns unverified output until the caller runs this gate; bounded
-candidate fallback, runtime graph integration and persistence remain pending.
+still returns unverified output. Its async selector snapshots at most 16 paths,
+runs the full gate, rejects canceled/failed results and tries other candidates.
+Actual narrow overlap rejects all six candidate paths; wide overlap accepts the
+first. Runtime graph integration and source-bound persistence remain pending.
 
 ## Scope
 

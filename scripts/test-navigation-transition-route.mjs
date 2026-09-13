@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 const url=new URL('./navigation-transition-route.mjs',import.meta.url);
 const find=fs.existsSync(url)?(await import(url)).findTwoRegionRoute:null;
+const select=fs.existsSync(url)?(await import(url)).selectVerifiedTwoRegionRoute:null;
 const from={x:0,y:0,z:0},to={x:4,y:0,z:0};
 const pair={a:{x:2,y:0,z:0},b:{x:2.01,y:0,z:0}};
 const fixture=()=>({from,to,candidates:[pair],a:{key:'a'.repeat(64),bounds:[[-1,-1,-1],[3,4,1]],query:{find:(a,b)=>[a,b]}},b:{key:'b'.repeat(64),bounds:[[1,-1,-1],[5,4,1]],query:{find:(a,b)=>[a,b]}},clearance:()=>true});
@@ -21,4 +22,16 @@ test('disconnected, obstructed, partial or wrong-floor paths reject',()=>{
 test('total path length and geometry bounds are checked, not just endpoints',()=>{
  assert.equal(typeof find,'function');const input=fixture();input.a.query.find=(a,b)=>[a,{x:2,y:0,z:99},b];assert.equal(find(input),null);
  const long=fixture();long.to={x:35,y:0,z:0};assert.equal(find(long),null);
+});
+
+test('full gate failure tries another candidate before returning a verified trip',async()=>{
+ assert.equal(typeof select,'function');const input=fixture();input.candidates.push({a:{x:2,y:0,z:.2},b:{x:2.01,y:0,z:.2}});
+ let attempts=0;const result=await select(input,async()=>++attempts===2);
+ assert.equal(attempts,2);assert.equal(result.status,'verified-route');
+});
+test('late gate results after abort are discarded and work is bounded',async()=>{
+ assert.equal(typeof select,'function');const controller=new AbortController();
+ const result=await select(fixture(),async()=>{controller.abort();return true;},{signal:controller.signal});assert.equal(result,null);
+ const input=fixture();input.candidates=Array.from({length:30},()=>structuredClone(pair));let attempts=0;
+ assert.equal(await select(input,async()=>{attempts++;return false;}),null);assert.equal(attempts,16);
 });

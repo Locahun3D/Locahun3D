@@ -89,7 +89,7 @@ if(process.argv.includes('--studio'))test('real studio independently generated o
    assert(result.accepted>0);assert.equal(result.blocked,false);assert.equal(result.lowCeiling,false);assert.deepEqual(errors,[]);
    console.log(JSON.stringify({actualRapierClearance:{...result,acceptedIndices:undefined},boxes:boxes.length}));
    if(process.argv.includes('--cross-route')){
-    const {findTwoRegionRoute}=await import('./navigation-transition-route.mjs');
+    const {findTwoRegionRoute,selectVerifiedTwoRegionRoute}=await import('./navigation-transition-route.mjs');
     const THREE=await import('./navigation-assets/node_modules/three/build/three.module.js');
     const {Pathfinding}=await import('./navigation-assets/node_modules/three-pathfinding/dist/three-pathfinding.modern.mjs');
     vm.runInContext(fs.readFileSync(new URL('../src/js/403b_navigation_query.js',import.meta.url),'utf8'),c);
@@ -97,13 +97,18 @@ if(process.argv.includes('--studio'))test('real studio independently generated o
     try{
      const safe=result.acceptedIndices.map(i=>candidates[i]);
      if(process.env.DEBUG_TRANSITIONS)console.log(JSON.stringify(safe.map(p=>({p,left:queries[0].find({x:6.6,y:-.47,z:2.25},p.a,meshes[0].source),right:queries[1].find(p.b,{x:8.6,y:1.1,z:1.2},meshes[1].source)})).filter(p=>p.left||p.right)));
-     const route=findTwoRegionRoute({from:{x:6.6,y:-.47,z:2.25},to:{x:8.6,y:1.1,z:1.2},candidates:safe,
-      a:{key:meshes[0].source,bounds:boundsA,query:queries[0]},b:{key:meshes[1].source,bounds:boundsB,query:queries[1]},clearance:p=>safe.includes(p)});
+     const input={from:{x:6.6,y:-.47,z:2.25},to:{x:8.6,y:1.1,z:1.2},candidates:safe,
+      a:{key:meshes[0].source,bounds:boundsA,query:queries[0]},b:{key:meshes[1].source,bounds:boundsB,query:queries[1]},clearance:p=>safe.includes(p)};
+     const route=findTwoRegionRoute(input);
      assert(route,'Real cross-region staircase route missing');
+     let attempts=0;const verified=await selectVerifiedTwoRegionRoute(input,route=>{attempts++;return page.evaluate(input=>verifyFullRoute(input),{boxes,points:route.points});});
+     console.log(JSON.stringify({verifiedSelection:{attempts,status:verified?.status||null}}));
      if(process.argv.includes('--narrow')){
       assert.equal(await page.evaluate(input=>verifyFullRoute(input),{boxes,points:route.points}),false,'Wall-adjacent narrow route must fail the full-trip gate');
+      assert.equal(verified,null,'No blocked narrow route may be certified');
       console.log('Narrow overlap route rejected by full-trip gate');return;
      }
+     assert.equal(verified?.status,'verified-route');
      assert.equal(await page.evaluate(input=>verifyFullRoute(input),{boxes,points:route.points}),true,'Full route gate must pass');
      assert.equal(await page.evaluate(input=>verifyFullRoute(input),{boxes,points:route.points,wall:true}),false,'Full route gate must reject wall');
      console.log(JSON.stringify({crossRegionRoute:route}));
