@@ -45,5 +45,13 @@ No private project or regional scan payload is published with the viewer.
 Standalone Worker `4de21cd5-0f74-4a86-a37c-3447eceff4f1`, release
 `b4483955e3d9b7eac965737afe9e641cc6a45c54ad6ebd812ae10d36749d2f01`.
 Live file startup updater and immutable assets verified. Online viewer commit
-`3c0dae2` pushed; its workflow is pending at this checkpoint. Ten known Dropbox
-viewer HTML files updated with backups; project data was not edited.
+`3c0dae2` deployed successfully (GitHub Actions run 34738463032). Live online
+HTML SHA-256 is `1fe621d509071108d58a812aa9764df0d64fa39d405c1e951b261da6a5347d87`.
+Source commit `be27b8d` pushed. Ten known Dropbox viewer HTML files updated
+with backups; project data was not edited. The 2FStudio server helpers were
+updated for next launch without interrupting its active editing session.
+
+Post-deployment public demo check: demo-release-1789275099441, nonblank image,
+no page errors, collision ready in 1204ms in this run. Physical iPad Safari and
+cross-region journeys remain unverified/unsupported as stated above. Regional
+studio preparation was tested on copies, not applied to the active user's scene.
