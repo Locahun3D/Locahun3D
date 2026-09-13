@@ -39,6 +39,12 @@ read-only graph files up to 128KiB. Actual browser collection verifies five
 files for two regions plus graph. Full ZIP/restart graph tests and runtime
 routing integration are still pending; this batch is not deployed.
 
+Persistence checks now cover actual browser ZIP save/load (392939B, five
+studio-derived navigation files, no rendered RAD layer in this ZIP fixture),
+plus two local-server launches/saves and graph HTTP retrieval on a packaged
+synthetic scene. Missing graph files reject. Runtime click routing remains
+unconnected; these tests do not establish cross-region UI completion.
+
 ## Scope
 
 Continue a click journey through adjacent precomputed regions, including stairs,

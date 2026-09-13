@@ -8,6 +8,7 @@ import { pathToFileURL } from 'node:url';
 import { prepareLocalProject, loadZipLibrary } from './prepare-local-project.mjs';
 import vm from 'node:vm';
 import {prepareNavigationRegion} from './prepare-navigation-region.mjs';
+import {encodeTransitionGraph} from './navigation-transition-graph.mjs';
 
 const JSZip = loadZipLibrary();
 const hash = b => createHash('sha256').update(b).digest('hex');
@@ -19,13 +20,27 @@ test('regional sidecars are verified and preserved; missing or corrupted files r
  const collisionSource=hash(JSON.stringify(['whole-tiles-v1',.1,sources.map(s=>({identity:'sha256:'+s.sha256,matrix:s.matrix}))]));
  const collision=await c.LocahunWholeCollision.encodeTiles([{coord:[0,-1,0],boxes:[{center:[1.6,-.05,1.6],half:[1.6,.05,1.6]}]}],collisionSource,.1);
  const bundle=await prepareNavigationRegion({sources,bounds:[[-1,-1,-1],[5,4,5]],collision,collisionSource});
- for(const mode of ['valid','missing','corrupt']){
+ const second=await prepareNavigationRegion({sources,bounds:[[-.5,-1,-1],[5.5,4,5]],collision,collisionSource});
+ bundle.manifest.regions.push(...second.manifest.regions);bundle.payloads.push(...second.payloads);
+ const graph=await encodeTransitionGraph(bundle.manifest,[{a:{key:bundle.manifest.regions[0].navigation.key,point:{x:1,y:0,z:1}},b:{key:bundle.manifest.regions[1].navigation.key,point:{x:1,y:0,z:1}}}]);
+ bundle.manifest.graph=graph.entry;bundle.payloads.push({name:graph.entry.sha256+'.lng',bytes:graph.bytes});
+ for(const mode of ['valid','missing','corrupt','missing-graph']){
   const project={version:4,layers:[{id:0,type:'splat',file:'scene.rad'}],walk:{cellSize:.25,navigationRegions:bundle.manifest}};
-  const f=await fixture(t,project,zip=>{for(const p of bundle.payloads){if(mode==='missing'&&p.name.endsWith('.lcp'))continue;zip.file('assets/'+p.name,mode==='corrupt'?Buffer.alloc(p.bytes.length):p.bytes);}});
+  const f=await fixture(t,project,zip=>{for(const p of bundle.payloads){if(mode==='missing'&&p.name.endsWith('.lcp')||mode==='missing-graph'&&p.name.endsWith('.lng'))continue;zip.file('assets/'+p.name,mode==='corrupt'?Buffer.alloc(p.bytes.length):p.bytes);}});
   if(mode!=='valid'){await assert.rejects(prepareLocalProject(f),/navigation|Navigation/);assert(!(await readdir(f.root)).includes('new package'));continue;}
   await prepareLocalProject(f);
   for(const p of bundle.payloads)assert.equal(hash(await readFile(path.join(f.out,'assets',p.name))),hash(p.bytes));
-  const state=JSON.parse(await readFile(path.join(f.out,'project-state.json'),'utf8'));assert.deepEqual(state.project.walk.navigationRegions,bundle.manifest);
+  const state=JSON.parse(await readFile(path.join(f.out,'project-state.json'),'utf8'));assert.deepEqual(state.project.walk.navigationRegions,JSON.parse(JSON.stringify(bundle.manifest)));
+  const {startLocalProjectServer}=await import('./local-project-server.mjs');
+  for(let launch=0;launch<2;launch++){
+   const server=await startLocalProjectServer({root:f.out});
+   try{
+    const asset=await fetch(new URL('assets/'+graph.entry.sha256+'.lng',server.url));assert.equal(asset.status,200);assert.equal(hash(Buffer.from(await asset.arrayBuffer())),graph.entry.sha256);
+    const endpoint=new URL('api/project',server.url),current=await (await fetch(endpoint)).json();assert.equal(current.revision,launch);
+    assert.equal(current.project.walk.navigationRegions.graph.sha256,graph.entry.sha256);
+    const saved=await fetch(endpoint,{method:'POST',headers:{Origin:endpoint.origin,'Content-Type':'application/json'},body:JSON.stringify({revision:current.revision,status:'draft',project:current.project})});assert.equal(saved.status,200);
+   }finally{await server.close();}
+  }
  }
 });
 async function fixture(t, project = { version: 4, layers: [{id:0,type:'splat', file:'scene.rad', streamUrl:'blob:null/fixture'}], camera:{x:3}, custom:{keep:true} }, extra) {

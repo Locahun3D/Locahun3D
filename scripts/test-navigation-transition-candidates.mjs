@@ -77,7 +77,16 @@ if(process.argv.includes('--studio'))test('real studio independently generated o
     return {accepted,reason:nav.stopReason,position};
    }finally{core.dispose();}
   };`;
-  const fullGate=`window.verifyFullRoute=async({boxes,points,wall})=>{const core=await LocahunWalkCollision.create();try{
+  const fullGate=`window.graphZipRoundtrip=async({manifest,files})=>{
+   walkSetup.settings.navigationRegions=manifest;
+   _regionalNavigationFiles={source:manifest.source,files:new Map(files.map(([name,bytes])=>[name,new Uint8Array(bytes)]))};
+   const blob=await saveProjectZip(true,{returnBlob:true});if(!(blob instanceof Blob))throw Error('Graph ZIP failed');
+   const fflate=await getFflate(),zip=fflate.unzipSync(new Uint8Array(await blob.arrayBuffer()));
+   const names=Object.keys(zip).filter(name=>/\\.(lnv|lcp|lng)$/.test(name));
+   _regionalNavigationFiles=null;await _loadProjectZipFromFile(new File([blob],'graph-roundtrip.zip'));
+   return {bytes:blob.size,count:names.length,restored:_regionalNavigationFiles?.files.size,graph:_walkSaveSettings().navigationRegions?.graph};
+  };
+  window.verifyFullRoute=async({boxes,points,wall})=>{const core=await LocahunWalkCollision.create();try{
    core.rebuild({boxes:wall?[...boxes,{center:[7.5,1.5,1.7],half:[.15,2,2]}]:boxes});
    return (${verifyRouteClearance.toString()})(points,core,LocahunClickNavigation);
   }finally{core.dispose();}};`;
@@ -128,6 +137,11 @@ if(process.argv.includes('--studio'))test('real studio independently generated o
       return (await LocahunNavigationFiles.read(manifest,name=>data.get(name))).files.size;
      },{manifest:{...manifest,graph:packed.entry},files:[...bundleFiles,['assets/'+packed.entry.sha256+'.lng',[...packed.bytes]]]});
      assert.equal(collected,5,'Browser packaging must retain both regions and graph');
+     if(process.argv.includes('--graph-zip')){
+      const result=await page.evaluate(input=>graphZipRoundtrip(input),{manifest:{...manifest,graph:packed.entry},files:[...bundleFiles,['assets/'+packed.entry.sha256+'.lng',[...packed.bytes]]]});
+      assert.equal(result.count,5);assert.equal(result.restored,5);assert.equal(result.graph.sha256,packed.entry.sha256);
+      console.log(JSON.stringify({graphZip:result}));
+     }
      console.log(JSON.stringify({sourceBoundGraphBytes:packed.bytes.length}));
      assert.equal(await page.evaluate(input=>verifyFullRoute(input),{boxes,points:route.points}),true,'Full route gate must pass');
      assert.equal(await page.evaluate(input=>verifyFullRoute(input),{boxes,points:route.points,wall:true}),false,'Full route gate must reject wall');
