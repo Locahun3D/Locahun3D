@@ -18,7 +18,7 @@
   }
   const schedule=()=>{clearTimeout(timer);timer=setTimeout(layout,0);};
   // The quality chip handles touchend itself and suppresses the synthetic click.
-  document.getElementById('qi-badge')?.addEventListener('touchend',()=>{preferred='quality-panel';schedule();},{passive:true});
+  document.getElementById('qi-badge')?.addEventListener('touchend',()=>{preferred='quality-panel';layout();},{passive:true});
   document.addEventListener('click',e=>{
     const button=e.target.closest?.('button,#qi-badge'),id=buttons[button?.id];
     if(id&&touch.matches){
@@ -29,6 +29,9 @@
     }
     schedule();
   },true);
+  // Inline tool handlers have run by the bubble phase. Reconcile before paint;
+  // the scheduled pass remains a fallback for handlers that stop propagation.
+  document.addEventListener('click',layout);
   for(const event of ['resize','pageshow'])window.addEventListener(event,schedule);
   window.addEventListener('orientationchange',()=>{schedule();setTimeout(layout,250);});
   window.visualViewport?.addEventListener('resize',schedule);
