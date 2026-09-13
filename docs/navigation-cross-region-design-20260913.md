@@ -10,6 +10,14 @@ the staircase). The separate clearance gate accepts 129 pairs (19 near stairs)
 against actual Rapier collision, rejecting injected walls and low ceilings.
 This is still not proof of per-region connectivity or complete journeys.
 
+The offline two-region query probe now produces a 3.062m real studio staircase
+route with bounds A ending at X8.5 and B starting at X6.4. Actual browser
+controller/Rapier replay completes both directions and rejects an injected wall.
+Narrower overlap (B starts X6.8 or X7) yielded connected paths that physically
+stopped near the stair wall. Therefore every proposed route remains explicitly
+unverified until a full-route physical gate passes; connectivity alone is not
+enough. Runtime graph integration and persistence remain pending.
+
 ## Scope
 
 Continue a click journey through adjacent precomputed regions, including stairs,
