@@ -36,7 +36,8 @@ const hook=`window.roomQA={
    if(safe){pairs.push({a,b});break;}}if(pairs.length===6)break;}
   const visible=[{x:640,y:700},{x:500,y:700},{x:900,y:700}].map(pixel=>{const p=pickWorldPos(pixel.x,pixel.y,{strictVisible:true});return {pixel,point:p?{x:p.x,y:p.y,z:p.z}:null,support:p?walkSetup.core.raycastSurface({x:p.x,y:p.y+.3,z:p.z},{x:0,y:-1,z:0},2):null};});
   let centers;
-  if(${process.argv.includes('--centers')}){
+  if(${process.argv.includes('--centers')||process.argv.includes('--export-neighborhood')}){
+   const neighborhood={source:walkSetup.settings.navigationRegions.source,bounds:[[-2,-5,-4],[2,-3,0]],points:[]};
    const half=h=>{const e=(h>>10)&31,m=h&1023,s=h&32768?-1:1;return s*(e===0?m*2**-24:e===31?Infinity:(1+m/1024)*2**(e-15));};
    centers=[{name:'initial',point:{x:camPos.x,y:camPos.y,z:camPos.z}},{name:'automatic',point:automatic.position}].filter(p=>p.point).map(p=>({...p,fine:new Map(),coarse:new Map(),nearest:null}));
    for(const layer of layers.filter(l=>l.type==='splat'&&l.visible!==false)){
@@ -46,6 +47,7 @@ const hook=`window.roomQA={
     try{const {meta}=await decoder.getRadMeta();layer.mesh.updateWorldMatrix(true,false);const matrix=layer.mesh.matrixWorld;
      for(let i=0;i<meta.chunks.length;i++){const chunk=await decoder.fetchDecodeChunk(i),a=chunk.packedArray,t=chunk.extra.lodTree;
       for(let j=0;j<chunk.numSplats;j++){if(t[j*4+2]!==0)continue;const w1=a[j*4+1],w2=a[j*4+2],p=new THREE.Vector3(half(w1&65535),half(w1>>>16),half(w2&65535)).applyMatrix4(matrix);
+       if(${process.argv.includes('--export-neighborhood')}&&p.x>=-2&&p.x<=2&&p.y>=-5&&p.y<=-3&&p.z>=-4&&p.z<=0){if(neighborhood.points.length>=100000)throw Error('Diagnostic neighborhood limit');neighborhood.points.push([p.x,p.y,p.z]);}
        for(const row of centers){if(p.y>row.point.y||p.y<row.point.y-10)continue;const d=Math.hypot(p.x-row.point.x,p.z-row.point.z);if(!row.nearest||d<row.nearest.distance)row.nearest={point:{x:p.x,y:p.y,z:p.z},distance:d};
         for(const [size,key] of [[.1,'fine'],[.25,'coarse']])if(Math.floor(p.x/size)===Math.floor(row.point.x/size)&&Math.floor(p.z/size)===Math.floor(row.point.z/size)){const y=Math.floor(p.y/size);row[key].set(y,(row[key].get(y)||0)+1);}
        }
@@ -53,7 +55,7 @@ const hook=`window.roomQA={
      }
     }finally{decoder.dispose();}
    }
-   centers=centers.map(row=>({...row,fine:[...row.fine],coarse:[...row.coarse]}));
+   centers={columns:centers.map(row=>({...row,fine:[...row.fine],coarse:[...row.coarse]})),neighborhood};
   }
   return {pairs,support,fineSupport,automatic,autoSupport,autoClear,centers,visible,cellSize:walkSetup.wholeIndex.cellSize,triangles:points.length,position:camPos.toArray(),sample:points.slice(0,20)};
  },
@@ -68,7 +70,9 @@ try{
  await page.goto(server.url,{waitUntil:'domcontentloaded'});
  await page.waitForFunction(()=>window.localProject?.ready,null,{timeout:60000});
  await page.waitForTimeout(5000);
- report.prepared=await page.evaluate(()=>roomQA.prepare());await page.screenshot({path:out+'/initial.png'});assert(report.prepared.pairs.length);assert(report.prepared.cellSize>=.15);
+ report.prepared=await page.evaluate(()=>roomQA.prepare());
+ if(process.argv.includes('--export-neighborhood')){const data=report.prepared.centers.neighborhood;await fs.writeFile(out+'/neighborhood.json',JSON.stringify(data),{flag:'wx'});report.prepared.centers.neighborhood={source:data.source,bounds:data.bounds,count:data.points.length};}
+ await page.screenshot({path:out+'/initial.png'});assert(report.prepared.pairs.length);assert(report.prepared.cellSize>=.15);
  await page.waitForTimeout(2500);
  for(const pair of report.prepared.pairs){
   await page.evaluate(pair=>roomQA.aim(pair),pair);await page.waitForTimeout(100);await page.mouse.click(640,400);await page.waitForTimeout(2200);

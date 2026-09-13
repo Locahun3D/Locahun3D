@@ -64,3 +64,18 @@ opening contains 5985 samples. RANSAC (0.01m threshold, 3-point samples,
 sample to the opening center remains 0.6m away; its bounding box spans the
 entire 4m square. Thus even a perfect fit and bounding box do not prove the
 opening is walkable. This control passed; no collider was generated.
+
+## Real Neighborhood
+
+Read-only export room-browser-1789287261565/neighborhood.json retains 5757 raw
+leaf centers within X[-2,2], Y[-5,-3], Z[-4,0], bound to the MeetingRoom
+navigation source identity. No density filtering is applied to this export.
+diagnose-floor-plane.py (Open3D0.19.0, seed7, threshold.03m, 1000 iterations)
+finds 1953 inliers; upward normal component.999853, inlier residual p95.02417m.
+At initial camera X/Z[0,-2], estimated planeY=-4.03762, nearest inlier.07670m;
+35 inliers lie within.5m and occupy7/8 angular sectors. Output and inspected
+support.png are in meetingroom-plane-01 under the private QA directory.
+
+This is evidence of a local approximately horizontal cluster, not a collision
+approval or proof the camera can reach it. Sparse regions, hole boundaries,
+obstacles and full-route clearance remain unresolved. No collision was written.
