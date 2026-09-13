@@ -37,9 +37,10 @@ if(process.argv.includes('--studio'))test('real studio independently generated o
  const collisionSource=createHash('sha256').update(JSON.stringify(['whole-tiles-v1',.1,sources.map(s=>({identity:'sha256:'+s.sha256,matrix:s.matrix}))])).digest('hex');
  const index=await c.LocahunWholeCollision.decodeTiles(new Uint8Array(fs.readFileSync(root+'/studio-full-fine.lct')),meta.source);
  const collision=await c.LocahunWholeCollision.encodeTiles([...index.tiles.values()].map(t=>({coord:t.coord,boxes:index.boxes(t)})),collisionSource,.1);
- const boundsA=[[-8,-10,-8],[8.5,30,24]],boundsB=[[process.argv.includes('--narrow')?6.8:process.argv.includes('--cross-route')?6.4:6,-10,-8],[24,30,24]],meshes=[];
+ const boundsA=[[-8,-10,-8],[8.5,30,24]],boundsB=[[process.argv.includes('--narrow')?6.8:process.argv.includes('--cross-route')?6.4:6,-10,-8],[24,30,24]],meshes=[],manifests=[];
  for(const bounds of [boundsA,boundsB]){
   const bundle=await prepareNavigationRegion({sources,bounds,collision,collisionSource});
+  manifests.push(bundle.manifest);
   meshes.push(await c.LocahunNavigationCache.decode(bundle.payloads[0].bytes,bundle.manifest.regions[0].navigation.key));
  }
  const candidates=find(...meshes,boundsA,boundsB);
@@ -109,6 +110,11 @@ if(process.argv.includes('--studio'))test('real studio independently generated o
       console.log('Narrow overlap route rejected by full-trip gate');return;
      }
      assert.equal(verified?.status,'verified-route');
+     const {encodeTransitionGraph,decodeTransitionGraph}=await import('./navigation-transition-graph.mjs');
+     const manifest={...manifests[0],regions:manifests.flatMap(m=>m.regions)};
+     const packed=encodeTransitionGraph(manifest,[{a:{key:verified.keys[0],point:verified.transition.a},b:{key:verified.keys[1],point:verified.transition.b}}]);
+     assert.equal(decodeTransitionGraph(packed.bytes,packed.entry,manifest).portals.length,1);
+     console.log(JSON.stringify({sourceBoundGraphBytes:packed.bytes.length}));
      assert.equal(await page.evaluate(input=>verifyFullRoute(input),{boxes,points:route.points}),true,'Full route gate must pass');
      assert.equal(await page.evaluate(input=>verifyFullRoute(input),{boxes,points:route.points,wall:true}),false,'Full route gate must reject wall');
      console.log(JSON.stringify({crossRegionRoute:route}));

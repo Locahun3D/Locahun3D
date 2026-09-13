@@ -22,6 +22,12 @@ runs the full gate, rejects canceled/failed results and tries other candidates.
 Actual narrow overlap rejects all six candidate paths; wide overlap accepts the
 first. Runtime graph integration and source-bound persistence remain pending.
 
+An offline canonical transition-graph codec now binds source and exact paired
+region payload digests, not merely region names. Limits: 128KiB and 256 portals.
+The certified real studio transition roundtrips in 496 bytes. Changed payloads,
+unknown region keys, corruption and cross-floor pairs reject. This codec is not
+yet wired into the viewer, project manifest, ZIP or local-server graph delivery.
+
 ## Scope
 
 Continue a click journey through adjacent precomputed regions, including stairs,
