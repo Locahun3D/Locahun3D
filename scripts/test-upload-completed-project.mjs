@@ -71,3 +71,18 @@ test('session provider is refreshed for each administrative request',async t=>{
  await uploadCompletedProject({...f.options,token:async()=>{calls++;return 'test-only';}});
  assert.equal(calls,3);
 });
+test('unresponsive session provider has a deadline and makes no remote writes',async t=>{
+ const f=await fixture(t);
+ await assert.rejects(uploadCompletedProject({...f.options,token:()=>new Promise(()=>{}),tokenTimeoutMs:10}),/session.*deadline/i);
+ assert.deepEqual(f.counts(),{attachments:0,puts:0});
+});
+test('lost PUT response retries the same write-once object and then attaches',async t=>{
+ const f=await fixture(t);let lost=false;
+ await assert.rejects(uploadCompletedProject({...f.options,fetch:async(url,options)=>{
+  const response=await fetch(url,options);
+  if(options?.method==='PUT'&&!lost){lost=true;await response.arrayBuffer();throw Error('response lost');}
+  return response;
+ }}),/response lost/);
+ assert.equal((await uploadCompletedProject(f.options)).status,'attached');
+ assert.deepEqual(f.counts(),{attachments:1,puts:2});
+});

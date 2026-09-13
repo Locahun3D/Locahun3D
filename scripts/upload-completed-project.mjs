@@ -19,10 +19,11 @@ async function boundedJson(response){
 }
 
 // Administrative credentials stay on the configured application origin, never on R2 requests.
-export async function uploadCompletedProject({root,jobs,target,origin='https://locahun3d.com',token,allowedOrigins,onProgress=()=>{},fetch:fetcher=globalThis.fetch}){
+export async function uploadCompletedProject({root,jobs,target,origin='https://locahun3d.com',token,tokenTimeoutMs=30000,allowedOrigins,onProgress=()=>{},fetch:fetcher=globalThis.fetch}){
  const job=await runCompletedExportJob({root,jobs,onProgress});
  if(job.status==='waiting_for_edit')return job;
  if(typeof token!=='function'&&(typeof token!=='string'||!token||/[\r\n]/.test(token)))throw Error('Administrative session token required');
+ if(!Number.isSafeInteger(tokenTimeoutMs)||tokenTimeoutMs<1||tokenTimeoutMs>30000)throw Error('Invalid session deadline');
  if(!Array.isArray(allowedOrigins)||!allowedOrigins.length)throw Error('Trusted storage origins required');
  const base=new URL(origin);if(base.pathname!=='/'||base.search||base.hash)throw Error('Expected application origin');
  const endpoint=trustedUrl(new URL('/api/admin/workflow',base).href,[base.origin]);
@@ -32,7 +33,16 @@ export async function uploadCompletedProject({root,jobs,target,origin='https://l
  if(bytes!==receipt.archive.bytes||sha.digest('hex')!==job.sha256)throw Error('Archive changed');
  const binding={...target,revision:job.revision,projectSha256:receipt.input.projectSha256,archiveSha256:job.sha256,archiveMd5:md5.digest('hex'),archiveBytes:bytes};
  const call=async body=>{
-  const session=typeof token==='function'?await token():token;
+  let session=token;
+  if(typeof token==='function'){
+   const controller=new AbortController();let timer;
+   try{
+    session=await Promise.race([
+     Promise.resolve().then(()=>token({signal:controller.signal})),
+     new Promise((_,reject)=>{timer=setTimeout(()=>{controller.abort();reject(Error('Administrative session deadline exceeded'));},tokenTimeoutMs);}),
+    ]);
+   }finally{clearTimeout(timer);controller.abort();}
+  }
   if(typeof session!=='string'||!session||/[\r\n]/.test(session))throw Error('Administrative session token required');
   return boundedJson(await fetcher(endpoint,{method:'POST',headers:{'Content-Type':'application/json',Authorization:'Bearer '+session,Origin:base.origin},body:JSON.stringify(body),redirect:'error',signal:AbortSignal.timeout(30000)}));
  };

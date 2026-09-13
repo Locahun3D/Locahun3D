@@ -47,6 +47,10 @@ The short-lived administrative session comes from LOCAHUN_ADMIN_SESSION, never
 from a project or exported archive. Programmatic callers can pass an async token
 provider, refreshed on each admin request, for uploads longer than a session token's
 lifetime. The storage origin is trusted configuration, not copied from a response.
+Session providers receive an AbortSignal and have a 30-second maximum deadline;
+even a provider ignoring cancellation cannot leave the transfer awaiting it forever.
+Actual HTTP regression also covers a lost PUT response followed by a 412 retry,
+byte verification and one successful attachment to the same reserved object.
 
 The client reuses the verified export, reserves one source/actor/target-bound asset,
 streams a write-once MD5-checked PUT, downloads and streams SHA-256 verification,
