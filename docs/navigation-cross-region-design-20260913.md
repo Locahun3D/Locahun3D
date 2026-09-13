@@ -32,6 +32,13 @@ The codec is now shared with a browser candidate module (not in the template).
 Node and actual Chrome WebCrypto decode the same 496-byte studio graph and
 reject corruption. Hashing owns input snapshots to avoid asynchronous mutation.
 
+Latest local integration includes the codec in the template and preserves an
+optional graph descriptor in settings. Asset collection and desktop bundle
+validation retain `assets/<sha256>.lng`; the local server serves only hashed,
+read-only graph files up to 128KiB. Actual browser collection verifies five
+files for two regions plus graph. Full ZIP/restart graph tests and runtime
+routing integration are still pending; this batch is not deployed.
+
 ## Scope
 
 Continue a click journey through adjacent precomputed regions, including stairs,

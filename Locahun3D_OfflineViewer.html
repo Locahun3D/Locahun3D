@@ -3069,7 +3069,7 @@ window.KAWAII_MALE_GLB_B64="Z2xURgIAAADsaRIAoPYCAEpTT057ImFzc2V0Ijp7InZlcnNpb24i
      the HTML. -->
 
 <script>
-window.__locahunBuildRelease="b4483955e3d9b7eac965737afe9e641cc6a45c54ad6ebd812ae10d36749d2f01";
+window.__locahunBuildRelease="61c2cb6b17ec5d8ac05a287143327786f39d003fb63272c7c2427a708415210b";
 (function(root) {
   'use strict';
   const ORIGIN='https://viewer.locahun3d.com';
@@ -14661,7 +14661,12 @@ globalThis.LocahunWalkSettings = {
       if(navigation.key!==collision.key||JSON.stringify(navigation.bounds)!==JSON.stringify(collision.bounds)||seen.has(navigation.key))return null;
       seen.add(navigation.key);regions.push({navigation,collision});
     }
-    return {schema:1,source:value.source,regions};
+    const g=value.graph;let graph;
+    if(g!==undefined){
+      if(!g||g.schema!==1||g.source!==value.source||!hex(g.manifest)||!hex(g.sha256)||!Number.isInteger(g.bytes)||g.bytes<1||g.bytes>128*1024)return null;
+      graph={schema:1,source:g.source,manifest:g.manifest,bytes:g.bytes,sha256:g.sha256};
+    }
+    return {schema:1,source:value.source,regions,...(graph?{graph}:{})};
   },
   parse(value) {
     const v = value && typeof value === 'object' ? value : {};
@@ -28891,12 +28896,12 @@ function _clearNavigationQuery(){_navigationQueryState?.clear();}
 // Candidate bounded transport; manifest verification lives in the region store.
 (() => {
   globalThis.LocahunNavigationRegionLoader={create({baseUrl,fetchFn=fetch,timeoutMs=5000,extension='lnv'}){
-    if(extension!=='lnv'&&extension!=='lcp')throw Error('Invalid navigation extension');
+    if(!['lnv','lcp','lng'].includes(extension))throw Error('Invalid navigation extension');
     const base=new URL(baseUrl);
     if((base.protocol!=='https:'&&!(base.protocol==='http:'&&base.hostname==='127.0.0.1'))||base.username||base.password||base.search||base.hash||!base.pathname.endsWith('/'))throw Error('Invalid navigation base URL');
     if(!Number.isFinite(timeoutMs)||timeoutMs<1||timeoutMs>30000)throw Error('Invalid navigation timeout');
     return async(entry,signal)=>{
-      if(!entry||typeof entry.key!=='string'||!/^[a-f0-9]{64}$/.test(entry.key)||!Number.isInteger(entry.bytes)||entry.bytes<1||entry.bytes>2000000)throw Error('Invalid navigation entry');
+      if(!entry||typeof entry.key!=='string'||!/^[a-f0-9]{64}$/.test(entry.key)||!Number.isInteger(entry.bytes)||entry.bytes<1||entry.bytes>(extension==='lng'?128*1024:2000000))throw Error('Invalid navigation entry');
       const limit=entry.bytes,url=new URL(entry.key+'.'+extension,base).href,controller=new AbortController();let timer,reader,stop;
       const stopped=new Promise((_,reject)=>{stop=reason=>{controller.abort();reject(Error(reason));};});
       const abort=()=>stop('Navigation cancelled');signal?.addEventListener('abort',abort,{once:true});
@@ -29097,11 +29102,17 @@ let _regionalNavigationFiles=null;
 globalThis.LocahunNavigationFiles={async read(value,read){
   const manifest=LocahunWalkSettings.parseNavigationRegions(value);
   if(!manifest)throw Error('Invalid navigation manifest');
-  if(manifest.regions.reduce((n,p)=>n+p.navigation.bytes+p.collision.bytes,0)>64*1024*1024)throw Error('Navigation archive size limit');
+  if(manifest.regions.reduce((n,p)=>n+p.navigation.bytes+p.collision.bytes,manifest.graph?.bytes||0)>64*1024*1024)throw Error('Navigation archive size limit');
   const files=new Map();
   for(const pair of manifest.regions)for(const [type,ext] of [['navigation','lnv'],['collision','lcp']]){
     const entry=pair[type],name='assets/'+entry.key+'.'+ext,bytes=await read(name,entry,ext);
     if(!(bytes instanceof Uint8Array)||bytes.length!==entry.bytes||await _wholeHash(bytes)!==entry.sha256)throw Error('Missing or corrupt navigation asset: '+name);
+    files.set(name,new Uint8Array(bytes));
+  }
+  if(manifest.graph){
+    const entry=manifest.graph,name='assets/'+entry.sha256+'.lng',bytes=await read(name,{...entry,key:entry.sha256},'lng');
+    if(!(bytes instanceof Uint8Array)||bytes.length!==entry.bytes||await _wholeHash(bytes)!==entry.sha256)throw Error('Missing or corrupt navigation graph');
+    await LocahunTransitionGraph.create(_wholeHash).decode(bytes,entry,manifest);
     files.set(name,new Uint8Array(bytes));
   }
   return {source:manifest.source,files};
@@ -29114,6 +29125,60 @@ async function _collectRegionalNavigationFiles(manifest){
     return LocahunNavigationRegionLoader.create({baseUrl,extension})(entry);
   });
 }
+// Shared graph codec; creates no runtime query or network request by itself.
+globalThis.LocahunTransitionGraph={create(hash){
+ const hex=s=>typeof s==='string'&&/^[a-f0-9]{64}$/.test(s),MAX=128*1024;
+ const digest=value=>hash(new TextEncoder().encode(JSON.stringify(value)));
+ const order=(a,b)=>a<b?-1:a>b?1:0;
+ async function binding(manifest){
+  if(manifest?.schema!==1||!hex(manifest.source)||!Array.isArray(manifest.regions)||!manifest.regions.length||manifest.regions.length>1024)throw Error('Invalid graph manifest');
+  const seen=new Set(),bounds=new Map(),records=[];
+  for(const pair of manifest.regions){
+   const entries=[];
+   for(const type of ['navigation','collision']){
+    const e=pair?.[type],b=e?.bounds;
+    if(!e||e.source!==manifest.source||!hex(e.key)||!hex(e.sha256)||!Number.isInteger(e.bytes)||e.bytes<1||e.bytes>2000000||
+     !Array.isArray(b)||b.length!==2||b.some(v=>!Array.isArray(v)||v.length!==3||v.some(n=>!Number.isFinite(n)||Math.abs(n)>10000))||b[1].some((n,i)=>n<=b[0][i])||b[1][0]-b[0][0]>32||b[1][2]-b[0][2]>32)throw Error('Invalid graph region');
+    const copy=b.map(v=>[...v]);
+    if(await digest(['navigation-region-v1',e.source,copy,[2,.15,.3,.05,.025]])!==e.key)throw Error('Invalid graph region key');
+    entries.push([e.key,copy,e.bytes,e.sha256]);
+   }
+   if(entries[0][0]!==entries[1][0]||seen.has(entries[0][0]))throw Error('Invalid graph region pair');
+   seen.add(entries[0][0]);bounds.set(entries[0][0],entries[0][1]);records.push(entries);
+  }
+  records.sort((a,b)=>order(a[0][0],b[0][0]));
+  return {key:await digest(['transition-manifest-v1',manifest.source,records]),bounds};
+ }
+ function normalize(portals,bounds){
+  if(!Array.isArray(portals)||!portals.length||portals.length>256)throw Error('Portal count limit');
+  const seen=new Set();
+  return portals.map(portal=>{
+   const ends=['a','b'].map(side=>{
+    const e=portal?.[side],p=e?.point,b=bounds.get(e?.key);
+    if(!b||!p||!['x','y','z'].every((k,i)=>Number.isFinite(p[k])&&p[k]>=b[0][i]+.35&&p[k]<=b[1][i]-.35))throw Error('Invalid portal endpoint');
+    return {key:e.key,point:{x:p.x,y:p.y,z:p.z}};
+   }).sort((a,b)=>order(a.key,b.key));
+   if(ends[0].key===ends[1].key||Math.hypot(...['x','y','z'].map(k=>ends[0].point[k]-ends[1].point[k]))>.025)throw Error('Invalid portal crossing');
+   const value={a:ends[0],b:ends[1]},id=JSON.stringify(value);if(seen.has(id))throw Error('Duplicate portal');seen.add(id);return value;
+  }).sort((a,b)=>order(JSON.stringify(a),JSON.stringify(b)));
+ }
+ async function encode(manifest,portals){
+  const input=structuredClone({manifest,portals}),bound=await binding(input.manifest);
+  const value={schema:1,source:input.manifest.source,manifest:bound.key,portals:normalize(input.portals,bound.bounds)};
+  const bytes=new TextEncoder().encode(JSON.stringify(value));if(bytes.length>MAX)throw Error('Graph size limit');
+  return {bytes,entry:{schema:1,source:value.source,manifest:bound.key,bytes:bytes.length,sha256:await hash(bytes)}};
+ }
+ return {encode,async decode(bytes,entry,manifest){
+  if(!(bytes instanceof Uint8Array)||!bytes.length||bytes.length>MAX||entry?.schema!==1||entry.bytes!==bytes.length||!hex(entry.sha256))throw Error('Graph digest mismatch');
+  const owned=new Uint8Array(bytes),saved=structuredClone(entry),input=structuredClone(manifest);
+  if(await hash(owned)!==saved.sha256)throw Error('Graph digest mismatch');
+  const bound=await binding(input);if(saved.source!==input.source||saved.manifest!==bound.key)throw Error('Graph binding mismatch');
+  const value=JSON.parse(new TextDecoder('utf-8',{fatal:true}).decode(owned));
+  if(value?.schema!==1||value.source!==input.source||value.manifest!==bound.key)throw Error('Graph binding mismatch');
+  const normalized=await encode(input,value.portals);if(normalized.entry.sha256!==saved.sha256)throw Error('Noncanonical graph');
+  return JSON.parse(new TextDecoder().decode(normalized.bytes));
+ }};
+}};
 /*
 
 The MIT License (MIT)

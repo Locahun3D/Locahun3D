@@ -21,3 +21,9 @@ test('manifest never preserves remote URLs or arbitrary extra fields',()=>{
  const value=manifest();value.url='http://private/';value.regions[0].collision.url='http://private/';
  assert.deepEqual(parse({navigationRegions:value}).navigationRegions,manifest());
 });
+test('optional transition descriptor survives without allowing arbitrary asset URLs',()=>{
+ const value=manifest();value.graph={schema:1,source,manifest:'c'.repeat(64),sha256:'d'.repeat(64),bytes:496,url:'https://private/'};
+ const expected={...value.graph};delete expected.url;
+ assert.deepEqual(parse({navigationRegions:value}).navigationRegions.graph,expected);
+ value.graph.bytes=128*1024+1;assert(!parse({navigationRegions:value}).navigationRegions);
+});

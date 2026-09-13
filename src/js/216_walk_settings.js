@@ -16,7 +16,12 @@ globalThis.LocahunWalkSettings = {
       if(navigation.key!==collision.key||JSON.stringify(navigation.bounds)!==JSON.stringify(collision.bounds)||seen.has(navigation.key))return null;
       seen.add(navigation.key);regions.push({navigation,collision});
     }
-    return {schema:1,source:value.source,regions};
+    const g=value.graph;let graph;
+    if(g!==undefined){
+      if(!g||g.schema!==1||g.source!==value.source||!hex(g.manifest)||!hex(g.sha256)||!Number.isInteger(g.bytes)||g.bytes<1||g.bytes>128*1024)return null;
+      graph={schema:1,source:g.source,manifest:g.manifest,bytes:g.bytes,sha256:g.sha256};
+    }
+    return {schema:1,source:value.source,regions,...(graph?{graph}:{})};
   },
   parse(value) {
     const v = value && typeof value === 'object' ? value : {};

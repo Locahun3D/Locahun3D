@@ -45,6 +45,9 @@ test('navigation sidecars are read-only hash-named and bounded',async t=>{
  assert.equal((await f.request('assets/'+name+'.lnv',{method:'POST',headers:{Origin:f.origin}})).status,404);
  await fs.writeFile(path.join(f.root,'assets','arbitrary.lnv'),'no');assert.equal((await f.request('assets/arbitrary.lnv')).status,404);
  await fs.writeFile(path.join(f.root,'assets',name+'.lcp'),Buffer.alloc(2000001));assert.equal((await f.request('assets/'+name+'.lcp')).status,413);
+ await fs.writeFile(path.join(f.root,'assets',name+'.lng'),'graph');assert.equal(await (await f.request('assets/'+name+'.lng')).text(),'graph');
+ assert.equal((await f.request('assets/'+name+'.lng',{method:'POST',headers:{Origin:f.origin}})).status,404);
+ await fs.writeFile(path.join(f.root,'assets',name+'.lng'),Buffer.alloc(128*1024+1));assert.equal((await f.request('assets/'+name+'.lng')).status,413);
 });
 
 test('token viewer, project metadata and single byte ranges only', async t => {

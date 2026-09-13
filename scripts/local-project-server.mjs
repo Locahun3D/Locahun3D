@@ -17,7 +17,7 @@ class HttpError extends Error {
   constructor(status, message) { super(message); this.status = status; }
 }
 const fail = (status, message) => { throw new HttpError(status, message); };
-const navigationAsset=file=>/^assets\/[a-f0-9]{64}\.(lnv|lcp)$/.test(file);
+const navigationAsset=file=>/^assets\/[a-f0-9]{64}\.(lnv|lcp|lng)$/.test(file);
 const object = value => value !== null && typeof value === 'object' && !Array.isArray(value);
 function safeAsset(file) {
   if (typeof file !== 'string' || !/^assets\/[A-Za-z0-9][A-Za-z0-9._-]{0,180}$/.test(file) || file.includes('..')) return false;
@@ -319,7 +319,7 @@ export async function startLocalProjectServer({root, port = 0, token = randomByt
       try { opened = await openSafe(relative); } catch { fail(404, 'File not found.'); }
       const {handle, stat} = opened;
       try {
-        if(navigationAsset(relative)&&stat.size>2000000)fail(413,'Navigation asset exceeds limit.');
+        if(navigationAsset(relative)&&stat.size>(relative.endsWith('.lng')?128*1024:2000000))fail(413,'Navigation asset exceeds limit.');
         let start = 0, end = stat.size - 1, status = 200;
         const headers = {'Content-Type': isViewer ? 'text/html; charset=utf-8' : 'application/octet-stream', 'Accept-Ranges': 'bytes'};
         if (req.headers.range) {

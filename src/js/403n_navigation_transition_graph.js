@@ -1,4 +1,4 @@
-// Shared codec candidate; not in the template until graph routing is integrated.
+// Shared graph codec; creates no runtime query or network request by itself.
 globalThis.LocahunTransitionGraph={create(hash){
  const hex=s=>typeof s==='string'&&/^[a-f0-9]{64}$/.test(s),MAX=128*1024;
  const digest=value=>hash(new TextEncoder().encode(JSON.stringify(value)));

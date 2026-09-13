@@ -2,12 +2,13 @@ import fs from 'node:fs';
 import vm from 'node:vm';
 import {createHash} from 'node:crypto';
 import {navigationRegionKey} from './navigation-region-contract.mjs';
+import {decodeTransitionGraph} from './navigation-transition-graph.mjs';
 const c=vm.createContext({Uint8Array,Float32Array,Uint32Array,DataView,TextEncoder,TextDecoder,Blob,CompressionStream,DecompressionStream});
 for(const n of ['216_walk_settings','216b_whole_collision','403_navigation_cache'])vm.runInContext(fs.readFileSync(new URL('../src/js/'+n+'.js',import.meta.url),'utf8'),c);
 export async function validateNavigationBundle(value,read){
  const manifest=c.LocahunWalkSettings.parseNavigationRegions(value);
  if(!manifest)throw Error('Invalid regional navigation manifest');
- const total=manifest.regions.reduce((sum,p)=>sum+p.navigation.bytes+p.collision.bytes,0);
+ const total=manifest.regions.reduce((sum,p)=>sum+p.navigation.bytes+p.collision.bytes,manifest.graph?.bytes||0);
  if(total>64*1024*1024)throw Error('Navigation package size limit');
  const files=new Map();
  for(const pair of manifest.regions){
@@ -19,6 +20,10 @@ export async function validateNavigationBundle(value,read){
    if(type==='navigation')await c.LocahunNavigationCache.decode(bytes,e.key);else await c.LocahunWholeCollision.decode(bytes,e.key);
    files.set(name,bytes);
   }
+ }
+ if(manifest.graph){
+  const entry=manifest.graph,name='assets/'+entry.sha256+'.lng',bytes=await read(name,entry.bytes);
+  await decodeTransitionGraph(bytes,entry,manifest);files.set(name,new Uint8Array(bytes));
  }
  return {manifest:JSON.parse(JSON.stringify(manifest)),files};
 }

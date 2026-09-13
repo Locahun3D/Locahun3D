@@ -37,10 +37,11 @@ if(process.argv.includes('--studio'))test('real studio independently generated o
  const collisionSource=createHash('sha256').update(JSON.stringify(['whole-tiles-v1',.1,sources.map(s=>({identity:'sha256:'+s.sha256,matrix:s.matrix}))])).digest('hex');
  const index=await c.LocahunWholeCollision.decodeTiles(new Uint8Array(fs.readFileSync(root+'/studio-full-fine.lct')),meta.source);
  const collision=await c.LocahunWholeCollision.encodeTiles([...index.tiles.values()].map(t=>({coord:t.coord,boxes:index.boxes(t)})),collisionSource,.1);
- const boundsA=[[-8,-10,-8],[8.5,30,24]],boundsB=[[process.argv.includes('--narrow')?6.8:process.argv.includes('--cross-route')?6.4:6,-10,-8],[24,30,24]],meshes=[],manifests=[];
+ const boundsA=[[-8,-10,-8],[8.5,30,24]],boundsB=[[process.argv.includes('--narrow')?6.8:process.argv.includes('--cross-route')?6.4:6,-10,-8],[24,30,24]],meshes=[],manifests=[],bundleFiles=[];
  for(const bounds of [boundsA,boundsB]){
   const bundle=await prepareNavigationRegion({sources,bounds,collision,collisionSource});
   manifests.push(bundle.manifest);
+  bundleFiles.push(...bundle.payloads.map(p=>['assets/'+p.name,[...p.bytes]]));
   meshes.push(await c.LocahunNavigationCache.decode(bundle.payloads[0].bytes,bundle.manifest.regions[0].navigation.key));
  }
  const candidates=find(...meshes,boundsA,boundsB);
@@ -122,6 +123,11 @@ if(process.argv.includes('--studio'))test('real studio independently generated o
       return {portals:graph.portals.length,rejected};
      },{bytes:[...packed.bytes],entry:packed.entry,manifest});
      assert.deepEqual(browserGraph,{portals:1,rejected:true});
+     const collected=await page.evaluate(async({manifest,files})=>{
+      const data=new Map(files.map(([name,bytes])=>[name,new Uint8Array(bytes)]));
+      return (await LocahunNavigationFiles.read(manifest,name=>data.get(name))).files.size;
+     },{manifest:{...manifest,graph:packed.entry},files:[...bundleFiles,['assets/'+packed.entry.sha256+'.lng',[...packed.bytes]]]});
+     assert.equal(collected,5,'Browser packaging must retain both regions and graph');
      console.log(JSON.stringify({sourceBoundGraphBytes:packed.bytes.length}));
      assert.equal(await page.evaluate(input=>verifyFullRoute(input),{boxes,points:route.points}),true,'Full route gate must pass');
      assert.equal(await page.evaluate(input=>verifyFullRoute(input),{boxes,points:route.points,wall:true}),false,'Full route gate must reject wall');
