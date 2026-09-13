@@ -1,7 +1,29 @@
 # Cross-Region Navigation Design
 
-Status: offline surface-candidate discovery and local collision-clearance gate
-implemented and tested; graph and runtime integration not implemented/deployed.
+Status: two-region runtime and authoring integration verified locally; awaiting
+guarded publication. The dated implementation notes below are historical.
+
+## Current Verification
+
+The provider lazily verifies the saved graph, queries both independently bound
+regions, builds a bounded combined corridor and replays the actual controller
+against collision in both directions before movement. It tries at most four
+physical candidates from sixteen geometric candidates. Source/epoch/cancel
+guards discard late results; rejected and completed cores are disposed.
+
+Authoring preparation automatically generates transitions for exactly two
+regions. The real studio output totals 406718 bytes for two navigation/collision
+pairs plus graph, while retaining the existing coarse scene collision. The
+original active project is not overwritten. Two actual server launches, saves,
+graph HTTP loading and staircase clicks passed in package-1789283295645.
+Single-portal rendered studio click/hold/touch and ZIP roundtrips also passed.
+142 navigation/preparation tests pass; graph stale-source and failed-physical
+candidate fallback now have regression tests. No renderer changes.
+
+The ordinary demo does not request graph assets; the desktop comparison has
+the same 16.8ms p95 frame interval as published. This is not physical iPad
+validation or a universal performance claim. Journeys remain at most two
+regions/30m; three-plus-region graph generation is not implemented.
 
 `scripts/navigation-transition-candidates.mjs` returns explicitly unverified
 pairs with triangle indices. Synthetic tests reject stacked floors, gaps and

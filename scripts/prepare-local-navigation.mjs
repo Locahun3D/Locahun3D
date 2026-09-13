@@ -9,6 +9,7 @@ import {startLocalProjectServer} from './local-project-server.mjs';
 import {prepareProjectNavigation} from './prepare-project-navigation.mjs';
 import {prepareNavigationRegion} from './prepare-navigation-region.mjs';
 import {navigationRegionKey} from './navigation-region-contract.mjs';
+import {prepareNavigationTransitions} from './prepare-navigation-transitions.mjs';
 export async function prepareLocalNavigation({root,output,regions,onProgress=()=>{}}){
  if(regions){
   if(!Array.isArray(regions)||!regions.length||regions.length>32)throw Error('Expected 1-32 navigation regions');
@@ -68,6 +69,12 @@ export async function prepareLocalNavigation({root,output,regions,onProgress=()=
     payloads.push(...bundle.payloads);
     if(payloads.reduce((n,p)=>n+p.bytes.length,0)>64*1024**2)throw Error('Navigation bundle size limit');
    }
+   if(regions.length===2){
+    onProgress('Verifying region transition clearance');
+    const graph=await prepareNavigationTransitions(manifest,payloads);
+    if(graph){manifest.graph=graph.entry;payloads.push({name:graph.name,bytes:graph.bytes});}
+   }
+   if(payloads.reduce((n,p)=>n+p.bytes.length,0)>64*1024**2)throw Error('Navigation bundle size limit');
    prepared={status:'generated',bytes:payloads.reduce((n,p)=>n+p.bytes.length,0),project:{...project,walk:{...originalWalk,...evaluated.coarse,navigationRegions:manifest}}};
   }else prepared=await prepareProjectNavigation(project);
   if(prepared.status!=='generated'&&prepared.status!=='reused')throw Error(prepared.status);

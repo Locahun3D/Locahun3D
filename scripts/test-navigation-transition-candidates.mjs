@@ -37,7 +37,7 @@ if(process.argv.includes('--studio'))test('real studio independently generated o
  const collisionSource=createHash('sha256').update(JSON.stringify(['whole-tiles-v1',.1,sources.map(s=>({identity:'sha256:'+s.sha256,matrix:s.matrix}))])).digest('hex');
  const index=await c.LocahunWholeCollision.decodeTiles(new Uint8Array(fs.readFileSync(root+'/studio-full-fine.lct')),meta.source);
  const collision=await c.LocahunWholeCollision.encodeTiles([...index.tiles.values()].map(t=>({coord:t.coord,boxes:index.boxes(t)})),collisionSource,.1);
- const boundsA=[[-8,-10,-8],[8.5,30,24]],boundsB=[[process.argv.includes('--narrow')?6.8:process.argv.includes('--cross-route')?6.4:6,-10,-8],[24,30,24]],meshes=[],manifests=[],bundleFiles=[];
+ const boundsA=[[-8,-10,-8],[process.argv.includes('--export-graph')?8:8.5,30,24]],boundsB=[[process.argv.includes('--narrow')?6.8:process.argv.includes('--cross-route')?6.4:6,-10,-8],[24,30,24]],meshes=[],manifests=[],bundleFiles=[];
  for(const bounds of [boundsA,boundsB]){
   const bundle=await prepareNavigationRegion({sources,bounds,collision,collisionSource});
   manifests.push(bundle.manifest);
@@ -77,7 +77,21 @@ if(process.argv.includes('--studio'))test('real studio independently generated o
     return {accepted,reason:nav.stopReason,position};
    }finally{core.dispose();}
   };`;
-  const fullGate=`window.graphZipRoundtrip=async({manifest,files})=>{
+  const fullGate=`window.runtimeCrossRegion=async({manifest,files,from,to})=>{
+   const data=new Map(files.map(([name,bytes])=>[name,new Uint8Array(bytes)])),requests=[];let built=0,epoch=1;
+   const provider=LocahunNavigationProvider.create({manifest,baseUrl:'http://127.0.0.1:18995/assets/',read:()=>({source:manifest.source,epoch}),
+    fetchFn:async url=>{requests.push(url);const bytes=data.get('assets/'+url.split('/').at(-1));if(!bytes)throw Error('Missing graph fixture');return new Response(bytes,{headers:{'Content-Length':String(bytes.length)}});},
+    decodeNavigation:(bytes,key)=>LocahunNavigationCache.decode(bytes,key),buildQuery:mesh=>LocahunNavigationQuery.create(THREE,_loadNavigationPathfinding(),mesh),
+    decodeCollision:(bytes,key)=>LocahunWholeCollision.decode(bytes,key),
+    buildCore:async boxes=>{built=boxes.length;const core=await LocahunWalkCollision.create();try{core.rebuild({boxes});return core;}catch(e){core.dispose();throw e;}}
+   });
+   const initial=requests.length;
+   try{const started=performance.now(),lease=await provider.acquire(from,to),ms=performance.now()-started;
+    if(!lease)return {initial,requests,built,accepted:false,ms};
+    const ready=lease.valid();epoch++;const stale=lease.valid();return {initial,requests,built,accepted:true,ready,stale,ms,points:lease.points};
+   }finally{provider.dispose();}
+  };
+  window.graphZipRoundtrip=async({manifest,files})=>{
    walkSetup.settings.navigationRegions=manifest;
    _regionalNavigationFiles={source:manifest.source,files:new Map(files.map(([name,bytes])=>[name,new Uint8Array(bytes)]))};
    const blob=await saveProjectZip(true,{returnBlob:true});if(!(blob instanceof Blob))throw Error('Graph ZIP failed');
@@ -124,6 +138,11 @@ if(process.argv.includes('--studio'))test('real studio independently generated o
      const manifest={...manifests[0],regions:manifests.flatMap(m=>m.regions)};
      const packed=await encodeTransitionGraph(manifest,[{a:{key:verified.keys[0],point:verified.transition.a},b:{key:verified.keys[1],point:verified.transition.b}}]);
      assert.equal((await decodeTransitionGraph(packed.bytes,packed.entry,manifest)).portals.length,1);
+     if(process.argv.includes('--export-graph')){
+      const file=root+'/runtime-cross-region-'+Date.now()+'.json';
+      fs.writeFileSync(file,JSON.stringify({manifest:{...manifest,graph:packed.entry},files:[...bundleFiles,['assets/'+packed.entry.sha256+'.lng',[...packed.bytes]]]}),{flag:'wx'});
+      console.log(JSON.stringify({graphFixture:file}));
+     }
      const browserGraph=await page.evaluate(async({bytes,entry,manifest})=>{
       const codec=LocahunTransitionGraph.create(async bytes=>Array.from(new Uint8Array(await crypto.subtle.digest('SHA-256',bytes)),v=>v.toString(16).padStart(2,'0')).join(''));
       const graph=await codec.decode(new Uint8Array(bytes),entry,manifest);
@@ -132,6 +151,9 @@ if(process.argv.includes('--studio'))test('real studio independently generated o
       return {portals:graph.portals.length,rejected};
      },{bytes:[...packed.bytes],entry:packed.entry,manifest});
      assert.deepEqual(browserGraph,{portals:1,rejected:true});
+     const runtime=await page.evaluate(input=>runtimeCrossRegion(input),{manifest:{...manifest,graph:packed.entry},files:[...bundleFiles,['assets/'+packed.entry.sha256+'.lng',[...packed.bytes]]],from:input.from,to:input.to});
+     console.log(JSON.stringify({runtimeCrossRegion:runtime}));
+     assert(runtime.accepted&&runtime.ready&&!runtime.stale);assert.equal(runtime.initial,0);assert.equal(runtime.requests.length,5);assert(runtime.built<=8192);
      const collected=await page.evaluate(async({manifest,files})=>{
       const data=new Map(files.map(([name,bytes])=>[name,new Uint8Array(bytes)]));
       return (await LocahunNavigationFiles.read(manifest,name=>data.get(name))).files.size;

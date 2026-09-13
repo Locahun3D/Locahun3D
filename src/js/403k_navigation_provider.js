@@ -20,9 +20,24 @@
     const navStore=LocahunNavigationRegionStore.create({read:io.read,load:load('lnv'),decode:io.decodeNavigation,build:io.buildQuery});
     const collisionStore=LocahunNavigationRegionStore.create({read:io.read,load:load('lcp'),
       decode:async(bytes,key)=>({source:key,boxes:await io.decodeCollision(bytes,key)}),build:mesh=>({boxes:mesh.boxes,dispose(){this.boxes=[];}})});
-    const regions=LocahunNavigationRegions.create({read:()=>({...io.read(),entries}),store:navStore});
+    const graphManifest={schema:1,source:m.source,regions:entries.map(n=>({navigation:n,collision:collisions.get(n.key)})),...(m.graph?{graph:{...m.graph}}:{})};
+    let graph=null,graphPending=null,graphController=null;
+    const clearGraph=()=>{graphController?.abort();graphController=null;graphPending=null;graph=null;};
+    const loadGraph=async()=>{
+      if(!graphManifest.graph)return null;if(graph)return graph;if(graphPending)return graphPending;
+      const entry=graphManifest.graph,controller=new AbortController();graphController=controller;
+      const pending=(async()=>{
+        const bytes=await load('lng')({...entry,key:entry.sha256},controller.signal);
+        const hash=async bytes=>Array.from(new Uint8Array(await crypto.subtle.digest('SHA-256',bytes)),n=>n.toString(16).padStart(2,'0')).join('');
+        const value=await LocahunTransitionGraph.create(hash).decode(bytes,entry,graphManifest);
+        if(controller.signal.aborted)return null;graph=value;return value;
+      })();graphPending=pending;
+      try{return await pending;}finally{if(graphPending===pending){graphPending=null;graphController=null;}}
+    };
+    const regions=LocahunNavigationRegions.create({read:()=>({...io.read(),entries}),store:navStore,...(m.graph?{loadGraph}:{})});
     let disposed=false,collisionGeneration=0;
     const journey=LocahunNavigationJourney.create({read:io.read,regions,build:io.buildCore,
+      verifyCore:io.verifyCore||((points,core)=>LocahunRouteClearance(points,core,LocahunClickNavigation)),
       loadCollision:async(key,signal)=>{
         const entry=collisions.get(key);if(!entry||signal.aborted)throw Error('Invalid collision request');
         const ticket=++collisionGeneration;
@@ -30,8 +45,8 @@
         try{const item=await collisionStore.prepare(entry);if(!item)throw Error('Collision unavailable');return item.boxes;}
         finally{signal.removeEventListener('abort',abort);if(ticket===collisionGeneration)collisionStore.clear();}
       }});
-    return {acquire:(a,b)=>disposed?Promise.resolve(null):journey.acquire(a,b),
-      cancel(){collisionGeneration++;journey.cancel();collisionStore.clear();},
-      dispose(){if(disposed)return;disposed=true;collisionGeneration++;journey.cancel();collisionStore.clear();navStore.clear();}};
+    return {acquire:(a,b)=>disposed||io.read()?.source!==graphManifest.source?Promise.resolve(null):journey.acquire(a,b),
+      cancel(){collisionGeneration++;journey.cancel();collisionStore.clear();clearGraph();},
+      dispose(){if(disposed)return;disposed=true;collisionGeneration++;journey.cancel();collisionStore.clear();navStore.clear();clearGraph();}};
   }};
 })();

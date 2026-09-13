@@ -23,6 +23,12 @@ test('mismatched and duplicate pairs are rejected before any request',()=>{
   const f=fixture();mutate(f.io.manifest);assert.throws(()=>c.LocahunNavigationProvider.create(f.io));assert.equal(f.calls,0);
  }
 });
+
+test('provider rejects a changed live source before requesting assets',async()=>{
+ const f=fixture(),p=c.LocahunNavigationProvider.create(f.io);
+ f.io.read=()=>({source:'ff'.repeat(32),epoch:1});
+ assert.equal(await p.acquire(a,b),null);assert.equal(f.calls,0);p.dispose();
+});
 test('provider snapshots manifest entries and rejects bad collision digest',async()=>{
  const f=fixture();f.io.manifest.regions[0].collision.sha256='ff'.repeat(32);const p=c.LocahunNavigationProvider.create(f.io);
  f.io.manifest.regions[0].collision.sha256=entry.sha256;assert.equal(await p.acquire(a,b),null);assert.equal(f.disposed,0);p.dispose();

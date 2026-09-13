@@ -16,16 +16,21 @@ const meta=JSON.parse(fs.readFileSync(cache+'/studio-full-fine.json'));assert.eq
 const read=p=>fs.readFileSync(new URL('../'+p,import.meta.url),'utf8');
 let html=read('src/template.html').replace(/\{\{include(?:-variant)?:([^}]+)\}\}/g,(_,p)=>read(p));
 const hook=`\nwindow.studioNav={
+ async installGraph(fixture,embedded){
+  _clearRegionalNavigationProvider();walkSetup.settings.navigationRegions=fixture.manifest;
+  _regionalNavigationFiles=embedded?await LocahunNavigationFiles.read(fixture.manifest,name=>new Uint8Array(fixture.files.find(p=>p[0]===name)?.[1]||[])):null;
+ },
  async zipRoundtrip(){
   const expected=JSON.stringify(_walkSaveSettings().navigationRegions);
   const blob=await saveProjectZip(true,{returnBlob:true});
   if(!(blob instanceof Blob))throw Error('ZIP save failed');
   const fflate=await getFflate(),entries=fflate.unzipSync(new Uint8Array(await blob.arrayBuffer()));
-  const names=Object.keys(entries).filter(name=>/\.(lnv|lcp)$/.test(name));
-  if(names.length!==2)throw Error('Missing ZIP sidecars');
+  const count=_walkSaveSettings().navigationRegions.regions.length*2+(_walkSaveSettings().navigationRegions.graph?1:0);
+  const names=Object.keys(entries).filter(name=>/\.(lnv|lcp|lng)$/.test(name));
+  if(names.length!==count)throw Error('Missing ZIP sidecars');
   _regionalNavigationFiles=null;
   await _loadProjectZipFromFile(new File([blob],'regional-roundtrip.zip'));
-  if(JSON.stringify(_walkSaveSettings().navigationRegions)!==expected||_regionalNavigationFiles?.files.size!==2)throw Error('ZIP navigation restore failed');
+  if(JSON.stringify(_walkSaveSettings().navigationRegions)!==expected||_regionalNavigationFiles?.files.size!==count)throw Error('ZIP navigation restore failed');
   const bake=LocahunCollisionBake.generate;LocahunCollisionBake.generate=()=>{throw Error('ZIP must not rebake');};
   try{if(!await _walkGenerateCollision({automatic:true}))throw Error(walkSetup.status);}finally{LocahunCollisionBake.generate=bake;}
   for(const l of layers)if(l.type==='path'){l.visible=false;l.mesh.visible=false;}
@@ -170,6 +175,12 @@ try{
   if(!process.argv.includes('--automatic'))await page.evaluate(manifest=>studioNav.enableHttpProvider(manifest),manifest);
   assert.equal(result.navigationRequests.length,0,'provider must not load at startup');
  }
+ const graphArg=process.argv.indexOf('--graph-fixture');
+ if(graphArg>=0){
+  const fixture=JSON.parse(fs.readFileSync(process.argv[graphArg+1],'utf8'));
+  for(const [name,bytes] of fixture.files)payloads.set('/'+name,Buffer.from(bytes));
+  await page.evaluate(({fixture,embedded})=>studioNav.installGraph(fixture,embedded),{fixture,embedded:process.argv.includes('--embedded')});
+ }
  await page.screenshot({path:out+'/before.png'});result.before=await page.evaluate(()=>studioNav.state());
  await page.mouse.click(640,400);result.samples=[];
  for(let i=0;i<35;i++){
@@ -214,6 +225,7 @@ try{
  if(process.argv.includes('--http-provider')){
   if(process.argv.includes('--embedded'))assert.equal(result.navigationRequests.length,0,'embedded routes must not fetch sidecars');
   else{assert(result.navigationRequests.some(p=>p.endsWith('.lnv')));assert(result.navigationRequests.some(p=>p.endsWith('.lcp')));}
+  if(graphArg>=0&&!process.argv.includes('--embedded'))assert(result.navigationRequests.some(p=>p.endsWith('.lng')),'Cross-region graph must be used by actual click input');
   await page.evaluate(async manifest=>{studioNav.reset();await studioNav.enableHttpProvider(manifest);},{...httpManifest,collision:{...httpManifest.collision,sha256:'ff'.repeat(32)}});
   await page.mouse.click(640,400);await page.waitForTimeout(1500);
   result.corruptCollision=await page.evaluate(()=>studioNav.state());assert.deepEqual(result.corruptCollision.pos,[6.6,1.33,2.25]);assert(!result.corruptCollision.active);

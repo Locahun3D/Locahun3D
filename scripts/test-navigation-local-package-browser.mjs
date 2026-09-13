@@ -58,7 +58,7 @@ try{
   service=await startLocalProjectServer({root});assert.notEqual(service.url,previousUrl);previousUrl=service.url;
   const context=await browser.newContext({viewport:{width:1280,height:800}}),page=await context.newPage();
   page.on('pageerror',e=>report.errors.push(e.message));
-  page.on('response',r=>{if(/\.(lnv|lcp)$/.test(r.url()))(report.navigationRequests||=[]).push({url:r.url(),status:r.status()});});
+  page.on('response',r=>{if(/\.(lnv|lcp|lng)$/.test(r.url()))(report.navigationRequests||=[]).push({url:r.url(),status:r.status()});});
   await page.route('**/?localProject=1',async route=>{
    const response=await route.fetch(),html=await response.text(),at=html.lastIndexOf('</script>');assert(at>0);
    await route.fulfill({response,body:html.slice(0,at)+hook+html.slice(at)});

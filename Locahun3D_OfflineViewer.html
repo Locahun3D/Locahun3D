@@ -3069,7 +3069,7 @@ window.KAWAII_MALE_GLB_B64="Z2xURgIAAADsaRIAoPYCAEpTT057ImFzc2V0Ijp7InZlcnNpb24i
      the HTML. -->
 
 <script>
-window.__locahunBuildRelease="61c2cb6b17ec5d8ac05a287143327786f39d003fb63272c7c2427a708415210b";
+window.__locahunBuildRelease="8d2c1ab9a029a11382d8390e97c81ec7fbcf5799c7d2075712c85c7ab9c7442c";
 (function(root) {
   'use strict';
   const ORIGIN='https://viewer.locahun3d.com';
@@ -28938,7 +28938,7 @@ function _clearNavigationQuery(){_navigationQueryState?.clear();}
   function boundsOK(b){return Array.isArray(b)&&b.length===2&&b.every(a=>Array.isArray(a)&&a.length===3&&a.every(Number.isFinite))&&b[1].every((v,i)=>v>b[0][i]);}
   globalThis.LocahunNavigationRegions={create(io){
     let intent=0;
-    return {cancel(){intent++;},async find(from,to){
+    return {cancel(){intent++;},async find(from,to,accept){
       const ticket=++intent,state=io.read();
       if(!state||!valid(from)||!valid(to)||distance(from,to)>30||!Array.isArray(state.entries)||state.entries.length>1024)return null;
       const a={...from},b={...to};
@@ -28956,6 +28956,36 @@ function _clearNavigationQuery(){_navigationQueryState?.clear();}
           distance(points[0],a)>.35||distance(points.at(-1),b)>.25)continue;
         let length=0;for(let i=1;i<points.length;i++)length+=distance(points[i-1],points[i]);if(length>30)continue;
         return {key:entry.key,points:points.map(p=>({...p}))};
+      }
+      if(typeof io.loadGraph!=='function'||!current())return null;
+      let graph;try{graph=await io.loadGraph();}catch{return null;}
+      if(!current()||!Array.isArray(graph?.portals)||graph.portals.length>256)return null;
+      const routes=[];
+      for(const portal of graph.portals)for(const [start,end] of [[portal.a,portal.b],[portal.b,portal.a]]){
+        const x=state.entries.find(e=>e?.key===start?.key),y=state.entries.find(e=>e?.key===end?.key);
+        if(!x||!y||x===y||x.source!==state.source||y.source!==state.source||!valid(start?.point)||!valid(end?.point)||distance(start.point,end.point)>.025||!boundsOK(x.bounds)||!boundsOK(y.bounds)||
+          !inside(a,x.bounds,.35)||!inside(b,y.bounds,.35)||!inside(start.point,x.bounds,.35)||!inside(end.point,y.bounds,.35))continue;
+        routes.push({x,y,start:{...start.point},end:{...end.point}});
+      }
+      routes.sort((p,q)=>distance(a,p.start)+distance(p.end,b)-distance(a,q.start)-distance(q.end,b));
+      const segmentOK=(points,start,end,entry,snapStart,snapEnd)=>Array.isArray(points)&&points.length>=2&&points.length<=1024&&
+        points.every(p=>valid(p)&&inside(p,entry.bounds))&&distance(points[0],start)<=snapStart&&distance(points.at(-1),end)<=snapEnd;
+      let checked=0;
+      for(const r of routes.slice(0,16)){
+        if(!current())return null;
+        try{
+          const leftQuery=await io.store.prepare(r.x);if(!current()||!leftQuery)continue;
+          const left=leftQuery.find(a,r.start,r.x.key)?.map(p=>({...p}));
+          if(!segmentOK(left,a,r.start,r.x,.35,.025))continue;
+          const rightQuery=await io.store.prepare(r.y);if(!current()||!rightQuery)continue;
+          const right=rightQuery.find(r.end,b,r.y.key)?.map(p=>({...p}));
+          if(!segmentOK(right,r.end,b,r.y,.025,.25)||distance(left.at(-1),right[0])>.025)continue;
+          const points=[...left,...right];if(points.length>1024)continue;
+          let length=0;for(let i=1;i<points.length;i++)length+=distance(points[i-1],points[i]);if(length>30)continue;
+          const route={key:r.x.key,keys:[r.x.key,r.y.key],points};
+          if(accept){if(checked++>=4)return null;const accepted=await accept(route);if(!current())return null;if(accepted!==true)continue;}
+          return route;
+        }catch{/* Disconnected or disposed queries do not establish a crossing. */}
       }
       return null;
     }};
@@ -29004,13 +29034,30 @@ function _clearNavigationQuery(){_navigationQueryState?.clear();}
     return {cancel,async acquire(from,to){
       cancel();const ticket=generation,state=io.read(),controller=new AbortController();pending=controller;
       const current=()=>{const now=io.read();return !controller.signal.aborted&&ticket===generation&&state&&now?.source===state.source&&now?.epoch===state.epoch;};
-      let core=null;
+      let core=null,corridor=null;
       try{
-        const route=await io.regions.find(from,to);if(!route||!current())return null;
-        const boxes=await io.loadCollision(route.key,controller.signal);if(!current())return null;
-        const corridor=LocahunNavigationCorridor.create(route.points,boxes);if(!corridor)return null;
+        const prepare=async route=>{
+        if(core){core.dispose();core=null;}corridor=null;
+        if(!current())return false;
+        let boxes;
+        if(route.keys){
+          if(!Array.isArray(route.keys)||route.keys.length!==2||route.keys[0]===route.keys[1]||typeof io.verifyCore!=='function')return null;
+          const unique=new Map();
+          for(const key of route.keys){
+            const part=await io.loadCollision(key,controller.signal);if(!current()||!Array.isArray(part)||part.length>100000)return null;
+            for(const box of part){unique.set(JSON.stringify([box.center,box.half]),box);if(unique.size>100000)return null;}
+          }
+          boxes=[...unique.values()];
+        }else boxes=await io.loadCollision(route.key,controller.signal);
+        if(!current())return null;
+        corridor=LocahunNavigationCorridor.create(route.points,boxes);if(!corridor)return null;
         core=await io.build(corridor.boxes);if(!current())return null;
         if(!core||typeof core.dispose!=='function')return null;
+        if(route.keys&&((await io.verifyCore(route.points,core))!==true||!current()))return null;
+        return true;
+        };
+        const route=await io.regions.find(from,to,prepare);if(!route||!current())return null;
+        if(!core&&await prepare(route)!==true)return null;
         let disposed=false;const owned=core;core=null;
         const lease={key:route.key,points:route.points.map(p=>({...p})),core:owned,
           valid:()=>!disposed&&current(),covers:p=>!disposed&&current()&&corridor.covers(p),
@@ -29043,9 +29090,24 @@ function _clearNavigationQuery(){_navigationQueryState?.clear();}
     const navStore=LocahunNavigationRegionStore.create({read:io.read,load:load('lnv'),decode:io.decodeNavigation,build:io.buildQuery});
     const collisionStore=LocahunNavigationRegionStore.create({read:io.read,load:load('lcp'),
       decode:async(bytes,key)=>({source:key,boxes:await io.decodeCollision(bytes,key)}),build:mesh=>({boxes:mesh.boxes,dispose(){this.boxes=[];}})});
-    const regions=LocahunNavigationRegions.create({read:()=>({...io.read(),entries}),store:navStore});
+    const graphManifest={schema:1,source:m.source,regions:entries.map(n=>({navigation:n,collision:collisions.get(n.key)})),...(m.graph?{graph:{...m.graph}}:{})};
+    let graph=null,graphPending=null,graphController=null;
+    const clearGraph=()=>{graphController?.abort();graphController=null;graphPending=null;graph=null;};
+    const loadGraph=async()=>{
+      if(!graphManifest.graph)return null;if(graph)return graph;if(graphPending)return graphPending;
+      const entry=graphManifest.graph,controller=new AbortController();graphController=controller;
+      const pending=(async()=>{
+        const bytes=await load('lng')({...entry,key:entry.sha256},controller.signal);
+        const hash=async bytes=>Array.from(new Uint8Array(await crypto.subtle.digest('SHA-256',bytes)),n=>n.toString(16).padStart(2,'0')).join('');
+        const value=await LocahunTransitionGraph.create(hash).decode(bytes,entry,graphManifest);
+        if(controller.signal.aborted)return null;graph=value;return value;
+      })();graphPending=pending;
+      try{return await pending;}finally{if(graphPending===pending){graphPending=null;graphController=null;}}
+    };
+    const regions=LocahunNavigationRegions.create({read:()=>({...io.read(),entries}),store:navStore,...(m.graph?{loadGraph}:{})});
     let disposed=false,collisionGeneration=0;
     const journey=LocahunNavigationJourney.create({read:io.read,regions,build:io.buildCore,
+      verifyCore:io.verifyCore||((points,core)=>LocahunRouteClearance(points,core,LocahunClickNavigation)),
       loadCollision:async(key,signal)=>{
         const entry=collisions.get(key);if(!entry||signal.aborted)throw Error('Invalid collision request');
         const ticket=++collisionGeneration;
@@ -29053,9 +29115,9 @@ function _clearNavigationQuery(){_navigationQueryState?.clear();}
         try{const item=await collisionStore.prepare(entry);if(!item)throw Error('Collision unavailable');return item.boxes;}
         finally{signal.removeEventListener('abort',abort);if(ticket===collisionGeneration)collisionStore.clear();}
       }});
-    return {acquire:(a,b)=>disposed?Promise.resolve(null):journey.acquire(a,b),
-      cancel(){collisionGeneration++;journey.cancel();collisionStore.clear();},
-      dispose(){if(disposed)return;disposed=true;collisionGeneration++;journey.cancel();collisionStore.clear();navStore.clear();}};
+    return {acquire:(a,b)=>disposed||io.read()?.source!==graphManifest.source?Promise.resolve(null):journey.acquire(a,b),
+      cancel(){collisionGeneration++;journey.cancel();collisionStore.clear();clearGraph();},
+      dispose(){if(disposed)return;disposed=true;collisionGeneration++;journey.cancel();collisionStore.clear();navStore.clear();clearGraph();}};
   }};
 })();
 let _regionalProviderPending=null,_regionalProviderVersion=0;
@@ -29179,6 +29241,26 @@ globalThis.LocahunTransitionGraph={create(hash){
   return JSON.parse(new TextDecoder().decode(normalized.bytes));
  }};
 }};
+// Bounded preflight using the same controller as actual click travel.
+globalThis.LocahunRouteClearance=function(points,core,Navigation){
+ const valid=p=>p&&['x','y','z'].every(k=>Number.isFinite(p[k])&&Math.abs(p[k])<=10000);
+ if(!Array.isArray(points)||points.length<2||points.length>1024||!points.every(valid))return false;
+ try{
+  for(const route of [points,[...points].reverse()]){
+   let position={...route[0],y:route[0].y+1.8};
+   const nav=Navigation.create({position:()=>position,setPosition:p=>position={...p},ready:()=>true,blocked:()=>false,epoch:()=>1,coverage:()=>true,
+    clear:p=>{
+     const feet=p.y-1.8,hit=core.raycastSurface({x:p.x,y:feet+.3,z:p.z},{x:0,y:-1,z:0},.65);
+     return valid(hit?.point)&&valid(hit?.normal)&&hit.normal.y>=.7&&Math.abs(hit.point.y-feet)<=.3&&core.isCapsuleClear({x:p.x,y:feet+.3,z:p.z},1.7,.15);
+    },sweep:(a,b)=>core.moveCamera(a,{x:b.x-a.x,y:b.y-a.y,z:b.z-a.z},.15)});
+   if(!nav.start({point:route.at(-1),normal:{x:0,y:1,z:0}},0,route.slice(1).map(p=>({...p,y:p.y+1.8}))))return false;
+   for(let time=16;time<=8000&&nav.active;time+=16)nav.tick(time);
+   if(nav.active||nav.stopReason!=='complete')return false;
+   const last=route.at(-1);if(Math.hypot(position.x-last.x,position.y-last.y-1.8,position.z-last.z)>.001)return false;
+  }
+  return true;
+ }catch{return false;}
+};
 /*
 
 The MIT License (MIT)
