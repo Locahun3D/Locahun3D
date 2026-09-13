@@ -24,6 +24,31 @@ test('two-region journey loads both payloads and requires full-core verification
  assert.equal(await f.journey.acquire(a,b),null);
  f.io.verifyCore=()=>true;assert((await f.journey.acquire(a,b))?.valid());assert.deepEqual(calls.slice(-2),['a','b']);
 });
+test('three and four regions share a deduplicated core and verify the entire route',async()=>{
+ for(const keys of [['a','b','c'],['a','b','c','d']]){
+  const f=fixture(),loaded=[];let verified=0;
+  const points=[a,{x:1,y:0,z:0},b];
+  f.io.regions.find=async()=>({key:keys[0],keys,points});
+  f.io.loadCollision=async key=>{loaded.push(key);return [{center:[1,-.1,0],half:[2,.1,2]}];};
+  f.io.build=async boxes=>{assert.equal(boxes.length,1);return {dispose(){}};};
+  f.io.verifyCore=route=>{assert.deepEqual(route,points);verified++;return true;};
+  const lease=await f.journey.acquire(a,b);assert(lease?.valid());
+  assert.deepEqual(loaded,keys);assert.equal(verified,1);lease.dispose();
+ }
+});
+test('invalid multi-region key sets are rejected before collision loading',async()=>{
+ for(const keys of [[],['a'],['a','b','a'],['a','b','c','d','e'],['a',null]]){
+  const f=fixture();let loaded=0;
+  f.io.regions.find=async()=>({key:'a',keys,points:[a,b]});
+  f.io.verifyCore=()=>true;f.io.loadCollision=async()=>{loaded++;return [];};
+  assert.equal(await f.journey.acquire(a,b),null);assert.equal(loaded,0);
+ }
+});
+test('a rejected three-region physical route disposes its core without a lease',async()=>{
+ const f=fixture();f.io.regions.find=async()=>({key:'a',keys:['a','b','c'],points:[a,b]});
+ f.io.verifyCore=()=>false;
+ assert.equal(await f.journey.acquire(a,b),null);assert.equal(f.built,1);assert.equal(f.disposed,1);
+});
 test('a replacement aborts pending collision and rejects its late result',async()=>{
  const f=fixture();let resolve,signal;
  f.io.loadCollision=(_key,s)=>{signal=s;return new Promise(r=>resolve=r);};

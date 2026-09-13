@@ -1,4 +1,4 @@
-// Unconnected candidate: bounded portal planning over existing verified region queries.
+// Bounded portal planning over existing verified region queries.
 (() => {
  const valid=p=>p&&['x','y','z'].every(k=>Number.isFinite(p[k])&&Math.abs(p[k])<=10000);
  const distance=(a,b)=>Math.hypot(a.x-b.x,a.y-b.y,a.z-b.z);

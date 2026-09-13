@@ -1,5 +1,25 @@
 # Bounded Multi-Region Preparation
 
+## Verified Integration
+
+The notes below describe historical intermediate stages. The template now loads
+the bounded planner. Regional routing replaces its old two-region search with
+this planner; it does not stack additional physical attempts. Journey accepts
+2-4 distinct nonempty keys, retains the100000-box union limit and8192 corridor
+limit, and requires full-route physical replay.138 navigation/input tests pass.
+
+Actual read-only studio QA: browser-1789294013341. Three-region source-bound
+fixture506531bytes. Start[5.8000005,-3.6333334,-.7166665] to
+[10.1750002,-3.866667,-.9833333] on ground, eye+1.8m. Runtime provider accepts
+after1 physical check; an inserted intermediate thin wall rejects after4
+checks. Actual mouse click reaches the exclusive third region. Existing stair
+click/hold/touch, corrupt payload and changed-source checks pass; browsererrors[].
+The preceding run's three-region-after screenshot was inspected. Original
+project bytes unchanged; no scene writes. Rendering code/settings unchanged.
+
+Publication is pending. Physical iPad validation, original unsaved-project
+application and MeetingRoom scale confirmation are not covered by these tests.
+
 Authoring-only extension:2-4 regions can now generate physically verified pair
 connections. Runtime rendering, startup, collision-memory and movement limits
 are unchanged. More than4 regions retain the prior no-graph behavior.

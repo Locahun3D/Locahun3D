@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import vm from 'node:vm';
 const c=vm.createContext({}),file=new URL('../src/js/403h_navigation_regions.js',import.meta.url);
+vm.runInContext(fs.readFileSync(new URL('../src/js/403p_navigation_multihop.js',import.meta.url),'utf8'),c);
 if(fs.existsSync(file))vm.runInContext(fs.readFileSync(file,'utf8'),c);
 const source='ab'.repeat(32),entry=(x,key)=>({source,key:key.repeat(64),sha256:'f'.repeat(64),bytes:10,bounds:[[x,-2,0],[x+32,8,32]]});
 function fixture(){
@@ -13,6 +14,15 @@ function fixture(){
 test('regions load only a covering candidate and return its bound route',async()=>{
  const f=fixture();assert.equal(f.loads,0);
  const route=await f.regions.find({x:4,y:0,z:4},{x:24,y:0,z:4});assert(route?.points.length);assert.equal(route.key,'a'.repeat(64));assert.equal(f.loads,1);
+});
+test('region routing crosses three connected regions through one bounded physical gate',async()=>{
+ const f=fixture(),entries=[0,1,2].map((n)=>({...entry(0,'abc'[n]),bounds:[[n*4-1,-2,0],[n*4+5,8,8]]}));
+ f.io.read=()=>({source,epoch:1,entries});let checked=0;
+ f.io.loadGraph=async()=>({portals:[4,8].map((x,i)=>({a:{key:entries[i].key,point:{x,y:0,z:4}},b:{key:entries[i+1].key,point:{x,y:0,z:4}}}))});
+ const route=await f.regions.find({x:0,y:0,z:4},{x:12,y:0,z:4},async r=>{checked++;assert.equal(r.keys.length,3);return true;});
+ assert.equal(route?.keys.length,3);assert.equal(checked,1);
+ checked=0;assert.equal(await f.regions.find({x:0,y:0,z:4},{x:12,y:0,z:4},async()=>{checked++;return false;}),null);
+ assert.equal(checked,1);
 });
 test('verified graph is loaded only when no single region covers both endpoints',async()=>{
  const f=fixture();let calls=0;f.io.loadGraph=async()=>{calls++;return {portals:[{a:{key:'a'.repeat(64),point:{x:24,y:0,z:4}},b:{key:'b'.repeat(64),point:{x:24,y:0,z:4}}}]};};

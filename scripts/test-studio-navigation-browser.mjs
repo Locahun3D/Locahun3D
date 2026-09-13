@@ -16,6 +16,12 @@ const meta=JSON.parse(fs.readFileSync(cache+'/studio-full-fine.json'));assert.eq
 const read=p=>fs.readFileSync(new URL('../'+p,import.meta.url),'utf8');
 let html=read('src/template.html').replace(/\{\{include(?:-variant)?:([^}]+)\}\}/g,(_,p)=>read(p));
 const hook=`\nwindow.studioNav={
+ buildQuery(mesh){return LocahunNavigationQuery.create(THREE,_loadNavigationPathfinding(),mesh);},
+ aimRoute(from,to){
+  _cancelClickNavigation();camPos.set(from.x,from.y+1.8,from.z);const d=new THREE.Vector3(to.x,to.y,to.z).sub(camPos);
+  setCamRotImmediate(Math.atan2(d.x,d.z),Math.atan2(d.y,Math.hypot(d.x,d.z)));updateCamera();
+  _walkWholeCoverage(camPos,{...to,y:to.y+1.8},{drop:3,margin:.5});markDirty(120);
+ },
  async installGraph(fixture,embedded){
   _clearRegionalNavigationProvider();walkSetup.settings.navigationRegions=fixture.manifest;
   _regionalNavigationFiles=embedded?await LocahunNavigationFiles.read(fixture.manifest,name=>new Uint8Array(fixture.files.find(p=>p[0]===name)?.[1]||[])):null;
@@ -180,6 +186,47 @@ try{
   const fixture=JSON.parse(fs.readFileSync(process.argv[graphArg+1],'utf8'));
   for(const [name,bytes] of fixture.files)payloads.set('/'+name,Buffer.from(bytes));
   await page.evaluate(({fixture,embedded})=>studioNav.installGraph(fixture,embedded),{fixture,embedded:process.argv.includes('--embedded')});
+  if(process.argv.includes('--multihop-probe')){
+   result.multihop=await page.evaluate(async fixture=>{
+    const entries=fixture.manifest.regions.map(p=>p.navigation),last=entries.at(-1);
+    const raw=fixture.files.find(([name])=>name==='assets/'+last.key+'.lnv')[1];
+    const mesh=await LocahunNavigationCache.decode(new Uint8Array(raw),last.key),targets=[];
+    for(let i=0;i<mesh.triangles.length;i+=3){
+     const p={x:0,y:0,z:0};for(let j=0;j<3;j++){const index=mesh.triangles[i+j]*3;p.x+=mesh.vertices[index]/3;p.y+=mesh.vertices[index+1]/3;p.z+=mesh.vertices[index+2]/3;}
+     if(p.x>10.15&&p.x<15&&p.y>-4.5&&p.y<-3&&p.z>-2&&p.z<8)targets.push(p);
+    }
+    targets.sort((a,b)=>Math.hypot(a.x-10.175,a.y+3.87,a.z+.98)-Math.hypot(b.x-10.175,b.y+3.87,b.z+.98));
+    const files=new Map(fixture.files.map(([name,bytes])=>[name,new Uint8Array(bytes)]));let checked=0,wall=false;const trace=[];
+    const provider=LocahunNavigationProvider.create({manifest:fixture.manifest,baseUrl:'http://127.0.0.1:18994/assets/',read:()=>({source:fixture.manifest.source,epoch:1}),
+     fetchFn:async url=>{trace.push({url});const bytes=files.get('assets/'+url.split('/').at(-1));if(!bytes)throw Error('Missing fixture asset');return new Response(bytes,{headers:{'Content-Length':String(bytes.length)}});},
+     decodeNavigation:async(bytes,key)=>{try{return await LocahunNavigationCache.decode(bytes,key);}catch(e){trace.push({decodeError:String(e)});throw e;}},buildQuery:mesh=>{
+      try{const q=studioNav.buildQuery(mesh),find=q.find.bind(q);
+      q.find=(a,b,key)=>{const p=find(a,b,key);trace.push({key,a,b,points:p?.length||0});return p;};return q;
+      }catch(e){trace.push({buildError:String(e)});throw e;}},
+     decodeCollision:(bytes,key)=>LocahunWholeCollision.decode(bytes,key),
+     verifyCore:(points,core)=>{checked++;return LocahunRouteClearance(points,core,LocahunClickNavigation);},
+     buildCore:async boxes=>{const core=await LocahunWalkCollision.create();core.rebuild({boxes:wall?[...boxes,{center:[8,-2.8,-.7],half:[.05,2,3]}]:boxes});return core;}});
+    const attempts=[];
+    try{for(const to of targets.slice(0,24)){
+     const from={x:5.800000508626303,y:-3.6333333651224775,z:-.7166665395100911},lease=await provider.acquire(from,to);attempts.push({to,accepted:!!lease});
+     if(lease){const points=lease.points;lease.dispose();const acceptedChecks=checked;wall=true;
+      const blocked=await provider.acquire(from,to);if(blocked)blocked.dispose();
+      return {accepted:true,from,to,points,checked:acceptedChecks,wallRejected:!blocked,wallChecks:checked-acceptedChecks,attempts};}
+    }return {accepted:false,checked,attempts,trace:trace.slice(0,25)};}finally{provider.dispose();}
+   },fixture);
+   console.log(JSON.stringify({multihop:result.multihop}));
+   assert(result.multihop.accepted,'Real three-region full physical route must pass');
+   assert(result.multihop.wallRejected&&result.multihop.wallChecks>0,'Three-region full physical gate must reject an intermediate wall');
+   await page.evaluate(({from,to})=>studioNav.aimRoute(from,to),result.multihop);
+   await page.waitForTimeout(350);await page.screenshot({path:out+'/three-region-before.png'});
+   await page.mouse.click(640,400);
+   await page.waitForFunction(()=>studioNav.state().active,null,{timeout:5000});
+   await page.waitForFunction(()=>studioNav.state().reason==='complete',null,{timeout:10000});
+   result.multihop.clickEnd=await page.evaluate(()=>studioNav.state());
+   assert(result.multihop.clickEnd.pos[0]>10.15,'Actual click must reach exclusive third region');
+   await page.screenshot({path:out+'/three-region-after.png'});
+   await page.evaluate(()=>studioNav.reset());
+  }
  }
  await page.screenshot({path:out+'/before.png'});result.before=await page.evaluate(()=>studioNav.state());
  await page.mouse.click(640,400);result.samples=[];

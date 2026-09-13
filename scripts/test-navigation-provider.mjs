@@ -5,7 +5,7 @@ import vm from 'node:vm';
 import {webcrypto} from 'node:crypto';
 import {navigationRegionEntry} from './navigation-region-contract.mjs';
 const c=vm.createContext({crypto:webcrypto,TextEncoder,Uint8Array,AbortController,URL,fetch,setTimeout,clearTimeout});
-for(const n of ['403f_navigation_region_store','403g_navigation_region_loader','403h_navigation_regions','403i_navigation_corridor','403j_navigation_journey','403k_navigation_provider'])vm.runInContext(fs.readFileSync(new URL('../src/js/'+n+'.js',import.meta.url),'utf8'),c);
+for(const n of ['403f_navigation_region_store','403g_navigation_region_loader','403p_navigation_multihop','403h_navigation_regions','403i_navigation_corridor','403j_navigation_journey','403k_navigation_provider'])vm.runInContext(fs.readFileSync(new URL('../src/js/'+n+'.js',import.meta.url),'utf8'),c);
 const source='ab'.repeat(32),bytes=new Uint8Array([1,2,3]),entry=navigationRegionEntry(source,[[-2,-2,-2],[8,5,8]],bytes),a={x:0,y:0,z:0},b={x:2,y:0,z:0};
 function fixture(){
  let calls=0,disposed=0;const manifest={schema:1,source,regions:[{navigation:structuredClone(entry),collision:structuredClone(entry)}]};

@@ -15,7 +15,9 @@
         if(!current())return false;
         let boxes;
         if(route.keys){
-          if(!Array.isArray(route.keys)||route.keys.length!==2||route.keys[0]===route.keys[1]||typeof io.verifyCore!=='function')return null;
+          if(!Array.isArray(route.keys)||route.keys.length<2||route.keys.length>4||
+            route.keys.some(key=>typeof key!=='string'||!key)||new Set(route.keys).size!==route.keys.length||
+            typeof io.verifyCore!=='function')return null;
           const unique=new Map();
           for(const key of route.keys){
             const part=await io.loadCollision(key,controller.signal);if(!current()||!Array.isArray(part)||part.length>100000)return null;

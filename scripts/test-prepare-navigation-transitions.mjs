@@ -48,5 +48,11 @@ if(process.argv.includes('--studio'))test('actual studio prepares three source-b
  const result=await prepareNavigationTransitions(manifest,payloads);assert(result);
  const graph=await decodeTransitionGraph(result.bytes,result.entry,manifest);
  assert.equal(new Set(graph.portals.flatMap(p=>[p.a.key,p.b.key])).size,3);
+ if(process.argv.includes('--write-fixture')){
+  manifest.graph=result.entry;
+  const files=payloads.map(p=>['assets/'+p.name,Array.from(p.bytes)]);
+  files.push(['assets/'+result.name,Array.from(result.bytes)]);
+  fs.writeFileSync(dir+'/studio-three-region-fixture.json',JSON.stringify({manifest,files}));
+ }
  console.log(JSON.stringify({source:manifest.source,regions:3,portals:graph.portals.length,totalBytes:payloads.reduce((n,p)=>n+p.bytes.length,0)+result.bytes.length}));
 });
