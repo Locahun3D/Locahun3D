@@ -1,7 +1,10 @@
 # Cross-Region Navigation Design
 
-Status: two-region runtime and authoring integration verified locally; awaiting
-guarded publication. The dated implementation notes below are historical.
+Status: two-region runtime and authoring integration published and verified.
+Source 28731bd; standalone Worker 4039d183-7647-4312-a7e0-e9133ad3244b;
+online ecf8b8a (Actions 34744725145 success). Both public HTML hashes match
+the tested builds. Ten Dropbox viewers and next-start helpers updated with
+backups; the active original scene was not changed. Notes below are historical.
 
 ## Current Verification
 
