@@ -2628,134 +2628,27 @@ body.ar-active #dz{display:none !important;}
     <button class="dz-changelog-head" type="button" onclick="toggleChangelog()"
       aria-expanded="false" aria-controls="dz-changelog-body">
       📋 <span id="cl-title">更新履歴</span>
-      <span class="cl-sub" id="cl-sub">ベータ版</span>
+      <span class="cl-sub" id="cl-sub">v1.0</span>
       <span class="cl-chev" aria-hidden="true">▾</span>
     </button>
     <div class="dz-changelog-body" id="dz-changelog-body" hidden>
       <div class="cl-entry">
         <div class="cl-entry-head">
-          <span class="cl-ver">v 0.1.8-beta</span>
-          <span class="cl-date">2026-06-20</span>
-          <span class="cl-tag"><span class="cl-ja">モバイル微調整</span><span class="cl-en">Mobile tweaks</span></span>
+          <span class="cl-ver">v1.0</span>
+          <span class="cl-date">2026-09-14</span>
+          <span class="cl-tag"><span class="cl-ja">安定版</span><span class="cl-en">Stable</span></span>
         </div>
         <ul class="cl-ja">
-          <li>🏠 <b>ホーム画面に上部ボタンが残ってしまう不具合を修正</b>（前版でボタン列を前面に出した際、ホーム画面にも被って表示されていた）</li>
-          <li>📱 <b>横画面でホーム画面が大きすぎて見切れる問題を修正</b>（ロゴ・見出し・余白を縮小して収まるように）</li>
+          <li>3DGSの閲覧、歩行、クリック・タッチ移動。</li>
+          <li>カメラ、日照、測定、区画パスの編集。</li>
+          <li>人物・車両・機材の配置。</li>
+          <li>ローカルプロジェクトの保存と編集再開。</li>
         </ul>
         <ul class="cl-en">
-          <li>🏠 <b>Fixed the top buttons lingering on the home screen</b> (the previous version brought the button row to the front and it also showed over the home screen)</li>
-          <li>📱 <b>Fixed the home screen being too large / cut off in landscape</b> (logo, heading and spacing reduced to fit)</li>
-        </ul>
-      </div>
-      <div class="cl-entry">
-        <div class="cl-entry-head">
-          <span class="cl-ver">v 0.1.7-beta</span>
-          <span class="cl-date">2026-06-20</span>
-          <span class="cl-tag"><span class="cl-ja">モバイル微調整</span><span class="cl-en">Mobile tweaks</span></span>
-        </div>
-        <ul class="cl-ja">
-          <li>📱 上部ボタンの<b>文字ラベルを元に戻し</b>（前版のアイコンのみ化を撤回）</li>
-          <li>📱 スマホ: <b>ボタンを押して出るパネル（日照・測定・カメラツール・画質）をさらに小さく</b>（文字・幅を縮小。ボタン自体は縮小しません）</li>
-        </ul>
-        <ul class="cl-en">
-          <li>📱 <b>Restored the text labels on the top buttons</b> (reverted the previous icon-only change)</li>
-          <li>📱 Phone: <b>made the pop-up panels (Sun / Measure / Camera-tool / Quality) even smaller</b> (reduced font + width; the buttons themselves are unchanged)</li>
-        </ul>
-      </div>
-      <div class="cl-entry">
-        <div class="cl-entry-head">
-          <span class="cl-ver">v 0.1.6-beta</span>
-          <span class="cl-date">2026-06-19</span>
-          <span class="cl-tag"><span class="cl-ja">モバイル微調整</span><span class="cl-en">Mobile tweaks</span></span>
-        </div>
-        <ul class="cl-ja">
-          <li>📱 スマホ: <b>各パネル（日照・測定・カメラワーク等）に覆われて AR ボタンが押せなくなる問題を修正</b>（上部ボタン列を最前面に）</li>
-          <li>📱 スマホ: <b>上部ボタンをアイコンのみに整理</b>（混雑・被りを軽減）＋<b>トップバー直下へ詰めて上のデッドスペースを解消</b>（従来は指定が効かず余白が残っていた不具合を修正）</li>
-          <li>📐 測定の<b>「左クリックで点 B を配置」案内を全端末で非表示</b>に（点A配置後はバナーを出さない）</li>
-          <li>☀ スマホ: <b>日照パネルをさらに小さく</b>（文字・幅を縮小）</li>
-        </ul>
-        <ul class="cl-en">
-          <li>📱 Phone: <b>fixed the AR button becoming untappable when a panel (Sun / Measure / Camera Work …) covered it</b> (top button row now sits above panels)</li>
-          <li>📱 Phone: <b>top buttons simplified to icons only</b> (less clutter / overlap) and <b>moved flush under the top bar to remove the dead space above them</b> (fixes the prior rule that never took effect)</li>
-          <li>📐 Measure: <b>the “Left-click to place Point B” hint is now hidden on all devices</b> (no banner after Point A)</li>
-          <li>☀ Phone: <b>Sun panel made even smaller</b> (reduced font + width)</li>
-        </ul>
-      </div>
-      <div class="cl-entry">
-        <div class="cl-entry-head">
-          <span class="cl-ver">v 0.1.5-beta</span>
-          <span class="cl-date">2026-06-19</span>
-          <span class="cl-tag"><span class="cl-ja">操作性・モバイル</span><span class="cl-en">UX · Mobile</span></span>
-        </div>
-        <ul class="cl-ja">
-          <li>🎞 <b>アニメーションを上部UI群に移動</b>し、名称を<b>「カメラワーク」</b>に変更（英語 Camera Work）</li>
-          <li>☀📐 <b>日照と測定を排他化</b>：一方を開くともう一方は自動で閉じ、パネルがぶつからないように</li>
-          <li>📱 スマホ: 上部ボタンの<b>上の隙間を半分</b>に／日照・カメラツール・画質・測定の<b>各パネルを縮小＋文字サイズを統一</b>（被り・大きすぎを軽減）</li>
-        </ul>
-        <ul class="cl-en">
-          <li>🎞 <b>Moved Animation into the top button group</b> and renamed it <b>“Camera Work”</b> (JP カメラワーク)</li>
-          <li>☀📐 <b>Sun and Measure are now mutually exclusive</b>: opening one closes the other so their panels no longer collide</li>
-          <li>📱 Phone: <b>halved the gap above the top buttons</b>; <b>shrank the Sun / Camera-tool / Quality / Measure panels and unified their font size</b> (less overlap, less oversized)</li>
-        </ul>
-      </div>
-      <div class="cl-entry">
-        <div class="cl-entry-head">
-          <span class="cl-ver">v 0.1.4-beta</span>
-          <span class="cl-date">2026-06-19</span>
-          <span class="cl-tag"><span class="cl-ja">ベータ版・操作性・モバイル・英語</span><span class="cl-en">Beta · UX · Mobile · i18n</span></span>
-        </div>
-        <ul class="cl-ja">
-          <li>🛣 <b>パス</b>: 中央ラベルを<b>複数行＋自動可変サイズ</b>に（段落改行・長文折返しで文字切れ解消）。レイヤー名を「Path 1, 2…」英語表記に</li>
-          <li>📦 <b>Cube・イベント・フィギュア</b>を<b>左クリックした場所に配置</b>（長押しで位置を探り、離して確定。パス機能と同じ操作）</li>
-          <li>🎞 <b>カメラアニメーション</b>に<b>イージング／リニア</b>切替を追加</li>
-          <li>📱 <b>iPad対応</b>: レイヤー名の<b>キーボード編集</b>（✏️ボタン）／<b>ピボットのタッチドラッグ</b>で移動・回転・拡縮</li>
-          <li>🖱 オブジェクト・パス等の選択中、<b>空クリックで選択解除</b>を徹底。新規/インポートは既定で<b>ローカル座標</b></li>
-          <li>⚙️ <b>描画FPS上限を60</b>に統一（全デバイス）。画質/FPSモニターの数値を是正し、<b>スマホは確実に画質「低」</b>で起動</li>
-          <li>🌐 <b>英語化</b>: パスメニュー・実天気予報の読み出し・各UIラベルを翻訳。撮影バーンインのロゴ文字を<b>白</b>に、上部ロゴを<b>アイコン</b>化</li>
-          <li>📱 スマホ: 端スワイプでのページ移動を抑止／最新版チェックボタンを非表示。<b>FOV110°・録画・「ポリゴン1/4」・書き出しを廃止</b></li>
-          <li>↩ <b>Ctrl+Z でオブジェクトの追加・削除も取り消し</b>（やり直しはCtrl+Y）／画質チップが押すとサイズ変化する不具合を修正／上部ロゴをアイコン＋「ロケハン3D」表記に</li>
-          <li>🔒 <b>フォルダーの編集ロック</b>を追加（中身の移動・編集・削除を一括無効化）／🎬 カメラアニメのイージングを弱めに調整＋緩急/等速の切替</li>
-          <li>🧹 案内バナーを下部に統一して上部ボタンとの重なりを解消／日照パネルを簡潔化／<b>ユーザーマニュアルを現行情報で再整備</b>（わかりやすさ優先）</li>
-          <li>📱 iPadで日照パネルが下部ボタンに重なる問題を修正／<b>🎞 アニメーションボタンを下部バーに移動</b>（カメラ/日照/測定と並列）／測定パネルが右上の画質チップに重なる問題を修正</li>
-        </ul>
-        <ul class="cl-en">
-          <li>🛣 <b>Path</b>: center label now <b>multi-line + auto-sizing</b> (paragraph breaks + wrapping, no more clipping). Layers named “Path 1, 2…”</li>
-          <li>📦 <b>Cube / Event / Figure</b> are now <b>placed where you left-click</b> (long-press to aim, release to confirm — same as Path)</li>
-          <li>🎞 <b>Camera animation</b>: new <b>Ease in/out vs Linear</b> motion toggle</li>
-          <li>📱 <b>iPad</b>: layer-name <b>keyboard editing</b> (✏️ button) and <b>touch-drag the pivot</b> to move / rotate / scale</li>
-          <li>🖱 Empty-click <b>deselect</b> made thorough; new / imported objects default to <b>local</b> coordinates</li>
-          <li>⚙️ <b>60 FPS cap</b> on all devices; fixed the quality/FPS monitor readouts; phones now reliably start at the <b>低 (Low)</b> preset</li>
-          <li>🌐 <b>English</b> for the Path menu, live-weather readout and various labels; burn-in wordmark recolored <b>white</b>; top-bar logo is now an <b>icon</b></li>
-          <li>📱 Phones: edge-swipe page navigation blocked; update-check button hidden. <b>Removed FOV 110°, view recording, “1/4 polygon”, and Export</b></li>
-          <li>↩ <b>Ctrl+Z now also undoes object add / delete</b> (Ctrl+Y to redo); fixed the quality chip resizing when tapped; top-bar logo is now an icon + “LOCAHUN 3D”</li>
-          <li>🔒 <b>Folder edit-lock</b> added (disables moving / editing / deleting its contents); 🎬 camera-anim easing softened, with Ease/Linear toggle</li>
-          <li>🧹 Instruction banners unified to the bottom (no longer overlap the top buttons); sun panel simplified; <b>user manual rebuilt</b> with current, clearer content</li>
-          <li>📱 Fixed the Sun panel overlapping the bottom buttons on iPad; <b>moved the 🎞 Animation button to the bottom bar</b> (next to Camera / Sun / Measure); fixed the measure panel overlapping the top-right quality chip</li>
-        </ul>
-      </div>
-      <div class="cl-entry">
-        <div class="cl-entry-head">
-          <span class="cl-ver">v 0.0.4-alpha</span>
-          <span class="cl-date">2026-06-11</span>
-          <span class="cl-tag"><span class="cl-ja">日照・天気</span><span class="cl-en">Sun &amp; Weather</span></span>
-        </div>
-        <ul class="cl-ja">
-          <li>🌞 <b>日照モード</b>を追加: 日付・時刻・都道府県から太陽の位置と日の出 / 南中 / 日の入りを算出し、空とシーン全体の光のムードを疑似HDRIとして再現（朝・昼・夕・夜の明暗と色味、太陽ディスク）</li>
-          <li>🧭 ビュー内に<b>方位コンパス</b>と<b>一日の太陽軌道</b>を3D表示（北はシーンの固定軸）</li>
-          <li>🌤 <b>天気切替（晴れ / 曇り / 雨）</b>を疑似HDRIに連動</li>
-          <li>📅 日付は<b>カレンダー</b>から選択、📍 場所は<b>47都道府県</b>（デフォルト=東京）</li>
-          <li>🕐 時刻スライダーを<b>10分刻み</b>に</li>
-          <li>🗑 手動の「環境」ボタンを廃止し、背景は<b>日照＋天気に一本化</b>（日照OFFでも手動変更まで表示継続、再ONで前回設定を復元）</li>
-          <li>🚗 交差点デモシーンを方角に合わせて表示（Y −168° 回転）</li>
-        </ul>
-        <ul class="cl-en">
-          <li>🌞 Added <b>Sun / Daylight mode</b>: sun position + sunrise / solar-noon / sunset computed from date, time and prefecture; a pseudo-HDRI reproduces the sky and overall lighting mood (morning / day / evening / night, plus the sun disc)</li>
-          <li>🧭 In-view 3D <b>compass</b> + the <b>day's sun-path arc</b> (north = the scene's fixed axis)</li>
-          <li>🌤 <b>Weather toggle (clear / cloudy / rain)</b> linked to the pseudo-HDRI</li>
-          <li>📅 <b>Calendar</b> date picker; 📍 location is one of the <b>47 prefectures</b> (default: Tokyo)</li>
-          <li>🕐 Time slider now steps in <b>10-minute</b> increments</li>
-          <li>🗑 Removed the manual “Environment” button; the background is now driven <b>solely by Sun + Weather</b> (persists when Sun is off until a manual change; prior settings are recalled on re-enable)</li>
-          <li>🚗 Crossroads demo scene now opens aligned to its real bearing (Y −168° yaw)</li>
+          <li>3DGS viewing, walking, and click or tap travel.</li>
+          <li>Camera, sunlight, measurement, and path editing.</li>
+          <li>Placement of people, vehicles, and equipment.</li>
+          <li>Local project saving and editing resume.</li>
         </ul>
       </div>
     </div>
@@ -2764,7 +2657,7 @@ body.ar-active #dz{display:none !important;}
     <span id="dz-back-site-lbl">← ロケハン3D サイトへ戻る</span>
   </a>
   <div class="dz-version-line">
-    <span id="tb-version">v 0.2.1-beta</span>
+    <span id="tb-version">v1.0</span>
   </div>
 </div>
 
@@ -3069,7 +2962,7 @@ window.KAWAII_MALE_GLB_B64="Z2xURgIAAADsaRIAoPYCAEpTT057ImFzc2V0Ijp7InZlcnNpb24i
      the HTML. -->
 
 <script>
-window.__locahunBuildRelease="db640f9655699272d50819299ebc77db292c040f219a11d033862e601f9bcf55";
+window.__locahunBuildRelease="fae8b1459d94e87b2cd509dbb452726bebc1f3fd7f7217b46f16ab792afb1c0a";
 (function(root) {
   'use strict';
   const ORIGIN='https://viewer.locahun3d.com';
@@ -26870,7 +26763,7 @@ Object.assign(I18N.ja,{
   'tb-load-lbl':'読込',
   'tt-qibadge':'画質と設定',
   'cl-title':'更新履歴',
-  'cl-sub':'ベータ版',
+  'cl-sub':'v1.0',
   'cl-tag-init':'初版',
   'cl-tag-v003':'プリビズ拡張',
   'ph-cm-env':'夕方 / 晴れ / 17:30',
@@ -27125,7 +27018,7 @@ Object.assign(I18N.en,{
   'tb-load-lbl':'Load',
   'tt-qibadge':'Quality & settings',
   'cl-title':'Changelog',
-  'cl-sub':'Beta',
+  'cl-sub':'v1.0',
   'cl-tag-init':'Initial',
   'cl-tag-v003':'Previz expansion',
   'ph-cm-env':'Evening / Clear / 17:30',
