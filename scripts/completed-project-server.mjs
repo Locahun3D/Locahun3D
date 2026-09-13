@@ -1,7 +1,7 @@
 import fs from 'node:fs/promises';
 import path from 'node:path';
 import {fileURLToPath} from 'node:url';
-import {startLocalProjectServer} from './local-project-server.mjs';
+import {startLocalProjectServer,openBrowser} from './local-project-server.mjs';
 import {runCompletedExportJob} from './completed-export-job.mjs';
 import {uploadCompletedProject} from './upload-completed-project.mjs';
 
@@ -20,6 +20,7 @@ if(process.argv[1]&&path.resolve(process.argv[1])===fileURLToPath(import.meta.ur
  if(!options['--root']||!options['--jobs'])throw Error('Required --root and --jobs');
  const running=await startCompletedProjectServer({root:options['--root'],jobs:options['--jobs'],port:Number(options['--port']||0),onProgress:phase=>console.error(phase)});
  console.log(running.url);
+ openBrowser(running.url);
  const stop=()=>running.close().catch(()=>{process.exitCode=1;});
  process.once('SIGINT',stop);process.once('SIGTERM',stop);
 }

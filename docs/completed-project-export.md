@@ -2,6 +2,23 @@
 
 ## Connected Workflow (2026-09-14)
 
+On this PC, original 2FStudio now also contains `Start_AutoExport.cmd`. It uses the
+bundled Node executable and canonical scripts on F: to open the completion-enabled
+viewer. Exports go to sibling `3_LocalViewer/_Exports`. Existing Start scripts and
+project data are unchanged. This added launcher is explicitly PC-specific, not a
+new portable distribution. Close any existing server for the same folder first;
+active project locks are never bypassed.
+
+`listing-review-pack.mjs LEDGER_JSON NEW_REPORT_MD YYYY-MM-DD` builds a source-bound
+internal review document. It distinguishes scope conflicts, unknown/absent facts,
+stale sources (default30days), completion/manual checks, rights, recipient and share
+approval. It never contacts sources, approves them or sends anything. An approved,
+future-dated client preview is required before including a request message. Live
+source verification remains AI/human work; an input flag is not independent proof.
+The StudioPleaseGreen Sep14 ledger/report are saved in the Dropbox workflow reports
+folder with official reservation and Tokyo Location Box sources. Original draft2
+is explicitly incomplete; no live listing edits or preview link issuance occurred.
+
 The HTTP adapter and completion-triggered export below supersede the historical
 "not connected" notes later in this document. They do not approve or publish data.
 

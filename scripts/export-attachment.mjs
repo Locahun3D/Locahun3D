@@ -13,7 +13,7 @@ export async function attachVerifiedExport(binding,io){
  };
  await source();
  const asset=await io.getAsset(b.assetId);
- if(asset?.id!==b.assetId||asset.status!=='ready'||!['splat','zip'].includes(asset.kind)||asset.size!==b.archiveBytes||typeof asset.url!=='string'||!(asset.url.startsWith('/assets/')||asset.url.startsWith('https://'))||asset.url.startsWith('//'))throw Error('Asset is not ready or does not match export');
+ if(asset?.id!==b.assetId||asset.status!=='ready'||!['splat','zip'].includes(asset.kind)||asset.size!==b.archiveBytes||typeof asset.url!=='string'||!(asset.url.startsWith('/assets/')||asset.url.startsWith('/api/r2/assets/')||asset.url.startsWith('https://'))||asset.url.startsWith('//'))throw Error('Asset is not ready or does not match export');
  const digest=await io.verifyAssetBytes(asset,{maxBytes:b.archiveBytes});
  if(digest?.bytes!==b.archiveBytes||digest.sha256!==b.archiveSha256)throw Error('Uploaded asset digest mismatch');
  const property=await io.getProperty(b.propertyId),item=scene(property);

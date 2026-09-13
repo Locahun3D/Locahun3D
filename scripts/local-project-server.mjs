@@ -440,7 +440,7 @@ export async function startLocalProjectServer({root, port = 0, token = randomByt
   }
 }
 
-function openBrowser(url) {
+export function openBrowser(url) {
   let child;
   if (process.platform === 'win32') {
     // Pass the generated URL as environment data, never interpolated shell text.

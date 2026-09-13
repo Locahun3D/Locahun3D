@@ -27,3 +27,8 @@ test('failed readback never reports completion',async()=>{
  const f=fixture();f.io.saveDraft=async()=>({ok:true,id:'st-004'});
  await assert.rejects(attachVerifiedExport(f.binding,f.io),/readback/i);
 });
+test('accepts the production R2 asset URL format',async()=>{
+ const f=fixture(),get=f.io.getAsset;
+ f.io.getAsset=async()=>({...await get(),url:'/api/r2/assets/splat/a.zip'});
+ assert.equal((await attachVerifiedExport(f.binding,f.io)).status,'attached');
+});
