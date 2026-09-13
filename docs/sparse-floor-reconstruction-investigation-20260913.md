@@ -127,3 +127,19 @@ inside-geometry hits; these are not all floors. Thus the evidence does not
 support assuming a simple render/collision translation mismatch. The actual
 physical unit scale and safe initial support remain unverified; an estimated
 plane atY=-4 is not certified as the user's intended floor.
+
+## Authored Scale Found
+
+The saved single splat layer has scaleX=12.01,Y=5.01,Z=6.01, not unit scale.
+240_layer_manager applies these values directly. RAD metadata contains encoding
+and LOD provenance, but no metric calibration. Do not silently reset the scale.
+
+diagnose-room-scale-control.mjs reconstructs the exact saved transform and
+checks it against the source-bound navigation identity. Applying a unit-scale
+counterfactual to the same5757 samples and local camera yields10/69/7 samples
+in the corresponding .1m column atY1.4/1.5/1.6; originalscale yields1/1 at
+Y-4.5/-4.1. This demonstrates the authored enlargement's local density effect.
+It does not prove unit scale is correct or certify any collider. All source and
+QA project files remain unchanged. User was asked whether this was intentional
+scaling or dimensions entered as scale, and for one known measurement. Await
+that answer before calibration; stop speculative floor filling in the meantime.
