@@ -116,7 +116,8 @@ Object.assign(I18N.ja,{
   'cl-tag-v003':'プリビズ拡張',
   'ph-cm-env':'夕方 / 晴れ / 17:30',
   'ph-cm-note':'LD1 ティルトダウン',
-  'lbl-walk':'アバター歩行',
+  'lbl-walk':'歩行',
+  'lbl-quality-action':'画質',
   'lbl-walk-repos':'アバター再配置',
   'lbl-save-camera':'カメラ保存',
   'lbl-view-rec':'録画',
@@ -370,7 +371,8 @@ Object.assign(I18N.en,{
   'cl-tag-v003':'Previz expansion',
   'ph-cm-env':'Evening / Clear / 17:30',
   'ph-cm-note':'LD1 Tilt-down',
-  'lbl-walk':'Avatar Walk',
+  'lbl-walk':'Walk',
+  'lbl-quality-action':'Quality',
   'lbl-walk-repos':'Reposition Avatar',
   'lbl-save-camera':'Save Cam',
   'lbl-view-rec':'Rec',
@@ -510,4 +512,3 @@ Object.assign(I18N.en,{
   'redo-layer-del-toast':'↪ Redid layer delete',
   'undo-del-toast':'↩ Undid delete (Y to redo)',
 });
-

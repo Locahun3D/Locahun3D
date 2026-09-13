@@ -1,0 +1,82 @@
+{
+  "whole": {
+    "key": "f2ba008e5632deb2bd81b8f86de0dac93a4c4b977ec6c24e07e76ec785fb1b49"
+  },
+  "cellSize": 0.25,
+  "tiles": 1252,
+  "boxes": 129082,
+  "sources": [
+    {
+      "url": "https://viewer.locahun3d.com/api/demo-asset/Kousaten_ForDemo_point_cloud.rad",
+      "identity": "etag:00788d1d2edc3944477b24ebae412d6615c48d914fecd316bc63066f14428bd3:\"37b2cf8b2fb318fea4cb442c70245bb6-6\":372895448",
+      "matrix": [
+        -0.9781476007338055,
+        0,
+        0.2079116908177593,
+        0,
+        0,
+        1,
+        0,
+        0,
+        -0.2079116908177593,
+        0,
+        -0.9781476007338055,
+        0,
+        0,
+        1.5,
+        0,
+        1
+      ],
+      "pos": {
+        "x": 0,
+        "y": 1.5,
+        "z": 0
+      },
+      "rot": {
+        "x": 0,
+        "y": -168,
+        "z": 0
+      },
+      "scale": {
+        "x": 1,
+        "y": 1,
+        "z": 1
+      }
+    }
+  ],
+  "measured": {
+    "entries": 19838164,
+    "leaves": 13421333,
+    "cells": 722450,
+    "ms": 50258.5
+  },
+  "status": "全体の当たり判定を準備しました。",
+  "bytes": 482369,
+  "sha256": "eb56281adf11bfdb117231a1ae3b22db497fa59c994731c0a0f08fd02e1ea16c",
+  "metadata": {
+    "key": "Kousaten_ForDemo_point_cloud.rad",
+    "httpEtag": "\"37b2cf8b2fb318fea4cb442c70245bb6-6\"",
+    "size": 372895448,
+    "uploaded": "2026-05-15T18:08:52.647Z",
+    "observedAt": "2026-09-10T19:36:41.3278456Z",
+    "provenance": "Kuhn read-only exact-key Cloudflare R2 API list"
+  },
+  "sourceSha256": "18b96f5fbc8173bbd9c9da2e784243ffeb4456925be8e856cfccb1f4b60995fe",
+  "completedAt": "2026-09-10T19:40:42.271Z",
+  "radHeadSimulated": true,
+  "realRadGets": 541,
+  "servedAssets": {
+    "vendor/spark-2.0.0-workers16-incrtraverse-heap319-v1.module.js": {
+      "bytes": 5171758,
+      "sha256": "ff799ee9a31cec478ebf173759c0f4061da662164dd72fd9da2efbabadd332f5"
+    }
+  },
+  "after": {
+    "key": "Kousaten_ForDemo_point_cloud.rad",
+    "httpEtag": "\"37b2cf8b2fb318fea4cb442c70245bb6-6\"",
+    "size": 372895448,
+    "uploaded": "2026-05-15T18:08:52.647Z",
+    "observedAt": "2026-09-10T19:41:59.3618809Z",
+    "provenance": "Kuhn read-only exact-key Cloudflare R2 API list, refreshed authentication then successful query"
+  }
+}

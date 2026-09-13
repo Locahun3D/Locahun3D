@@ -322,8 +322,34 @@ window.DEBUG_PICK = window.DEBUG_PICK !== false;
 let _pickLogThrottle = 0;
 
 // ── Pick: find nearest cached splat to the ray, else use depth fallback ──
-function pickWorldPos(clientX, clientY) {
+function pickWorldPos(clientX, clientY, options) {
   const rect = canvas.getBoundingClientRect();
+  const strictVisible=options?.strictVisible===true;
+  const pickCamera=_useOrtho ? _orthoCamera : camera;
+  let visiblePoint=null;
+  if(strictVisible){
+    if(rect.width<=0 || rect.height<=0) return null;
+    pickCamera.updateWorldMatrix(true,false);
+    const projection=pickWorldPos._visibleProjection || (pickWorldPos._visibleProjection=new THREE.Matrix4());
+    projection.multiplyMatrices(pickCamera.projectionMatrix,pickCamera.matrixWorldInverse);
+    const m=projection.elements, view=pickCamera.matrixWorldInverse.elements;
+    // A world-distance floor admits huge screen errors close to the eye. Path
+    // picking instead requires a visible clip-space point within 24 CSS pixels.
+    visiblePoint=(x,y,z)=>{
+      if(!Number.isFinite(x)||!Number.isFinite(y)||!Number.isFinite(z)) return false;
+      const depth=-(view[2]*x+view[6]*y+view[10]*z+view[14]);
+      if(depth<pickCamera.near || depth>pickCamera.far) return false;
+      const w=m[3]*x+m[7]*y+m[11]*z+m[15];
+      if(w<=0) return false;
+      const nx=(m[0]*x+m[4]*y+m[8]*z+m[12])/w;
+      const ny=(m[1]*x+m[5]*y+m[9]*z+m[13])/w;
+      const nz=(m[2]*x+m[6]*y+m[10]*z+m[14])/w;
+      if(Math.abs(nx)>1 || Math.abs(ny)>1 || Math.abs(nz)>1) return false;
+      const dx=rect.left+(nx+1)*rect.width/2-clientX;
+      const dy=rect.top+(1-ny)*rect.height/2-clientY;
+      return dx*dx+dy*dy<=24*24;
+    };
+  }
   _v2.set(
     ((clientX - rect.left) / rect.width) * 2 - 1,
     -((clientY - rect.top) / rect.height) * 2 + 1
@@ -351,9 +377,11 @@ function pickWorldPos(clientX, clientY) {
     if(splatMeshes.length){
       const hits = rc.intersectObjects(splatMeshes, false);
       if(hits && hits.length){
-        const h = hits[0];
-        msr.placeDepth = Math.min(50, Math.max(0.3, h.distance));
-        return h.point.clone();
+        const h = strictVisible ? hits.find(hit=>visiblePoint(hit.point.x,hit.point.y,hit.point.z)) : hits[0];
+        if(h){
+          msr.placeDepth = Math.min(50, Math.max(0.3, h.distance));
+          return h.point.clone();
+        }
       }
     }
   }
@@ -416,7 +444,7 @@ function pickWorldPos(clientX, clientY) {
       const perp2 = cx*cx + cy*cy + cz*cz;
       const thrPx = (t * pxRadius) / m11;
       const thr   = Math.min(THR_MAX, Math.max(THR_MIN, thrPx));
-      if (perp2 < thr * thr) {
+      if (strictVisible ? visiblePoint(wx,wy,wz) : perp2 < thr * thr) {
         bestT = t;
         bestX = wx; bestY = wy; bestZ = wz;
         hasBest = true;
@@ -447,6 +475,13 @@ function pickWorldPos(clientX, clientY) {
   }
 
   if (window.DEBUG_PICK) console.log('[pick] FALLBACK', msr.placeDepth);
+  // Equipment rests on the ground grid when no scanned surface was hit.
+  if(options?.groundFallback){
+    if(Math.abs(dir.y)<1e-6)return null;
+    const distance=-origin.y/dir.y;
+    if(distance<0 || distance>1000)return null;
+    return origin.clone().addScaledVector(dir,distance).setY(0);
+  }
   // ── Fallback: fixed depth along ray (clamped to a sane range) ──
   const fb = Math.min(20, Math.max(0.5, msr.placeDepth));
   return origin.clone().addScaledVector(dir, fb);
@@ -685,7 +720,7 @@ function _closeMeasureOnly(){
   msr.active=false;
   document.body.classList.remove('msr-active');
   document.getElementById('btnMeasure').classList.remove('on');
-  document.getElementById('btnMeasure').innerHTML='📐 <span id="lbl-measure">'+T('lbl-measure')+'</span>';
+  document.getElementById('btnMeasure').innerHTML='<span id="lbl-measure">'+T('lbl-measure')+'</span>';
   // Restore the gizmo End button to its idle label
   const _btnEnd = document.getElementById('btnMeasureEnd');
   if(_btnEnd) _btnEnd.innerHTML = '<span id="msr-end-lbl-init">'+T('msr-end-lbl-init')+'</span>';
@@ -705,4 +740,3 @@ function _closeMeasureOnly(){
   if(typeof _msrLongPressId !== 'undefined') _msrLongPressId = -1;
   if(typeof _msrPlacingId   !== 'undefined') _msrPlacingId   = -1;
 }
-

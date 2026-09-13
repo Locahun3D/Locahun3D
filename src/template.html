@@ -21,6 +21,7 @@
 {{include:src/css/010_style_block.css}}
 {{include:src/css/011_style_block_layer_panel.css}}
 {{include:src/css/012_style_block_mobile.css}}
+{{include:src/css/062_equipment_menu.css}}
 </style>
 </head>
 <body>
@@ -69,7 +70,7 @@
     <!-- 📦 モデル追加 — シーンレイヤー展開時の「読み込み」の右隣 (user 2026-08-27)。
          .lp-footer は畳むと display:none なので、展開時だけ見える配置になる。 -->
     <div style="position:relative">
-      <button id="btnAddCubeTop" onclick="toggleObjTypeMenuTop(this)" style="width:100%;background:#2A2A2C;border:1px solid rgba(255,255,255,.1);color:#686868;border-radius:5px;padding:4px 0;font-size:.68em;cursor:pointer;transition:all .2s;letter-spacing:.02em;white-space:nowrap;" onmouseover="this.style.background='rgba(255,200,80,.18)';this.style.borderColor='rgba(255,220,100,.45)';this.style.color='#D8D8D8'" onmouseout="this.style.background='#2A2A2C';this.style.borderColor='rgba(255,255,255,.1)';this.style.color='#686868'" title="モデル追加">📦 <span id="lbl-addobj-top">モデル追加</span> ▾</button>
+      <button id="btnAddCubeTop" onclick="toggleEquipmentModelMenu(this)" style="width:100%;background:#2A2A2C;border:1px solid rgba(255,255,255,.1);color:#686868;border-radius:5px;padding:4px 0;font-size:.68em;cursor:pointer;transition:all .2s;letter-spacing:.02em;white-space:nowrap;" onmouseover="this.style.background='rgba(255,200,80,.18)';this.style.borderColor='rgba(255,220,100,.45)';this.style.color='#D8D8D8'" onmouseout="this.style.background='#2A2A2C';this.style.borderColor='rgba(255,255,255,.1)';this.style.color='#686868'" title="モデル追加">📦 <span id="lbl-addobj-top">モデル追加</span> ▾</button>
       <div id="obj-type-menu-top" style="display:none;position:absolute;top:calc(100% + 6px);left:0;right:auto;background:rgba(20,20,22,.97);border:1px solid rgba(255,255,255,.15);border-radius:8px;padding:5px;z-index:400;flex-direction:column;gap:4px;min-width:178px;box-shadow:0 4px 16px rgba(0,0,0,.5);">
         <button onclick="_beginPlace('cube');window.closeObjTypeMenuTop()" style="background:rgba(255,221,68,.06);border:1px solid rgba(255,221,68,.15);color:#C0C0C0;border-radius:5px;padding:7px 14px;cursor:pointer;font-size:.8em;text-align:left;width:100%;white-space:nowrap;transition:background .15s;" onmouseover="this.style.background='rgba(255,221,68,.15)'" onmouseout="this.style.background='rgba(255,221,68,.06)'">📦 <span id="obj-add-cube">Cube (立方体)</span></button>
         <div style="border-top:1px solid rgba(255,255,255,.07);margin:2px 0"></div>
@@ -778,9 +779,9 @@
        not needed in the viewport. -->
 
   <div class="cbar">
-    <button id="btnCamTool" onclick="toggleCamTool()">📷 <span id="lbl-camtool">カメラ</span></button>
-    <button id="btn-sun"    onclick="toggleSunMode()">☀ <span id="lbl-sun" data-i18n="lbl-sun">日照</span></button>
-    <button id="btnMeasure" onclick="toggleMeasure()">📐 <span id="lbl-measure">測定</span></button>
+    <button id="btnCamTool" onclick="toggleCamTool()"><span id="lbl-camtool">カメラ</span></button>
+    <button id="btn-sun"    onclick="toggleSunMode()"><span id="lbl-sun" data-i18n="lbl-sun">日照</span></button>
+    <button id="btnMeasure" onclick="toggleMeasure()"><span id="lbl-measure">測定</span></button>
     <!-- Camera animation (🎞 カメラワーク) MOVED to the top-row #view-tl-btns
          group per user request 2026-06-19 (gather it with the other top
          controls + renamed アニメーション→カメラワーク). See its markup there. -->
@@ -811,8 +812,8 @@
      Native <button>s don't double-tap-zoom and give a clean immediate tap — same
      as every other control in this row. type="button" avoids any form submit. -->
 <button type="button" id="qi-badge" onclick="toggleQualityPanel()" title="画質と設定">
-  <span class="qib-icon">🖥</span>
-  <span id="qib-lvl" class="qib-lvl">高</span>
+  <span id="lbl-quality-action" data-i18n="lbl-quality-action">画質</span>
+  <span id="qib-lvl" class="qib-lvl" hidden>高</span>
   <span id="qib-fps" class="qib-fps">— fps</span>
 </button>
 
@@ -939,6 +940,7 @@
 <div id="onote" style="display:none" aria-hidden="true"></div>
 
 <!-- Mobile joystick -->
+<button id="walk-jump-button" type="button" hidden style="position:fixed;right:calc(20px + env(safe-area-inset-right,0px));bottom:calc(20px + env(safe-area-inset-bottom,0px));z-index:98;min-width:80px;height:48px;border:1px solid #777;border-radius:6px;background:#222;color:#eee;font-size:14px;touch-action:none;">ジャンプ</button>
 <div id="joy">
   <div class="base"></div>
   <div class="knob" id="jknob"></div>
@@ -949,7 +951,16 @@
   <button type="button" class="jv-btn" id="jv-down" aria-label="Down">▼</button>
 </div>
 
+{{include:src/assets/equipment_models.html}}
+{{include:src/assets/basic_model_previews.html}}
 <!-- MIXAMO_GLB_BEGIN -->
+{{include:src/css/060_walk_setup.css}}
+<style>
+{{include:src/css/061_local_project.css}}
+</style>
+{{include:src/html/030_walk_setup.html}}
+{{include:src/assets/rapier_walk_b64.html}}
+{{include:src/assets/male165_glb_b64.html}}
 {{include:src/assets/mixamo_glb_b64.html}}
 <!-- MIXAMO_GLB_END -->
 <script type="importmap">
@@ -975,7 +986,13 @@
      original "./vendor/..." paths and place the vendor/ folder beside
      the HTML. -->
 
-<script type="module">
+<script>
+window.__locahunBuildRelease="{{viewer-release-id}}";
+{{include:scripts/viewer-update-core.cjs}}
+{{include:src/js/002_viewer_update_boot.js}}
+</script>
+<script type="module" id="locahun-app-source">
+await window.__locahunStartupGate;
 {{include:src/js/010_state.js}}
 {{include:src/js/020_splat_perf_tier_drives_spark_splat_tunin.js}}
 {{include:src/js/030_renderer_scene.js}}
@@ -1008,6 +1025,17 @@
 {{include:src/js/211_fly_camera_google_earth_scheme.js}}
 {{include:src/js/212_fly_camera_walk_cycle_clip.js}}
 {{include:src/js/213_fly_camera_avatar_ground.js}}
+{{include:src/js/214_kawaii_walk_avatar.js}}
+{{include:src/js/215_walk_collision.js}}
+{{include:src/js/216_walk_settings.js}}
+{{include:src/js/216b_whole_collision.js}}
+{{include:src/js/216a_collision_manifest.js}}
+{{include:src/js/216c_collision_bake.js}}
+{{include:src/js/216d_collision_cache.js}}
+{{include:src/js/217_walk_collision_bridge.js}}
+{{include:src/js/217b_whole_collision_bridge.js}}
+{{include:src/js/218_walk_pointer.js}}
+{{include:src/js/219_collision_walk_update.js}}
 {{include:src/js/220_ar_mode_webgl_integrated_camera_passthro.js}}
 {{include:src/js/230_global_undo_layer_ops_measurement_max_10.js}}
 {{include:src/js/240_layer_manager.js}}
@@ -1017,6 +1045,8 @@
 {{include:src/js/271_figure_mixamo_loader_ik.js}}
 {{include:src/js/272_figure_bone_gizmo_hover.js}}
 {{include:src/js/273_figure_object_menu_stats.js}}
+{{include:src/js/274_equipment_geometry.js}}
+{{include:src/js/275_equipment_menu.js}}
 {{include:src/js/280_main_loop_60fps_cap.js}}
 {{include:src/js/290_css_reprojection_input_canvas_runs_at_60.js}}
 {{include:src/js/291_render_loop.js}}
@@ -1035,6 +1065,9 @@
 {{include:src/js/330_folder_color_picker.js}}
 {{include:src/js/340_event_object.js}}
 {{include:src/js/350_path_object_4_point_closed_region_center.js}}
+{{include:src/js/351_equipment_placement.js}}
+{{include:src/js/352_model_card_drag.js}}
+{{include:src/js/352_path_handle_feedback.js}}
 {{include:src/js/360_event_panel_hover_v26_viewport_hover_rep.js}}
 {{include:src/js/370_type_visibility_filter.js}}
 {{include:src/js/380_resizable_layer_panel.js}}
@@ -1043,9 +1076,37 @@
 {{include:src/js/401_input_mouse.js}}
 {{include:src/js/402_input_shared_drag_touch.js}}
 {{include:src/js/403_input_touch_elevation.js}}
+{{include:src/js/404_click_navigation.js}}
+{{include:src/js/403_navigation_cache.js}}
+{{include:src/js/403b_navigation_query.js}}
+{{include:src/js/403c_navigation_state.js}}
+{{include:src/js/403d_navigation_bridge.js}}
+{{include:src/js/403e_navigation_source.js}}
+{{include:src/js/403f_navigation_region_store.js}}
+{{include:src/js/403g_navigation_region_loader.js}}
+{{include:src/js/403h_navigation_regions.js}}
+{{include:src/js/403i_navigation_corridor.js}}
+{{include:src/js/403j_navigation_journey.js}}
+{{include:src/js/403k_navigation_provider.js}}
+{{include:src/js/403l_navigation_provider_bridge.js}}
+{{include:src/js/403m_navigation_files.js}}
+/*
+{{include:src/assets/three-pathfinding-1.3.0.LICENSE}}
+*/
+let _navigationPathfindingClass;
+function _loadNavigationPathfinding(){
+  if(_navigationPathfindingClass)return _navigationPathfindingClass;
+  const exports={},require=name=>{if(name==='three')return THREE;throw new Error('Unknown navigation dependency');};
+{{include:src/assets/three-pathfinding-1.3.0.cjs}}
+  return _navigationPathfindingClass=exports.Pathfinding;
+}
+{{include:src/js/405_navigation_target_preview.js}}
+{{include:src/js/406_walk_jump_button.js}}
 {{include:src/js/410_ui_controls.js}}
 {{include:src/js/420_auto_quality_probe_runs_once_after_each_.js}}
 {{include:src/js/430_changelog_toggle_home_screen_pulldown.js}}
+{{include:src/js/431_local_project.js}}
+if(window.__locahunUpdateFrame)parent.postMessage({type:'locahun-update-ready',nonce:window.__locahunUpdateFrame},'*');
 </script>
 </body>
 </html>

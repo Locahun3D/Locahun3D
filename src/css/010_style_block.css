@@ -482,20 +482,10 @@ body.protected-mode #em-save-zip { display:none !important; }
   font-family:system-ui,monospace;line-height:1.6;
 }
 
-/* Centre the cbar at the FULL viewport centre (not the visible-canvas
-   centre). User feedback: the layer-panel-aware offset made the cbar feel
-   "off-centre" on PC because they perceive centre relative to the whole
-   browser window, not the canvas portion alone. On touch devices the
-   layer panel is hidden anyway so 50 % is the canvas centre too. */
+/* Keep the controls at the viewport centre, independent of panel state. */
 #hud .cbar{
   position:absolute;bottom:14px;
-  /* キャンバス（左のシーンレイヤーパネルを除いた表示領域）の左右中央に置く
-     — user 2026-08-27「下部ボタン列が中央になっていない」。--lp-width は
-     パネルが隠れている/畳まれている端末では 0px なので、その場合は従来どおり
-     ビューポート中央になる（_updateLpWidthVar @160_loading_helpers.js）。
-     ※2026-06 に一度ビューポート中央へ戻した経緯があるが、本人の最新判断で
-       キャンバス中央へ再変更。 */
-  left: calc((100% + var(--lp-width, 0px)) / 2);
+  left:50%;
   transform:translateX(-50%);
   display:flex;gap:8px;pointer-events:all;flex-wrap:wrap;justify-content:center;
   overflow:visible;
@@ -525,28 +515,26 @@ body.protected-mode #em-save-zip { display:none !important; }
 /* カメラ／日照モード中は「📷カメラ」と「☀日照」の2つだけ残す（この2機能は同時に
    使える関連ペアなので、どちらのモードでも互いに行き来できるようにする — user 2026-06-27）。
    測定・使い方は隠してビューを広く保つ。 */
+@media (pointer:fine) and (hover:hover){
 body.cam-active #hud .cbar > button:not(#btnCamTool):not(#btn-sun){ display:none !important; }
 body.sun-active #hud .cbar > button:not(#btnCamTool):not(#btn-sun){ display:none !important; }
+}
 /* 測定モード中は「📐測定」のみ（測定は日照と排他）。 */
+@media (pointer:fine) and (hover:hover){
 body.msr-active #hud .cbar > button:not(#btnMeasure){ display:none !important; }
+}
 /* カメラモード中は上ボタン行も撮影に使うものだけに絞る：🎞カメラワーク / 📱AR /
    🖥画質チップ のみ表示し、カメラリセット・オブジェクト追加・アバター歩行は隠す
    （user 2026-06-27）。AR は元々タッチ端末でのみ表示。 */
 body.cam-active #view-tl-btns > *:not(#btnCamAnim):not(#btnAR):not(#qi-badge){ display:none !important; }
-/* 自由ゾーンが狭い（スマホ縦でカメラパネルが画面を占有）と上部ボタンがパネルに重なるため隠す。
-   _layoutCamMode() が body.cam-cramped を付与。横向き/iPad/PCでは余白が十分なので発火しない。 */
-body.cam-active.cam-cramped #view-tl-btns{ display:none !important; }
-/* カメラモード中：下ボタン群(cbar)と上ボタン群を、左の操作系(ジョイスティック or
-   レイヤーパネル)と右のカメラツール情報パネルの「あいだ」の中央へ寄せ直す。
-   --cam-cbar-left / --cam-top-left は _layoutCamMode() が実測して px で設定する
-   （iPad/スマホ縦でボタンが右パネルに隠れる問題の解消 — user 2026-06-27）。 */
+/* Camera mode retains the same anchor; phone panels reserve the button bands. */
 body.cam-active #hud .cbar{
-  left: var(--cam-cbar-left, 50%) !important;
+  left:50% !important;
   right:auto !important;
   transform: translateX(-50%) !important;
 }
 body.cam-active #view-tl-btns{
-  left: var(--cam-top-left, 50%) !important;
+  left:50% !important;
   right:auto !important;
   transform: translateX(-50%) !important;
   max-width: var(--cam-top-maxw, none);
@@ -668,4 +656,3 @@ body.cam-active #view-tl-btns{
   display:none!important;
   z-index:59;display:none;line-height:1.6;
 }
-

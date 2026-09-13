@@ -358,7 +358,7 @@ window.toggleMeasure = function() {
     msr.active=true;
     document.body.classList.add('msr-active');
     document.getElementById('btnMeasure').classList.add('on');
-    document.getElementById('btnMeasure').innerHTML='📐 <span id="lbl-measure">'+T('msr-active-lbl')+'</span>';
+    document.getElementById('btnMeasure').innerHTML='<span id="lbl-measure">'+T('msr-active-lbl')+'</span>';
     document.getElementById('btnMeasureEnd').textContent=T('msr-end-lbl');
     const gizmoEl=document.getElementById('gizmo');
     // Position gizmo just below topbar — helpbox was removed.
@@ -413,4 +413,3 @@ function nearMarker(clientX, clientY) {
   }
   return null;
 }
-

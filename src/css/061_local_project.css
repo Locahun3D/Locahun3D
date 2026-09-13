@@ -1,0 +1,20 @@
+body.local-project-mode #local-project-complete {
+  flex:none;min-height:26px;padding:2px 8px;border:1px solid #536e64;border-radius:5px;
+  background:#25352e;color:#d8f5e5;font:inherit;font-size:12px;letter-spacing:0;white-space:nowrap;cursor:pointer;
+}
+body.local-project-mode #tb-save-btn {min-height:26px;letter-spacing:0;}
+body.local-project-mode #topbar button:disabled {opacity:.45;cursor:wait;}
+#local-project-status {
+  flex:0 1 auto;min-width:0;max-width:170px;color:#b8d8c5;
+  font:11px/1.5 sans-serif;letter-spacing:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
+}
+#local-project-status.error {color:#ffc2ba;border-color:#92564d;}
+body.local-project-saving::after,body.local-project-restoring::after {content:'';position:fixed;inset:0;z-index:9999;cursor:wait;background:#0002;}
+@media(max-width:700px){
+  body.local-project-mode #tb-project-name {display:none;}
+  body.local-project-mode #topbar {gap:4px;}
+  body.local-project-mode #topbar>div:first-child {gap:4px!important;flex:1 1 auto!important;}
+  body.local-project-mode #topbar>div:last-child {flex:0 0 auto!important;}
+  body.local-project-mode #tb-brand-text {display:none!important;}
+  #local-project-status {font-size:10px;max-width:85px;}
+}

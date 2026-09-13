@@ -13,6 +13,10 @@ const REPORT_FROM = 'ロケハン3D 報告 <noreply@locahun3d.com>';
 // デモシーンとして公開配信を許可する R2 キーの固定ホワイトリスト。
 // これ以外は 404（このエンドポイントが汎用オープンプロキシに転用されるのを防ぐ）。
 const DEMO_ALLOWED_KEYS = new Set(['Kousaten_ForDemo_point_cloud.rad']);
+// Release-pinned public demo only; never serve arbitrary files under /collision/.
+const PUBLIC_COLLISION_ASSETS = {
+  'f2ba008e5632deb2bd81b8f86de0dac93a4c4b977ec6c24e07e76ec785fb1b49': {bytes:482369,sha256:'eb56281adf11bfdb117231a1ae3b22db497fa59c994731c0a0f08fd02e1ea16c'},
+};
 
 // デモは公開アセットのみ・Cookie を読まないので Origin * で問題ない。
 // Range 応答に CORS が付かないと Spark のチャンク Range fetch が別オリジンで落ちる。
@@ -27,6 +31,10 @@ const CORS = {
 export default {
   async fetch(request, env) {
     const url = new URL(request.url);
+    if (url.pathname.startsWith('/releases/')) return handleReleaseAsset(request, env, url);
+    let collisionPath=url.pathname;
+    try{collisionPath=decodeURIComponent(collisionPath);}catch{/* The strict collision handler rejects malformed paths. */}
+    if (collisionPath==='/collision'||collisionPath.startsWith('/collision/')) return handleCollisionAsset(request, env, url);
     if (url.pathname === '/api/report') {
       if (request.method !== 'POST') return json({ ok: false, error: 'method' }, 405);
       return handleReport(request, env);
@@ -37,9 +45,58 @@ export default {
     if (url.pathname.startsWith('/vendor/')) {
       return handleVendorAsset(request, env);
     }
+    // Only this bundled public model is shared with file-origin update frames.
+    if (url.pathname === '/figures/jtoastie_walk.glb') {
+      if (!['GET', 'HEAD', 'OPTIONS'].includes(request.method)) {
+        return new Response('Method not allowed', { status: 405, headers: { ...CORS, Allow: 'GET, HEAD, OPTIONS' } });
+      }
+      return handleVendorAsset(request, env);
+    }
     return env.ASSETS.fetch(request);
   },
 };
+
+async function handleCollisionAsset(request, env, url) {
+  const key=/^\/collision\/([a-f0-9]{64})\.lct$/.exec(url.pathname)?.[1];
+  const entry=key&&Object.hasOwn(PUBLIC_COLLISION_ASSETS,key)&&PUBLIC_COLLISION_ASSETS[key];
+  const headers={...CORS,'Content-Type':'application/octet-stream','Cache-Control':'no-store','X-Content-Type-Options':'nosniff'};
+  if(!entry||url.search)return new Response('Not found',{status:404,headers});
+  if(request.method==='OPTIONS')return new Response(null,{status:204,headers});
+  if(!['GET','HEAD'].includes(request.method))return new Response('Method not allowed',{status:405,headers:{...headers,Allow:'GET, HEAD, OPTIONS'}});
+  if(request.headers.has('Range'))return new Response(null,{status:416,headers:{...headers,'Content-Range':'bytes */'+entry.bytes}});
+  const response=await env.ASSETS.fetch(new Request(request,{method:'GET'}));
+  if(response.status!==200){await response.body?.cancel();return new Response(null,{status:response.status===404?404:502,headers});}
+  const advertised=response.headers.get('Content-Length');
+  if(advertised!==null&&Number(advertised)!==entry.bytes){await response.body?.cancel();return new Response(null,{status:502,headers});}
+  // Asset providers may omit length. Verify bounded stored bytes even for HEAD.
+  const body=new Uint8Array(entry.bytes),reader=response.body?.getReader();let offset=0;
+  if(!reader)return new Response(null,{status:502,headers});
+  try{
+    for(;;){const {done,value}=await reader.read();if(done)break;if(offset+value.byteLength>body.byteLength){await reader.cancel();return new Response(null,{status:502,headers});}body.set(value,offset);offset+=value.byteLength;}
+  }catch(_){await reader.cancel().catch(()=>{});return new Response(null,{status:502,headers});}
+  finally{reader.releaseLock();}
+  const digest=Array.from(new Uint8Array(await crypto.subtle.digest('SHA-256',body)),b=>b.toString(16).padStart(2,'0')).join('');
+  if(offset!==entry.bytes||digest!==entry.sha256)return new Response(null,{status:502,headers});
+  return new Response(request.method==='HEAD'?null:body,{headers:{...headers,'Content-Length':String(body.byteLength),ETag:'"'+entry.sha256+'"','Cache-Control':'public, max-age=31536000, immutable, no-transform'}});
+}
+
+async function handleReleaseAsset(request, env, url) {
+  const manifest=url.pathname==='/releases/stable.json';
+  if(!manifest && !/^\/releases\/[A-Za-z0-9._-]+\/viewer\.html$/.test(url.pathname)) return new Response('Not found',{status:404,headers:CORS});
+  if(request.method==='OPTIONS')return new Response(null,{status:204,headers:CORS});
+  if(!['GET','HEAD'].includes(request.method))return new Response('Method not allowed',{status:405,headers:CORS});
+  // Store opaque bytes so Cloudflare HTML URL canonicalization cannot redirect the verified URL.
+  if(!manifest)url.pathname=url.pathname.replace(/viewer\.html$/,'viewer.bin');
+  url.search='';
+  const response=await env.ASSETS.fetch(new Request(url,request));
+  const headers=new Headers(response.headers);
+  for(const [key,value] of Object.entries(CORS))headers.set(key,value);
+  headers.set('Cache-Control',response.status===200 && !manifest?'public, max-age=31536000, immutable, no-transform':'no-store');
+  // Updaters fetch these bytes; HTML rewriting/analytics injection would invalidate the hash.
+  headers.set('Content-Type',manifest?'application/json; charset=utf-8':'application/octet-stream');
+  headers.set('X-Content-Type-Options','nosniff');
+  return new Response(response.body,{status:response.status,headers});
+}
 
 // vendored Spark 等の /vendor/ 配下を、別オリジンから ES モジュールとして
 // import できるよう CORS を付けて再配信する。
@@ -109,6 +166,8 @@ async function handleDemoAsset(request, env, url) {
       h.set('Content-Range', `bytes ${offset}-${end}/${total}`);
       h.set('Accept-Ranges', 'bytes');
       h.set('Cache-Control', cache);
+      h.set('ETag', obj.httpEtag);
+      h.set('Last-Modified', obj.uploaded.toUTCString());
       return new Response(request.method === 'HEAD' ? null : obj.body, { status: 206, headers: h });
     }
 
@@ -119,6 +178,8 @@ async function handleDemoAsset(request, env, url) {
     if (obj.size) h.set('Content-Length', String(obj.size));
     h.set('Accept-Ranges', 'bytes');
     h.set('Cache-Control', cache);
+    h.set('ETag', obj.httpEtag);
+    h.set('Last-Modified', obj.uploaded.toUTCString());
     return new Response(request.method === 'HEAD' ? null : obj.body, { status: 200, headers: h });
   } catch (e) {
     return json({ ok: false, error: String((e && e.message) || e).slice(0, 200) }, 500);

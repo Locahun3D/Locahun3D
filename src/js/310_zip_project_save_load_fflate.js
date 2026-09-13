@@ -11,6 +11,50 @@ async function getFflate(){
   return mod;
 }
 
+// Web entries omit optional assets. Only the pinned portable release may be
+// bundled into a full ZIP; never silently substitute the current slim page.
+async function _fetchOfflineViewerForZip(){
+  const artifact=window.__locahunOfflineArtifact;
+  const validHash=value=>typeof value==='string'&&/^[a-f0-9]{64}$/.test(value);
+  if(!artifact||!validHash(artifact.release)||!validHash(artifact.sha256)||
+    !Number.isSafeInteger(artifact.bytes)||artifact.bytes<=0||artifact.bytes>64*1024**2)
+    throw new Error('Offline viewer release is unavailable');
+  const url=new URL(artifact.url,location.href),origin=new URL(location.href).origin;
+  if((url.origin!==origin&&url.origin!=='https://viewer.locahun3d.com')||
+    !['https:','http:'].includes(url.protocol)||url.username||url.password||url.search||url.hash||
+    url.pathname!==`/releases/${artifact.release}/viewer.html`)
+    throw new Error('Invalid offline viewer release URL');
+  const controller=new AbortController(),timer=setTimeout(()=>controller.abort(),30000);
+  try{
+    const response=await fetch(url.href,{cache:'force-cache',credentials:'omit',redirect:'error',signal:controller.signal});
+    if(!response.ok)throw new Error('Offline viewer HTTP '+response.status);
+    const output=new Uint8Array(artifact.bytes);
+    let received=0;
+    const reader=response.body?.getReader();
+    if(!reader)throw new Error('Offline viewer download requires a readable stream');
+    try{
+      for(;;){
+        const {done,value}=await reader.read();if(done)break;
+        if(received+value.byteLength>output.byteLength)throw new Error('Offline viewer size mismatch');
+        output.set(value,received);received+=value.byteLength;
+      }
+    }catch(error){try{await reader.cancel();}catch(_){}throw error;}
+    finally{reader.releaseLock();}
+    if(received!==output.length)throw new Error('Offline viewer size mismatch');
+    const digest=async bytes=>Array.from(new Uint8Array(await crypto.subtle.digest('SHA-256',bytes)),b=>b.toString(16).padStart(2,'0')).join('');
+    if(await digest(output)!==artifact.sha256)throw new Error('Offline viewer checksum mismatch');
+    const html=new TextDecoder('utf-8',{fatal:true}).decode(output);
+    const stamp=`window.__locahunBuildRelease="${artifact.release}"`;
+    if(!html.includes(stamp)||!html.includes('id="locahun-app-source"')||/window\.__locahunWeb\s*=\s*true/.test(html))
+      throw new Error('Offline viewer is not a portable release');
+    const placeholder='{{viewer-'+'release-id}}';
+    const unstamped=html.replace(stamp,'window.__locahunBuildRelease="'+placeholder+'"');
+    if(await digest(new TextEncoder().encode(unstamped))!==artifact.release)
+      throw new Error('Offline viewer release mismatch');
+    return output;
+  }finally{clearTimeout(timer);}
+}
+
 // ── Full-offline embed of a URL-streamed scene ────────────────────────────
 // A scene loaded via ?demo=1 / ?autoload=URL never pulls its bytes into
 // memory — Spark streams .RAD chunks lazily over HTTP Range, so L._rawBuffer
@@ -92,6 +136,10 @@ async function _fetchStreamUrlToBytes(url, label){
   }
 }
 
+async function _getZipExporter(){
+  const { GLTFExporter } = await import('three/addons/exporters/GLTFExporter.js');
+  return new GLTFExporter();
+}
 let _zipSaving = false;
 // forceLite: user-triggered "軽量保存" (export modal) — same code path the
 // phone-memory auto-guard below already used, just opt-in on any device
@@ -104,19 +152,27 @@ let _zipSaving = false;
 // postMessage で渡すために使う。通常のUI呼び出し(引数なし)の挙動は不変。
 window.saveProjectZip = async function(forceLite, opts){
   opts = opts || {};
-  if(_zipSaving){ showUndoToast(T('zip-saving')); return; }
+  if(opts.localProject){
+    const unsupported=layers.find(L=>!['folder','cube','sphere','obj','splat','light','figure','event','path'].includes(L.type));
+    if(unsupported)throw new Error('ローカル保存未対応のレイヤーです: '+unsupported.type+' ('+unsupported.name+')');
+  }
+  if(_zipSaving){
+    if(opts.localProject) throw new Error('Save already in progress');
+    showUndoToast(T('zip-saving')); return;
+  }
   _zipSaving = true;
-  showUndoToast(T('zip-saving'));
+  if(!opts.localProject) showUndoToast(T('zip-saving'));
   try {
-    const fflate = await getFflate();
-    const { GLTFExporter } = await import('three/addons/exporters/GLTFExporter.js');
-    const exporter = new GLTFExporter();
+    const fflate = opts.localProject ? null : await getFflate();
 
     async function meshToGLBBuf(mesh){
-      return new Promise((res,rej)=>{
-        const g=new THREE.Group(); g.add(mesh.clone());
-        exporter.parse(g,(result)=>res(new Uint8Array(result)),rej,{binary:true});
-      });
+      const exporter = await _getZipExporter();
+      const prepared=_cloneObjForExport(mesh);
+      try {
+        const g=new THREE.Group(); g.add(prepared.clone);
+        const result=await new Promise((res,rej)=>exporter.parse(g,res,rej,{binary:true}));
+        return new Uint8Array(result);
+      } finally { prepared.dispose(); }
     }
 
     // ── Mobile memory budget for ZIP creation ──────────────────────────────
@@ -179,7 +235,10 @@ window.saveProjectZip = async function(forceLite, opts){
         entry.upAxis=L.upAxis||'y';
         let buf;
         const safeName=L.name.replace(/[^a-zA-Z0-9_-]/g,'_');
-        if(L._rawBuffer){
+        if(opts.localProject){
+          entry.file=await opts.localProject.resolveAsset(L,()=>meshToGLBBuf(L.mesh));
+          entry.rawExt=entry.file.split('.').pop();
+        } else if(L._rawBuffer){
           buf=new Uint8Array(L._rawBuffer);
           const ext=L._rawExt||'glb';
           const fname=`models/${fileIdx++}_${safeName}.${ext}`;
@@ -195,7 +254,11 @@ window.saveProjectZip = async function(forceLite, opts){
           } catch(e){ console.error(`[saveZIP] GLTFExporter失敗 "${L.name}":`,e); }
         }
       } else if(L.type==='splat'){
-        if(L._rawBuffer){
+        if(opts.localProject){
+          entry.file=await opts.localProject.resolveAsset(L);
+          entry.rawExt=entry.file.split('.').pop();
+          entry.isMain=L._isMain||false;
+        } else if(L._rawBuffer){
           const ext=L._rawExt||'splat';
           const fname=`splat/${fileIdx++}_${L.name.replace(/[^a-zA-Z0-9_-]/g,'_')}.${ext}`;
           // Phone-class device with oversized payload: record the metadata
@@ -234,7 +297,7 @@ window.saveProjectZip = async function(forceLite, opts){
           const ext=L._rawExt||'rad';
           const fname=`splat/${fileIdx++}_${L.name.replace(/[^a-zA-Z0-9_-]/g,'_')}.${ext}`;
           let _embedded=false;
-          if(!_isPhoneClass){
+          if(!_isPhoneClass&&!_skipSplatData){
             console.warn('saveProjectZip: URL-streamed splat — fetching for full-offline embed:',L.name,'←',L._streamUrl);
             const r=await _fetchStreamUrlToBytes(L._streamUrl, L.name);
             if(r && r.bytes && r.bytes.length>0){
@@ -298,7 +361,9 @@ window.saveProjectZip = async function(forceLite, opts){
       if(L.type==='path'){
         entry.pathPoints=L.pathPoints?L.pathPoints.map(p=>({...p})):[];
         entry.pathLabel=L.pathLabel||'';
+        entry.name=_pathLayerName(entry.pathLabel,L.id);
         entry.pathColor=L.pathColor||'#00d0ff';
+        entry.pathWidth=_pathWidth(L.pathWidth);
         entry.pathOpacity=L.pathOpacity!=null?L.pathOpacity:0.28;
       }
       serialized.push(entry);
@@ -315,10 +380,16 @@ window.saveProjectZip = async function(forceLite, opts){
       cameraInit:{pos:{x:_initCamPos.x,y:_initCamPos.y,z:_initCamPos.z},yaw:_initYaw,pitch:_initPitch},
       layerNextId:_layerNextId,
       layers:serialized,
+      walk: _walkSaveSettings(),
       // 日照シミュの都道府県のみ保存（天気・日時・ON状態は流動的なので保存しない）。
       // 新潟のスキャンを新潟に合わせて保存→受け渡し先で場所が再現される。
       sun:{ city:sun.city },
     };
+    if(opts.localProject) return project;
+    if(project.walk.navigationRegions){
+      const regional=await _collectRegionalNavigationFiles(project.walk.navigationRegions);
+      for(const [name,bytes] of regional.files)files[name]=bytes;
+    }
     files['project.json']=fflate.strToU8(JSON.stringify(project,null,2));
 
     // ── Bundle the viewer HTML itself for fully-offline playback ──
@@ -333,15 +404,21 @@ window.saveProjectZip = async function(forceLite, opts){
     // viewer on every checkpoint save is exactly the "why is this so slow"
     // cost a lite save exists to avoid.
     if(!_skipSplatData) try {
-      const res = await fetch(location.href, { cache: 'no-store' });
-      if(res.ok){
-        const htmlText = await res.text();
-        files['Locahun3D_OfflineViewer.html'] = fflate.strToU8(htmlText);
-        _bundledHtml = true;
-      } else {
-        console.warn('[saveZIP] viewer HTML fetch returned', res.status, '— skipping bundle');
+      if(window.__locahunWeb){
+        files['Locahun3D_OfflineViewer.html']=await _fetchOfflineViewerForZip();
+        _bundledHtml=true;
+      }else{
+        const res = await fetch(location.href, { cache: 'no-store' });
+        if(res.ok){
+          const htmlText = await res.text();
+          files['Locahun3D_OfflineViewer.html'] = fflate.strToU8(htmlText);
+          _bundledHtml = true;
+        } else {
+          console.warn('[saveZIP] viewer HTML fetch returned', res.status, '— skipping bundle');
+        }
       }
     } catch(e){
+      if(window.__locahunWeb) throw e;
       console.warn('[saveZIP] viewer HTML fetch threw — skipping bundle:', e);
     }
 
@@ -396,6 +473,8 @@ window.saveProjectZip = async function(forceLite, opts){
         :(_en?`✅ ZIP saved (${fileCount} file${fileCount===1?'':'s'} + project.json${_offlineNote}${_streamNote})`
              :`✅ ZIP保存完了 (${fileCount}ファイル + project.json${_offlineNote}${_streamNote})`));
     }
-  } catch(e){ console.error(e); showUndoToast(T('zip-fail')+e.message); } finally { _zipSaving = false; }
+  } catch(e){
+    if(opts.localProject) throw e;
+    console.error(e); showUndoToast(T('zip-fail')+e.message);
+  } finally { _zipSaving = false; }
 };
-

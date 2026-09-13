@@ -48,6 +48,8 @@ async function _readFileArrayBufferChunked(file, onProgress){
   return out.buffer;
 }
 async function loadSplatFile(file){
+  _walkRestoreSettings(null);
+  const walkImportEpoch=_walkBeginImport();
   try{
     showLd(T('loading')); setBar(5); setMsg(T('preparing'));
     const ext=file.name.split('.').pop().toLowerCase();
@@ -205,6 +207,7 @@ async function loadSplatFile(file){
       delete opts.coneFov0;
     }
     // Remove previous main splat layer
+    if(walkImportEpoch!==walkSetup.epoch)return;
     const _prevMain=layers.find(l=>l._isMain);
     if(_prevMain){
       scene.remove(_prevMain.mesh); const _i=layers.indexOf(_prevMain); if(_i>=0)layers.splice(_i,1);
@@ -287,8 +290,10 @@ async function loadSplatFile(file){
     // Save as initial camera state for reset button
     _initCamPos.copy(camPos);
     _initYaw=yaw; _initPitch=0;
+    _walkAutoImport(walkImportEpoch,mainL.mesh);
   
     await sleep(400); setBar(100); await sleep(300);
+    if(walkImportEpoch!==walkSetup.epoch)return;
     hideLd(); showHUD(); hideDZ();
     // Force continuous rendering while Spark streams/sorts the 3DGS (async).
     // 4 s covers the worst observed sort-stabilise time on 12M-splat scenes;
@@ -321,6 +326,8 @@ async function loadSplatFile(file){
       }
     } catch(_){}
   }catch(err){
+    if(walkImportEpoch!==walkSetup.epoch)return;
+    _walkFailImport(walkImportEpoch,err);
     console.error(err);
     setErr(T('error-prefix')+err.message);
     // Keep the error visible for 8 s (was 4 s) — slow mobile devices fail
@@ -338,6 +345,7 @@ async function loadSplatFile(file){
 // "📄 空プロジェクトを開く" button so users can drop into the 3D viewer
 // with just the grid / camera, then add layers manually.
 function loadEmptyProject(){
+  _walkRestoreSettings(null);
   // Drop any existing main splat layer (in case user is reopening).
   if(splatMesh){ scene.remove(splatMesh); splatMesh = null; }
   const _prevMain = layers.find(l=>l._isMain);
@@ -357,4 +365,3 @@ function loadEmptyProject(){
   history.pushState({view:'app'}, '', location.href);
   renderLayerList();
 }
-

@@ -64,7 +64,7 @@ function _pagedStreamActive(now){
     const _L = layers[i];
     const _mesh = _L && _L.mesh;
     const _pm = _mesh && _mesh.paged;
-    if(!_pm) continue;
+    if(!_pm || _L.visible === false || _mesh.visible === false) continue;
     const _n = _pm.numSplats || 0;
     const _target = _mesh._radTargetCount || 0;
     if(_target > 0 && _n >= _target) continue;          // 総数到達＝確定完了
@@ -254,7 +254,7 @@ function animate(now) {
   // legitimately drives camPos itself), pin the live view to the saved
   // pose every frame: WASD / drag nudges _yawTarget / _pitchTarget but the
   // next frame snaps back, so the shot reads as immovable. 🔓 releases it.
-  if(_engagedCamId != null
+  if(_engagedCamId != null && !walkMode.active
      && !(typeof camAnim !== 'undefined' && camAnim.playing)){
     const _selL = findLayer(_engagedCamId);
     if(_selL && _selL.type === 'camera' && _selL.locked && _selL.savedPose){
@@ -390,10 +390,7 @@ function animate(now) {
           if(typeof drawCamGrid === 'function'){ try { drawCamGrid(); } catch(_){} }
         }
       }
-      // ── Two-pass render: show the scene at 20% brightness OUTSIDE the
-      // safe-frame so the user has spatial context beyond the crop, then
-      // re-render the frame area at full brightness with the correct
-      // sensor aspect ratio for precise composition. ──
+      // Two passes retain the existing context and safe-frame rendering.
       const yFromBottom = r.viewportH - r.y - r.h;
 
       // The frame (Pass 2) shows the true lens vertical FOV (`fov` = sensor VFOV)
@@ -421,8 +418,8 @@ function animate(now) {
       camera.fov = 2 * Math.atan(_Hh / _fpx) * 180 / Math.PI;
       camera.setViewOffset(_fullW, _fullH, _Hw - _fcx, _Hh - _fcy, innerWidth, innerHeight);
       camera.updateProjectionMatrix();
-      if(_useOrtho){ _syncOrthoCamera(); renderer.render(scene,_orthoCamera); }
-      else renderer.render(scene, camera);
+      if(_useOrtho){ _syncOrthoCamera(); _pathUpdateLabelVisibility(_orthoCamera); renderer.render(scene,_orthoCamera); }
+      else { _pathUpdateLabelVisibility(camera); renderer.render(scene, camera); }
 
       // Pass 2 — frame composition: 主点=枠中心の対称フラスタム（オフセット解除）。
       camera.clearViewOffset();
@@ -438,8 +435,8 @@ function animate(now) {
       _camUpdateLetterbox(r);
     } catch(e){ _camViewportRect = null; }
   }
-  if(_useOrtho){ _syncOrthoCamera(); renderer.render(scene,_orthoCamera); }
-  else renderer.render(scene,camera);
+  if(_useOrtho){ _syncOrthoCamera(); _pathUpdateLabelVisibility(_orthoCamera); renderer.render(scene,_orthoCamera); }
+  else { _pathUpdateLabelVisibility(camera); renderer.render(scene,camera); }
   if(_camActiveNow && _camViewportRect){
     // Restore full-viewport state so HUD overlays, RT passes etc.
     // outside the render loop continue to behave normally.
@@ -684,4 +681,3 @@ function animate(now) {
 // because a backgrounded tab never fires the first rAF (so the loop would never start).
 if(_headless) setTimeout(()=>animate(performance.now()), 50);
 else          requestAnimationFrame(animate);
-

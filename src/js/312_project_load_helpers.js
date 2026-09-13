@@ -19,7 +19,17 @@ function _applyMeshBasicToScene(root){
   });
 }
 
-async function restoreProject(project) {
+async function restoreProject(project, opts = {}) {
+  if(window.localProject)opts={...opts,strict:true};
+  const localRestoreTicket=window.localProject?.beginRestore?.();
+  let localRestoreSucceeded=false;
+  try {
+  if(opts.strict){
+    if(!Array.isArray(project.layers) || project.layers.some(L=>!['folder','cube','sphere','obj','splat','light','figure','event','path'].includes(L.type)))throw new Error('Unsupported project layer');
+  }
+  _walkRestoreSettings(project.walk);
+  const walkImportEpoch=_walkBeginImport();
+  try {
   // Clear scene
   for(const L of [...layers]){
     if(L.mesh) scene.remove(L.mesh);
@@ -56,8 +66,13 @@ async function restoreProject(project) {
   }
 
   const { GLTFLoader }=await import('three/addons/loaders/GLTFLoader.js');
+  if(opts.strict && walkImportEpoch!==walkSetup.epoch)throw new Error('Project load was interrupted');
 
   for(const entry of project.layers){
+    if(walkImportEpoch!==walkSetup.epoch){
+      if(opts.strict)throw new Error('Project load was interrupted');
+      return;
+    }
     let mesh=null, wireMesh=null, rawBuffer=null;
 
     if(entry.type==='folder'){
@@ -103,7 +118,7 @@ async function restoreProject(project) {
               const Cls = await _addonLoader('FBXLoader');
               if(!Cls) throw new Error('FBXLoader unavailable');
               mesh=new Cls().parse(rawBuf);
-            } catch(fe){ console.warn('FBX fail:',entry.name,fe); mesh=new THREE.Group(); }
+            } catch(fe){ if(opts.strict) throw fe; console.warn('FBX fail:',entry.name,fe); mesh=new THREE.Group(); }
           } else {
             // GLB/GLTF — ensure we pass a proper ArrayBuffer copy
             const Cls = await _addonLoader('GLTFLoader');
@@ -118,10 +133,12 @@ async function restoreProject(project) {
           _applyMeshBasicToScene(mesh);
           console.log(`[restore] obj ok: ${entry.name} (${fileExt})`);
         } catch(e){
+          if(opts.strict) throw e;
           console.error(`[restore] obj fail: ${entry.name} (${fileExt})`, e);
           mesh=new THREE.Group();
         }
       } else {
+        if(opts.strict) throw new Error('Model data missing: '+entry.name);
         console.warn(`[restore] obj no data: ${entry.name}`);
         mesh=new THREE.Group();
       }
@@ -134,13 +151,11 @@ async function restoreProject(project) {
           const ext=entry._ext||entry.rawExt
             ||(entry.file ? entry.file.split('.').pop() : null)
             ||'splat';
-          // Create owned buffer copy for Blob
+          // Keep the decoder's owned copy independent of save/source bytes.
           const bufCopy=(rawBuf instanceof ArrayBuffer)
             ? rawBuf.slice(0)
             : new Uint8Array(rawBuf).buffer;
-          const blob=new Blob([bufCopy]);
-          const blobURL=URL.createObjectURL(blob);
-          const opts={url:blobURL, ...SPARK_QUALITY_OPTS};
+          const opts={...SPARK_QUALITY_OPTS};
           // Spark 2.x: explicit fileType required for blob: URLs (auto-detect
           // by extension can't see anything inside the blob URL).
           opts.fileName = entry.file || (entry.name + '.' + ext);
@@ -169,6 +184,9 @@ async function restoreProject(project) {
             delete opts.behindFoveate;
             delete opts.coneFov;
             delete opts.coneFov0;
+          } else {
+            // RAD uses fileBytes; an unused Blob URL would retain the full payload.
+            opts.url=URL.createObjectURL(new Blob([bufCopy]));
           }
           const _radTargetCount4 = (ext === 'rad') ? _parseRadHeaderCount(new Uint8Array(bufCopy)) : 0;
           mesh=new SplatMesh(opts);
@@ -177,6 +195,7 @@ async function restoreProject(project) {
           tuneSplatMesh(mesh);
           console.log(`[restore] splat ok: ${entry.name} (${ext}, ${(rawBuf.byteLength/1024).toFixed(1)}KB)`);
         } catch(e){
+          if(opts.strict) throw e;
           console.error(`[restore] splat fail: ${entry.name}`, e);
           mesh=new THREE.Group();
         }
@@ -208,10 +227,12 @@ async function restoreProject(project) {
           if(entry._loadFlipped === undefined) entry._loadFlipped=(sext==='ply'||sext==='spz');
           console.log(`[restore] splat re-streaming: ${entry.name} ← ${surl}`);
         }catch(e){
+          if(opts.strict) throw e;
           console.error(`[restore] splat stream-restore fail: ${entry.name}`, e);
           mesh=new THREE.Group();
         }
       } else {
+        if(opts.strict) throw new Error('Splat data missing: '+entry.name);
         console.warn(`[restore] splat no data: ${entry.name}`);
         mesh=new THREE.Group();
       }
@@ -253,9 +274,10 @@ async function restoreProject(project) {
       evGroup.userData.isBillboard = true;
       mesh = evGroup;
     } else if(entry.type==='path'){
-      mesh=_buildPathMesh(entry.pathPoints||[], entry.pathColor||'#00d0ff', entry.pathOpacity!=null?entry.pathOpacity:0.28, entry.pathLabel||'');
+      mesh=_buildPathMesh(entry.pathPoints||[], entry.pathColor||'#00d0ff', entry.pathOpacity!=null?entry.pathOpacity:0.28, entry.pathLabel||'', _pathWidth(entry.pathWidth));
     }
 
+    if(opts.strict && entry.type==='splat' && mesh?.initialized) await mesh.initialized;
     const L={
       id:entry.id, name:entry.name, type:entry.type,
       parentId:entry.parentId||null, mesh,
@@ -312,7 +334,9 @@ async function restoreProject(project) {
     if(entry.type==='path'){
       L.pathPoints=entry.pathPoints?entry.pathPoints.map(p=>({...p})):[];
       L.pathLabel=entry.pathLabel||'';
+      L.name=_pathLayerName(L.pathLabel,L.id);
       L.pathColor=entry.pathColor||'#00d0ff';
+      L.pathWidth=_pathWidth(entry.pathWidth);
       L.pathOpacity=entry.pathOpacity!=null?entry.pathOpacity:0.28;
       L.pathLabelSprite=(mesh&&mesh.userData)?mesh.userData.pathLabelSprite:null;
     }
@@ -330,8 +354,13 @@ async function restoreProject(project) {
         mesh.traverse(o=>{ if(o.userData && o.userData.jointMarker) o.visible=false; });
       }
     }
+    if(walkImportEpoch!==walkSetup.epoch){
+      if(opts.strict)throw new Error('Project load was interrupted');
+      return;
+    }
     if(mesh){ scene.add(mesh); if(!L.visible) mesh.visible=false; }
     layers.push(L);
+    if(L.type==='obj') window.setObjOpacity(L.id,L.objOpacity);
     if(mesh) applyLayerTransform(L.id);
     if(wireMesh){ wireMesh.position.set(L.pos.x,L.pos.y,L.pos.z); }
   }
@@ -354,6 +383,7 @@ async function restoreProject(project) {
   }
 
   renderLayerList(); renderTransformPanel();
+  _walkAutoImport(walkImportEpoch);
 
   // Show HUD / hide drop zone (same as normal file load)
   if(layers.filter(L=>L.type!=='folder').length>0){
@@ -361,6 +391,8 @@ async function restoreProject(project) {
     if(layers.some(L=>L.type==='splat')) _splatActiveUntil = performance.now() + _SPLAT_ACTIVE_MS;
     // btnFlip removed (Y-flip is in layer panel)
   }
+  localRestoreSucceeded=true;
+  return {layers:[...layers],epoch:walkImportEpoch};
+  } catch(e) {_walkFailImport(walkImportEpoch,e);throw e;}
+  } finally {window.localProject?.endRestore?.(localRestoreTicket,localRestoreSucceeded);}
 }
-
-

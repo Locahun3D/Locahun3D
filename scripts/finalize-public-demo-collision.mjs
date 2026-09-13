@@ -1,0 +1,23 @@
+// Local artifact preparation only. Never uploads or deploys.
+import fs from 'node:fs';
+import vm from 'node:vm';
+import {validatePublicDemo} from './public-demo-collision-contract.mjs';
+const arg=process.argv.indexOf('--after');if(arg<0)throw Error('--after authoritative metadata JSON required');
+const stage='F:/Codex/public-demo-prebake/';
+const report=JSON.parse(fs.readFileSync(stage+'runtime-report.json','utf8'));
+const bytes=fs.readFileSync(stage+'demo.lct');
+const after=JSON.parse(fs.readFileSync(process.argv[arg+1],'utf8'));
+const {key,entry}=validatePublicDemo(report,bytes,after);
+const context=vm.createContext({Uint8Array,Float32Array,DataView,ArrayBuffer,TextDecoder,TextEncoder,CompressionStream,DecompressionStream,Blob,Response,console});
+vm.runInContext(fs.readFileSync(new URL('../src/js/216b_whole_collision.js',import.meta.url),'utf8'),context);
+const index=await context.LocahunWholeCollision.decodeTiles(new Uint8Array(bytes),key);
+if(index.total!==report.boxes||index.tiles.size!==report.tiles||index.cellSize!==report.cellSize)throw Error('Decoded runtime statistics mismatch');
+const manifestUrl=new URL('../src/js/216a_collision_manifest.js',import.meta.url),manifestContext=vm.createContext({});
+vm.runInContext(fs.readFileSync(manifestUrl,'utf8'),manifestContext);
+const manifest={...manifestContext.LocahunCollisionManifest,[key]:entry};
+fs.mkdirSync(new URL('../collision/',import.meta.url),{recursive:true});
+fs.writeFileSync(new URL('../collision/'+key+'.lct',import.meta.url),bytes);
+fs.writeFileSync(new URL('../collision/demo-source.json',import.meta.url),JSON.stringify({...report,after},null,2)+'\n');
+fs.writeFileSync(manifestUrl,'// Public prebuilt collision payloads pinned to this viewer release.\n// Generated from verified public demo only; private projects are never published.\nglobalThis.LocahunCollisionManifest=Object.freeze('+JSON.stringify(manifest,null,2)+');\n');
+fs.writeFileSync(stage+'verified-report.json',JSON.stringify({...report,after},null,2)+'\n');
+console.log(JSON.stringify({key,...entry,tiles:index.tiles.size,boxes:index.total,cellSize:index.cellSize}));

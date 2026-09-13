@@ -107,7 +107,7 @@ function _trySelectByClick(clientX, clientY){
         if(L) L.figureSelectedBone = info.logical;
         if(window.setFigureSelectedBone) window.setFigureSelectedBone(info.layerId, info.logical);
         markDirty(8);
-        return;
+        return true;
       }
     }
   }
@@ -120,7 +120,7 @@ function _trySelectByClick(clientX, clientY){
       if(child.isMesh) meshToLayer.set(child, L.id);
     });
   }
-  if(meshToLayer.size === 0) return;
+  if(meshToLayer.size === 0) return false;
 
   const allMeshes = [...meshToLayer.keys()];
   const hits = _clickRay.intersectObjects(allMeshes, true);
@@ -128,6 +128,7 @@ function _trySelectByClick(clientX, clientY){
     const hitLayerId = meshToLayer.get(hits[0].object);
     if(hitLayerId != null){
       window.selectLayer(hitLayerId);
+      return true;
     }
   } else {
     // Clicked on empty space — deselect so the pivot/handles disappear.
@@ -139,6 +140,7 @@ function _trySelectByClick(clientX, clientY){
       markDirty(6);
     }
   }
+  return false;
 }
 let fpsT = 0, fpsN = 0;
 
@@ -356,10 +358,8 @@ document.addEventListener('touchstart', e => {
     const now = Date.now();
     if(now - lastTap < 320){
       const t = e.target;
-      const interactive = t && (
-        t.tagName === 'INPUT' || t.tagName === 'TEXTAREA' ||
-        t.tagName === 'SELECT' || t.tagName === 'BUTTON' ||
-        t.tagName === 'A' || (t.getAttribute && t.getAttribute('contenteditable'))
+      const interactive = t && t.closest && t.closest(
+        'button,input,textarea,select,a,label,[role="button"],[onclick],[contenteditable]:not([contenteditable="false"])'
       );
       if(!interactive){
         try { e.preventDefault(); } catch(_){}
@@ -374,4 +374,3 @@ document.addEventListener('touchstart', e => {
 // full desktop experience; the continuous-watchdog still defends 30 fps via
 // pixel-ratio downsteps if a particular machine can't sustain it.
 const _heavyDisplay = false;
-

@@ -206,6 +206,7 @@ window.toggleProjection = function(){
 };
 
 window.resetCameraToInitial = function(){
+  if(walkMode.active) _avatarWalkExit();
   // Leaving for "home" should also tidy up: hide the camera-animation
   // panel (it used to linger on the view) and release any locked-camera
   // snap-back hold, otherwise the engaged camera would immediately yank
@@ -236,7 +237,19 @@ window.setCurrentViewAsInitial = function(){
 // once immediately AND twice on a short timer to let the visual
 // viewport settle, and also hook orientationchange + visualViewport
 // so we don't depend on a single event source.
+function _syncJoystickViewport(){
+  if(typeof _isIPad === 'undefined' || !_isIPad || !window.visualViewport) return;
+  const vv = window.visualViewport;
+  if(!Number.isFinite(vv.height) || !Number.isFinite(vv.offsetTop)) return;
+  // iPad browser chrome may obscure the layout viewport before the first resize.
+  const inset = Math.max(0, innerHeight - vv.height - vv.offsetTop);
+  document.documentElement.style.setProperty('--joy-viewport-bottom',
+    'calc(' + inset + 'px + max(24px, env(safe-area-inset-bottom, 0px)))');
+}
+_syncJoystickViewport();
+window.addEventListener('pageshow', _syncJoystickViewport);
 function _doViewportResize(){
+  _syncJoystickViewport();
   // 撮影(captureCamShot)中は renderer のサイズ/pixelRatio を固定した上でクロップする。
   // ここで setSize すると撮影中バッファが変わり出力が崩れるので何もしない（撮影終了時に
   // captureCamShot 側が現在サイズへ再フィットする）。
@@ -267,6 +280,7 @@ window.addEventListener('orientationchange', () => {
 });
 if(window.visualViewport){
   window.visualViewport.addEventListener('resize', _doViewportResize);
+  window.visualViewport.addEventListener('scroll', _syncJoystickViewport);
 }
 
 // ── Browser fullscreen toggle (phone / tablet) ──
@@ -398,4 +412,3 @@ window.toggleAppFullscreen = function(){
 
 const grid = new THREE.GridHelper(200, 200, 0x221100, 0x110800);
 grid.position.y = -0.01; grid.visible = false; scene.add(grid);
-

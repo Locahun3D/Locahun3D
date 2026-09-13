@@ -32,6 +32,7 @@ const _arZAxis = new THREE.Vector3(0, 0, 1);
 
 window.toggleARMode = function(){
   if(arMode.active){ _arExit(); return; }
+  if(walkMode.active)_avatarWalkExit();
   // iOS 13+: DeviceOrientationEvent.requestPermission() only shows its dialog
   // when called with a *transient user activation*. Calling it deeper inside the
   // async _arEnter() — even as that function's first await — can make iOS fail
@@ -415,6 +416,16 @@ function _arExit(){
 // button when walk mode is active.
 window.repositionAvatar = function(){
   if(!walkMode.active || !walkMode.avatar) return;
+  if(walkSetup.core){
+    try{
+      const p=_walkSpawnPosition(false);
+      walkSetup.core.setCharacter(p,walkMode.height,walkMode.bodyRadius);
+      walkMode.avatar.position.set(p.x,p.y-walkMode.groundOffset,p.z);
+      walkMode.velocity.set(0,0,0);walkMode.airborne=false;walkMode.groundY=p.y;
+      _avatarResetBones();markDirty(5);
+    }catch(e){_walkStatus(e.message);showUndoToast(e.message);}
+    return;
+  }
   // Clear the anchor before sampling so this re-spawn search isn't itself
   // clamped to the OLD anchor (we want the user's new chosen location to
   // become the fresh authoritative ground reference).
@@ -465,6 +476,4 @@ function updateCamera(){
   // the image plane around the lens axis, matching real-world dutch-angle behavior.
   camera.rotation.set(pitch, yaw + Math.PI, roll, 'YXZ');
 }
-
-
 

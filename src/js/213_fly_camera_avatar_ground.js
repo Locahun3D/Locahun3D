@@ -319,21 +319,45 @@ function updateAvatarWalk(dt){
 }
 
 window.toggleAvatarWalk = function(){
+  if(walkMode.exitTransition)return;
   if(walkMode.active){ _avatarWalkExit(); }
-  else { _avatarWalkEnter().catch(e=>console.error('[walk] enter failed', e)); }
+  else if(!walkSetup.entering) {
+    walkSetup.entering=true;
+    _avatarWalkEnter().catch(e=>{console.error('[walk] enter failed',e);_walkStatus(e.message);showUndoToast(e.message);})
+      .finally(()=>{walkSetup.entering=false;});
+  }
 };
 
 async function _avatarWalkEnter(){
+  if(typeof camAnim!=='undefined' && camAnim.playing)throw new Error('カメラワークの再生を停止してから歩行を開始してください。');
+  const epoch=walkSetup.epoch;
+  await _walkPrepareCollision();
+  const spawn=_walkSpawnPosition();
   // Place avatar 2.5m in front of camera, snapped to ground
   if(!walkMode.avatar){
     try {
-      walkMode.avatar = await _avatarBuild();
+      const built=await _avatarBuild();
+      if(epoch!==walkSetup.epoch){built.userData.kawaiiAnimation?.dispose();throw new Error('シーンが変更されたため歩行開始を中止しました。');}
+      walkMode.avatar=built;
+      const api=built.userData.kawaiiAnimation;
+      walkMode.bones=null;walkMode.mixer=api.mixer;walkMode.walkAction=api.walkAction;
+      walkMode.animSource=api.source;walkMode.speed=api.nominalSpeed;walkMode.runMul=1.85;
+      _ensureFigureLighting();
     } catch(e){
       console.error('[walk] avatar build failed', e);
-      return;
+      throw e;
     }
     scene.add(walkMode.avatar);
     _avatarMeasureGroundOffset(walkMode.avatar);
+  }
+  if(epoch!==walkSetup.epoch) throw new Error('シーンが変更されたため歩行開始を中止しました。');
+  walkMode.entryCamera={position:{x:camPos.x,y:camPos.y,z:camPos.z},yaw,pitch};
+  walkMode.moveX=0;walkMode.moveZ=0;walkMode.actualSpeed=0;
+  walkMode.jumpHeld=!!keys.Space;walkMode.awaitInputRelease=false;
+  walkMode.cameraNearHidden=false;
+  if(Number.isFinite(spawn.yaw)) {
+    setCamRotImmediate(spawn.yaw,pitch);
+    walkSetup.settings.spawnYaw=spawn.yaw;
   }
   // Visual ground indicator — a thin transparent ring at the detected
   // ground Y so the user can see whether the system found a real floor
@@ -344,23 +368,25 @@ async function _avatarWalkEnter(){
     ringGeo.rotateX(-Math.PI/2);
     const ringMat = new THREE.MeshBasicMaterial({
       color: 0x66ddff, transparent:true, opacity:0.55,
-      side: THREE.DoubleSide, depthTest:false, depthWrite:false,
+      side: THREE.DoubleSide, depthTest:true, depthWrite:true,
     });
     const disc = new THREE.Mesh(ringGeo, ringMat);
-    disc.renderOrder = 991;
+    disc.renderOrder = -20;
     walkMode.groundDisc = disc;
     scene.add(disc);
   }
   walkMode.groundDisc.visible = true;
   // Forward vector matching camera world forward (W direction).
   const fwx =  Math.sin(yaw), fwz =  Math.cos(yaw);
-  const sx = camPos.x + fwx * 2.5;
-  const sz = camPos.z + fwz * 2.5;
+  const sx = spawn.x;
+  const sz = spawn.z;
   // Clear stale anchor state so the spawn search runs without a clamp.
   walkMode._anchorY = undefined;
   walkMode._lastDetectedY = undefined;
   walkMode._lastDetectionWasReal = false;
-  const sy = _avatarGroundY(sx, sz);
+  const sy = spawn.y;
+  walkSetup.core.setCharacter(spawn,walkMode.height,walkMode.bodyRadius);
+  if(!walkSetup.settings.spawn) walkSetup.settings.spawn={...spawn};
   walkMode.avatar.position.set(sx, sy - walkMode.groundOffset, sz);
   walkMode.avatar.rotation.set(0, yaw, 0);
   walkMode.avatar.visible = true;
@@ -368,6 +394,12 @@ async function _avatarWalkEnter(){
   walkMode.airborne = false;
   walkMode.animTime = 0;
   walkMode.active = true;
+  if(typeof _syncWalkJumpButton==='function')_syncWalkJumpButton();
+  if(cam.active)window.toggleCamTool();
+  if(arMode.active)_arExit();
+  if(typeof _engagedCamId!=='undefined')_engagedCamId=null;
+  document.body.classList.add('walk-active');
+  setCamRotImmediate(yaw,-.35);
   // Anchor the ground search to the spawn Y. From here on, ground detection
   // is clamped to a band around the anchor so the avatar can't creep down
   // through the floor over many frames of slowly-shifting density peaks.
@@ -388,14 +420,37 @@ async function _avatarWalkEnter(){
   showUndoToast(T('walk-on'));
   markDirty(10);
 }
-function _avatarWalkExit(){
+// Visibility only: never move the collision-corrected camera through a wall.
+function _avatarWalkCameraVisibility(av){
+  if(!walkMode.active||!av)return;
+  const height=walkMode.height;
+  if(!Number.isFinite(height)||height<=0)return;
+  const distance=Math.hypot(camPos.x-av.position.x,
+    camPos.y-(av.position.y+walkMode.groundOffset+height*.8),camPos.z-av.position.z);
+  if(!Number.isFinite(distance))return;
+  // About 1.1m hide / 1.45m show at 1.7m stature; preserve normal 3.2m chase.
+  if(distance<height*.65)walkMode.cameraNearHidden=true;
+  else if(distance>height*.85)walkMode.cameraNearHidden=false;
+  av.visible=!walkMode.cameraNearHidden;
+}
+function _avatarWalkExit({restoreCamera=false}={}){
+  const smooth=restoreCamera&&walkMode.entryCamera&&walkMode.avatar&&
+    !(typeof camAnim!=='undefined'&&camAnim.playing);
+  walkMode.exitTransition=smooth?{elapsed:0,epoch:walkSetup.epoch,
+    from:{x:camPos.x,y:camPos.y,z:camPos.z,yaw,pitch},to:walkMode.entryCamera}:null;
+  walkMode.awaitInputRelease=true;
+  walkMode.moveX=0;walkMode.moveZ=0;walkMode.actualSpeed=0;walkMode.jumpHeld=false;
+  document.body.classList.remove('walk-active');
+  window.dispatchEvent(new Event('walk-mode-exit'));
+  joyDX=0;joyDY=0;
   walkMode.active = false;
+  if(typeof _syncWalkJumpButton==='function')_syncWalkJumpButton();
   walkMode.airborne = false;
   walkMode.velocity.set(0,0,0);
-  if(walkMode.avatar) walkMode.avatar.visible = false;
+  if(walkMode.avatar&&!smooth) walkMode.avatar.visible = false;
   if(walkMode.groundDisc) walkMode.groundDisc.visible = false;
   // Reset animated bones so the figure isn't frozen mid-stride next time
-  _avatarResetBones();
+  if(!smooth)_avatarResetBones();
   const btn = document.getElementById('btnAvatarWalk');
   if(btn){ btn.classList.remove('on'); btn.blur(); }
   _refreshResetBtnLabel();
@@ -403,3 +458,43 @@ function _avatarWalkExit(){
   markDirty(10);
 }
 
+// Runs only in free-camera mode. Import/playback owns its camera immediately.
+function _avatarWalkPostExit(dt){
+  const transition=walkMode.exitTransition;
+  const playback=typeof camAnim!=='undefined'&&camAnim.playing;
+  if(transition){
+    if(transition.epoch!==walkSetup.epoch||playback){
+      walkMode.exitTransition=null;
+      if(walkMode.avatar)walkMode.avatar.visible=false;
+      _avatarResetBones();
+    } else {
+      transition.elapsed+=Math.max(0,Math.min(.05,dt));
+      const t=Math.min(1,transition.elapsed/.35),s=t*t*(3-2*t),a=transition.from,b=transition.to;
+      camPos.set(a.x+(b.position.x-a.x)*s,a.y+(b.position.y-a.y)*s,a.z+(b.position.z-a.z)*s);
+      const turn=Math.atan2(Math.sin(b.yaw-a.yaw),Math.cos(b.yaw-a.yaw));
+      setCamRotImmediate(a.yaw+turn*s,a.pitch+(b.pitch-a.pitch)*s);
+      walkMode.avatar?.userData.kawaiiAnimation?.update(dt,0,true);
+      if(t===1){
+        setCamRotImmediate(b.yaw,b.pitch);
+        walkMode.exitTransition=null;
+        if(walkMode.avatar)walkMode.avatar.visible=false;
+        _avatarResetBones();
+      }
+      markDirty(2);
+      return true;
+    }
+  }
+  if(playback){walkMode.awaitInputRelease=false;return false;}
+  if(!walkMode.awaitInputRelease)return false;
+  const gp=_readGamepadInput();
+  // Match every keyboard, touch and gamepad input consumed by free-camera 211.
+  const held=['KeyW','KeyA','KeyS','KeyD','KeyQ','KeyE','KeyR','KeyF',
+    'ArrowUp','ArrowDown','ArrowLeft','ArrowRight',
+    'PageUp','PageDown','Equal','Minus','NumpadAdd','NumpadSubtract',
+    'ControlLeft','ControlRight','MetaLeft','MetaRight','ShiftLeft','ShiftRight','Space'].some(k=>keys[k])||
+    (typeof touchUpHeld!=='undefined'&&touchUpHeld)||(typeof touchDnHeld!=='undefined'&&touchDnHeld)||
+    Math.hypot(joyDX,joyDY)>1e-3||
+    (gp&&(['lx','ly','rx','ry','lt','rt'].some(k=>Math.abs(gp[k]||0)>0)||gp.sprint||gp.aHeld));
+  if(!held)walkMode.awaitInputRelease=false;
+  return !!held;
+}

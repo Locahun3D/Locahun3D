@@ -7,6 +7,8 @@
   //   Shift                          : 5× translate / 3× look sprint
   // Holding Ctrl re-routes the arrow keys from pan to rotate, so the same four
   // keys cover both — exactly like Google Earth desktop.
+  if(_avatarWalkPostExit(dt)) return;
+  const collisionStart={x:camPos.x,y:camPos.y,z:camPos.z};
   const ctrlHeld = !!(keys.ControlLeft||keys.ControlRight||keys.MetaLeft||keys.MetaRight);
   const aFw = (keys.ArrowUp?1:0)    - (keys.ArrowDown?1:0);
   const aRt = (keys.ArrowRight?1:0) - (keys.ArrowLeft?1:0);
@@ -85,6 +87,7 @@
     markDirty(2);
     if(layers.some(L=>L.type==='splat')) bumpSplatActive(800);
   }
+  if(typeof _applyFreeCameraCollision==='function')_applyFreeCameraCollision(collisionStart);
 }
 
 // ══════════════════════════════════════════════════
@@ -103,7 +106,9 @@ const walkMode = {
   velocity:new THREE.Vector3(),
   speed:2.8,             // walk speed m/s
   runMul:2.2,            // shift = run
-  height:1.7,            // total avatar height in metres
+  runSpeed:2.8*2.2,      // preserve 6.16 m/s; independent of walk-clip cadence metadata
+  runAcceleration:10,   // m/s squared
+  height:1.65,           // total avatar height in metres
   bodyRadius:0.22,
   groundY:0,
   groundOffset:0,        // bbox.min.y of avatar relative to its origin (negative if origin above feet)
@@ -126,4 +131,3 @@ const walkMode = {
 const _wmRay = new THREE.Raycaster();
 const _wmDown = new THREE.Vector3(0,-1,0);
 const _wmTmpV = new THREE.Vector3();
-

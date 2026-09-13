@@ -38,16 +38,19 @@ function _promptFilesForReattach(missingEntries){
 
 // ── Core ZIP load logic (callable directly with a File object) ──
 async function _loadProjectZipFromFile(file){
+  let walkImportEpoch=_walkBeginImport();
   const _en=()=>window._lang==='en';
   showLd(T('zip-loading')); setMsg(T('zip-parsing')); setBar(5);
   try{
     setMsg(T('zip-lib')); setBar(10);
     const fflate=await getFflate();
+    if(walkImportEpoch!==walkSetup.epoch)return;
 
     setMsg(T('zip-decomp')); setBar(20);
     // Chunked read: single-call file.arrayBuffer() fails on files > ~2GiB
     // (V8 ArrayBuffer size ceiling ~2GiB; unfixable in-browser past that — see 200_file_loading.js) —
     const zipBuf=new Uint8Array(await _readFileArrayBufferChunked(file, p => setBar(20 + Math.round(p*15))));
+    if(walkImportEpoch!==walkSetup.epoch)return;
     let unzipped;
     try{ unzipped=fflate.unzipSync(zipBuf); }
     catch(zipErr){ hideLd(); showUndoToast((_en()?'⚠ ZIP decompress failed: ':'⚠ ZIP解凍失敗: ')+zipErr.message); return; }
@@ -104,16 +107,21 @@ async function _loadProjectZipFromFile(file){
       setBar(55);
       let i = 0;
       for(const c of candidates){
+        if(walkImportEpoch!==walkSetup.epoch)return;
         const u8 = fileMap[c.path];
         const owned = new Uint8Array(u8.length); owned.set(u8);
         const innerFile = new File([owned.buffer], c.base, { type:'application/octet-stream' });
         try {
+          let loading;
           if(c.kind === 'splat'){
-            if(i === 0 && !layers.find(l => l._isMain)) await loadSplatFile(innerFile);
-            else                                       await loadAdditionalSplat(innerFile);
+            if(i === 0 && !layers.find(l => l._isMain)) loading=loadSplatFile(innerFile);
+            else                                       loading=loadAdditionalSplat(innerFile);
           } else {
-            await loadObjFile(innerFile);
+            loading=loadObjFile(innerFile);
           }
+          walkImportEpoch=walkSetup.epoch;
+          await loading;
+          if(walkImportEpoch!==walkSetup.epoch)return;
         } catch(perFileErr){
           console.warn('[ZIP] failed to load', c.path, perFileErr);
         }
@@ -135,6 +143,12 @@ async function _loadProjectZipFromFile(file){
       hideLd();
       showUndoToast(_en()?`⚠ Unsupported project version: ${project.version}`:`⚠ 非対応のプロジェクトバージョン: ${project.version}`);
       return;
+    }
+    let regionalFiles=null;
+    if(project.walk?.navigationRegions){
+      const projectKey=allKeys.find(k=>fileMap[k]===jsonU8),prefix=projectKey?.slice(0,-'project.json'.length)||'';
+      regionalFiles=await LocahunNavigationFiles.read(project.walk.navigationRegions,name=>fileMap[prefix+name]);
+      if(walkImportEpoch!==walkSetup.epoch)return;
     }
 
     setMsg(T('zip-attach')); setBar(60);
@@ -168,6 +182,7 @@ async function _loadProjectZipFromFile(file){
     if(_missingSplats.length){
       setMsg(_en()?'Original 3DGS file needed…':'元の3DGSファイルが必要です…'); setBar(70);
       const _picked = await _promptFilesForReattach(_missingSplats);
+      if(walkImportEpoch!==walkSetup.epoch)return;
       const _pool = _missingSplats.slice();
       const _norm = s => (s||'').toLowerCase().replace(/[^a-z0-9]/g,'');
       for(const f of _picked){
@@ -177,6 +192,7 @@ async function _loadProjectZipFromFile(file){
         if(!target) continue;
         try{
           target._buf = await _readFileArrayBufferChunked(f);
+          if(walkImportEpoch!==walkSetup.epoch)return;
           target._ext = f.name.split('.').pop().toLowerCase();
           attached++; missing--;
           _pool.splice(_pool.indexOf(target),1);
@@ -186,15 +202,23 @@ async function _loadProjectZipFromFile(file){
     }
 
     setMsg(_en()?`${attached} file(s) attached, restoring...`:`${attached}ファイル割り当て完了、復元中...`); setBar(75);
-    await restoreProject(project);
+    if(walkImportEpoch!==walkSetup.epoch)return;
+    const restoring=restoreProject(project);
+    walkImportEpoch=walkSetup.epoch;
+    await restoring;
+    if(walkImportEpoch!==walkSetup.epoch)return;
+    _regionalNavigationFiles=regionalFiles;
     hideLd();
     showUndoToast(missing>0
       ?(_en()?`⚠ Restored (${attached} ok / ${missing} not found)`:`⚠ 復元完了 (${attached}成功/${missing}未発見)`)
       :(_en()?`✅ Restored from ZIP (${attached} file${attached===1?'':'s'})`:`✅ ZIPから完全復元 (${attached}ファイル)`));
   } catch(err){
+    if(walkImportEpoch!==walkSetup.epoch)return;
     console.error('[loadProjectZip]',err);
     hideLd();
     showUndoToast((_en()?'⚠ ZIP load failed: ':'⚠ ZIP読み込み失敗: ')+err.message);
+  } finally {
+    if(walkImportEpoch===walkSetup.epoch && walkSetup.importPending)_walkFailImport(walkImportEpoch,new Error('ZIP読込は完了していません。'));
   }
 }
 
@@ -218,12 +242,12 @@ window.saveProject = async function() {
     const exporter = new GLTFExporter();
 
     async function meshToGLBBase64(mesh) {
-      return new Promise((res,rej)=>{
-        const g=new THREE.Group(); g.add(mesh.clone());
-        exporter.parse(g,(result)=>{
-          res(bufToBase64(result));
-        }, rej, {binary:true});
-      });
+      const prepared=_cloneObjForExport(mesh);
+      try {
+        const g=new THREE.Group(); g.add(prepared.clone);
+        const result=await new Promise((res,rej)=>exporter.parse(g,res,rej,{binary:true}));
+        return bufToBase64(result);
+      } finally { prepared.dispose(); }
     }
 
     const serialized = [];
@@ -287,7 +311,9 @@ window.saveProject = async function() {
       } else if(L.type==='path'){
         entry.pathPoints=L.pathPoints?L.pathPoints.map(p=>({...p})):[];
         entry.pathLabel=L.pathLabel||'';
+        entry.name=_pathLayerName(entry.pathLabel,L.id);
         entry.pathColor=L.pathColor||'#00d0ff';
+        entry.pathWidth=_pathWidth(L.pathWidth);
         entry.pathOpacity=L.pathOpacity!=null?L.pathOpacity:0.28;
       }
       serialized.push(entry);
@@ -300,6 +326,7 @@ window.saveProject = async function() {
       camera:{ pos:{x:camPos.x,y:camPos.y,z:camPos.z}, yaw, pitch },
       layerNextId:_layerNextId,
       layers:serialized,
+      walk:_walkSaveSettings(),
       // 日照シミュの都道府県のみ保存（ZIP保存と同様。天気・日時・ON状態は保存しない）。
       sun:{ city:sun.city },
     };
@@ -328,25 +355,18 @@ window.loadProject = function() {
     const file=e.target.files[0]; if(!file) return;
     const _en=window._lang==='en';
     try{
-      const text=await file.text();
-      const project=JSON.parse(text);
-      if(!project.version||!project.layers){ showUndoToast(_en?'⚠ Invalid project file':'⚠ 無効なプロジェクトファイル'); return; }
-      const SUPPORTED_VERSIONS=[1,2,3,4];
-      if(!SUPPORTED_VERSIONS.includes(project.version)){
-        showUndoToast(_en?`⚠ Unsupported project version: ${project.version}`:`⚠ 非対応のプロジェクトバージョン: ${project.version}`);
-        return;
-      }
-      await restoreProject(project);
-      showUndoToast(_en?'✅ Project loaded':'✅ プロジェクトを読み込みました');
+      await loadProject_fromFile(file);
     } catch(e){ console.error(e); showUndoToast(T('load-fail')+e.message); }
   };
   input.click();
 };
 
 async function loadProject_fromFile(file){
+  let walkImportEpoch=_walkBeginImport();
   const _en=window._lang==='en';
   try{
     const text=await file.text();
+    if(walkImportEpoch!==walkSetup.epoch)return;
     const project=JSON.parse(text);
     if(!project.version||!project.layers){ showUndoToast(_en?'⚠ Invalid project file':'⚠ 無効なプロジェクトファイル'); return; }
     const SUPPORTED_VERSIONS=[1,2,3,4];
@@ -354,8 +374,15 @@ async function loadProject_fromFile(file){
       showUndoToast(_en?`⚠ Unsupported project version: ${project.version}`:`⚠ 非対応のプロジェクトバージョン: ${project.version}`);
       return;
     }
-    await restoreProject(project);
+    const restoring=restoreProject(project);
+    walkImportEpoch=walkSetup.epoch;
+    await restoring;
+    if(walkImportEpoch!==walkSetup.epoch)return;
     showUndoToast(_en?'✅ Project loaded':'✅ プロジェクトを読み込みました');
-  } catch(e){ console.error(e); showUndoToast(T('load-fail')+e.message); }
+  } catch(e){
+    if(walkImportEpoch!==walkSetup.epoch)return;
+    console.error(e);showUndoToast(T('load-fail')+e.message);
+  } finally {
+    if(walkImportEpoch===walkSetup.epoch && walkSetup.importPending)_walkFailImport(walkImportEpoch,new Error('JSON読込は完了していません。'));
+  }
 }
-

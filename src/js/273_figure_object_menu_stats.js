@@ -70,6 +70,7 @@ window.triggerAddObj=function(){ document.getElementById('lfi-obj').click(); };
 window.triggerImportAny=function(){ document.getElementById('lfi-any').click(); };
 
 async function loadAdditionalSplat(file){
+  const walkImportEpoch=_walkBeginImport();
   try{
     showLd(T('loading'));
     setMsg(T('preparing')); setBar(5);
@@ -124,6 +125,7 @@ async function loadAdditionalSplat(file){
       delete opts.coneFov0;
     }
     setMsg(T('building-3dgs')); setBar(60);
+    if(walkImportEpoch!==walkSetup.epoch)return;
     const sm=new SplatMesh(opts);
     if(_radTargetCount2 > 0) sm._radTargetCount = _radTargetCount2;
     const flipped=(ext==='ply'||ext==='spz');
@@ -142,11 +144,16 @@ async function loadAdditionalSplat(file){
       L._splatCacheCount = stats2.cacheCount;
     }
     selectLayer(L.id);
+    _walkAutoImport(walkImportEpoch,L.mesh);
     _splatActiveUntil = performance.now() + _SPLAT_ACTIVE_MS;
     setBar(100); setMsg(T('done'));
-    await sleep(250); hideLd();
+    await sleep(250);
+    if(walkImportEpoch!==walkSetup.epoch)return;
+    hideLd();
     showUndoToast('✨ ' + L.name + T('add-suffix'));
   }catch(e){
+    if(walkImportEpoch!==walkSetup.epoch)return;
+    _walkFailImport(walkImportEpoch,e);
     console.error(e);
     setTimeout(hideLd, 600);
     showUndoToast(T('load-fail')+e.message);
@@ -242,7 +249,25 @@ async function loadObjFile(file){
 
 // ── Performance stats update for quality panel ──
 let _perfInterval = null;
+// Lightweight FPS badge: __riCounter advances after rendering, unlike idle rAF ticks.
+let _badgeRenderCounter=0, _badgeRenderSeenAt=-Infinity;
+function _updateFpsBadge(){
+  const counter=window.__riCounter||0;
+  if(document.hidden){_badgeRenderCounter=counter;_badgeRenderSeenAt=-Infinity;return;}
+  const now=performance.now();
+  if(counter!==_badgeRenderCounter){_badgeRenderCounter=counter;_badgeRenderSeenAt=now;}
+  const badge=document.getElementById('qib-fps');if(!badge)return;
+  const fps=typeof _fpsDisplay==='number'&&Number.isFinite(_fpsDisplay)?_fpsDisplay:0;
+  const fresh=now-_badgeRenderSeenAt<1500&&fps>0;
+  const text=fresh?fps+' fps':'-- fps';
+  const color=!fresh?'':fps>=55?'#88ee88':fps>=30?'#eeee44':'#ee5544';
+  if(badge.textContent!==text)badge.textContent=text;
+  // CSSStyleDeclaration normalizes hex colors; compare the applied value.
+  if(badge.dataset.fpsColor!==color){badge.style.color=color;badge.dataset.fpsColor=color;}
+}
+setInterval(_updateFpsBadge,500);
 function updatePerfStats(){
+  if(document.hidden)return;
   if(!document.getElementById('qp-fps')) return;
 
   // ── FPS & render time ──
@@ -309,14 +334,7 @@ function updatePerfStats(){
   s('qp-frametime').textContent =
     renderMs.toFixed(2) + ' ms  (submit '+submitMs.toFixed(2)+' / '+T('perf-budget')+' '+budget.toFixed(1)+'ms @'+_refreshHz+'Hz)';
 
-  // Mirror live FPS into the always-visible top-right quality badge.
-  // The badge's quality-level label is updated in setQuality() separately,
-  // but the FPS readout follows the same perf-sample tick we're already in.
-  const _qiFps = s('qib-fps');
-  if(_qiFps){
-    _qiFps.textContent = fps + ' fps';
-    _qiFps.style.color = fpsCol;
-  }
+  // The badge has its own lightweight timer, independent of this panel.
 
   // GPU 負荷バー（render time / budget）
   s('qp-util-bar').style.width      = Math.min(100, util).toFixed(1)+'%';
@@ -418,6 +436,3 @@ window.toggleQualityPanel=function(){
     if(badge) badge.classList.remove('qib-open');
   }
 };
-
-
-

@@ -22,6 +22,10 @@
   <div class="qp-divider"></div>
   <div class="qp-perf-title" id="qp-settings-t">⚙ 設定</div>
   <div class="qrow" style="display:flex;align-items:center;justify-content:space-between;gap:8px;margin:6px 0">
+    <span id="qp-camera-collision-label" data-i18n="qp-camera-collision" style="font-size:.78em;color:#c8c8c8">カメラの当たり判定</span>
+    <button id="camera-collision-toggle" class="on" role="switch" aria-checked="true" aria-labelledby="qp-camera-collision-label" onclick="toggleCameraCollision()" style="min-width:48px;min-height:32px">ON</button>
+  </div>
+  <div class="qrow" style="display:flex;align-items:center;justify-content:space-between;gap:8px;margin:6px 0">
     <label id="qp-lbl-grid" style="font-size:.78em;color:#686868">グリッド</label>
     <label style="display:flex;align-items:center;gap:5px;cursor:pointer">
       <input type="checkbox" id="grid-toggle" onchange="setGridVisible(this.checked)"
@@ -125,4 +129,3 @@
       >🎯 <span id="lbl-auto-init-view">初期位置を自動で決める</span></button>
   </div>
 </div>
-

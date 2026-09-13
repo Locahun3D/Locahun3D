@@ -36,9 +36,10 @@ echo "=== Copying into locahun3d_online ==="
 mkdir -p "$ONLINE_REPO/public/viewer/vendor"
 cp "$DIR/Locahun3D_OfflineViewer.online.html" "$ONLINE_REPO/public/viewer/offline-viewer.html"
 cp "$DIR/vendor/spark-2.0.0-workers16-incrtraverse.module.js" "$ONLINE_REPO/public/viewer/vendor/"
+cp "$DIR/vendor/spark-2.0.0-workers16-incrtraverse-heap319-v1.module.js" "$ONLINE_REPO/public/viewer/vendor/"
 
 if [ ! -f "$ONLINE_REPO/public/viewer/offline-viewer.html" ] || \
-   [ ! -f "$ONLINE_REPO/public/viewer/vendor/spark-2.0.0-workers16-incrtraverse.module.js" ]; then
+   [ ! -f "$ONLINE_REPO/public/viewer/vendor/spark-2.0.0-workers16-incrtraverse-heap319-v1.module.js" ]; then
   echo "FATAL: one or both files failed to copy — online repo may be in an inconsistent state." >&2
   exit 1
 fi

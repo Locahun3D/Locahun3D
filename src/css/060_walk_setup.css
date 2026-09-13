@@ -1,0 +1,25 @@
+<style>
+#walk-setup {width:420px;max-width:calc(100% - 32px);max-height:calc(100dvh - 32px);box-sizing:border-box;overflow:auto;background:#191b1d;color:#eceff0;border:1px solid #586165;border-radius:6px;padding:20px;font:14px/1.6 sans-serif;letter-spacing:0;}
+#walk-setup::backdrop {background:#0008;}
+#walk-setup {inset:0;margin:auto;}
+#walk-setup header {display:flex;align-items:center;justify-content:space-between;gap:16px;margin-bottom:16px;}
+#walk-setup h2 {font-size:18px;margin:0;}
+#walk-setup button {background:#293034;border:1px solid #5a676e;border-radius:4px;color:inherit;padding:8px 10px;cursor:pointer;font:inherit;letter-spacing:0;}
+#walk-setup button:hover {border-color:#24c7d7;}
+#walk-setup button:disabled {opacity:.45;cursor:wait;}
+#walk-setup input[type=number] {width:80px;background:#101214;color:#fff;border:1px solid #5a676e;border-radius:3px;padding:6px;box-sizing:border-box;font:inherit;}
+#walk-setup input[type=checkbox] {width:20px;height:20px;accent-color:#24c7d7;}
+#walk-setup .walk-field {display:flex;align-items:center;justify-content:space-between;gap:12px;margin:16px 0;}
+#walk-setup .walk-actions {display:flex;flex-wrap:wrap;gap:8px;margin:12px 0;}
+#walk-status {display:block;padding-top:14px;border-top:1px solid #3d474c;overflow-wrap:anywhere;}
+body.walk-active #joy {display:block;}
+body.walk-active #joy-vert {display:none!important;}
+@media (pointer:fine) {body.walk-active #joy {left:24px;bottom:84px;width:132px;height:132px;z-index:65;}body.walk-active #joy .knob {width:52px;height:52px;left:66px;top:66px;}}
+@media (max-width:640px) {
+  body #view-tl-btns {left:8px!important;right:8px!important;transform:none!important;width:auto!important;flex-wrap:wrap;gap:5px!important;}
+  body #view-tl-btns button {min-width:0;max-width:100%;padding:6px 8px!important;white-space:normal!important;letter-spacing:0!important;}
+}
+@media (pointer:coarse) and (any-hover:none) and (max-width:699px) and (orientation:landscape) {
+  body #view-tl-btns {top:30px!important;}
+}
+</style>

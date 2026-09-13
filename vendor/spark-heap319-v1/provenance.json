@@ -1,0 +1,27 @@
+{
+  "upstreamVersion": "2.0.0",
+  "upstreamCommit": "ea56ee73f1ec015deac852998870e1dc80f21a7f",
+  "originalBundleSha256": "d2d5a26e30d1f95b7dd7eeb5378976caa07c20fa81cdbe745b8fa900f6e761be",
+  "originalWasmSha256": "bf35f4762b7ffb340378045175fbfbafc9194c37f912464dcc36f61126b87871",
+  "candidateWasmSha256": "d6605ea165c901d0ff5f6f51e73928591553938007dd70ecf1644d5ca37bba28",
+  "candidateBundleSha256": "ff799ee9a31cec478ebf173759c0f4061da662164dd72fd9da2efbabadd332f5",
+  "rustSourceSha256": "bac9154259365a5fe1e31cb4a06056ec43c141f2404bc4b4893ec77ca1cb3dca",
+  "changedFunctions": [
+    319
+  ],
+  "scope": "Approved 2026-09-11: heap319 only; N2 browser evidence, no end-to-end speed claim",
+  "compiler": {
+    "rustc": "1.95.0",
+    "commit": "59807616e1fa2540724bfbac14d7976d7e4a3860",
+    "llvm": "22.1.2",
+    "target": "wasm32-unknown-unknown",
+    "flags": [
+      "--crate-type=cdylib",
+      "-C opt-level=3",
+      "-C panic=abort",
+      "-C lto=fat",
+      "-C codegen-units=1"
+    ]
+  },
+  "evidence": "docs/perf-20260911.md"
+}

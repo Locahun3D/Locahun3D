@@ -1,0 +1,12 @@
+{
+  "package": "@dimforge/rapier3d-compat",
+  "version": "0.20.0",
+  "url": "https://registry.npmjs.org/@dimforge/rapier3d-compat/-/rapier3d-compat-0.20.0.tgz",
+  "integrity": "sha512-X4W9pJBdGRX5CO3c/gUNjBFEFG2fn4nYxp9k8STdBDaLa0/w5XTW2ArpayS+9jGFojTi3uFSOWAElCd4rkpekA==",
+  "esmSha256": "09a000bee2ad827608780cf8821258cadc243aaeb8881ab3e769de73f945eee0",
+  "payloadSha256": "2100163191766c48f8dac314df5a067ae0141094ba16e4361b0b7945271a2eb2",
+  "assetSha256": "655e2a4b1ae81d2e30985a57021726cf8d221855a60121cc914fc44c0cd624fc",
+  "esmBytes": 2857590,
+  "payloadBytes": 2857555,
+  "assetBytes": 3810210
+}

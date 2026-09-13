@@ -1,0 +1,22 @@
+#obj-type-menu-top.equipment-model-menu {
+  box-sizing:border-box; min-width:0 !important; padding:8px !important;
+  gap:8px !important; overflow-y:auto; overscroll-behavior:contain;
+  color:#dedee1; font-size:12px; letter-spacing:0;
+}
+.equipment-model-menu *, .equipment-model-menu *::before { box-sizing:border-box; letter-spacing:0; }
+.equipment-tabs { display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); gap:2px; border-bottom:1px solid #444; }
+.equipment-model-menu .equipment-tabs button { border:0; border-bottom:2px solid transparent; padding:9px 3px; min-width:0; background:transparent; color:#aaa; font:inherit; cursor:pointer; transition:none; }
+.equipment-model-menu .equipment-tabs button[aria-selected="true"] { border-bottom-color:#70bfb0; color:#eee; }
+.equipment-grid { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:7px; }
+.equipment-model-menu [hidden] { display:none !important; }
+.equipment-model-menu .equipment-choice { min-width:0; padding:0 0 8px; border:1px solid #454549; border-radius:5px; background:#29292c; color:#e5e5e7; cursor:pointer; text-align:left; font:inherit; overflow:hidden; white-space:normal; }
+.equipment-model-menu .equipment-choice:hover { border-color:#8cbcac; background:#323b38; }
+.equipment-choice img { display:block; width:100%; height:auto; aspect-ratio:20/13; object-fit:contain; background:#d9dcde; }
+.equipment-choice-name { display:block; padding:7px 6px 0; font-size:12px; line-height:1.5; min-height:43px; overflow-wrap:anywhere; }
+.equipment-choice-variant { display:block; padding:2px 6px 0; font-size:10px; line-height:1.5; min-height:32px; color:#afb6ba; overflow-wrap:anywhere; }
+.equipment-legacy { display:grid; gap:6px; }
+.equipment-model-menu .equipment-basic-choice { display:grid; grid-template-columns:94px minmax(0,1fr); align-items:center; padding:0; min-height:64px; }
+.equipment-basic-choice img { width:94px; height:64px; }
+.equipment-basic-choice .equipment-choice-name { min-height:0; padding:8px; }
+.equipment-choice, .equipment-legacy button { touch-action:none; user-select:none; -webkit-user-select:none; }
+.equipment-model-menu button:focus-visible { outline:2px solid #8ed4c0; outline-offset:-2px; }

@@ -11,7 +11,7 @@
            transition:all .2s;letter-spacing:.02em;white-space:nowrap;"
     onmouseover="this.style.background='rgba(80,200,120,.18)';this.style.borderColor='rgba(100,255,160,.45)'"
     onmouseout="this.style.background='rgba(20,20,22,.88)';this.style.borderColor='rgba(255,255,255,.18)'"
-    title="カメラを初期位置にリセット">🏠 <span id="lbl-cam-reset">カメラリセット</span></button>
+    title="カメラを初期位置にリセット"><span id="lbl-cam-reset">カメラリセット</span></button>
   <!-- 📦 オブジェクト追加 のドロップダウンは シーンレイヤーパネルの見出し行へ移設
        (user 2026-08-27)。マークアップは src/template.html の .lp-head 内にある。 -->
   <!-- Camera work (🎞 カメラワーク) — was in the bottom cbar, moved up here
@@ -26,7 +26,7 @@
            font-size:.72em;cursor:pointer;transition:all .2s;letter-spacing:.02em;white-space:nowrap;"
     onmouseover="this.style.background='rgba(170,120,255,.18)';this.style.borderColor='rgba(190,140,255,.45)'"
     onmouseout="this.style.background='rgba(20,20,22,.88)';this.style.borderColor='rgba(255,255,255,.18)'"
-    title="カメラパスを定義してアニメーション動画を書き出し">🎞 <span id="lbl-cam-anim">カメラワーク</span></button>
+    title="カメラパスを定義してアニメーション動画を書き出し"><span id="lbl-cam-anim">カメラワーク</span></button>
   <!-- Standalone #btnAddFigureTop merged into the オブジェクト追加 dropdown
        above so all "add new layer" entries live in one menu. -->
   <!-- Multi-camera placement (🎥 カメラ保存) relocated to the layer-panel
@@ -40,7 +40,7 @@
        AR button; see #btnViewRecPhone below. -->
   <!-- Camera animation button MOVED to the bottom cbar (user request: gather it
        at the bottom). See #btnCamAnim in the cbar markup. -->
-  <button id="btnAvatarWalk" onclick="toggleAvatarWalk()" style="background:rgba(20,20,22,.88);border:1px solid rgba(255,255,255,.18);color:rgba(200,200,200,.85);border-radius:6px;padding:5px 12px;font-size:.72em;cursor:pointer;transition:all .2s;letter-spacing:.02em;white-space:nowrap;" onmouseover="this.style.background='rgba(120,200,255,.18)';this.style.borderColor='rgba(140,210,255,.45)'" onmouseout="this.style.background='rgba(20,20,22,.88)';this.style.borderColor='rgba(255,255,255,.18)'" title="アバター歩行モード（WASDでアバターを動かす）">🚶 <span id="lbl-walk">アバター歩行</span></button>
+  <button id="btnAvatarWalk" onclick="toggleAvatarWalk()" style="background:rgba(20,20,22,.88);border:1px solid rgba(255,255,255,.18);color:rgba(200,200,200,.85);border-radius:6px;padding:5px 12px;font-size:.72em;cursor:pointer;transition:all .2s;letter-spacing:.02em;white-space:nowrap;" onmouseover="this.style.background='rgba(120,200,255,.18)';this.style.borderColor='rgba(140,210,255,.45)'" onmouseout="this.style.background='rgba(20,20,22,.88)';this.style.borderColor='rgba(255,255,255,.18)'" title="アバター歩行モード（WASDでアバターを動かす）"><span id="lbl-walk">歩行</span></button>
   <!-- AR mode (touch devices only — uses rear camera as backdrop + device
        orientation for camera control). Hidden on desktop via the same media
        query that hides other touch-only widgets. -->
@@ -48,7 +48,7 @@
        touch devices). On non-phones the equivalent control is #btnViewRec
        above, hidden on phones by the same #view-tl-btns media query. -->
   <!-- Phone-only view-record mirror removed per user request (v0.0.40). -->
-  <button id="btnAR" onclick="toggleARMode()" style="background:rgba(20,20,22,.88);border:1px solid rgba(255,255,255,.18);color:rgba(200,200,200,.85);border-radius:6px;padding:5px 12px;font-size:.72em;cursor:pointer;transition:all .2s;letter-spacing:.02em;white-space:nowrap;display:none;" title="AR モード（背面カメラ越しに 3DGS を重ねて表示）">📱 <span id="lbl-ar">AR</span></button>
+  <button id="btnAR" onclick="toggleARMode()" style="background:rgba(20,20,22,.88);border:1px solid rgba(255,255,255,.18);color:rgba(200,200,200,.85);border-radius:6px;padding:5px 12px;font-size:.72em;cursor:pointer;transition:all .2s;letter-spacing:.02em;white-space:nowrap;display:none;" title="AR モード（背面カメラ越しに 3DGS を重ねて表示）"><span id="lbl-ar">AR</span></button>
 </div>
 <!-- AR mode: WebGL-integrated camera passthrough. The off-screen video
      element used to feed Three.js VideoTexture is created on demand by
@@ -57,7 +57,7 @@
      toggleARMode() swaps its label to "AR 終了" + red state. -->
 <div id="topbar">
   <div style="display:flex;align-items:center;gap:8px;flex:1;min-width:0">
-    <button id="tb-save-btn" onclick="saveProjectZip()" style="background:rgba(100,255,150,.08);border:1px solid rgba(100,255,150,.2);color:rgba(100,255,150,.7);border-radius:5px;padding:2px 8px;font-size:.72em;cursor:pointer;transition:all .15s;white-space:nowrap" onmouseover="this.style.background='rgba(100,255,150,.18)'" onmouseout="this.style.background='rgba(100,255,150,.08)'" title="ZIP Save">💾 <span id="tb-save-lbl">Zip保存</span></button>
+    <button id="tb-save-btn" onclick="saveProjectZip()" style="background:rgba(100,255,150,.08);border:1px solid rgba(100,255,150,.2);color:rgba(100,255,150,.7);border-radius:5px;padding:2px 8px;font-size:.72em;cursor:pointer;transition:all .15s;white-space:nowrap" onmouseover="this.style.background='rgba(100,255,150,.18)'" onmouseout="this.style.background='rgba(100,255,150,.08)'" title="ZIP Save"><span id="tb-save-lbl">Zip保存</span></button>
     <!-- 読込 (load project ZIP) button removed: project ZIPs are now imported
          via the layer panel "📁 インポート" button (dispatchFiles routes
          .zip → _loadProjectZipFromFile automatically) or via drag-and-drop. -->
@@ -100,4 +100,3 @@
 
 <canvas id="overlay"></canvas>
 <canvas id="c"></canvas>
-

@@ -1,3 +1,39 @@
+/* Phone tier uses the short edge in either orientation; iPad mini is 744px. */
+@media (pointer:coarse) and (any-hover:none) and (min-width:700px) and (min-height:700px) and (orientation:portrait){
+  body #sun-panel{bottom:280px!important;max-height:calc(100dvh - 350px)!important;overflow-y:auto;}
+}
+@media (pointer:coarse) and (any-hover:none){
+  body.cam-active #hud .cbar > button:is(#btnCamTool,#btn-sun,#btnMeasure),
+  body.sun-active #hud .cbar > button:is(#btnCamTool,#btn-sun,#btnMeasure),
+  body.msr-active #hud .cbar > button:is(#btnCamTool,#btn-sun,#btnMeasure){display:inline-flex!important;}
+}
+@media (pointer:coarse) and (any-hover:none) and (max-width:699px),
+       (pointer:coarse) and (any-hover:none) and (max-height:699px){
+  #layer-panel, #lp-footer-bar, #obj-type-menu-top, #qi-badge{display:none!important;}
+  :root{--lp-width:0px!important;}
+}
+@media (pointer:coarse) and (any-hover:none) and (max-width:699px) and (orientation:portrait){
+  body #sun-panel, body #gizmo{max-height:calc(100dvh - 360px)!important;overflow-y:auto!important;}
+  #hud .cbar{bottom:212px!important;}
+  body #cam-panel{top:128px!important;max-height:calc(100dvh - 388px)!important;overflow-y:auto;}
+}
+@media (pointer:coarse) and (any-hover:none) and (max-height:699px) and (orientation:landscape){
+  body #sun-panel, body #gizmo{top:72px!important;bottom:auto!important;max-height:calc(100dvh - 144px)!important;overflow-y:auto!important;}
+  body #cam-panel{top:72px!important;max-height:calc(100dvh - 144px)!important;overflow-y:auto;}
+}
+@media (pointer:coarse) and (any-hover:none) and (max-width:699px) and (orientation:landscape){
+  body #hud .cbar{bottom:212px!important;}
+  body #cam-panel{top:calc(100dvh - 196px)!important;max-height:172px!important;}
+}
+/* Panel space is reserved even when collapsed, so controls never move. */
+@media (max-width:1100px){
+  #layer-panel{top:128px!important;}
+}
+@media (pointer:coarse) and (any-hover:none) and (min-width:700px) and (min-height:700px) and (max-width:900px){
+  body #layer-panel:not(.collapsed){bottom:268px!important;}
+  #hud .cbar{bottom:212px!important;}
+}
+
 /* ── Mobile joystick (touch devices) ──
    Sized at 1.6× the original 110 px footprint so it falls comfortably under
    the user's left thumb when holding an iPad two-handed. Knob and motion
@@ -5,7 +41,7 @@
    Anchored low (bottom:24 px, near the iPadOS home bar) so it sits exactly
    where the thumb naturally rests. */
 #joy{
-  position:fixed;bottom:24px;left:24px;width:176px;height:176px;
+  position:fixed;bottom:var(--joy-viewport-bottom,24px);left:24px;width:176px;height:176px;
   display:none;pointer-events:all;z-index:60;touch-action:none;
 }
 #joy .base{position:absolute;inset:0;border-radius:50%;background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.12);}
@@ -23,7 +59,7 @@
    group. Drop-shadow on the glyphs keeps the ▲ ▼ legible against
    bright splat scenes. */
 #joy-vert{
-  position:fixed;bottom:24px;left:208px;width:70px;height:176px;
+  position:fixed;bottom:var(--joy-viewport-bottom,24px);left:208px;width:70px;height:176px;
   display:none;pointer-events:all;z-index:60;touch-action:none;
 }
 #joy-vert .jv-btn{
@@ -203,37 +239,13 @@
    the 30 px topbar on iPhone via the smartphone-media-query rule above
    — same placement as iPad / other touch devices.) */
 
-/* ══ iPad / medium-touch overlap fixes (2026-06) ══
-   The smartphone block above only matches phones (≤600px wide, or ≤500px tall).
-   iPad PORTRAIT (768–834px) is wider than a phone yet still narrow enough that
-   the full-viewport-centred controls collide with the LEFT-anchored chrome:
-     • the centred camera action row (#view-tl-btns) lands on the シーンレイヤー
-       panel title (the panel occupies the left var(--lp-width) px), and
-     • the centred 4-button cbar's left edge lands on the ▼ elevation arrow.
-   Desktop is unaffected (it has no coarse pointer). */
+/* Touch controls share the desktop viewport-centred anchor. */
 @media (pointer:coarse) and (any-hover:none){
-  /* Centre the camera action row in the space to the RIGHT of the layer panel
-     instead of the whole viewport. On phones --lp-width is 0 so this stays a
-     plain centre (no change); on iPad it shifts right just enough to clear the
-     panel and still fits the row on screen. */
-  /* !important: the row is JS-positioned with an inline `left:50%` AND an
-     earlier touch rule sets `left:50% !important`, so we must outrank both. */
-  #view-tl-btns{ left: calc((100% + var(--lp-width, 0px)) / 2) !important; }
+  #view-tl-btns{ left:50% !important; }
 }
 @media (pointer:coarse) and (any-hover:none) and (min-width:600px) and (min-height:600px){
-  /* (min-width AND min-height ≥600 = the device's SHORT edge is ≥600 = a tablet,
-     NOT a phone in landscape — a phone landscape is wide (≥600) but short (<600),
-     so gating on width alone wrongly pulled these iPad rules onto phone landscape.)
-     iPad / tablet: centre the cbar in the free space between the LEFT-hand
-     controls and the right edge (user request 2026-06: "ジョイスティックと右端の
-     間の左右中央"). The left boundary is whichever reaches further right:
-       • the シーンレイヤー panel (var(--lp-width)) when it's expanded, or
-       • the joystick + ▲▼ arrow group (≈296px from the left) when it's collapsed
-         and the joystick is showing.
-     max() of the two keeps the cbar centred in the genuinely-empty area and
-     clears BOTH at once. (Phones, where the joystick reaches centre, still lift
-     the cbar above it via the smartphone block above.) */
-  #hud .cbar{ left: calc((100% + max(var(--lp-width, 0px), 296px)) / 2) !important; }
+  /* Wider touch layouts keep the same horizontal centre. */
+  #hud .cbar{ left:50% !important; }
   /* iPad has the room (and the シーンレイヤー panel) to make adding objects
      useful, so bring back the 📦 オブジェクト追加 dropdown (Cube / Event /
      Figure) that the generic touch block hides. Phones (<600px) stay without
@@ -261,20 +273,12 @@
   body.cam-active #joy-vert{ left:208px !important; right:auto !important; }
 }
 @media (pointer:coarse) and (any-hover:none) and (orientation:portrait) and (min-width:600px) and (max-width:900px){
-  /* iPad PORTRAIT (≤834px): the camera action row now carries 5 buttons
-     (🏠 / 📦オブジェクト追加 / 🎥 / 🎞 / 📱AR) and is centred in the canvas area to
-     the RIGHT of the layer panel, which is too narrow for one row here — wrap it
-     to two. Landscape and the 12.9" (1024px) portrait have room for a single row. */
-  #view-tl-btns{ flex-wrap:wrap; width: min(510px, calc(100% - var(--lp-width, 0px) - 24px)); row-gap:5px; }
+  /* Portrait wrapping depends only on the viewport, never the layer width. */
+  #view-tl-btns{ flex-wrap:wrap; width:min(510px, calc(100% - 24px)); row-gap:5px; }
 }
 @media (pointer:coarse) and (any-hover:none) and (orientation:landscape) and (max-height:500px){
-  /* Phone LANDSCAPE: the bottom band's LEFT side is taken by the joystick
-     (left:24, →200) + the ▲▼ elevation arrows (→≈278). Centre the cbar in the
-     FREE space between that group and the right edge (user request 2026-06:
-     "ジョイスティックと右端の間の左右中央") — same approach as the iPad rule.
-     296px clears the joystick/arrow group; bottom:24 keeps it on the shared
-     baseline with the joystick. */
-  #hud .cbar{ bottom:24px !important; left: calc((100% + 296px) / 2) !important; right:auto !important; transform:translateX(-50%) !important; }
+  /* Landscape retains the viewport centre and the lower action band. */
+  #hud .cbar{ bottom:24px !important; left:50% !important; right:auto !important; transform:translateX(-50%) !important; }
 }
 @media (pointer:coarse) and (any-hover:none) and (orientation:portrait) and (max-width:600px){
   /* Phone PORTRAIT declutter (2026-06): balance the bottom controls — joystick
@@ -501,4 +505,3 @@ body.immersive #immersive-exit{ display:inline-block; }
     border:2px solid rgba(0,0,0,.35); box-shadow:0 1px 3px rgba(0,0,0,.4);
   }
 }
-

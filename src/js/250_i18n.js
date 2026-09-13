@@ -13,7 +13,7 @@ const I18N = {
     'tb-home':'⚡ ロケハン3D','tb-lang':'EN',
     'lp-title':'📁 シーンレイヤー','lp-add-folder':'📁＋',
     'fp-add-splat':'＋ 3DGS','fp-add-obj':'＋ OBJ/GLB',
-    'qp-grid':'グリッド','qp-show':'表示','qp-fov':'FOV','qp-speed':'移動速度',
+    'qp-grid':'グリッド','qp-show':'表示','qp-fov':'FOV','qp-speed':'移動速度','qp-camera-collision':'カメラの当たり判定',
     'gizmo-title':'📐 距離測定','gizmo-world':'WORLD',
     'pt-a':'点 A','pt-b':'点 B','pt-world':'ワールド座標',
     'step':'ステップ:','dist':'距離:','btn-clear':'🗑 クリア','btn-undo':'↩ 戻る','btn-end':'終了',
@@ -140,7 +140,7 @@ const I18N = {
     'tb-home':'⚡ LOCAHUN 3D','tb-lang':'JA',
     'lp-title':'📁 Scene Layers','lp-add-folder':'📁＋',
     'fp-add-splat':'＋ 3DGS','fp-add-obj':'＋ OBJ/GLB',
-    'qp-grid':'Grid','qp-show':'Show','qp-fov':'FOV','qp-speed':'Move Speed',
+    'qp-grid':'Grid','qp-show':'Show','qp-fov':'FOV','qp-speed':'Move Speed','qp-camera-collision':'Camera Collision',
     'gizmo-title':'📐 Distance Measure','gizmo-world':'WORLD',
     'pt-a':'Point A','pt-b':'Point B','pt-world':'World coords',
     'step':'Step:','dist':'Dist:','btn-clear':'🗑 Clear','btn-undo':'↩ Undo','btn-end':'End',
@@ -521,4 +521,3 @@ window.setLightIntensity = function(id,val){
   renderTransformPanel();
   markDirty(4);
 };
-

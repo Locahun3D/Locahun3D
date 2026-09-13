@@ -1,0 +1,10 @@
+{
+  "private": true,
+  "type": "module",
+  "description": "Offline navigation preparation only; never loaded by the viewer",
+  "dependencies": {
+    "recast-navigation": "0.43.1",
+    "three-pathfinding": "1.3.0",
+    "three": "0.180.0"
+  }
+}

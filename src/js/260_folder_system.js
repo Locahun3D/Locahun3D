@@ -1,6 +1,9 @@
 // ══════════════════════════════════════════════════
 //  FOLDER SYSTEM
 // ══════════════════════════════════════════════════
+function _layerText(value){
+  return String(value??'').replace(/[&<>"']/g,ch=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[ch]));
+}
 window.addFolder = function() {
   const id = _layerNextId++;
   const L = {
@@ -232,7 +235,7 @@ function renderLayerList(){
       ${chevron}
       <span class="lr-eye" onclick="event.stopPropagation();setLayerVisible(${L.id},${!L.visible})">${L.visible?'👁':'🚫'}</span>
       <span class="lr-icon" ${isFolder?'ondblclick="event.stopPropagation();openFolderColorPicker('+L.id+',event)" title="'+T('folder-color')+'" style="cursor:pointer;'+_fClr+'"':(L.type==='event'?'ondblclick="event.stopPropagation();openEventColorPicker('+L.id+',event)" title="Change event color" style="cursor:pointer"':'')}>${icon}</span>
-      <span class="lr-name" title="${L.name} ［${renameTip}］">${L.name}${badge}</span>
+      <span class="lr-name" title="${_layerText(L.type==='path'?_pathLayerName(L.pathLabel,L.id):L.name)} ［${renameTip}］">${_layerText(L.type==='path'?_pathLayerName(L.pathLabel,L.id):L.name)}${badge}</span>
       ${_camCtl}
       ${isFolder?`<span class="lr-lock" onclick="event.stopPropagation();toggleFolderLock(${L.id})" title="${L.locked?(window._lang==='en'?'Unlock (enable editing)':'ロック解除（編集可に）'):(window._lang==='en'?'Lock folder (disable editing of its contents)':'フォルダーをロック（中身の編集を無効化）')}" style="font-size:.8em;cursor:pointer;flex-shrink:0;opacity:${L.locked?'1':'.4'};user-select:none;margin-left:2px">${L.locked?'🔒':'🔓'}</span>`:''}
       <span class="lr-edit" onclick="event.stopPropagation();startRenameLayer(${L.id},event)" title="${renameTip}" style="font-size:.82em;cursor:pointer;flex-shrink:0;opacity:.5;user-select:none;margin-left:2px">✏️</span>
@@ -271,15 +274,64 @@ window.setObjColor=function(id,hex){
 };
 window.setObjOpacity=function(id,v){
   const L=findLayer(id); if(!L||L.type!=='obj') return;
-  L.objOpacity=parseFloat(v);
+  const value=parseFloat(v); if(!Number.isFinite(value)) return;
+  L.objOpacity=Math.max(0,Math.min(1,value));
+  // Weak snapshots stay out of project serialization and survive repeated edits.
+  const state=window.setObjOpacity._depthState ||= {materials:new WeakMap(),orders:new WeakMap()};
+  let hasTransparent=false;
   L.mesh.traverse(o=>{
+    if((o.isGroup||o.isMesh)&&!state.orders.has(o)) state.orders.set(o,o.renderOrder);
     if(!o.isMesh) return;
     const mats=Array.isArray(o.material)?o.material:[o.material];
-    mats.forEach(m=>{ if(m){ m.opacity=L.objOpacity; m.transparent=true; } });
+    mats.forEach(m=>{
+      if(!m) return;
+      if(!state.materials.has(m)) state.materials.set(m,{
+        opacity:m.opacity,transparent:m.transparent,depthTest:m.depthTest,
+        depthWrite:m.depthWrite,alphaTest:m.alphaTest,
+      });
+      const original=state.materials.get(m), partial=L.objOpacity<1;
+      m.opacity=original.opacity*L.objOpacity;
+      m.transparent=original.transparent||partial;
+      m.depthTest=partial?true:original.depthTest;
+      // Keep authored BLEND depth behavior; opaque surfaces faded by the UI
+      // still occlude rear splats. Discard empty texels when writing that depth.
+      m.depthWrite=m.opacity>0&&(partial&&!original.transparent?true:original.depthWrite);
+      m.alphaTest=partial&&m.depthWrite?Math.max(original.alphaTest,0.000001):original.alphaTest;
+      m.needsUpdate=true;
+      hasTransparent ||= m.transparent;
+    });
+    o.renderOrder=mats.some(m=>m&&m.transparent)?-20:state.orders.get(o);
+  });
+  // Three sorts groupOrder before renderOrder, including nested groups.
+  L.mesh.traverse(o=>{
+    if(o.isGroup) o.renderOrder=hasTransparent?-20:state.orders.get(o);
   });
   const lbl=document.getElementById('lt-op-val'); if(lbl) lbl.textContent=Math.round(L.objOpacity*100)+'%';
   markDirty(4);
 };
+// Export the authored alpha, not the UI multiplier saved separately in objOpacity.
+function _cloneObjForExport(mesh){
+  const clone=mesh.clone(), owned=new Map();
+  const originals=window.setObjOpacity._depthState?.materials;
+  const dispose=()=>{ owned.forEach(m=>m.dispose()); owned.clear(); };
+  try {
+    clone.traverse(o=>{
+      if(!o.material) return;
+      const materialForExport=m=>{
+        const original=m&&originals?.get(m);
+        if(!original) return m;
+        if(!owned.has(m)){
+          const copy=m.clone();
+          owned.set(m,copy);
+          Object.assign(copy,original);
+        }
+        return owned.get(m);
+      };
+      o.material=Array.isArray(o.material)?o.material.map(materialForExport):materialForExport(o.material);
+    });
+    return {clone,dispose};
+  } catch(error) { dispose(); throw error; }
+}
 window.toggleObjWireframe=function(id){
   const L=findLayer(id); if(!L||L.type!=='obj') return;
   L.objWireframe=!L.objWireframe;
@@ -347,7 +399,7 @@ function renderTransformPanel(){
       style="flex:1;background:${pivSp==='local'?'rgba(100,255,150,.18)':'#1a1a1a'};border:1px solid ${pivSp==='local'?'rgba(100,255,150,.6)':'rgba(255,255,255,.1)'};color:${pivSp==='local'?'#88ffaa':'#404040'};border-radius:4px;padding:3px 0;font-size:.68em;cursor:pointer;transition:all .15s">${T('lt-local')}</button>
   </div>`;
 
-  let html=`<div class="lt-title">${LAYER_ICONS[L.type]} ${L.name}</div>
+  let html=`<div class="lt-title" id="lt-title" data-layer-id="${L.id}">${LAYER_ICONS[L.type]} ${_layerText(L.name)}</div>
   ${coordToggle}
   <div class="lt-section">${T('lt-pos')} (${pivSp==='local'?T('lt-pos-local'):T('lt-pos-world')})</div>
   <div class="lt-row">
@@ -363,13 +415,13 @@ function renderTransformPanel(){
   </div>
   <div class="lt-section">${T('lt-scale')}</div>
   <div class="lt-row">
-    <span class="la" style="color:#ff6677">X</span><input type="number" id="lt-scx" step="1" min="0.01" value="${sc.x.toFixed(2)}" oninput="readTransformInputs(${L.id})">
-    <span class="la" style="color:#66ee88">Y</span><input type="number" id="lt-scy" step="1" min="0.01" value="${sc.y.toFixed(2)}" oninput="readTransformInputs(${L.id})">
-    <span class="la" style="color:#77aaff">Z</span><input type="number" id="lt-scz" step="1" min="0.01" value="${sc.z.toFixed(2)}" oninput="readTransformInputs(${L.id})">
+    <span class="la" style="color:#ff6677">X</span><input type="number" id="lt-scx" step="0.01" min="0.01" value="${sc.x.toFixed(2)}" oninput="readTransformInputs(${L.id})">
+    <span class="la" style="color:#66ee88">Y</span><input type="number" id="lt-scy" step="0.01" min="0.01" value="${sc.y.toFixed(2)}" oninput="readTransformInputs(${L.id})">
+    <span class="la" style="color:#77aaff">Z</span><input type="number" id="lt-scz" step="0.01" min="0.01" value="${sc.z.toFixed(2)}" oninput="readTransformInputs(${L.id})">
   </div>`;
   // ── Event: position-only panel (no rotation/scale) ──
   if(L.type==='event'){
-    html=`<div class="lt-title">${LAYER_ICONS[L.type]} ${L.name}</div>
+    html=`<div class="lt-title" id="lt-title" data-layer-id="${L.id}">${LAYER_ICONS[L.type]} ${_layerText(L.name)}</div>
   <div class="lt-section">${T('lt-pos')}</div>
   <div class="lt-row">
     <span class="la" style="color:#ff5566">X</span><input type="number" id="lt-px" step="1" value="${p.x.toFixed(2)}" oninput="readTransformInputs(${L.id})">
@@ -545,17 +597,24 @@ function renderTransformPanel(){
     ph+='<div style="font-size:.7em;color:#606060;margin-bottom:4px">🛣 パス情報</div>';
     ph+='<div style="font-size:.66em;color:#7a8aa0;margin-bottom:6px">黄色い4点をドラッグで形を調整できます</div>';
     ph+='<div style="display:flex;align-items:center;gap:6px;margin-bottom:6px">';
-    ph+='<input type="color" value="'+(L.pathColor||'#00d0ff')+'" oninput="setPathColor('+L.id+',this.value)" style="width:36px;height:22px;padding:1px;border:1px solid rgba(255,255,255,.2);background:#1a1a00;border-radius:3px;cursor:pointer">';
+    ph+='<label for="path-color-'+L.id+'" style="font-size:.68em;color:#c0c0c0">色</label>';
+    ph+='<input id="path-color-'+L.id+'" type="color" title="パスの色" value="'+(L.pathColor||'#00d0ff')+'" oninput="setPathColor('+L.id+',this.value)" style="width:36px;height:22px;padding:1px;border:1px solid rgba(255,255,255,.2);background:#1a1a00;border-radius:3px;cursor:pointer">';
     ph+='<span style="font-size:.68em;color:#909090;width:auto">不透明度</span>';
     ph+='<input type="range" min="0" max="1" step="0.05" value="'+(L.pathOpacity!=null?L.pathOpacity:0.28)+'" oninput="setPathOpacity('+L.id+',this.value)" style="flex:1;height:4px;accent-color:#D8D8D8">';
     ph+='</div>';
+    ph+='<div style="display:flex;align-items:center;gap:6px;margin-bottom:6px;flex-wrap:wrap">';
+    ph+='<label for="path-width-number-'+L.id+'" style="font-size:.68em;color:#c0c0c0">太さ (m)</label>';
+    ph+='<input id="path-width-number-'+L.id+'" data-path-width="true" type="number" min="0.01" max="2" step="0.01" value="'+_pathWidth(L.pathWidth)+'" oninput="setPathWidth('+L.id+',this.value)" style="width:70px;box-sizing:border-box;background:#2a2a2c;color:#ddd;border:1px solid #666;border-radius:3px">';
+    ph+='<input id="path-width-range-'+L.id+'" aria-label="パスの太さ (m)" type="range" min="0.01" max="2" step="0.01" value="'+_pathWidth(L.pathWidth)+'" oninput="setPathWidth('+L.id+',this.value)" style="flex:1;min-width:60px;width:80px;accent-color:#d8d8d8">';
+    ph+='</div>';
     ph+='<div style="font-size:.7em;color:#606060;margin-bottom:3px">🅿 中央テキスト</div>';
-    ph+='<textarea rows="2" style="width:100%;background:#2A2A2C;border:1px solid rgba(255,255,255,.1);color:#C0C0C0;border-radius:4px;padding:4px 6px;font-size:.72em;resize:vertical;box-sizing:border-box;outline:none;font-family:inherit" oninput="window.setPathLabel('+L.id+',this.value)" placeholder="例: 来客用 P1 / 搬入車両 ...">'+(L.pathLabel||'')+'</textarea>';
+    ph+='<textarea rows="2" style="width:100%;background:#2A2A2C;border:1px solid rgba(255,255,255,.1);color:#C0C0C0;border-radius:4px;padding:4px 6px;font-size:.72em;resize:vertical;box-sizing:border-box;outline:none;font-family:inherit" oninput="window.setPathLabel('+L.id+',this.value)" placeholder="例: 来客用 P1 / 搬入車両 ...">'+_layerText(L.pathLabel||'')+'</textarea>';
     ph+='</div>';
     el.innerHTML += ph;
   }
   // ── 変換パネルの数値入力: 右クリック → 0 リセット ──
   el.querySelectorAll('input[type=number]').forEach(inp=>{
+    if(inp.dataset.pathWidth) return;
     inp.addEventListener('contextmenu',e=>{
       e.preventDefault(); e.stopPropagation();
       const L2=findLayer(selectedLayerId); if(!L2) return;
@@ -649,4 +708,3 @@ window.addSphereLayer = function(posHint){
 
 // sphere type mirrors cube behaviour (updateCubeGeometry, renderTransformPanel, etc.)
 const SPHERE_ICON='⚽';
-

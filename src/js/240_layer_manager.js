@@ -46,6 +46,7 @@ function addLayer(opts){
   };
   scene.add(L.mesh);
   layers.push(L);
+  window.localProject?.changed?.();
   // Maintain cheap activity counters so the animate loop can skip the
   // billboard / splat-sort iterations when zero of that type exist. Computed
   // by walking layers once here (cheap), not by maintaining +/- 1 increments
@@ -495,4 +496,3 @@ window.toggleCubeWireframe=function(id){
   if(cb) cb.checked=L.wireframe;
   markDirty(4);
 }
-

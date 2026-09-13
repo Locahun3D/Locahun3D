@@ -44,7 +44,7 @@
    for a follow-up revision. The element + JS handlers (toggleAvatarWalk,
    walkMode state, animation clips, etc.) all stay in place so re-
    enabling is a one-line CSS removal later. */
-#btnAvatarWalk{display:none !important;}
+#btnAvatarWalk{display:inline-block;}
 /* AR button — only shown on actual touch hardware (phones & tablets);
    desktop hides it because passthrough AR needs a rear camera + gyro. */
 @media (pointer:coarse) and (any-hover:none){
@@ -74,3 +74,6 @@
    needed since composition happens in WebGL. */
 body.ar-active #motion-vignette{display:none !important;}
 body.ar-active #dz{display:none !important;}
+#camera-collision-toggle{border:1px solid #64696c;border-radius:3px;background:#303336;color:#dedede;cursor:pointer;flex-shrink:0;}
+#camera-collision-toggle[aria-checked="true"]{border-color:#63967c;background:#263e32;color:#d6f5e3;}
+#camera-collision-toggle:focus-visible{outline:2px solid #95cfff;outline-offset:2px;}

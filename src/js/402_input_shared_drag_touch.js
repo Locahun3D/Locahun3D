@@ -41,6 +41,7 @@ function _plcModeActive(){
 }
 
 canvas.addEventListener('touchstart',e=>{
+  if(typeof _clickPointerStart==='function')_clickPointerStart('touch',e);
   // ── Figure bone-rotation ring / IK handle touch-drag (highest priority) ──
   // Mirrors the desktop mousedown order (bone ring → IK → lpv). Only outside
   // measure mode and only when a figure widget is actually pickable. Previously
@@ -130,7 +131,8 @@ canvas.addEventListener('touchstart',e=>{
   // in progress AND a single finger is going down. Skip entirely if a measure
   // handle (axis/marker) was just grabbed, so dragging a handle doesn't also
   // arm a point-placement.
-  if(msr.active && _handleTouchId === -1 && _msrPlacingId === -1 && _msrLongPressId === -1 && e.changedTouches.length){
+  if(e.touches.length!==1)_cancelMsrLongPress();
+  if(msr.active && e.touches.length===1 && _handleTouchId === -1 && _msrPlacingId === -1 && _msrLongPressId === -1 && e.changedTouches.length){
     const t0 = e.changedTouches[0];
     _msrLongPressId = t0.identifier;
     _msrLongPressX = t0.clientX;
@@ -185,8 +187,10 @@ canvas.addEventListener('touchstart',e=>{
   // sees them, so the only thing the wider zone claims is empty canvas left-of-centre.
   for(const t of e.changedTouches)
     if(t.identifier!==_lpvTouchId && t.identifier!==_handleTouchId && t.clientX>innerWidth*0.3){tlId=t.identifier;tlX=t.clientX;tlY=t.clientY;}
+  if(typeof _clickPointerArm==='function'&&_handleTouchId===-1&&_lpvTouchId===-1&&_msrPlacingId===-1&&_plcPlacingId===-1)_clickPointerArm('touch',e);
 },{passive:true});
 canvas.addEventListener('touchmove',e=>{
+  if(typeof _clickPointerMove==='function'&&_clickPointerMove('touch',e)){if(e.cancelable)e.preventDefault();return;}
   // ── Pivot gizmo touch-drag update (highest priority) ──
   if(_lpvTouchId !== -1){
     for(const t of e.changedTouches){
@@ -289,6 +293,8 @@ canvas.addEventListener('touchmove',e=>{
     }
 },{passive:true});
 canvas.addEventListener('touchend',e=>{
+  const navigationTap=typeof _clickPointerTake==='function'?_clickPointerTake('touch',e,
+    _handleTouchId!==-1||_lpvTouchId!==-1||_msrPlacingId!==-1||_plcPlacingId!==-1):null;
   // End a pivot gizmo touch-drag when its finger lifts.
   if(_lpvTouchId !== -1){
     for(const t of e.changedTouches){
@@ -331,7 +337,12 @@ canvas.addEventListener('touchend',e=>{
   // Cancel any pending long-press arming when the same finger lifts.
   if(_msrLongPressId !== -1){
     for(const t of e.changedTouches){
-      if(t.identifier === _msrLongPressId){ _cancelMsrLongPress(); break; }
+      if(t.identifier === _msrLongPressId){
+        const tap=msr.active&&e.touches.length===0&&Math.hypot(t.clientX-_msrLongPressX,t.clientY-_msrLongPressY)<=_MSR_LONG_PRESS_MOVE_PX;
+        _cancelMsrLongPress();
+        if(tap){const pos=pickWorldPos(t.clientX,t.clientY);if(pos){updatePreview(pos);commitPreview();}if(e.cancelable)e.preventDefault();}
+        break;
+      }
     }
   }
   // Commit an object/path placement if the placing finger lifts (mirrors the
@@ -359,8 +370,13 @@ canvas.addEventListener('touchend',e=>{
     }
   }
   for(const t of e.changedTouches)if(t.identifier===tlId){ tlId=-1; markDirty(6); }
+  if(navigationTap){
+    if(e.cancelable)e.preventDefault();
+    if(!_trySelectByClick(navigationTap.x,navigationTap.y))_clickNavigateAt(navigationTap.x,navigationTap.y);
+  }
 });
 canvas.addEventListener('touchcancel',e=>{
+  if(typeof _clickPointerStart==='function')_clickPointerStart('touch',e);
   // Abort a pivot gizmo touch-drag on cancel (e.g. iOS palm rejection).
   if(_lpvTouchId !== -1){
     _lpvTouchId = -1;
@@ -411,13 +427,12 @@ canvas.addEventListener('touchcancel',e=>{
 // Fix: track the specific touch identifier captured at touchstart, and
 // only react to events for that identifier.
 //
-// Slack zone: per user request, drags up to 3.0× R (200% beyond the
-// visible circle) still register as "full deflection" rather than
-// snapping the joystick off. Beyond 3.0× R the joystick auto-releases.
+// Track up to 306px from the initial press, twice the previous 153px limit.
+// Knob travel and normalized movement speed remain unchanged.
 (()=>{
   const joy=document.getElementById('joy'),knob=document.getElementById('jknob');
-  const R=51;        // visible joystick radius (px, post-CSS scaling)
-  const SLACK=R*3.0; // outer "still tracking" radius (200% beyond visible)
+  const R=51;        // visual knob travel in CSS pixels
+  const SLACK=R*6.0; // tracking distance from the initial press (306px)
   const C=88;
   let on=false, jId=-1, bx=88, by=88;
   function resetKnob(){
@@ -425,6 +440,7 @@ canvas.addEventListener('touchcancel',e=>{
     knob.style.left=C+'px'; knob.style.top=C+'px';
   }
   joy.addEventListener('touchstart',e=>{
+    if(typeof _cancelClickNavigation==='function')_cancelClickNavigation();
     e.preventDefault();
     if(on) return; // already engaged — ignore secondary fingers on the pad
     const r=joy.getBoundingClientRect();
@@ -448,7 +464,7 @@ canvas.addEventListener('touchcancel',e=>{
     const r=joy.getBoundingClientRect();
     let dx=(t.clientX-r.left)-bx, dy=(t.clientY-r.top)-by;
     const l=Math.sqrt(dx*dx+dy*dy);
-    // Beyond the slack zone (3.0× R) the user has clearly slid OFF the
+    // Beyond the slack zone (6.0× R) the user has clearly slid OFF the
     // joystick — release rather than keep moving forever, which feels
     // worse than the previous "snap-to-zero on edge" bug.
     if(l > SLACK){
@@ -482,4 +498,3 @@ canvas.addEventListener('touchcancel',e=>{
     }
   });
 })();
-

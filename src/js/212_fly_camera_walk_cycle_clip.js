@@ -224,6 +224,9 @@ function _makeWalkClip(bones, opts){
 // Tries the Mixamo GLB first (matches the look of regular Figures); falls
 // back to the procedural mannequin if Mixamo isn't available.
 async function _avatarBuild(){
+  return _buildKawaiiWalkAvatar(walkMode.height);
+}
+async function _avatarBuildLegacy(){
   const g = new THREE.Group();
   g.userData.__avatar = true;
   let fig;
@@ -294,6 +297,7 @@ async function _avatarBuild(){
 // because those objects often have unreliable bounding boxes that extend
 // well below or above the actual rendered figure (causing 1m+ floating).
 function _avatarMeasureGroundOffset(av){
+  if(av.userData.kawaiiAnimation){walkMode.groundOffset=av.userData.kawaiiAnimation.groundOffset;return;}
   try{
     av.updateMatrixWorld(true);
     const bbox = new THREE.Box3();
@@ -330,6 +334,9 @@ function _avatarMeasureGroundOffset(av){
 // Reset all bones to their rest quaternion (used when walking ends so the
 // figure doesn't freeze mid-stride if the user re-enables walk mode later).
 function _avatarResetBones(){
+  walkMode.jumpFlightSeconds=undefined;
+  const api=walkMode.avatar?.userData.kawaiiAnimation;
+  if(api){api.reset();return;}
   if(!walkMode.bones) return;
   for(const b of Object.values(walkMode.bones)){
     if(b && b.userData._restQ){
@@ -343,7 +350,39 @@ function _avatarResetBones(){
 //     character isn't stuck in a T-pose between strides.
 //   • An oscillating SWING component animates legs + arm counter-swing.
 // Run mode increases both frequency and amplitude.
+// Distance-only collision rays need a small support stencil to estimate slope.
+// The core excludes the character; a zero-distance hit is inside solid geometry.
+function _avatarTerrainGroundAt(point,maxRise=.32){
+  const core=typeof walkSetup!=='undefined'?walkSetup.core:null;
+  if(!core||typeof core.raycast!=='function'||!point||
+    ![point.x,point.y,point.z,maxRise].every(Number.isFinite)||maxRise<=0)return null;
+  const top=point.y+maxRise,reach=maxRise+.05,offset=.015;
+  function heightAt(x,z){
+    const distance=core.raycast({x,y:top,z},{x:0,y:-1,z:0},reach);
+    return Number.isFinite(distance)&&distance>.001&&distance<=reach?top-distance:null;
+  }
+  try{
+    const y=heightAt(point.x,point.z);
+    if(y===null)return null;
+    const xp=heightAt(point.x+offset,point.z),xm=heightAt(point.x-offset,point.z);
+    const zp=heightAt(point.x,point.z+offset),zm=heightAt(point.x,point.z-offset);
+    // At a tread edge, use the supported side instead of discarding the top hit.
+    function slope(plus,minus){
+      const a=plus===null?Infinity:(plus-y)/offset;
+      const b=minus===null?Infinity:(y-minus)/offset;
+      return Math.abs(a)<Math.abs(b)?a:b;
+    }
+    const nx=-slope(xp,xm),nz=-slope(zp,zm),length=Math.hypot(nx,1,nz);
+    if(1/length<.75)return null;
+    return {y,normal:{x:nx/length,y:1/length,z:nz/length}};
+  }catch(_){return null;}
+}
 function _avatarUpdateAnimation(dt, walking, runMul){
+  const api=walkMode.avatar?.userData.kawaiiAnimation;
+  if(api){api.update(dt,walkMode.actualSpeed||0,!walkMode.airborne,
+    {running:runMul>1,verticalSpeed:walkMode.velocity.y,jumpFlightSeconds:walkMode.jumpFlightSeconds,
+      groundAt:!walkMode.airborne&&typeof walkSetup!=='undefined'&&walkSetup.core?
+        _avatarTerrainGroundAt:undefined});return;}
   // Diagnostic counter — increments every call so we can verify the mixer
   // update path is actually being hit each frame.
   window.__avatarAnimCallCount = (window.__avatarAnimCallCount || 0) + 1;
@@ -423,4 +462,3 @@ function _avatarUpdateAnimation(dt, walking, runMul){
   setBone('footL', -5, 0, 0);
   setBone('footR', -5, 0, 0);
 }
-

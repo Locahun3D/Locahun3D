@@ -247,6 +247,7 @@ window.camAnimPreview = function(){
     return;
   }
   _camAnimRecomputeSegments();
+  if(walkMode.active)_avatarWalkExit();
   _camAnimApplySample(camAnim.keys[0]);
   camAnim.playing   = true;
   camAnim.startedAt = performance.now();
@@ -400,6 +401,7 @@ function _camAnimSaveBlob(blob){
 
 window.camAnimRecordExport = function(){
   if(camAnim.keys.length < 2) return;
+  if(walkMode.active)_avatarWalkExit();
   _camAnimRebuild();
   // Hide the side panel during recording so it doesn't appear in the
   // exported video.
@@ -875,4 +877,3 @@ function _camTrimEmptyTop(src){
   out.getContext('2d').drawImage(src, 0, top, W, newH, 0, 0, W, newH);
   return out;
 }
-

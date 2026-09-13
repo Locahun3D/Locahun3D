@@ -7,6 +7,13 @@
 let _pathMode=false, _pathPts=[], _pathMarkers=[], _pathPreviewLine=null;
 let _pathClickX=0, _pathClickY=0;
 
+function _pathWidth(value){
+  return typeof value==='number' && Number.isFinite(value) && value>=0.01 && value<=2 ? value : 0.05;
+}
+function _pathLayerName(text,id){
+  return String(text??'').split(/\r?\n/).map(line=>line.trim()).find(Boolean)||('Path '+id);
+}
+
 function _makePathLabelSprite(text, color){
   // Multi-line + auto-sizing label box (v0.0.41). The text may contain explicit
   // line breaks (\n from the textarea) AND any single line that runs too long is
@@ -40,7 +47,7 @@ function _makePathLabelSprite(text, color){
   const hasText=!!text.trim();
   if(hasText){
     x.font='bold '+FONT_PX+'px sans-serif'; x.textAlign='center'; x.textBaseline='middle';
-    x.fillStyle='rgba(0,0,0,.55)'; x.fillRect(0,0,boxW,boxH);
+    x.fillStyle='#252a2f'; x.fillRect(0,0,boxW,boxH);
     x.lineWidth=4; x.strokeStyle=color||'#00d0ff'; x.strokeRect(2,2,boxW-4,boxH-4);
     x.fillStyle='#ffffff';
     const startY=PAD_Y+LINE_H/2;
@@ -51,24 +58,32 @@ function _makePathLabelSprite(text, color){
   // so WebGL1 doesn't render the sprite black.
   tex.minFilter=THREE.LinearFilter; tex.magFilter=THREE.LinearFilter;
   tex.generateMipmaps=false; tex.needsUpdate=true;
-  const sp=new THREE.Sprite(new THREE.SpriteMaterial({map:tex, depthTest:false, depthWrite:false, transparent:true}));
-  sp.renderOrder=9006; sp.scale.set(boxW*MPP, boxH*MPP, 1);
+  const sp=new THREE.Sprite(new THREE.SpriteMaterial({map:tex, depthTest:true, depthWrite:true, transparent:true, alphaTest:0.01}));
+  sp.renderOrder=-9; sp.scale.set(boxW*MPP, boxH*MPP, 1);
   sp.userData.isPathLabel=true; sp.visible=hasText;
   return sp;
 }
 
 // グループの中身（塗り＋輪郭＋中央ラベル）を local 点群から再構築。作成時/編集時に共用。
-function _pathPopulateGroup(g, local, color, opacity, labelText){
-  for(let i=g.children.length-1;i>=0;i--){ const o=g.children[i]; g.remove(o); if(o.geometry)o.geometry.dispose(); if(o.material){ if(o.material.map)o.material.map.dispose(); o.material.dispose(); } }
+function _pathPopulateGroup(g, local, color, opacity, labelText, width){
+  const disposed=new Set();
+  for(const child of g.children.slice()){
+    child.traverse(o=>{
+      for(const resource of [!o.isSprite&&o.geometry,o.material&&o.material.map,o.material]){
+        if(resource&&!disposed.has(resource)){disposed.add(resource);resource.dispose();}
+      }
+    });
+    g.remove(child);
+  }
   const verts=(local||[]).map(p=>new THREE.Vector3(p.x,p.y,p.z));
   const col=new THREE.Color(color||'#00d0ff');
   const op=(opacity!=null?opacity:0.95);
   // 塗りつぶし無し。輪郭は「太さ20cmの3Dチューブ（各辺＝円柱、角＝球）」で描く。
   // 平らな帯だと地面に伏せて浅い角度から見えないため、立体にして常に見えるようにする。
-  // depthTest:false で手前に重畳（地面に埋もれても確実に視認）。
-  const R=0.1; // 直径20cm → 半径0.1m
+  // Write depth in the transparent pass before Spark (renderOrder 0).
+  const R=_pathWidth(width)/2; // pathWidth is the tube diameter in metres.
   if(verts.length>=2){
-    const mat=new THREE.MeshBasicMaterial({color:col, transparent:op<1, opacity:op, depthTest:false, depthWrite:false});
+    const mat=new THREE.MeshBasicMaterial({color:col, transparent:true, opacity:op, depthTest:true, depthWrite:op>0, alphaTest:0.01});
     const yUp=new THREE.Vector3(0,1,0);
     const n=verts.length;
     for(let i=0;i<n;i++){
@@ -79,28 +94,44 @@ function _pathPopulateGroup(g, local, color, opacity, labelText){
         const cm=new THREE.Mesh(cg,mat);
         cm.position.copy(A).addScaledVector(dir,0.5);
         cm.quaternion.setFromUnitVectors(yUp, dir.clone().normalize());
-        cm.userData.pathOutline=true; cm.renderOrder=9004; g.add(cm);
+        cm.userData.pathOutline=true; cm.renderOrder=-10; g.add(cm);
       }
       const sg=new THREE.SphereGeometry(R,10,10); // 角の継ぎ目を埋める球
       const sm=new THREE.Mesh(sg,mat);
-      sm.position.copy(A); sm.userData.pathOutline=true; sm.renderOrder=9004; g.add(sm);
+      sm.position.copy(A); sm.userData.pathOutline=true; sm.renderOrder=-10; g.add(sm);
     }
   }
   // ラベルは local 重心に配置（点を動かすと中央に追従）
   let cx=0,cy=0,cz=0; const n=(local&&local.length)||1;
   if(local) for(const p of local){ cx+=p.x; cy+=p.y; cz+=p.z; }
   const sp=_makePathLabelSprite(labelText||'', color);
-  sp.position.set(cx/n, cy/n+0.2, cz/n); g.add(sp); g.userData.pathLabelSprite=sp;
+  const labelGroup=new THREE.Group(); labelGroup.userData.pathLabelContainer=true;
+  sp.position.set(cx/n, cy/n+0.2, cz/n); labelGroup.add(sp); g.add(labelGroup); g.userData.pathLabelSprite=sp;
   return sp;
 }
-function _buildPathMesh(local, color, opacity, labelText){
+const _pathLabelWorld=new THREE.Vector3(), _pathLabelCamera=new THREE.Vector3();
+function _pathUpdateLabelVisibility(viewCamera){
+  viewCamera.getWorldPosition(_pathLabelCamera);
+  for(const L of layers){
+    if(L.type!=='path'||!L.mesh)continue;
+    const sp=L.mesh.userData.pathLabelSprite;
+    if(!sp)continue;
+    sp.getWorldPosition(_pathLabelWorld);
+    const near=_pathLabelCamera.distanceToSquared(_pathLabelWorld)<=25;
+    sp.material.depthTest=!near; sp.material.depthWrite=!near;
+    sp.renderOrder=near?10000:-9;
+    // Separate group order also places nearby text above the editing gizmo.
+    if(sp.parent.userData.pathLabelContainer)sp.parent.renderOrder=near?10000:0;
+  }
+}
+function _buildPathMesh(local, color, opacity, labelText, width){
   const g=new THREE.Group(); g.userData.isPath=true;
-  _pathPopulateGroup(g, local, color, opacity, labelText);
+  _pathPopulateGroup(g, local, color, opacity, labelText, width);
   return g;
 }
 function _pathRebuild(L){
   if(!L||!L.mesh) return;
-  _pathPopulateGroup(L.mesh, L.pathPoints, L.pathColor, L.pathOpacity, L.pathLabel||'');
+  _pathPopulateGroup(L.mesh, L.pathPoints, L.pathColor, L.pathOpacity, L.pathLabel||'', L.pathWidth);
   L.pathLabelSprite=L.mesh.userData.pathLabelSprite;
   _pathRefreshHandles();
 }
@@ -108,6 +139,7 @@ function _pathRebuild(L){
 // ── パス4点の編集ハンドル（ピボット）。選択中のパスに黄色い球を表示、左ドラッグで各点を移動 ──
 let _pathEditId=null, _pathHandles=[], _pathDragH=-1;
 function _pathClearHandles(){
+  if(typeof window._pathResetFeedback==='function')window._pathResetFeedback();
   _pathHandles.forEach(h=>{ scene.remove(h); h.geometry.dispose(); h.material.dispose(); });
   _pathHandles=[]; _pathEditId=null; _pathDragH=-1;
 }
@@ -120,6 +152,7 @@ function _pathBuildHandles(L){
     m.renderOrder=9008; m.userData.pathHandle=i; scene.add(m); _pathHandles.push(m);
   });
   _pathRefreshHandles();
+  if(typeof window._pathPaintFeedback==='function')window._pathPaintFeedback();
 }
 function _pathRefreshHandles(){
   const L=findLayer(_pathEditId);
@@ -140,7 +173,7 @@ function _pathHandleAt(clientX, clientY){
   let best=-1, bestD=24;
   for(let i=0;i<_pathHandles.length;i++){
     const v=_pathHandles[i].position.clone().project(camera);
-    if(v.z>1) continue;
+    if(![v.x,v.y,v.z].every(Number.isFinite)||v.z < -1||v.z>1||Math.abs(v.x)>1||Math.abs(v.y)>1) continue;
     const sx=rect.left+(v.x*0.5+0.5)*rect.width;
     const sy=rect.top+(-v.y*0.5+0.5)*rect.height;
     const d=Math.hypot(clientX-sx, clientY-sy);
@@ -150,7 +183,7 @@ function _pathHandleAt(clientX, clientY){
 }
 function _pathUpdateHandleDrag(clientX, clientY){
   const L=findLayer(_pathEditId); if(!L||_pathDragH<0||!L.mesh) return;
-  const p=pickWorldPos(clientX, clientY); if(!p) return;
+  const p=pickWorldPos(clientX, clientY, {strictVisible:true}); if(!p) return;
   L.mesh.updateMatrixWorld(true);
   const lp=L.mesh.worldToLocal(p.clone());
   L.pathPoints[_pathDragH]={x:lp.x, y:lp.y, z:lp.z};
@@ -159,20 +192,66 @@ function _pathUpdateHandleDrag(clientX, clientY){
 }
 
 // ── 配置プレビュー（右クリック長押しで位置を探る、測定点と同様） ──
-let _pathProbing=false, _pathProbeMarker=null;
+let _pathProbing=false, _pathProbeMarker=null, _pathProbePoint=null;
+function _pathDisposeMarker(marker){
+  if(!marker) return;
+  scene.remove(marker);
+  if(marker.geometry && !marker.isSprite) marker.geometry.dispose();
+  if(marker.material.map) marker.material.map.dispose();
+  marker.material.dispose();
+}
+function _pathPointMarker(number, probing){
+  const cv=document.createElement('canvas'); cv.width=128; cv.height=128;
+  const c=cv.getContext('2d');
+  c.lineCap='round';
+  const stroke=(color,width)=>{
+    c.strokeStyle=color; c.lineWidth=width; c.beginPath(); c.arc(64,64,29,0,Math.PI*2); c.stroke();
+    c.beginPath(); c.moveTo(64,18); c.lineTo(64,48); c.moveTo(64,80); c.lineTo(64,110);
+    c.moveTo(18,64); c.lineTo(48,64); c.moveTo(80,64); c.lineTo(110,64); c.stroke();
+  };
+  stroke('#000000',11); stroke('#ffffff',5);
+  c.fillStyle=probing?'#ffdc35':'#00d0ff'; c.beginPath(); c.arc(64,64,18,0,Math.PI*2); c.fill();
+  c.font='bold 24px sans-serif'; c.textAlign='center'; c.textBaseline='middle'; c.fillStyle='#000000';
+  c.fillText(String(number),64,65);
+  const texture=new THREE.CanvasTexture(cv); texture.generateMipmaps=false;
+  texture.minFilter=THREE.LinearFilter; texture.magFilter=THREE.LinearFilter;
+  const marker=new THREE.Sprite(new THREE.SpriteMaterial({map:texture,transparent:true,depthTest:false,depthWrite:false}));
+  marker.renderOrder=9009; marker.userData.pathPointNumber=number;
+  const viewPosition=new THREE.Vector3(), viewport=new THREE.Vector4();
+  marker.onBeforeRender=(_renderer,_scene,cam)=>{
+    let height=canvas.getBoundingClientRect().height;
+    if(_renderer && typeof _renderer.getCurrentViewport==='function'){
+      _renderer.getCurrentViewport(viewport);
+      const ratio=typeof _renderer.getPixelRatio==='function'?_renderer.getPixelRatio():1;
+      if(viewport.w>0 && Number.isFinite(ratio) && ratio>0) height=viewport.w/ratio;
+    }
+    if(!height) return;
+    viewPosition.setFromMatrixPosition(marker.matrixWorld).applyMatrix4(cam.matrixWorldInverse);
+    const depth=cam.isPerspectiveCamera?Math.max(0.001,-viewPosition.z):1;
+    const size=64*2*depth/(height*Math.abs(cam.projectionMatrix.elements[5]));
+    marker.scale.set(size,size,1); marker.updateMatrixWorld(true);
+  };
+  return marker;
+}
 function _pathUpdateProbe(clientX, clientY){
-  const p=pickWorldPos(clientX, clientY); if(!p) return;
+  if(!_pathMode) return;
+  const p=pickWorldPos(clientX, clientY, {strictVisible:true});
+  if(!p || ![p.x,p.y,p.z].every(Number.isFinite)){
+    _pathProbePoint=null; _pathDisposeMarker(_pathProbeMarker); _pathProbeMarker=null;
+    _redrawPathTempLine(); if(typeof markDirty==='function') markDirty(6); return;
+  }
+  _pathProbePoint=p.clone();
   if(!_pathProbeMarker){
-    _pathProbeMarker=new THREE.Mesh(new THREE.SphereGeometry(0.1,16,16),
-      new THREE.MeshBasicMaterial({color:0xffffff, transparent:true, opacity:.85, depthTest:false}));
-    _pathProbeMarker.renderOrder=9009; scene.add(_pathProbeMarker);
+    _pathProbeMarker=_pathPointMarker(_pathPts.length+1,true); scene.add(_pathProbeMarker);
   }
   _pathProbeMarker.position.copy(p);
+  _redrawPathTempLine();
   if(typeof markDirty==='function') markDirty(6);
 }
 function _pathHideProbe(){
-  if(_pathProbeMarker){ scene.remove(_pathProbeMarker); _pathProbeMarker.geometry.dispose(); _pathProbeMarker.material.dispose(); _pathProbeMarker=null; }
+  _pathDisposeMarker(_pathProbeMarker); _pathProbeMarker=null; _pathProbePoint=null;
   _pathProbing=false;
+  _redrawPathTempLine();
 }
 
 function _pathHint(on){
@@ -187,15 +266,18 @@ function _pathHint(on){
 }
 
 function _clearPathTemp(){
-  _pathMarkers.forEach(m=>{ scene.remove(m); m.geometry.dispose(); m.material.dispose(); });
+  _pathMarkers.forEach(_pathDisposeMarker);
   _pathMarkers=[];
   if(_pathPreviewLine){ scene.remove(_pathPreviewLine); _pathPreviewLine.geometry.dispose(); _pathPreviewLine.material.dispose(); _pathPreviewLine=null; }
 }
 
 function _redrawPathTempLine(){
   if(_pathPreviewLine){ scene.remove(_pathPreviewLine); _pathPreviewLine.geometry.dispose(); _pathPreviewLine.material.dispose(); _pathPreviewLine=null; }
-  if(_pathPts.length>=2){
-    const g=new THREE.BufferGeometry().setFromPoints(_pathPts);
+  const points=_pathPts.slice();
+  if(_pathProbePoint) points.push(_pathProbePoint);
+  if(_pathProbePoint && _pathPts.length===3) points.push(_pathPts[0]);
+  if(points.length>=2){
+    const g=new THREE.BufferGeometry().setFromPoints(points);
     _pathPreviewLine=new THREE.Line(g, new THREE.LineBasicMaterial({color:0x00d0ff, depthTest:false, transparent:true, opacity:.95}));
     _pathPreviewLine.renderOrder=9005; scene.add(_pathPreviewLine);
   }
@@ -204,16 +286,18 @@ function _redrawPathTempLine(){
 function _onPathKey(e){ if(e.key==='Escape'){ e.preventDefault(); _cancelPath(); } }
 
 function _cancelPath(){
-  _pathMode=false; _clearPathTemp(); _pathPts=[]; _pathHint(false);
+  _pathMode=false; _pathHideProbe(); _clearPathTemp(); _pathPts=[]; _pathHint(false);
   document.removeEventListener('keydown', _onPathKey, true);
   if(typeof markDirty==='function') markDirty(6);
 }
 
 function _placePathPoint(clientX, clientY){
   if(!_pathMode) return;
-  const p=pickWorldPos(clientX, clientY); if(!p) return;
+  const p=pickWorldPos(clientX, clientY, {strictVisible:true});
+  if(!p || ![p.x,p.y,p.z].every(Number.isFinite)){ _pathHideProbe(); return; }
+  _pathHideProbe();
   _pathPts.push(p.clone());
-  const m=new THREE.Mesh(new THREE.SphereGeometry(0.07,12,12), new THREE.MeshBasicMaterial({color:0x00d0ff, depthTest:false}));
+  const m=_pathPointMarker(_pathPts.length,false);
   m.renderOrder=9006; m.position.copy(p); scene.add(m); _pathMarkers.push(m);
   _redrawPathTempLine();
   _pathHint(true);
@@ -230,7 +314,7 @@ function _finalizePath(){
   group.position.copy(C);
   const L=addLayer({name:'Path '+_nextLayerNameNumber('path'), type:'path', mesh:group, size:{x:1,y:1,z:1}});
   L.pos={x:C.x,y:C.y,z:C.z}; L.rot={x:0,y:0,z:0}; L.scale={x:1,y:1,z:1};
-  L.pathPoints=local; L.pathLabel=''; L.pathColor=color; L.pathOpacity=opacity;
+  L.pathPoints=local; L.pathLabel=''; L.pathColor=color; L.pathOpacity=opacity; L.pathWidth=0.05;
   L.pathLabelSprite=group.userData.pathLabelSprite;
   pushGlobalUndo({type:'layer-add', id:L.id});  // Ctrl+Z removes the created path
   _cancelPath();
@@ -247,6 +331,7 @@ window.addPathLayer=function(){
   document.addEventListener('keydown', _onPathKey, true);
   _pathHint(true);
 };
+window.addEventListener('blur',()=>{ if(_pathMode) _cancelPath(); });
 
 // ─────────────────────────────────────────────────────────────
 //  GENERIC CLICK-PLACEMENT MODE (v0.0.42)
@@ -259,13 +344,16 @@ window.addPathLayer=function(){
 let _placeMode=null;          // null | 'cube' | 'event' | 'figure'
 let _placeProbing=false, _placeProbeMarker=null;
 function _placeUpdateProbe(clientX, clientY){
-  const p=pickWorldPos(clientX, clientY); if(!p) return;
+  const equipment=typeof _placeMode==='string'&&_placeMode.startsWith('equipment:');
+  const p=pickWorldPos(clientX, clientY,equipment?{groundFallback:true}:undefined);
+  if(!p){ if(equipment&&_placeProbeMarker){ _placeProbeMarker.visible=false; if(typeof markDirty==='function')markDirty(6); } return; }
   if(!_placeProbeMarker){
     _placeProbeMarker=new THREE.Mesh(new THREE.SphereGeometry(0.12,16,16),
       new THREE.MeshBasicMaterial({color:0xffd400, transparent:true, opacity:.9, depthTest:false}));
     _placeProbeMarker.renderOrder=9009; scene.add(_placeProbeMarker);
   }
   _placeProbeMarker.position.copy(p);
+  _placeProbeMarker.visible=true;
   if(typeof markDirty==='function') markDirty(6);
 }
 function _placeHideProbe(){
@@ -312,12 +400,20 @@ function _commitPlace(clientX, clientY){
 window.setPathLabel=function(id, text){
   const L=findLayer(id); if(!L||L.type!=='path') return;
   L.pathLabel=text;
+  L.name=_pathLayerName(text,L.id);
+  if(typeof selectedLayerId!=='undefined' && selectedLayerId===L.id){
+    const title=document.getElementById('lt-title');
+    if(title && title.dataset.layerId===String(L.id))
+      title.textContent=LAYER_ICONS[L.type]+' '+L.name;
+  }
   const old=L.pathLabelSprite;
   const parent=(old&&old.parent)?old.parent:L.mesh;
   const ns=_makePathLabelSprite(text, L.pathColor||'#00d0ff');
   if(old){ ns.position.copy(old.position); parent.remove(old); if(old.material.map) old.material.map.dispose(); old.material.dispose(); }
   else ns.position.set(0,0.2,0);
   parent.add(ns); L.pathLabelSprite=ns; if(L.mesh) L.mesh.userData.pathLabelSprite=ns;
+  if(typeof renderLayerList==='function')renderLayerList();
+  window.localProject?.changed?.();
   if(typeof markDirty==='function') markDirty(6);
 };
 
@@ -330,11 +426,24 @@ window.setPathColor=function(id, hex){
   if(typeof markDirty==='function') markDirty(6);
 };
 
+window.setPathWidth=function(id, value){
+  const L=findLayer(id); if(!L||L.type!=='path') return;
+  if(value==null || String(value).trim()==='') return;
+  const width=Number(value);
+  if(!Number.isFinite(width) || width<0.01 || width>2) return;
+  L.pathWidth=width; _pathRebuild(L);
+  for(const kind of ['number','range']){
+    const input=document.getElementById('path-width-'+kind+'-'+id);
+    if(input) input.value=String(width);
+  }
+  if(typeof markDirty==='function') markDirty(6);
+};
+
 window.setPathOpacity=function(id, val){
   const L=findLayer(id); if(!L||L.type!=='path') return;
   const op=parseFloat(val); L.pathOpacity=op;
   if(L.mesh) L.mesh.traverse(o=>{
-    if(o.material && o.userData.pathOutline){ o.material.opacity=op; o.material.transparent=op<1; }
+    if(o.material && o.userData.pathOutline){ o.material.opacity=op; o.material.transparent=true; o.material.depthWrite=op>0; }
   });
   if(typeof markDirty==='function') markDirty(6);
 };

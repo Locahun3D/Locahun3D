@@ -204,4 +204,3 @@ Object.defineProperty(window.__dbg, 'captureHideUI', { get: () => (typeof _captu
 // (rainbow streak artifact during fast pans in big PortalCam scans).
 // 0.3m ≈ arm's length; below that, splats are clipped before they smear.
 camera = new THREE.PerspectiveCamera(fov, innerWidth / innerHeight, 0.3, 2000);
-

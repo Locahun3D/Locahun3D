@@ -298,9 +298,7 @@ setTimeout(async ()=>{
   }
 }, 0);
 
-// ?showcase=1 (_ıÄ¢ü) o src/js/296_showcase_tour.js kŸÅWfB‹
-// SSkBc_ç×íâ2;(ÖíÃ¯«áéÄüë`Q’ŞYJAúšn‚n	o
-// X URL Õé°gŒÍk«áé’EÕWfW~F_ 296 knMÛH_ (2026-08-26)
+// Showcase URL handling is implemented in 296_showcase_tour.js.
 
 // Inject "Load demo scene" button into the dropzone. Inherits the existing
 // `.demo-btn` style and accent-colour treatment used by the other dropzone
@@ -541,4 +539,3 @@ window.__diagState = {
     try{ return (typeof sparkRenderer!=='undefined' && sparkRenderer) ? !!sparkRenderer.lastTraverseResumed : null; }catch(_){ return null; }
   },
 };
-

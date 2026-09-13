@@ -12,11 +12,12 @@
 window._isNarrowPhoneUI = function(){
   try{
     return window.matchMedia('(pointer:coarse) and (any-hover:none)').matches
-        && window.innerWidth <= 600;
+        && Math.min(window.innerWidth, window.innerHeight) < 700;
   }catch(_){ return false; }
 };
 window.toggleCamTool = function(){
   const wasActive = cam.active;
+  if(!wasActive && walkMode.active)_avatarWalkExit();
   // 狭い端末では日照とカメラを併用しない（開く側が相手を閉じる）
   if(!wasActive && window._isNarrowPhoneUI() &&
      typeof sun !== 'undefined' && sun && sun.active &&
@@ -81,11 +82,7 @@ window.toggleCamTool = function(){
 window.addEventListener('resize', ()=>{ if(cam.active){ layoutCamFrame(); if(window._layoutCamMode) window._layoutCamMode(); } });
 window.addEventListener('orientationchange', ()=>{ setTimeout(()=>{ if(cam.active){ layoutCamFrame(); if(window._layoutCamMode) window._layoutCamMode(); } }, 220); });
 
-// Re-centre the bottom (cbar) + top (#view-tl-btns) button groups into the free
-// space BETWEEN the left controls (joystick if shown, else layer panel) and the
-// right カメラツール panel while camera mode is open. Sets px CSS vars consumed by
-// the `body.cam-active` rules. user 2026-06-27 (E/F: buttons hid behind / weren't
-// centred relative to the right panel on iPad / phone portrait).
+// Camera-mode controls stay at the viewport centre, including panel toggles.
 function _layoutCamMode(){
   const root = document.documentElement;
   const pan = document.getElementById('cam-panel');
@@ -95,83 +92,28 @@ function _layoutCamMode(){
     root.style.removeProperty('--cam-top-left');
     root.style.removeProperty('--cam-top-maxw');
     document.body.classList.remove('cam-cramped');
-    // カメラモード中は _layoutTopRow が手を出さない約束なので、抜けた直後に
-    // 上部帯を置き直す（そうしないとカメラを閉じたあと中央寄せのままになり、
-    // 狭い画面でシーンレイヤーパネルに食い込む）。
+    // Restore the normal row's viewport-constrained wrapping after camera mode.
     setTimeout(()=>{ try{ _layoutTopRow(); }catch(_){} }, 0);
     return;
   }
-  const panLeft = pan.getBoundingClientRect().left;   // right edge of the free zone
-  let leftBound = 0;
-  const joy = document.getElementById('joy');
-  if(joy && getComputedStyle(joy).display!=='none'){
-    const jr = joy.getBoundingClientRect().right;
-    const jv = document.getElementById('joy-vert');
-    const jvr = (jv && getComputedStyle(jv).display!=='none') ? jv.getBoundingClientRect().right : jr;
-    leftBound = Math.max(jr, jvr);
-  } else {
-    const lp = document.getElementById('layer-panel');
-    if(lp && getComputedStyle(lp).display!=='none') leftBound = lp.getBoundingClientRect().right;
-  }
-  const center = Math.round((leftBound + panLeft) / 2);
-  const room = panLeft - leftBound;
-  const cramped = room < 150;
-  const freeW = Math.max(80, Math.round(room - 12));
-  // 余白が狭い（スマホ）とき、下部cbar(=カメラ終了ボタン)はジョイスティックの真上へ寄せる(青枠の位置)。
-  let cbarLeft = center;
-  if(cramped && joy && getComputedStyle(joy).display!=='none'){
-    const jb = joy.getBoundingClientRect();
-    cbarLeft = Math.round(jb.left + jb.width / 2);
-  }
-  root.style.setProperty('--cam-cbar-left', cbarLeft+'px');
-  root.style.setProperty('--cam-top-left', center+'px');
-  root.style.setProperty('--cam-top-maxw', freeW+'px');
-  // 自由ゾーンが狭すぎる（スマホ縦など）と上部ボタンがパネルに重なるので、その時は隠す。
-  document.body.classList.toggle('cam-cramped', cramped);
+  // Keep controls anchored to the viewport, independent of either panel.
+  root.style.setProperty('--cam-cbar-left', '50%');
+  root.style.setProperty('--cam-top-left', '50%');
+  root.style.setProperty('--cam-top-maxw', Math.max(0, innerWidth - 16)+'px');
+  document.body.classList.remove('cam-cramped');
 }
 window._layoutCamMode = _layoutCamMode;   // exposed for resize hooks / debugging
 
-// ── 上部ボタン行 × シーンレイヤーパネルの重なり回避 ──────────────
-//  #view-tl-btns は「ビューポートの中央」に置くのが本人の指示（レイヤーパネルの
-//  幅に追従させない）。ただし画面が狭いと、中央寄せのままでは行の左端が左端
-//  固定のレイヤーパネル(0〜285px, 全高)へ食い込む（user 2026-08-27 報告。
-//  例: 幅820px で行 151〜669 とパネル 0〜285 が 134px 重なる）。
-//  そこで「重なる時だけ」パネルの右の空きへ寄せる。広い画面では従来どおり
-//  ビューポート中央のまま＝挙動は変わらない。
+// Layer panels reserve their own space; opening them must not move this row.
 function _layoutTopRow(){
   const row = document.getElementById('view-tl-btns');
   if(!row) return;
   // カメラモード中は _layoutCamMode() が --cam-top-left で位置を持つので触らない。
   if(document.body.classList.contains('cam-active')) return;
   if(getComputedStyle(row).display === 'none') return;
-  // 素の（折返し無しの）幅を測る
-  row.style.maxWidth = '';
-  row.style.flexWrap = '';
-  const GAP = 10;
-  const vw = innerWidth;
-  const rr = row.getBoundingClientRect();
-  const w = rr.width;
-  let wall = 0;                       // 行の高さ帯を塞ぐ左側の壁の右端
-  const lp = document.getElementById('layer-panel');
-  if(lp && getComputedStyle(lp).display !== 'none'){
-    const lr = lp.getBoundingClientRect();
-    if(lr.bottom > rr.top && lr.top < rr.bottom) wall = lr.right;
-  }
-  const free = vw - wall - GAP * 2;   // パネル右〜画面右端の空き
-  if(wall <= 0 || vw / 2 - w / 2 >= wall + GAP){
-    // 重ならない → 従来どおりビューポート中央
-    row.style.left = '50%';
-    return;
-  }
-  if(w <= free){
-    // 1行のまま、空きの中央へ寄せる
-    row.style.left = Math.round(wall + GAP + free / 2) + 'px';
-    return;
-  }
-  // 1行では入らない → 空きいっぱいに折り返す
-  row.style.maxWidth = Math.max(140, free) + 'px';
+  row.style.maxWidth = Math.max(0, innerWidth - 16) + 'px';
   row.style.flexWrap = 'wrap';
-  row.style.left = Math.round(wall + GAP + Math.max(140, free) / 2) + 'px';
+  row.style.left = '50%';
 }
 window._layoutTopRow = _layoutTopRow;
 addEventListener('resize', _layoutTopRow);
@@ -201,4 +143,3 @@ window.addEventListener('orientationchange', ()=>setTimeout(_mPanelTop, 250));
 // パネルを開くタップの直後に再計算（どのツールボタンでも拾えるよう全クリックで・軽量）。
 document.addEventListener('click', ()=>setTimeout(_mPanelTop, 30), true);
 setTimeout(_mPanelTop, 400);   // 初期化
-

@@ -1,5 +1,17 @@
 # vendor/ — patched Spark 3DGS library
 
+## Heap319 v1 Adoption (2026-09-11)
+
+The new immutable asset has SHA-256 `ff799ee9a31cec478ebf173759c0f4061da662164dd72fd9da2efbabadd332f5`. The old URL is never overwritten or deleted. `spark-heap319-v1/provenance.json` records original/candidate bundle and WASM hashes, Rust source hash and compiler flags; `spark-heap319-v1/heap-pop.rs` is the exact source of the replacement body.
+
+This is an isolated WASM body substitution into the existing patched build, NOT a claimed full upstream rebuild. The alternative top-down heap pop stops once the saved last entry belongs at the current position. OrderedFloat comparison, tuple tie keys and ABI are retained. All other WASM functions/non-code sections and all shaders remain identical. The test verifies the exact previously reviewed bundle hash.
+
+Evidence: `../docs/perf-20260911.md`. Two clean browser A/B pairs show matched-view traversal reductions of 28-39%, unchanged quality settings, and no candidate-only degradation in inspected static/moving samples. Real-RAD CPU selected-index arrays match byte-for-byte. This does not establish an end-to-end camera-to-detail p95 improvement or universal visual equivalence.
+
+Reproduction: compile the Rust file with the compiler/flags in provenance (wasm32-unknown-unknown), then replace only function319's code body using `scripts/perf-wasm-tools.mjs` against the retained old bundle. `scripts/perf-heap-assemble.mjs` demonstrates the isolated assembly and asserts every other body/section unchanged. `node --test scripts/perf-vendor-adoption.test.mjs` validates the checked-in new asset without requiring local scan/evidence files. Do not substitute a different build under this v1 filename; any changed bytes require another versioned URL.
+
+The source import maps, Node/shell sync helpers and deployment preparation references select this new asset. No application build, actual synchronization or deployment was run as part of adoption. Existing generated HTML therefore remains unchanged until the parent builds it. Node sync safely migrates a legacy ownership state only after validating both old hashes and absence of the new destination; the old served URL remains present.
+
 ## What this is
 
 A locally-vendored, **from-source rebuild** of the Spark 3DGS runtime
@@ -12,11 +24,12 @@ LOD-traversal algorithm in the Rust/WASM core.
 | `spark-2.0.0.module.js` | Pristine upstream dist, byte-for-byte from jsDelivr (2026-07-06 tag `v2.0.0`). Kept for diffing / provenance only — **no longer the base of the shipped file** (see below). |
 | `spark-2.0.0-src-rebuild.module.js` | The same `v2.0.0` tag, rebuilt from source (`npm run build:wasm` + `vite build --mode dev`) with **zero code changes** — a reproducibility baseline. Differs from the jsDelivr dist only in embedded-WASM bytes (build-environment non-determinism, unrelated crate `spark-rs`) and GLSL shader `\r\n` vs `\n` (Windows checkout artifact). Diffed line-by-line against `spark-2.0.0-workers16.module.js` before any further patch was applied — confirmed clean. |
 | `spark-2.0.0-workers16.module.js` | `spark-2.0.0.module.js` (jsDelivr) + **one expression** changed: the `NewSplatWorkerPool` worker-pool default size. **Superseded** by the file below — kept for history/rollback. |
-| `spark-2.0.0-workers16-incrtraverse.module.js` | **Currently shipped file.** `spark-2.0.0-src-rebuild.module.js` + the same worker-pool patch + the incremental-traversal patch (Rust source change, not a JS-level patch — see below). |
+| `spark-2.0.0-workers16-incrtraverse.module.js` | Previous immutable file, retained unchanged for rollback and old viewer releases. From-source rebuild + worker-pool and incremental-traversal patches. |
+| `spark-2.0.0-workers16-incrtraverse-heap319-v1.module.js` | Current source import-map target. Exact reviewed N=2 candidate: previous file with only embedded WASM function319 heap-pop body replaced. No shader, governor, worker-pool or render-loop changes. |
 
 All files import the bare specifier `three`, which the page's importmap
 resolves. `src/assets/importmap.json` points `@sparkjsdev/spark` at
-`spark-2.0.0-workers16-incrtraverse.module.js`.
+`spark-2.0.0-workers16-incrtraverse-heap319-v1.module.js`.
 
 ## Patch 1 — worker pool size
 

@@ -201,7 +201,7 @@ const sun = {
   _fcPrecip: null,              // 降水種別: 'rain' | 'snow' | 'hail'（雹は雷雨96/99）
   _vizKey: '',                  // 太陽軌道の再構築判定 (日付/場所が変わったら作り直す)
 };
-(function _sunInitDate(){ const n=new Date(); sun.y=n.getFullYear(); sun.mo=n.getMonth()+1; sun.d=n.getDate(); sun.timeMin=Math.min(1430, Math.round((n.getHours()*60+n.getMinutes())/10)*10); })();
+(function _sunInitDate(){ const n=new Date(); sun.y=n.getFullYear(); sun.mo=n.getMonth()+1; sun.d=n.getDate(); })();
 
 // 選択中の現地壁時計時刻 → 絶対 Date(UTC基準) を構築
 function _sunDate(){
@@ -766,4 +766,3 @@ window.sunSetNow = function(){
   sun.timeMin=Math.min(1430, Math.round((n.getHours()*60+n.getMinutes())/10)*10);
   _sunSyncForm(); updateSunMode();
 };
-

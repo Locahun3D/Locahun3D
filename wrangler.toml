@@ -21,7 +21,9 @@ binding = "ASSETS"
 # Spark モジュールは worker.js の handleVendorAsset で CORS を付けて返す必要がある
 # （別オリジン=file:// のダウンロード版から import させるため）。該当パスだけ Worker
 # を先に通す。他の静的アセットは従来どおり直接配信のまま。
-run_worker_first = ["/vendor/*"]
+# Public figure GLB also needs CORS for file-origin update frames.
+# The Worker allowlists the model; other figures do not gain CORS.
+run_worker_first = ["/vendor/*", "/releases/*", "/figures/*", "/collision", "/collision/*"]
 
 # デモRAD(交差点)を配信するためのR2バインディング。
 # worker.js の /api/demo-asset/ が ALLOWED_KEYS のオブジェクトだけを

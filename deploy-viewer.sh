@@ -26,7 +26,11 @@ cp -r "$DIR/figures/"                      "$DIST/figures/"
 # vendored Spark（ワーカープールパッチ+差分トラバース版）— importmap がここを指す。
 # 由来と更新手順は vendor/README.md 参照。
 mkdir -p "$DIST/vendor"
-cp "$DIR/vendor/spark-2.0.0-workers16-incrtraverse.module.js" "$DIST/vendor/"
+# Includes spark-2.0.0-workers16-incrtraverse-heap319-v1.module.js and retained old URL.
+node "$DIR/scripts/perf-release-assets.mjs" --copy "$DIR" "$DIST"
+
+# Append immutable releases; never clear this directory during deployment preparation.
+node "$DIR/scripts/prepare-viewer-release.mjs" --viewer "$DIR/Locahun3D_OfflineViewer.html" --out "$DIST/releases"
 
 echo "=== Deploying to Cloudflare ==="
 cd "$DIR"

@@ -46,4 +46,3 @@ let fov = 90;
 let camSpeed = isMobile ? 3 : 5;
 
 const clock = new THREE.Clock();
-

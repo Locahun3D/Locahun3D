@@ -311,6 +311,40 @@ const MIXAMO_BONE_ALIASES = {
 };
 
 let _mixamoCache = null;
+let _mixamoPending = null;
+async function _fetchOptionalModelBytes(asset){
+  if(asset?.version!==1||typeof asset.url!=='string'||!asset.url||
+     !/^[a-f0-9]{64}$/.test(asset.sha256)||!Number.isSafeInteger(asset.bytes)||asset.bytes<=0||asset.bytes>2*1024*1024)
+    throw new Error('Invalid optional model descriptor');
+  const controller=new AbortController();
+  const timer=setTimeout(()=>controller.abort(),15000);
+  try{
+    const response=await fetch(asset.url,{signal:controller.signal});
+    if(!response.ok)throw new Error('Optional model download failed: '+response.status);
+    const encoding=response.headers.get('content-encoding');
+    const length=response.headers.get('content-length');
+    if((!encoding||encoding==='identity')&&/^\d+$/.test(length||'')&&Number(length)>asset.bytes){
+      controller.abort();await response.body?.cancel();throw new Error('Optional model size mismatch');
+    }
+    const reader=response.body?.getReader();
+    if(!reader)throw new Error('Optional model streaming unavailable');
+    const data=new Uint8Array(asset.bytes);let total=0;
+    try{
+      while(true){
+        const {value,done}=await reader.read();if(done)break;
+        if(total+value.byteLength>asset.bytes)throw new Error('Optional model size mismatch');
+        data.set(value,total);total+=value.byteLength;
+      }
+      if(total!==asset.bytes)throw new Error('Optional model size mismatch');
+    }catch(error){controller.abort();reader.cancel().catch(()=>{});throw error;}
+    finally{reader.releaseLock();}
+    const bytes=data.buffer;
+    const hash=[...new Uint8Array(await crypto.subtle.digest('SHA-256',bytes))].map(v=>v.toString(16).padStart(2,'0')).join('');
+    if(hash!==asset.sha256)throw new Error('Optional model digest mismatch');
+    return bytes;
+  }catch(error){controller.abort();throw error;}
+  finally{clearTimeout(timer);}
+}
 function _b64ToArrayBuffer(b64){
   const bin = atob(b64);
   const len = bin.length;
@@ -320,12 +354,24 @@ function _b64ToArrayBuffer(b64){
 }
 async function _fetchMixamoGLB(){
   if(_mixamoCache) return _mixamoCache;
+  if(_mixamoPending) return _mixamoPending;
+  _mixamoPending=_loadMixamoGLB();
+  try{return await _mixamoPending;}
+  finally{_mixamoPending=null;}
+}
+async function _loadMixamoGLB(){
   const Cls = await _addonLoader('GLTFLoader');
   if(!Cls) throw new Error('GLTFLoader unavailable (offline addon CDN)');
   if(window.MIXAMO_GLB_B64){
     const buf = _b64ToArrayBuffer(window.MIXAMO_GLB_B64);
     const loader = new Cls();
     _mixamoCache = await new Promise((res,rej)=> loader.parse(buf,'',res,rej));
+    return _mixamoCache;
+  }
+  if(window.MIXAMO_GLB_ASSET){
+    const buf=await _fetchOptionalModelBytes(window.MIXAMO_GLB_ASSET);
+    const loader=new Cls();
+    _mixamoCache=await new Promise((res,rej)=>loader.parse(buf,'',res,rej));
     return _mixamoCache;
   }
   const loader = new Cls();
@@ -453,7 +499,7 @@ async function _buildMixamoFigure(heightCm, opts){
   // Visible bone wireframe (THREE.SkeletonHelper picks up bone matrices automatically)
   let skinned = null;
   cloned.traverse(o=>{ if(!skinned && o.isSkinnedMesh) skinned = o; });
-  if(skinned){
+  if(skinned && !opts.preview){
     const helper = new THREE.SkeletonHelper(skinned);
     helper.material.color.setHex(0xff8844);
     helper.material.depthTest = false;
@@ -468,7 +514,7 @@ async function _buildMixamoFigure(heightCm, opts){
   // world position to its bone's world position. World-space radius (~3 cm) so
   // markers always look the same regardless of figure height.
   const figureMarkers = [];
-  for(const [logical, b] of Object.entries(bones)){
+  for(const [logical, b] of opts.preview?[]:Object.entries(bones)){
     const mat = new THREE.MeshBasicMaterial({
       color: 0xff8844, depthTest: false, depthWrite: false, transparent: true, opacity: 1,
     });
@@ -482,7 +528,7 @@ async function _buildMixamoFigure(heightCm, opts){
     mk.renderOrder = 9999;
     figureMarkers.push(mk);
   }
-  _ensureFigureLighting();
+  if(!opts.preview) _ensureFigureLighting();
   return { root, rig, bones, source:'mixamo', figureMarkers };
 }
 
@@ -594,4 +640,3 @@ window.setFigureHeight = function(layerId, cm){
   }
   markDirty(8);
 };
-

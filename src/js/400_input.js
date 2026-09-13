@@ -18,6 +18,7 @@ function _isTypingInInput(){
 }
 
 window.addEventListener('keydown',e=>{
+  if(typeof _cancelClickNavigation==='function')_cancelClickNavigation();
   // Ctrl+Z / Cmd+Z and Ctrl+Y / Cmd+Y must work everywhere — including while focused
   // in adjustment-tool inputs. Blur the input first so the global stack reflects the
   // committed value, then run the undo/redo.
@@ -169,8 +170,14 @@ window.addEventListener('keyup',e=>{
 // blur (which won't get a keyup) don't leave the camera flying when focus
 // returns.
 window.addEventListener('blur', ()=>{
+  if(typeof _cancelClickNavigation==='function')_cancelClickNavigation();
   for(const k of Object.keys(keys)) keys[k] = false;
   joyDX = 0; joyDY = 0;
+  // Mouseup may occur outside the window, especially without pointer lock.
+  dragOn = false;
+  if(document.pointerLockElement === canvas && document.exitPointerLock){
+    try { document.exitPointerLock(); } catch(_e){}
+  }
 });
 
 // ── Mouse: left-drag = look/marker; right-hold = placement preview ──
@@ -179,6 +186,7 @@ window.addEventListener('blur', ()=>{
 //   • RIGHT drag  = rotate the camera (when measure mode is OFF).
 //   • RIGHT hold  = measurement preview (when measure mode is ON).
 canvas.addEventListener('mousedown',e=>{
+  if(typeof _clickPointerStart==='function'&&!_clickPointerStart('mouse',e))return;
   // Any click on the viewport (left or right) ends "typing mode" by blurring the
   // active text input. This way memo fields don't keep eating shortcuts.
   const _ae = document.activeElement;
@@ -285,9 +293,11 @@ canvas.addEventListener('mousedown',e=>{
     }
     // Outside measure mode: plain left click = selection candidate
     _clickStartX=e.clientX; _clickStartY=e.clientY;
+    if(typeof _clickPointerArm==='function')_clickPointerArm('mouse',e);
   }
 });
 window.addEventListener('mouseup',e=>{
+  const navigationTap=typeof _clickPointerTake==='function'?_clickPointerTake('mouse',e):null;
   // パス編集ハンドルのドラッグ終了
   if(_pathDragH>=0){ _pathDragH=-1; if(typeof markDirty==='function') markDirty(6); return; }
   // パス配置: 左クリックを離したら、探っていた位置に点を確定（右は視点回転へ）
@@ -316,8 +326,11 @@ window.addEventListener('mouseup',e=>{
     } else if(!msr.active){
       // Click-to-select: mouse barely moved → it's a single click
       const dx=e.clientX-_clickStartX, dy=e.clientY-_clickStartY;
-      if(!lpv.dragging && Math.hypot(dx,dy)<5){
-        _trySelectByClick(e.clientX, e.clientY);
+      if(!lpv.dragging && (navigationTap?.held||Math.hypot(dx,dy)<5)){
+        if(typeof _clickPointerTake!=='function'||navigationTap){
+          const consumed=_trySelectByClick(e.clientX,e.clientY);
+          if(!consumed&&navigationTap)_clickNavigateAt(navigationTap.x,navigationTap.y);
+        }
       }
     }
   }
@@ -327,6 +340,7 @@ window.addEventListener('mouseup',e=>{
   msr.dragging=null; msr.axisDragging=null; markDirty(6);
 });
 window.addEventListener('mousemove',e=>{
+  if(typeof _clickPointerMove==='function'&&_clickPointerMove('mouse',e))return;
   // -- Event panel hover (v26: replaced viewport glow with panel highlight) --
   if(!msr.active && !dragOn && !lpv.dragging) updateEventPanelHover(e.clientX, e.clientY);
   // ── Bone marker / IK handle hover (highlight + pointer cursor) ──
