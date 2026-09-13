@@ -4,7 +4,7 @@ import assert from 'node:assert/strict';
 import {createHash} from 'node:crypto';
 const root='C:/Users/askgg/Dropbox/KWI/Products/Locahun3D';
 const source=new URL('../Locahun3D_OfflineViewer.html',import.meta.url);
-const known='1a8ac25c58c2db336c747889eb58e5f6d0312471e747f4c181f26c92144ef393';
+const known='7cb737e005bf97c92e82811b472c840e21f270c1023a5e42884eb934ca397f08';
 const hash=bytes=>createHash('sha256').update(bytes).digest('hex');
 const bytes=await fs.readFile(source),expected=hash(bytes);
 const response=await fetch('https://viewer.locahun3d.com/releases/stable.json',{cache:'no-store'});assert(response.ok);

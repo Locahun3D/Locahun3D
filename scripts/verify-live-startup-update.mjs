@@ -47,5 +47,6 @@ try{
 }catch(error){
  await page.screenshot({path:'F:/Codex/locahun-walk/verification/live-startup-update-failure.png'});
  const check=await page.evaluate(async()=>{const r=await LocahunViewerUpdate.check({currentRelease:'diagnostic',timeoutMs:20000});return {reason:r.reason,release:r.release,length:r.html?.length,frames:document.querySelectorAll('iframe').length};});
- console.log({diagnostics,check});throw error;
+ console.log({diagnostics,check,expectedRelease:manifest.release,activeRelease:await page.evaluate(()=>window.__locahunActiveRelease),
+  frames:await page.locator('iframe').evaluateAll(frames=>frames.map(f=>({release:f.dataset.release,visible:f.style.visibility})))});throw error;
 }finally{await browser.close();}

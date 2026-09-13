@@ -17,7 +17,14 @@ click/hold/touch, corrupt payload and changed-source checks pass; browsererrors[
 The preceding run's three-region-after screenshot was inspected. Original
 project bytes unchanged; no scene writes. Rendering code/settings unchanged.
 
-Publication is pending. Physical iPad validation, original unsaved-project
+Published: source03487cc, Worker1673ac02-19b7-4722-afe6-7edbf617dae0,
+onlinecf5f4e4 Actions34751160048 success. Public HTML hashes match both builds;
+real file startup passes. Dropbox10HTML synchronized with18267 other file
+metadata records unchanged. Demo baseline/current p50both17.7ms andp9518.4/18.5ms
+on this desktopChrome run, same budgets and no new regional fetches. This is
+not a performance guarantee for physical iOS devices.
+
+Physical iPad validation, original unsaved-project
 application and MeetingRoom scale confirmation are not covered by these tests.
 
 Authoring-only extension:2-4 regions can now generate physically verified pair

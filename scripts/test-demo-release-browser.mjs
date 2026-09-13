@@ -8,6 +8,8 @@ const {chromium}=require('playwright');
 const url='https://viewer.locahun3d.com/Locahun3D_OfflineViewer?demo=1&showcase=1';
 const out='F:/Codex/locahun-navigation-20260913/demo-release-'+Date.now();await fs.mkdir(out);
 const response=await fetch(url);assert(response.ok);const published=await response.text();
+const baselineArg=process.argv.indexOf('--baseline');
+const baseline=baselineArg<0?null:await fs.readFile(process.argv[baselineArg+1],'utf8');
 const candidate=await fs.readFile(new URL('../Locahun3D_OfflineViewer.online.html',import.meta.url),'utf8');
 const hook=`
 window.demoReleaseQA={
@@ -23,7 +25,7 @@ window.demoReleaseQA={
 const results=[];let browser;
 const timer=setTimeout(()=>browser?.close(),180000);
 try{
- for(const [arm,source] of [['published',published],['candidate',candidate]]){
+ for(const [arm,source] of [baseline?['baseline',baseline]:['published',published],['candidate',candidate]]){
   const at=source.lastIndexOf('</script>');assert(at>0);
   const html=source.slice(0,at)+hook+source.slice(at),record={arm,sha256:createHash('sha256').update(source).digest('hex'),errors:[],requests:[]};results.push(record);
   browser=await chromium.launch({channel:'chrome',headless:true});
