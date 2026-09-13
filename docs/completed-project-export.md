@@ -33,7 +33,28 @@ rebaking collision, with no page errors. The original source remains draft revis
 
 ## Remaining Workflow Integration
 
-Next: persist export receipts and retry only failed stages; bind upload/attachment
+## Repeatable Export Job
+
+```powershell
+node scripts/completed-export-job.mjs --root "LOCAL_PROJECT_FOLDER" --jobs "EXISTING_JOB_DIRECTORY"
+```
+
+The job directory must be outside the local project. Drafts return waiting_for_edit
+without producing an archive. A completed revision and its source hashes identify
+one immutable result directory containing project.zip and receipt.json. Repeated
+runs verify the archive hash, receipt binding and current source/navigation before
+reusing it. Incomplete private stages are not published; ordinary failures clean
+their own stage and may be retried. A hard process crash can leave a private
+.pending-export directory; it is not a completed result and is never reused.
+Concurrent successful attempts converge on one result. Corrupted completed outputs
+are rejected and preserved for inspection, not silently overwritten.
+
+Actual 2F QA-copy job 1aa36c45ee97ccde7ec0feef09ae9d679b97113ec0b7260effa3ca3f845fabc4
+was created then reused, with archive SHA
+d435868fd406615c1d94c61c36d774a512aed451c937c52a0a5c97955124838f.
+This is the resumable export stage only, not an upload or listing job.
+
+Next: bind upload/attachment
 to the correct property and scene; verify retrieval and preview. The listing facts
 ledger and recipient confirmation pack are separate unfinished steps in the Sep9
 workflow plan. Do not describe these as implemented merely because export works.
