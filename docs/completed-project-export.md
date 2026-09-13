@@ -1,5 +1,20 @@
 # Completed Project Export
 
+## Browser operator entry
+
+Online `/admin/workflow` provides admin-only draft destination selection and explicit
+project.zip/receipt.json transfer. It connects normal Clerk SDK renewal, incremental
+Worker hashing, exact target resolution, write-once upload, downloaded-byte checks
+and attachment readback. Only non-secret actor/source/destination-bound retry
+metadata is retained. Selecting files does not upload; the transfer button does.
+No source project editing, owner approval, publication or sharing is performed.
+
+The complete panel passed an isolated Chrome fixture at1440/820/390 widths,
+including retry, corrupt download, CORS rejection and cancellation. This does NOT
+establish live authenticated R2 transfer success. See online
+`docs/workflow-operator-review.md` for evidence and limitations. Another physical
+PC and authorized isolated live transfer remain unverified.
+
 ## Portable completion package (2026-09-14)
 
 ```powershell
@@ -72,8 +87,9 @@ Alternatively supply only propertyId and sceneId: the authenticated `target` act
 resolves the exact current draft scene before reserve. It does not search by name,
 create a scene or write data. Missing/duplicate IDs and inconsistent row timestamps
 are rejected. A full supplied snapshot is never silently refreshed; reserve still
-rejects intervening edits. The operator must select the correct IDs; this does not
-yet provide an authenticated selection UI or obtain a session automatically.
+rejects intervening edits. This desktop CLI still requires correct operator-selected
+IDs and a supplied session provider. The browser entry above has its own normal
+authenticated selection/session flow; it does not give browser sessions to the CLI.
 The first two-ID resolution is stored with the verified export job, scoped to the
 application origin and exact IDs. Retries reuse that snapshot even after successful
 attachment changes the online timestamp; they do not allocate a second upload.
