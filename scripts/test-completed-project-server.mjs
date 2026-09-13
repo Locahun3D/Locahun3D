@@ -1,0 +1,27 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import fs from 'node:fs/promises';
+import path from 'node:path';
+import os from 'node:os';
+import {startCompletedProjectServer} from './completed-project-server.mjs';
+test('human saves editing complete and a verified export is produced without manual ZIP work',async t=>{
+ const base=await fs.mkdtemp(path.join(os.tmpdir(),'completed-server-'));
+ let server;
+ t.after(async()=>{await server?.close();assert.equal(path.dirname(base),path.resolve(os.tmpdir()));await fs.rm(base,{recursive:true,force:true});});
+ const root=path.join(base,'source'),jobs=path.join(base,'jobs');
+ await fs.mkdir(path.join(root,'assets'),{recursive:true});await fs.mkdir(path.join(root,'history'));await fs.mkdir(jobs);
+ await fs.writeFile(path.join(root,'viewer.html'),'<!doctype html><title>Fixture</title>');
+ await fs.writeFile(path.join(root,'assets/a.rad'),'source');
+ const state={revision:0,status:'draft',project:{version:4,layers:[{id:1,type:'splat',file:'assets/a.rad'}]}};
+ await fs.writeFile(path.join(root,'project-state.json'),JSON.stringify(state));
+ server=await startCompletedProjectServer({root,jobs,autoUpdate:false});
+ assert.deepEqual(await fs.readdir(jobs),[]);
+ const response=await fetch(new URL('api/project',server.url),{method:'POST',headers:{Origin:new URL(server.url).origin,'Content-Type':'application/json'},body:JSON.stringify({...state,status:'editing_complete'})});
+ assert.equal(response.status,200);await server.whenCompleted();
+ assert.equal((await (await fetch(new URL('api/completion',server.url))).json()).status,'completed');
+ const entries=await fs.readdir(jobs);assert.equal(entries.length,1);
+ const receipt=JSON.parse(await fs.readFile(path.join(jobs,entries[0],'receipt.json')));
+ assert.equal(receipt.roundtripVerified,true);assert.equal(receipt.input.revision,1);
+ await server.close();server=await startCompletedProjectServer({root,jobs,autoUpdate:false});await server.whenCompleted();
+ assert.deepEqual(await fs.readdir(jobs),entries);
+});

@@ -1,5 +1,54 @@
 # Completed Project Export
 
+## Connected Workflow (2026-09-14)
+
+The HTTP adapter and completion-triggered export below supersede the historical
+"not connected" notes later in this document. They do not approve or publish data.
+
+```powershell
+node scripts/completed-project-server.mjs --root "LOCAL_PROJECT_FOLDER" --jobs "EXISTING_EXPORT_DIRECTORY"
+```
+
+The human opens the printed local viewer URL, edits, saves and chooses Editing
+Complete. Saving returns immediately. A separate completion queue exports the
+saved revision and verifies the ZIP; normal saves are not blocked by that work.
+The newest queued completed revision supersedes older queued revisions. On restart,
+a completed saved revision is checked and its matching verified export is reused.
+The token-protected local `api/completion` reports idle/running/completed/failed/
+superseded without exposing credentials or signed URLs. Failed exports do not undo
+the saved project. This canonical launcher requires this repository's dependencies;
+the old portable Start script does not enable the completion handler automatically.
+
+`upload-completed-project.mjs` is the administrative HTTP client:
+
+```powershell
+node scripts/upload-completed-project.mjs --root "LOCAL_PROJECT_FOLDER" --jobs "EXISTING_EXPORT_DIRECTORY" --target "TARGET_JSON" --storage-origin "TRUSTED_R2_ORIGIN"
+```
+
+TARGET_JSON contains propertyId, sceneId, expectedUpdatedAt and previousUrl only.
+The short-lived administrative session comes from LOCAHUN_ADMIN_SESSION, never
+from a project or exported archive. Programmatic callers can pass an async token
+provider, refreshed on each admin request, for uploads longer than a session token's
+lifetime. The storage origin is trusted configuration, not copied from a response.
+
+The client reuses the verified export, reserves one source/actor/target-bound asset,
+streams a write-once MD5-checked PUT, downloads and streams SHA-256 verification,
+rechecks the local source, then attaches to exactly one draft scene and checks the
+returned identity. A lost response can be retried with the same target binding.
+Storage requests never carry the administrative token and never follow redirects.
+The server checks stored size/MD5; SHA-256 is attested by the authenticated client,
+not recomputed in the Worker. It does not publish the property or issue share links.
+
+Online implementation: `/api/admin/workflow`, migration0018. Released as 8a04e17,
+Actions34774792815 succeeded. Unauthenticated production requests redirect to sign-in.
+Authenticated GET readiness inspection in Chrome was blocked with ERR_BLOCKED_BY_CLIENT;
+no successful live authenticated transfer or attachment is claimed. Existing QA
+exports have not been attached to actual listings. Original 2FStudio is still draft.
+
+Actual 2F QA-copy completion startup reports completed/revision2 and reuses the
+existing verified export. HTTP-stream, source-change, digest, origin, retry, SQLite
+route and signing tests pass. No viewer rendering changes were made.
+
 The local editing workflow now has a data-only export step. Humans keep editing
 the local folder and use Save / Editing Complete; they do not need to rebuild ZIPs.
 The AI workflow invokes this tool after observing a saved `editing_complete` revision:

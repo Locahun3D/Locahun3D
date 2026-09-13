@@ -157,7 +157,8 @@ export async function reuseLocalProjectServer({root}) {
   } finally { await guard.close(); await fs.unlink(guardPath); }
 }
 
-export async function startLocalProjectServer({root, port = 0, token = randomBytes(24).toString('hex'), autoUpdate = false, updateFetch} = {}) {
+export async function startLocalProjectServer({root, port = 0, token = randomBytes(24).toString('hex'), autoUpdate = false, updateFetch, onCompleted} = {}) {
+  if(onCompleted!==undefined&&typeof onCompleted!=='function')throw new Error('Invalid completion handler.');
   if (typeof root !== 'string' || !root || !Number.isInteger(port) || port < 0 || port > 65535 ||
       typeof token !== 'string' || !/^[A-Za-z0-9_-]{16,128}$/.test(token)) throw new Error('Invalid root, port or token (16-128 URL-safe characters).');
   const requestedRoot = path.resolve(root);
@@ -212,6 +213,26 @@ export async function startLocalProjectServer({root, port = 0, token = randomByt
     await lock.writeFile(JSON.stringify({pid: process.pid, root: directory}));
     const initialEnvelope=parseJson(await readSmall('project-state.json'));
     await validateAssets(initialEnvelope);
+    let completion={status:onCompleted?'idle':'disabled',revision:null};
+    let pendingCompletion=null,completionWorker=null;
+    function scheduleCompletion(envelope){
+      if(!onCompleted||envelope.status!=='editing_complete')return;
+      pendingCompletion=envelope.revision;
+      if(completionWorker)return;
+      completionWorker=(async()=>{
+        while(pendingCompletion!==null){
+          const revision=pendingCompletion;pendingCompletion=null;
+          completion={status:'running',revision};
+          try {
+            const current=parseJson(await readSmall('project-state.json'));
+            if(current.revision!==revision||current.status!=='editing_complete'){completion={status:'superseded',revision};continue;}
+            await onCompleted({root:directory,revision});
+            const latest=parseJson(await readSmall('project-state.json'));
+            completion={status:latest.revision===revision&&latest.status==='editing_complete'?'completed':'superseded',revision};
+          }catch{completion={status:'failed',revision};}
+        }
+      })().finally(()=>{completionWorker=null;});
+    }
     let currentRelease;
     if(autoUpdate && viewer.stat.size<=64*1024**2) {
       const bundled=await openSafe('viewer.html');
@@ -366,6 +387,7 @@ export async function startLocalProjectServer({root, port = 0, token = randomByt
         return serveFile(req, res, 'viewer.html', true);
       }
       if (pathname === 'api/health' && !query && req.method === 'GET') return sendJson(res, 200, {pid: process.pid, root: directory});
+      if (pathname === 'api/completion' && !query && req.method === 'GET') return sendJson(res,200,completion);
       if (pathname === 'api/project' && !query) {
         if (req.method === 'GET') return sendJson(res, 200, parseJson(await readSmall('project-state.json')));
         if (req.method !== 'POST') fail(405, 'Method not allowed.');
@@ -373,7 +395,10 @@ export async function startLocalProjectServer({root, port = 0, token = randomByt
         const envelope = parseJson(await readBody(req)); validateEnvelope(envelope);
         const saving = queue.then(() => save(envelope));
         queue = saving.catch(() => {});
-        return sendJson(res, 200, await saving);
+        const saved=await saving;
+        sendJson(res,200,saved);
+        scheduleCompletion(saved);
+        return;
       }
       if (pathname === 'api/assets' && req.method === 'POST') {
         const params = new URLSearchParams(query);
@@ -399,11 +424,12 @@ export async function startLocalProjectServer({root, port = 0, token = randomByt
     const url = `${origin}/${token}/?localProject=1`;
     const lockBytes = Buffer.from(JSON.stringify({pid: process.pid, root: directory, url}));
     await lock.write(lockBytes, 0, lockBytes.length, 0); await lock.truncate(lockBytes.length); await lock.sync();
-    return {server, url, close() {
+    scheduleCompletion(initialEnvelope);
+    return {server, url, whenCompleted:()=>completionWorker||Promise.resolve(), close() {
       if (!closePromise) closePromise = (async () => {
         const closed = new Promise((resolve, reject) => server.close(error => error ? reject(error) : resolve()));
         server.closeAllConnections();
-        await closed; await Promise.allSettled([...active]); await queue;
+        await closed; await Promise.allSettled([...active]); await queue; await completionWorker;
         await unlock();
       })();
       return closePromise;

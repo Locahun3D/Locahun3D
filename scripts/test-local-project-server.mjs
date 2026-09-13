@@ -13,7 +13,7 @@ import {fileURLToPath} from 'node:url';
 import {startLocalProjectServer} from './local-project-server.mjs';
 import * as localServer from './local-project-server.mjs';
 
-async function setup(t) {
+async function setup(t, options = {}) {
   const root = await fs.mkdtemp(path.join(os.tmpdir(), 'local-project-test-'));
   let running;
   t.after(async () => {
@@ -29,7 +29,7 @@ async function setup(t) {
   const project = {version: 4, layers: [{id: 1, type: 'splat', file: 'assets/input.rad'}], camera: {pos: {x: 0, y: 1, z: 2}}};
   const initial = {revision: 0, status: 'draft', project};
   await fs.writeFile(path.join(root, 'project-state.json'), JSON.stringify(initial));
-  running = await startLocalProjectServer({root});
+  running = await startLocalProjectServer({root, ...options});
   const origin = new URL(running.url).origin;
   const request = (route, options = {}) => fetch(new URL(route, running.url), options);
   const post = (envelope, options = {}) => request('api/project', {method: 'POST',
@@ -37,6 +37,33 @@ async function setup(t) {
     body: JSON.stringify(envelope)});
   return {root, project, initial, running, origin, request, post};
 }
+
+test('completion hook runs after persistence without delaying save or blocking later drafts', async t => {
+ let release, started;
+ const began=new Promise(resolve=>{started=resolve;});
+ const barrier=new Promise(resolve=>{release=resolve;});
+ const events=[];
+ t.after(()=>release());
+ const f=await setup(t,{onCompleted:async event=>{events.push(event);started();await barrier;return {status:'exported'};}});
+ assert.equal(typeof f.running.whenCompleted,'function');
+ const saved=await (await f.post({...f.initial,status:'editing_complete'})).json();
+ await began;
+ assert.equal(events[0].revision,saved.revision);
+ assert.equal(JSON.parse(await fs.readFile(path.join(f.root,'project-state.json'))).status,'editing_complete');
+ assert.equal((await f.request('api/completion')).status,200);
+ assert.equal((await (await f.request('api/completion')).json()).status,'running');
+ assert.equal((await f.post({...saved,status:'draft'})).status,200);
+ release();await f.running.whenCompleted();
+ assert.equal(events.length,1);
+});
+test('completion hook errors never undo a saved project and are observable',async t=>{
+ const f=await setup(t,{onCompleted:async()=>{throw Error('private signed URL must not leak');}});
+ assert.equal((await f.post({...f.initial,status:'editing_complete'})).status,200);
+ await f.running.whenCompleted();
+ const state=await (await f.request('api/completion')).json();
+ assert.deepEqual(state,{status:'failed',revision:1});
+ assert.equal(JSON.parse(await fs.readFile(path.join(f.root,'project-state.json'))).status,'editing_complete');
+});
 
 test('navigation sidecars are read-only hash-named and bounded',async t=>{
  const f=await setup(t),name='ab'.repeat(32);
