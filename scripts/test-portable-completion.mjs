@@ -1,0 +1,44 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import fs from 'node:fs/promises';
+import os from 'node:os';
+import path from 'node:path';
+import {spawn} from 'node:child_process';
+import {once} from 'node:events';
+import {loadZipLibrary} from './prepare-local-project.mjs';
+import {preparePortableCompletion} from './prepare-portable-completion.mjs';
+
+test('relocated portable package exports a human-completed save without canonical dependencies', {timeout:120000}, async t=>{
+ const base=await fs.mkdtemp(path.join(os.tmpdir(),'portable-completion-'));
+ let child;
+ t.after(async()=>{if(child&&child.exitCode===null){child.kill();await once(child,'exit');}assert.equal(path.dirname(base),path.resolve(os.tmpdir()));await fs.rm(base,{recursive:true,force:true});});
+ const ZIP=loadZipLibrary(),zip=new ZIP();
+ zip.file('project.json',JSON.stringify({version:4,layers:[{id:1,type:'splat',file:'a.rad'}]}));zip.file('a.rad','unchanged-source');
+ const source=path.join(base,'source.zip');await fs.writeFile(source,await zip.generateAsync({type:'nodebuffer'}));
+ const original=await fs.readFile(source),out=path.join(base,'bundle');
+ await preparePortableCompletion({zip:source,out});
+ await assert.rejects(preparePortableCompletion({zip:source,out}),/exists/i);
+ const moved=path.join(base,'relocated package');await fs.cp(out,moved,{recursive:true,errorOnExist:true,force:false});
+ assert.equal(path.dirname(out),base);await fs.rm(out,{recursive:true,force:true});
+ const launch=await fs.readFile(path.join(moved,'Start_AutoExport.cmd'),'utf8');
+ assert.match(launch,/%~dp0/);assert.doesNotMatch(launch,/F:|askgg|SESSION/i);
+ const script=`import {startCompletedProjectServer} from './tools/scripts/completed-project-server.mjs';const s=await startCompletedProjectServer({root:'Project',jobs:'Exports',autoUpdate:false});console.log(s.url);process.on('SIGTERM',async()=>{await s.close();process.exit();});`;
+ child=spawn(path.join(moved,'Project/runtime/node.exe'),['--input-type=module','-e',script],{cwd:moved,env:{...process.env,USERPROFILE:base,HOME:base,NODE_PATH:'',LOCAHUN_ADMIN_SESSION:''},stdio:['ignore','pipe','pipe']});
+ let err='';child.stderr.on('data',b=>err+=b);
+ const url=await new Promise((resolve,reject)=>{let output='';child.stdout.on('data',b=>{output+=b;if(output.includes('\n'))resolve(output.trim());});child.once('exit',code=>reject(Error(`Child ${code}: ${err}`)));});
+ assert.deepEqual(await fs.readdir(path.join(moved,'Exports')),[]);
+ const state=JSON.parse(await fs.readFile(path.join(moved,'Project/project-state.json')));
+ assert.equal(state.status,'draft');
+ const response=await fetch(new URL('api/project',url),{method:'POST',headers:{Origin:new URL(url).origin,'Content-Type':'application/json'},body:JSON.stringify({...state,status:'editing_complete'})});assert.equal(response.status,200);
+ let completion;
+ for(let i=0;i<200;i++){completion=await (await fetch(new URL('api/completion',url))).json();if(['completed','failed'].includes(completion.status))break;await new Promise(r=>setTimeout(r,100));}
+ assert.equal(completion.status,'completed',JSON.stringify(completion)+err);
+ const entries=await fs.readdir(path.join(moved,'Exports'));assert.equal(entries.length,1);
+ const receipt=JSON.parse(await fs.readFile(path.join(moved,'Exports',entries[0],'receipt.json')));assert.equal(receipt.roundtripVerified,true);assert.equal(receipt.input.revision,1);
+ const archive=await fs.readFile(path.join(moved,'Exports',entries[0],'project.zip'));
+ const unpacked=await ZIP.loadAsync(archive);const project=JSON.parse(await unpacked.file('project.json').async('string'));
+ assert.equal(await unpacked.file(project.layers[0].file).async('string'),'unchanged-source');
+ assert.deepEqual(await fs.readFile(source),original);
+ assert.ok((await fs.stat(path.join(moved,'tools/node_modules/jszip/LICENSE.markdown'))).isFile());
+ assert.ok((await fs.stat(path.join(moved,'Project/runtime/LICENSE'))).isFile());
+});

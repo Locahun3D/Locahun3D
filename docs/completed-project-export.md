@@ -1,5 +1,28 @@
 # Completed Project Export
 
+## Portable completion package (2026-09-14)
+
+```powershell
+node scripts/prepare-portable-completion.mjs --zip "SOURCE.zip" --out "NEW_BUNDLE_DIRECTORY"
+```
+
+Builds a new Windows x64 bundle without modifying the input ZIP or existing projects.
+Open its `Start_AutoExport.cmd`; retain the complete folder when moving PCs.
+`Project` holds editable data, `Exports` receives verified completed revisions, and
+`tools` contains the exporter, navigation codecs, JSZip and its dependency closure.
+Node and third-party licenses are included. Build requires Windows x64 Node24+.
+The old launcher inside Project remains unchanged and does not auto-export.
+No session, online scene mapping or upload authorization is included.
+Viewer external dependencies still mean this is not a fully offline viewer.
+
+Test: a synthetic package is copied to a path containing spaces, the original
+package removed, and the bundled Node starts the server there with an isolated
+home directory. Draft produces no export; an actual HTTP editing-complete save
+produces a verified archive whose embedded source bytes match. Input ZIP is
+unchanged. The Windows double-click launcher itself and another physical PC have
+not yet been exercised. Failed builds retain only the new incomplete directory
+for inspection; do not use incomplete output. Original 2FStudio is not repackaged.
+
 ## Connected Workflow (2026-09-14)
 
 On this PC, original 2FStudio now also contains `Start_AutoExport.cmd`. It uses the
