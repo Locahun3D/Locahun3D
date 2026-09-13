@@ -28,6 +28,10 @@ The certified real studio transition roundtrips in 496 bytes. Changed payloads,
 unknown region keys, corruption and cross-floor pairs reject. This codec is not
 yet wired into the viewer, project manifest, ZIP or local-server graph delivery.
 
+The codec is now shared with a browser candidate module (not in the template).
+Node and actual Chrome WebCrypto decode the same 496-byte studio graph and
+reject corruption. Hashing owns input snapshots to avoid asynchronous mutation.
+
 ## Scope
 
 Continue a click journey through adjacent precomputed regions, including stairs,

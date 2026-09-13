@@ -53,7 +53,7 @@ if(process.argv.includes('--studio'))test('real studio independently generated o
   const boxes=selectNavigationRegionBoxes([...index.tiles.values()].flatMap(t=>index.boxes(t)),[[5.5,-10,-8],[9,30,24]]);
   const require=createRequire(new URL('../../locahun3d_online/package.json',import.meta.url)),{chromium}=require('playwright');
   let html=fs.readFileSync(new URL('../Locahun3D_OfflineViewer.html',import.meta.url),'utf8');
-  const hook=`window.verifySeam=async({boxes,candidates})=>{
+  const hook=fs.readFileSync(new URL('../src/js/403n_navigation_transition_graph.js',import.meta.url),'utf8')+`window.verifySeam=async({boxes,candidates})=>{
    const verify=${verifyTransitionClearance.toString()},core=await LocahunWalkCollision.create();
    try{core.rebuild({boxes});const accepted=candidates.filter(p=>verify(p,core));
     if(!accepted.length)return {accepted:0};
@@ -112,8 +112,16 @@ if(process.argv.includes('--studio'))test('real studio independently generated o
      assert.equal(verified?.status,'verified-route');
      const {encodeTransitionGraph,decodeTransitionGraph}=await import('./navigation-transition-graph.mjs');
      const manifest={...manifests[0],regions:manifests.flatMap(m=>m.regions)};
-     const packed=encodeTransitionGraph(manifest,[{a:{key:verified.keys[0],point:verified.transition.a},b:{key:verified.keys[1],point:verified.transition.b}}]);
-     assert.equal(decodeTransitionGraph(packed.bytes,packed.entry,manifest).portals.length,1);
+     const packed=await encodeTransitionGraph(manifest,[{a:{key:verified.keys[0],point:verified.transition.a},b:{key:verified.keys[1],point:verified.transition.b}}]);
+     assert.equal((await decodeTransitionGraph(packed.bytes,packed.entry,manifest)).portals.length,1);
+     const browserGraph=await page.evaluate(async({bytes,entry,manifest})=>{
+      const codec=LocahunTransitionGraph.create(async bytes=>Array.from(new Uint8Array(await crypto.subtle.digest('SHA-256',bytes)),v=>v.toString(16).padStart(2,'0')).join(''));
+      const graph=await codec.decode(new Uint8Array(bytes),entry,manifest);
+      const corrupt=new Uint8Array(bytes);corrupt[0]^=1;let rejected=false;
+      try{await codec.decode(corrupt,entry,manifest);}catch{rejected=true;}
+      return {portals:graph.portals.length,rejected};
+     },{bytes:[...packed.bytes],entry:packed.entry,manifest});
+     assert.deepEqual(browserGraph,{portals:1,rejected:true});
      console.log(JSON.stringify({sourceBoundGraphBytes:packed.bytes.length}));
      assert.equal(await page.evaluate(input=>verifyFullRoute(input),{boxes,points:route.points}),true,'Full route gate must pass');
      assert.equal(await page.evaluate(input=>verifyFullRoute(input),{boxes,points:route.points,wall:true}),false,'Full route gate must reject wall');
