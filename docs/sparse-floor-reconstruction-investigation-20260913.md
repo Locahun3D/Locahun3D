@@ -115,3 +115,15 @@ No footprint was converted to collision, and no renderer/runtime change or
 distribution update was made. Next investigate bounded surface evidence and
 initial-camera validity together; do not fill the plane or blanket-inflate
 Gaussians to make this fixture pass.
+
+## Direct Rendered Ray Cross-Check
+
+room-browser-1789290488740 adds a direct Spark mesh.raycast from the saved
+camera straight down, without pickWorldPos or its fixed-depth fallback. The
+first resident-splat hit is [0,-3.962198,-2], distance5.462198m, close to the
+coarse collision hit at5.5m. Fine collision still has no hit at that column.
+An81-position grid within2m horizontally has26 fine hits, including zero-distance
+inside-geometry hits; these are not all floors. Thus the evidence does not
+support assuming a simple render/collision translation mismatch. The actual
+physical unit scale and safe initial support remain unverified; an estimated
+plane atY=-4 is not certified as the user's intended floor.

@@ -27,12 +27,20 @@ window.roomQA={
   points.sort((a,b)=>b.area-a.area);
   const nearby=points.filter(p=>Math.hypot(p.x-camPos.x,p.z-camPos.z)<6&&Math.abs(p.y-(camPos.y-1.8))<1);
   const support=walkSetup.core.raycastSurface({x:camPos.x,y:camPos.y,z:camPos.z},{x:0,y:-1,z:0},10);
+  const downRay=new THREE.Raycaster(camPos.clone(),new THREE.Vector3(0,-1,0),0,10),renderedHits=[];
+  for(const layer of layers.filter(l=>l.type==='splat'&&l.visible!==false))layer.mesh.raycast(downRay,renderedHits);
+  renderedHits.sort((a,b)=>a.distance-b.distance);
+  const renderedSupport=renderedHits.slice(0,5).map(h=>({point:h.point.toArray(),distance:h.distance}));
   const cr=await fetch(new URL('assets/'+e.key+'.lcp',location.href));if(!cr.ok)throw Error('Fine collision unavailable');
-  const fine=await LocahunWalkCollision.create();let fineSupport,autoSupport,autoClear=false;
+  const fine=await LocahunWalkCollision.create();let fineSupport,autoSupport,autoClear=false;const supportGrid=[];
   const automatic=window.computeAutoInitialView({targetCount:200000});
   try{
    fine.rebuild({boxes:await LocahunWholeCollision.decode(new Uint8Array(await cr.arrayBuffer()),e.key)});
    fineSupport=fine.raycastSurface({x:camPos.x,y:camPos.y,z:camPos.z},{x:0,y:-1,z:0},10);
+   for(let dx=-2;dx<=2;dx+=.5)for(let dz=-2;dz<=2;dz+=.5){
+    const origin={x:camPos.x+dx,y:camPos.y,z:camPos.z+dz},hit=fine.raycastSurface(origin,{x:0,y:-1,z:0},3);
+    if(hit)supportGrid.push({origin,hit});
+   }
    if(!automatic.failed&&automatic.position){autoSupport=fine.raycastSurface(automatic.position,{x:0,y:-1,z:0},3);if(autoSupport?.normal.y>=.7)autoClear=fine.isCapsuleClear({...autoSupport.point,y:autoSupport.point.y+.3},1.7,.15);}
   }finally{fine.dispose();}
   const pairs=[];for(const a of support?.point?[support.point]:[]){for(const b of nearby){const d=Math.hypot(a.x-b.x,a.z-b.z);if(d<.75||d>3||Math.abs(a.y-b.y)>.2)continue;
@@ -72,7 +80,7 @@ window.roomQA={
    }
    centers={columns:centers.map(row=>({...row,fine:[...row.fine],coarse:[...row.coarse]})),neighborhood};
   }
-  return {pairs,support,fineSupport,automatic,autoSupport,autoClear,centers,visible,cellSize:walkSetup.wholeIndex.cellSize,triangles:points.length,position:camPos.toArray(),sample:points.slice(0,20)};
+  return {pairs,support,fineSupport,supportGrid,renderedSupport,automatic,autoSupport,autoClear,centers,visible,cellSize:walkSetup.wholeIndex.cellSize,triangles:points.length,position:camPos.toArray(),sample:points.slice(0,20)};
  },
  aim({position,b}){camPos.fromArray(position);const d=new THREE.Vector3(b.x,b.y,b.z).sub(camPos);setCamRotImmediate(Math.atan2(d.x,d.z),Math.atan2(d.y,Math.hypot(d.x,d.z)));updateCamera();markDirty(120);},
  state(){return {pos:camPos.toArray(),active:!!_clickNavigationController?.active,reason:_clickNavigationController?.stopReason,trace:window.roomTrace};}
