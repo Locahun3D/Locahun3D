@@ -79,3 +79,39 @@ support.png are in meetingroom-plane-01 under the private QA directory.
 This is evidence of a local approximately horizontal cluster, not a collision
 approval or proof the camera can reach it. Sparse regions, hole boundaries,
 obstacles and full-route clearance remain unresolved. No collision was written.
+
+## Bounded Triangulation Rejected As A Direct Fix
+
+Seven diagnostic tests cover a dense plane, large opening, step, tabletop,
+stacked floors, small opening, and rejection metrics. All pass. Crucially,
+a small opening IS interpolated: an edge-length cutoff is not a hole detector.
+The experiment remains diagnostic-only and always reports collisionApproved=false.
+
+Single-thread Open3D runs meetingroom-plane-03 and -04 yield identical reports:
+1962 inliers, predicted initial floor Y=-4.03108. The target triangle has
+maximum edge .18235m, vertical span .04403m and upward normal .93792. It fails
+the .98 normal requirement for every tested edge cap .1 through .5m. Loosening
+that threshold or projecting all centers onto a plane would conceal rather
+than resolve the source uncertainty. No such runtime change was made.
+
+Fixed seed alone was insufficient with parallel Open3D; the diagnostic now sets
+OMP_NUM_THREADS=1 before importing it. Previous fit values remain historical.
+
+## Actual Gaussian Footprints
+
+Read-only room-browser-1789288231769 exports the same 5757 centers plus world
+one-sigma axis vectors and opacity, using the bundled Spark unpackSplat API and
+the chunk's encoding. Every unpacked world center is checked against the old
+center decoder. Matrix linear transforms preserve nonuniform scale/shear.
+The original initial camera still has no fine support; browser diagnostic
+correctly exits nonzero with no route, not a successful scene verification.
+
+meetingroom-plane-05 probes the fitted point [0,-4.03108,-2]. Among107 Gaussian
+centers within .5m horizontally, none contain it within1sigma,2 contain it
+within2sigma and5 within3sigma; closest normalized radius1.00153. Median
+principal sigmas are [.13879,.08291,.00769]m. This is density evidence at an
+estimated point, NOT proof of an observed floor, free space or a solid volume.
+No footprint was converted to collision, and no renderer/runtime change or
+distribution update was made. Next investigate bounded surface evidence and
+initial-camera validity together; do not fill the plane or blanket-inflate
+Gaussians to make this fixture pass.
