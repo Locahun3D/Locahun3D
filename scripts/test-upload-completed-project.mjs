@@ -28,7 +28,10 @@ async function fixture(t){
   assert.equal(req.headers.authorization,'Bearer test-only');
   const chunks=[];for await(const chunk of req)chunks.push(chunk);const input=JSON.parse(Buffer.concat(chunks));
   res.setHeader('content-type','application/json');
-  if(input.action==='reserve'){
+  if(input.action==='target'){
+   assert.deepEqual(input,{action:'target',propertyId:'p',sceneId:'s'});
+   res.end(JSON.stringify({propertyId:'p',sceneId:'s',expectedUpdatedAt:'2026-09-14T00:00:00.000Z',previousUrl:''}));
+  }else if(input.action==='reserve'){
    if(binding)assert.deepEqual(binding,input.binding);binding=input.binding;
    res.end(JSON.stringify({key:'a'.repeat(64),id:'wf_'+'a'.repeat(64),status:ready?'ready':'uploading',...(!ready?{putUrl:origin+'/object',headers:{'Content-MD5':Buffer.from(binding.archiveMd5,'hex').toString('base64'),'If-None-Match':'*'}}:{})}));
   }else if(input.action==='verify'){
@@ -46,6 +49,26 @@ async function fixture(t){
 test('completed package streams to storage, reads back and attaches; retry skips PUT',async t=>{
  const f=await fixture(t);assert.equal((await uploadCompletedProject(f.options)).status,'attached');
  assert.equal((await uploadCompletedProject(f.options)).status,'attached');assert.deepEqual(f.counts(),{attachments:2,puts:1});
+});
+test('ID-only target resolves a current snapshot before reserving',async t=>{
+ const f=await fixture(t);let resolved=false;
+ const fetcher=async(url,options)=>{
+  if(options.method==='POST'){
+   const body=JSON.parse(options.body);
+   if(body.action==='target')resolved=true;
+   if(body.action==='reserve'){assert.equal(resolved,true);assert.equal(body.binding.expectedUpdatedAt,f.options.target.expectedUpdatedAt);}
+  }
+  return fetch(url,options);
+ };
+ assert.equal((await uploadCompletedProject({...f.options,target:{propertyId:'p',sceneId:'s'},fetch:fetcher})).status,'attached');
+ assert.equal(resolved,true);
+});
+test('mismatched resolved scene never reserves or uploads',async t=>{
+ const f=await fixture(t);let calls=0;
+ await assert.rejects(uploadCompletedProject({...f.options,target:{propertyId:'p',sceneId:'s'},fetch:async()=>{
+  calls++;return Response.json({...f.options.target,sceneId:'other'});
+ }}),/Target resolution mismatch/);
+ assert.equal(calls,1);assert.deepEqual(f.counts(),{attachments:0,puts:0});
 });
 test('draft never contacts the server and corrupt download never attaches',async t=>{
  const f=await fixture(t);f.state.status='draft';await f.save();

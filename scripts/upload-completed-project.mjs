@@ -31,7 +31,6 @@ export async function uploadCompletedProject({root,jobs,target,origin='https://l
  const md5=createHash('md5'),sha=createHash('sha256');let bytes=0;
  for await(const chunk of createReadStream(job.archive)){bytes+=chunk.length;if(bytes>receipt.archive.bytes)throw Error('Archive changed');md5.update(chunk);sha.update(chunk);}
  if(bytes!==receipt.archive.bytes||sha.digest('hex')!==job.sha256)throw Error('Archive changed');
- const binding={...target,revision:job.revision,projectSha256:receipt.input.projectSha256,archiveSha256:job.sha256,archiveMd5:md5.digest('hex'),archiveBytes:bytes};
  const call=async body=>{
   let session=token;
   if(typeof token==='function'){
@@ -46,6 +45,16 @@ export async function uploadCompletedProject({root,jobs,target,origin='https://l
   if(typeof session!=='string'||!session||/[\r\n]/.test(session))throw Error('Administrative session token required');
   return boundedJson(await fetcher(endpoint,{method:'POST',headers:{'Content-Type':'application/json',Authorization:'Bearer '+session,Origin:base.origin},body:JSON.stringify(body),redirect:'error',signal:AbortSignal.timeout(30000)}));
  };
+ if(!target||typeof target.propertyId!=='string'||!target.propertyId||typeof target.sceneId!=='string'||!target.sceneId)throw Error('Exact property and scene IDs required');
+ if(target.expectedUpdatedAt===undefined&&target.previousUrl===undefined){
+  if(Object.keys(target).some(key=>!['propertyId','sceneId'].includes(key)))throw Error('Invalid target');
+  onProgress('resolving_target');
+  const resolved=await call({action:'target',propertyId:target.propertyId,sceneId:target.sceneId});
+  if(resolved.propertyId!==target.propertyId||resolved.sceneId!==target.sceneId||typeof resolved.expectedUpdatedAt!=='string'||!Number.isFinite(Date.parse(resolved.expectedUpdatedAt))||typeof resolved.previousUrl!=='string'||resolved.previousUrl.length>2048)throw Error('Target resolution mismatch');
+  target={propertyId:resolved.propertyId,sceneId:resolved.sceneId,expectedUpdatedAt:resolved.expectedUpdatedAt,previousUrl:resolved.previousUrl};
+ }
+ if(typeof target.expectedUpdatedAt!=='string'||typeof target.previousUrl!=='string')throw Error('Incomplete target snapshot');
+ const binding={...target,revision:job.revision,projectSha256:receipt.input.projectSha256,archiveSha256:job.sha256,archiveMd5:md5.digest('hex'),archiveBytes:bytes};
  onProgress('reserving');const reservation=await call({action:'reserve',binding});
  if(!/^[a-f0-9]{64}$/.test(reservation.key)||reservation.id!=='wf_'+reservation.key)throw Error('Invalid reservation');
  if(reservation.status!=='ready'){

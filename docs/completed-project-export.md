@@ -68,6 +68,12 @@ node scripts/upload-completed-project.mjs --root "LOCAL_PROJECT_FOLDER" --jobs "
 ```
 
 TARGET_JSON contains propertyId, sceneId, expectedUpdatedAt and previousUrl only.
+Alternatively supply only propertyId and sceneId: the authenticated `target` action
+resolves the exact current draft scene before reserve. It does not search by name,
+create a scene or write data. Missing/duplicate IDs and inconsistent row timestamps
+are rejected. A full supplied snapshot is never silently refreshed; reserve still
+rejects intervening edits. The operator must select the correct IDs; this does not
+yet provide an authenticated selection UI or obtain a session automatically.
 The short-lived administrative session comes from LOCAHUN_ADMIN_SESSION, never
 from a project or exported archive. Programmatic callers can pass an async token
 provider, refreshed on each admin request, for uploads longer than a session token's
