@@ -35,7 +35,27 @@ const hook=`window.roomQA={
    const lease=await provider.acquire(a,b);if(!lease)continue;const safe=LocahunRouteClearance(lease.points,lease.core,LocahunClickNavigation);lease.dispose();
    if(safe){pairs.push({a,b});break;}}if(pairs.length===6)break;}
   const visible=[{x:640,y:700},{x:500,y:700},{x:900,y:700}].map(pixel=>{const p=pickWorldPos(pixel.x,pixel.y,{strictVisible:true});return {pixel,point:p?{x:p.x,y:p.y,z:p.z}:null,support:p?walkSetup.core.raycastSurface({x:p.x,y:p.y+.3,z:p.z},{x:0,y:-1,z:0},2):null};});
-  return {pairs,support,fineSupport,automatic,autoSupport,autoClear,visible,cellSize:walkSetup.wholeIndex.cellSize,triangles:points.length,position:camPos.toArray(),sample:points.slice(0,20)};
+  let centers;
+  if(${process.argv.includes('--centers')}){
+   const half=h=>{const e=(h>>10)&31,m=h&1023,s=h&32768?-1:1;return s*(e===0?m*2**-24:e===31?Infinity:(1+m/1024)*2**(e-15));};
+   centers=[{name:'initial',point:{x:camPos.x,y:camPos.y,z:camPos.z}},{name:'automatic',point:automatic.position}].filter(p=>p.point).map(p=>({...p,fine:new Map(),coarse:new Map(),nearest:null}));
+   for(const layer of layers.filter(l=>l.type==='splat'&&l.visible!==false)){
+    const original=layer.mesh.paged,raw=layer._rawBuffer||original.fileBytes;
+    const fileBytes=raw?(ArrayBuffer.isView(raw)?new Uint8Array(raw.buffer,raw.byteOffset,raw.byteLength):new Uint8Array(raw)):undefined;
+    const decoder=new PagedSplats({rootUrl:original.rootUrl,fileBytes,fileType:original.fileType,pager:{extSplats:false,maxSh:0}});
+    try{const {meta}=await decoder.getRadMeta();layer.mesh.updateWorldMatrix(true,false);const matrix=layer.mesh.matrixWorld;
+     for(let i=0;i<meta.chunks.length;i++){const chunk=await decoder.fetchDecodeChunk(i),a=chunk.packedArray,t=chunk.extra.lodTree;
+      for(let j=0;j<chunk.numSplats;j++){if(t[j*4+2]!==0)continue;const w1=a[j*4+1],w2=a[j*4+2],p=new THREE.Vector3(half(w1&65535),half(w1>>>16),half(w2&65535)).applyMatrix4(matrix);
+       for(const row of centers){if(p.y>row.point.y||p.y<row.point.y-10)continue;const d=Math.hypot(p.x-row.point.x,p.z-row.point.z);if(!row.nearest||d<row.nearest.distance)row.nearest={point:{x:p.x,y:p.y,z:p.z},distance:d};
+        for(const [size,key] of [[.1,'fine'],[.25,'coarse']])if(Math.floor(p.x/size)===Math.floor(row.point.x/size)&&Math.floor(p.z/size)===Math.floor(row.point.z/size)){const y=Math.floor(p.y/size);row[key].set(y,(row[key].get(y)||0)+1);}
+       }
+      }await new Promise(r=>setTimeout(r,0));
+     }
+    }finally{decoder.dispose();}
+   }
+   centers=centers.map(row=>({...row,fine:[...row.fine],coarse:[...row.coarse]}));
+  }
+  return {pairs,support,fineSupport,automatic,autoSupport,autoClear,centers,visible,cellSize:walkSetup.wholeIndex.cellSize,triangles:points.length,position:camPos.toArray(),sample:points.slice(0,20)};
  },
  aim({a,b}){camPos.set(a.x,a.y+1.8,a.z);const d=new THREE.Vector3(b.x,b.y,b.z).sub(camPos);setCamRotImmediate(Math.atan2(d.x,d.z),Math.atan2(d.y,Math.hypot(d.x,d.z)));updateCamera();markDirty(120);},
  state(){return {pos:camPos.toArray(),active:!!_clickNavigationController?.active,reason:_clickNavigationController?.stopReason};}
