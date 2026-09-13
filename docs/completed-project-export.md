@@ -78,3 +78,10 @@ retry it after an uncertain response. Existing saveDraftAction compares updatedA
 before repo.upsert, not atomically inside a database conditional update. A real
 automation adapter must address that concurrency window and asset reservation
 idempotency before it is enabled. No Next.js server-action ID is hardcoded here.
+
+`verify-uploaded-export.mjs` now provides the desktop streaming digest verifier.
+It requires a trusted exact-origin allowlist, expected bytes/SHA, rejects redirects
+and credentials, bounds total bytes and deadline, and does not buffer the complete
+archive. Tests cover actual local HTTP streaming, redirect refusal, corrupt/short/
+oversized bodies and uncooperative fetch/cancellation. This helper is not yet wired
+to authenticated asset discovery or the attachment transport.
