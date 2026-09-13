@@ -74,6 +74,12 @@ create a scene or write data. Missing/duplicate IDs and inconsistent row timesta
 are rejected. A full supplied snapshot is never silently refreshed; reserve still
 rejects intervening edits. The operator must select the correct IDs; this does not
 yet provide an authenticated selection UI or obtain a session automatically.
+The first two-ID resolution is stored with the verified export job, scoped to the
+application origin and exact IDs. Retries reuse that snapshot even after successful
+attachment changes the online timestamp; they do not allocate a second upload.
+Concurrent callers publish the snapshot once. Corrupt or mismatched snapshots fail
+closed, never silently re-resolve. These files contain no session tokens. A stale
+snapshot conflict requires operator review, not automatic overwrite or deletion.
 The short-lived administrative session comes from LOCAHUN_ADMIN_SESSION, never
 from a project or exported archive. Programmatic callers can pass an async token
 provider, refreshed on each admin request, for uploads longer than a session token's

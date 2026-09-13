@@ -2,9 +2,37 @@ import fs from 'node:fs/promises';
 import {createReadStream} from 'node:fs';
 import path from 'node:path';
 import {fileURLToPath} from 'node:url';
-import {createHash} from 'node:crypto';
+import {createHash,randomUUID} from 'node:crypto';
 import {runCompletedExportJob} from './completed-export-job.mjs';
 import {verifyUploadedExport} from './verify-uploaded-export.mjs';
+import {hashProtectedFile} from './collision-source-identity.mjs';
+
+async function stableTarget(directory,origin,ids,resolve){
+ const binding={origin,propertyId:ids.propertyId,sceneId:ids.sceneId};
+ const file='target-'+createHash('sha256').update(JSON.stringify(binding)).digest('hex')+'.json';
+ const validate=snapshot=>{
+  if(!snapshot||snapshot.propertyId!==ids.propertyId||snapshot.sceneId!==ids.sceneId||typeof snapshot.expectedUpdatedAt!=='string'||!Number.isFinite(Date.parse(snapshot.expectedUpdatedAt))||typeof snapshot.previousUrl!=='string'||snapshot.previousUrl.length>2048)throw Error('Target resolution mismatch');
+  return {propertyId:snapshot.propertyId,sceneId:snapshot.sceneId,expectedUpdatedAt:snapshot.expectedUpdatedAt,previousUrl:snapshot.previousUrl};
+ };
+ const read=async()=>{
+  if((await fs.lstat(path.join(directory,file))).size>8192)throw Error('Target snapshot too large');
+  const identity=await hashProtectedFile({root:directory,file});
+  const data=await fs.readFile(path.join(directory,file));
+  if(createHash('sha256').update(data).digest('hex')!==identity.sha256)throw Error('Target snapshot changed');
+  const saved=JSON.parse(data);
+  if(saved.schema!==1||JSON.stringify(saved.binding)!==JSON.stringify(binding))throw Error('Target snapshot binding mismatch');
+  return validate(saved.snapshot);
+ };
+ try{return await read();}catch(e){if(e.code!=='ENOENT')throw e;}
+ const snapshot=validate(await resolve());
+ const temporary=path.join(directory,'.target-'+randomUUID()+'.tmp');
+ await fs.writeFile(temporary,JSON.stringify({schema:1,binding,snapshot})+'\n',{flag:'wx'});
+ try{
+  // Publish once so concurrent retries converge on the first resolved snapshot.
+  try{await fs.link(temporary,path.join(directory,file));}catch(e){if(e.code!=='EEXIST')throw e;}
+ }finally{await fs.unlink(temporary);}
+ return read();
+}
 
 function trustedUrl(value,origins){
  const url=new URL(value);
@@ -49,9 +77,7 @@ export async function uploadCompletedProject({root,jobs,target,origin='https://l
  if(target.expectedUpdatedAt===undefined&&target.previousUrl===undefined){
   if(Object.keys(target).some(key=>!['propertyId','sceneId'].includes(key)))throw Error('Invalid target');
   onProgress('resolving_target');
-  const resolved=await call({action:'target',propertyId:target.propertyId,sceneId:target.sceneId});
-  if(resolved.propertyId!==target.propertyId||resolved.sceneId!==target.sceneId||typeof resolved.expectedUpdatedAt!=='string'||!Number.isFinite(Date.parse(resolved.expectedUpdatedAt))||typeof resolved.previousUrl!=='string'||resolved.previousUrl.length>2048)throw Error('Target resolution mismatch');
-  target={propertyId:resolved.propertyId,sceneId:resolved.sceneId,expectedUpdatedAt:resolved.expectedUpdatedAt,previousUrl:resolved.previousUrl};
+  target=await stableTarget(job.directory,base.origin,target,()=>call({action:'target',propertyId:target.propertyId,sceneId:target.sceneId}));
  }
  if(typeof target.expectedUpdatedAt!=='string'||typeof target.previousUrl!=='string')throw Error('Incomplete target snapshot');
  const binding={...target,revision:job.revision,projectSha256:receipt.input.projectSha256,archiveSha256:job.sha256,archiveMd5:md5.digest('hex'),archiveBytes:bytes};

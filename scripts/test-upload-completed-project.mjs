@@ -30,7 +30,7 @@ async function fixture(t){
   res.setHeader('content-type','application/json');
   if(input.action==='target'){
    assert.deepEqual(input,{action:'target',propertyId:'p',sceneId:'s'});
-   res.end(JSON.stringify({propertyId:'p',sceneId:'s',expectedUpdatedAt:'2026-09-14T00:00:00.000Z',previousUrl:''}));
+   res.end(JSON.stringify({propertyId:'p',sceneId:'s',expectedUpdatedAt:attachments?'2026-09-14T01:00:00.000Z':'2026-09-14T00:00:00.000Z',previousUrl:attachments?'/new.zip':''}));
   }else if(input.action==='reserve'){
    if(binding)assert.deepEqual(binding,input.binding);binding=input.binding;
    res.end(JSON.stringify({key:'a'.repeat(64),id:'wf_'+'a'.repeat(64),status:ready?'ready':'uploading',...(!ready?{putUrl:origin+'/object',headers:{'Content-MD5':Buffer.from(binding.archiveMd5,'hex').toString('base64'),'If-None-Match':'*'}}:{})}));
@@ -62,6 +62,39 @@ test('ID-only target resolves a current snapshot before reserving',async t=>{
  };
  assert.equal((await uploadCompletedProject({...f.options,target:{propertyId:'p',sceneId:'s'},fetch:fetcher})).status,'attached');
  assert.equal(resolved,true);
+});
+test('ID-only retry preserves its original snapshot after attachment changes the server',async t=>{
+ const f=await fixture(t);let resolutions=0;
+ const options={...f.options,target:{propertyId:'p',sceneId:'s'},fetch:async(url,options)=>{
+  if(options.method==='POST'){
+   const body=JSON.parse(options.body);
+   if(body.action==='target')resolutions++;
+   if(body.action==='reserve')assert.equal(body.binding.expectedUpdatedAt,f.options.target.expectedUpdatedAt);
+  }
+  return fetch(url,options);
+ }};
+ await uploadCompletedProject(options);await uploadCompletedProject(options);
+ assert.equal(resolutions,1);assert.deepEqual(f.counts(),{attachments:2,puts:1});
+});
+test('corrupt persisted target fails closed without re-resolving or uploading',async t=>{
+ const f=await fixture(t),options={...f.options,target:{propertyId:'p',sceneId:'s'}};
+ await uploadCompletedProject(options);
+ const [job]=await fs.readdir(f.options.jobs),directory=path.join(f.options.jobs,job);
+ const target=(await fs.readdir(directory)).find(name=>name.startsWith('target-'));
+ const saved=JSON.parse(await fs.readFile(path.join(directory,target)));
+ assert.equal(JSON.stringify(saved).includes('test-only'),false);
+ saved.snapshot.sceneId='other';await fs.writeFile(path.join(directory,target),JSON.stringify(saved));
+ let calls=0;
+ await assert.rejects(uploadCompletedProject({...options,fetch:async()=>{calls++;throw Error('Unexpected network');}}),/Target resolution mismatch/);
+ assert.equal(calls,0);assert.deepEqual(f.counts(),{attachments:1,puts:1});
+});
+test('concurrent ID-only callers share one immutable target snapshot',async t=>{
+ const f=await fixture(t),options={...f.options,target:{propertyId:'p',sceneId:'s'}};
+ const results=await Promise.all([uploadCompletedProject(options),uploadCompletedProject(options)]);
+ assert.ok(results.every(result=>result.status==='attached'));
+ const [job]=await fs.readdir(f.options.jobs),files=await fs.readdir(path.join(f.options.jobs,job));
+ assert.equal(files.filter(name=>name.startsWith('target-')).length,1);
+ assert.equal(files.some(name=>name.startsWith('.target-')),false);
 });
 test('mismatched resolved scene never reserves or uploads',async t=>{
  const f=await fixture(t);let calls=0;
