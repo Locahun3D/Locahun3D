@@ -58,3 +58,23 @@ Next: bind upload/attachment
 to the correct property and scene; verify retrieval and preview. The listing facts
 ledger and recipient confirmation pack are separate unfinished steps in the Sep9
 workflow plan. Do not describe these as implemented merely because export works.
+
+## Attachment Core (Private)
+
+`export-attachment.mjs` accepts injected authenticated admin operations. It binds
+the completed source revision, property ID, stable splatItems scene ID, expected
+updatedAt, previous URL, asset ID and archive digest. It requires a draft property,
+verifies downloaded bytes before attaching, edits only that scene URL/size and
+reads the property back before reporting success. A lost save response is reconciled
+without sending a second save; an already attached verified asset is reused.
+
+Four mock-transport tests cover wrong source/target/digest, changed saved version,
+readback failure and lost response. This is NOT an authenticated HTTP adapter and
+has not uploaded anything. verifySource must validate the complete export receipt
+and live source; verifyAssetBytes must perform a bounded, approved-origin fetch.
+
+Existing online presign creates a new random asset ID every call. Do not blindly
+retry it after an uncertain response. Existing saveDraftAction compares updatedAt
+before repo.upsert, not atomically inside a database conditional update. A real
+automation adapter must address that concurrency window and asset reservation
+idempotency before it is enabled. No Next.js server-action ID is hardcoded here.
