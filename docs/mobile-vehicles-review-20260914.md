@@ -25,12 +25,11 @@ These are original lightweight planning representations, not manufacturer CAD or
 
 - Chrome touch emulation: 12 portrait/landscape phone and tablet sizes, 54 individual inspectors, 960 tool subsets in forward/reverse order with tablet layers open/closed. No overlap, offscreen controls, duplicate visible inspectors or page exceptions in that matrix.
 - Real two-finger CDP events: sprint remains held while jump is pressed/released/repeated; cancel clears input. Separate full-viewer fixture verifies airborne state and landing.
-- Additional 16 iPhone/iPad user-agent, Japanese/English, portrait/landscape cases exercise focal presets, custom sensor/grid, shot metadata, weather/calendar, measurement controls, camera keys and rotation with an open inspector. A 320px phone label-wrap regression was reproduced and fixed; checks now assert one-line toolbar labels after tool activation too.
 - Full viewer with real Rapier and synthetic floor: measured point placement, hold preview, tap travel, look rotation during travel, wall stopping, wall-to-floor target, and approximately 32m travel succeed.
 - Vehicle geometry tests enforce finite geometry, feet at zero, nominal body dimensions excluding mirrors, fewer than 100 meshes and 12,000 triangles per model. Blender front/side/three-quarter images are in `docs/vehicle-review`.
 - Renderer, Spark budgets and splat assets are not changed.
 - This is Chrome emulation, NOT physical iPhone/iPad Safari verification. Native safe areas, software keyboard, all nested settings, arbitrary tool ordering and scan-specific route coverage are not exhaustively certified.
-- User authorized push and production deployment after verification in the follow-up. Publication status is recorded separately after the live checks.
+- Local online HTML synchronization is not a production deployment. No push/deploy is performed by these changes.
 
 ## Reproduce
 
@@ -48,7 +47,6 @@ These are original lightweight planning representations, not manufacturer CAD or
 
 ```powershell
 node scripts/test-touch-feature-layout.mjs
-node scripts/test-touch-nested-controls.mjs
 node scripts/test-mobile-multitouch.mjs
 node scripts/test-jump-button-browser.mjs
 node scripts/test-click-navigation-browser.mjs --gpu-granted
