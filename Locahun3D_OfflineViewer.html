@@ -2899,14 +2899,26 @@ body.local-project-saving::after,body.local-project-restoring::after {content:''
   #local-project-status {font-size:10px;max-width:85px;}
 }
 /* Scoped position fixes; retain v1.0 controls, panel sizes and desktop layout. */
+@media (pointer:coarse) and (any-hover:none){
+  html{position:fixed;inset:0;overscroll-behavior:none;}
+  body.v1-ipad #layer-panel{display:flex!important;top:var(--v1-header-bottom,45px)!important;}
+  body.v1-ipad #qi-badge{display:flex!important;}
+  body.v1-ipad #cam-panel{top:calc(var(--v1-header-bottom,45px) + 1px)!important;bottom:0!important;max-height:calc(100dvh - var(--v1-header-bottom,45px) - 1px)!important;}
+  body.v1-ipad #sun-panel{top:var(--v1-tablet-sun-top,94px)!important;bottom:auto!important;max-height:calc(100dvh - var(--v1-tablet-sun-top,94px) - 116px)!important;overflow-y:auto;}
+  body.v1-ipad #view-tl-btns,body.v1-ipad.cam-active #view-tl-btns{
+    left:var(--v1-tools-center,50%)!important;right:auto!important;transform:translateX(-50%)!important;
+    width:var(--v1-tools-width,calc(100% - 301px))!important;max-width:var(--v1-tools-width,calc(100% - 301px))!important;
+    flex-wrap:wrap!important;justify-content:center;
+  }
+}
 @media (pointer:coarse) and (any-hover:none) and (min-width:700px) and (min-height:700px){
   body #layer-panel{top:var(--v1-header-bottom,45px)!important;}
   body #view-tl-btns,body.cam-active #view-tl-btns{left:var(--v1-tools-center,50%)!important;right:auto!important;transform:translateX(-50%)!important;width:var(--v1-tools-width,calc(100% - 301px))!important;max-width:var(--v1-tools-width,calc(100% - 301px))!important;flex-wrap:wrap!important;justify-content:center;}
 }
 @media (pointer:coarse) and (any-hover:none) and (max-width:699px),
        (pointer:coarse) and (any-hover:none) and (max-height:699px){
-  body #cam-panel{top:var(--v1-camera-top,64px)!important;bottom:auto!important;max-height:var(--v1-camera-height,calc(100dvh - 280px))!important;overflow-y:auto!important;box-sizing:border-box;}
-  body #sun-panel{left:auto!important;right:calc(14px + env(safe-area-inset-right,0px))!important;top:auto!important;bottom:var(--v1-sun-bottom,264px)!important;max-height:var(--v1-sun-height,calc(100dvh - 330px))!important;overflow-y:auto!important;box-sizing:border-box;}
+  body:not(.v1-ipad) #cam-panel{top:var(--v1-camera-top,64px)!important;bottom:auto!important;max-height:var(--v1-camera-height,calc(100dvh - 280px))!important;overflow-y:auto!important;box-sizing:border-box;}
+  body:not(.v1-ipad) #sun-panel{left:auto!important;right:calc(14px + env(safe-area-inset-right,0px))!important;top:auto!important;bottom:var(--v1-sun-bottom,264px)!important;max-height:var(--v1-sun-height,calc(100dvh - 330px))!important;overflow-y:auto!important;box-sizing:border-box;}
 }
 </style>
 <dialog id="walk-setup" aria-labelledby="walk-setup-title">
@@ -2972,7 +2984,7 @@ window.KAWAII_MALE_GLB_B64="Z2xURgIAAADsaRIAoPYCAEpTT057ImFzc2V0Ijp7InZlcnNpb24i
      the HTML. -->
 
 <script>
-window.__locahunBuildRelease="358a13a69a1114e462463960c6ec0712120b4473120ffa1641a676428a80881c";
+window.__locahunBuildRelease="5f70f21b25c8b5b5fc005cb2ddf4ec351109a91d221abe0f0508e92951bd8c6f";
 (function(root) {
   'use strict';
   const ORIGIN='https://viewer.locahun3d.com';
@@ -15107,7 +15119,7 @@ function _walkResidentSignature() {
 function _walkGenerateCollision(options={}) {
   if(walkSetup.pending)return walkSetup.pending;
   if(options===null || typeof options!=='object')options={};
-  if(options.automatic&&!options.allowBake&&walkSetup.deferredSignature===_walkSourceSignature())return Promise.resolve(false);
+  if(options.automatic&&!options.allowBake&&!options.retryCache&&walkSetup.deferredSignature===_walkSourceSignature())return Promise.resolve(false);
   const job={epoch:walkSetup.epoch,options,center:_walkPoint(options.center||camPos),view:_walkPoint(camPos)};
   job.abortController=typeof AbortController==='function'?new AbortController():null;
   job.cancelled=new Promise(resolve=>{job.cancel=()=>{job.abortController?.abort();resolve();};});
@@ -15431,6 +15443,14 @@ globalThis.setCameraCollision=function(enabled){
   markDirty(2);
 };
 globalThis.toggleCameraCollision=()=>globalThis.setCameraCollision(!cameraCollisionEnabled);
+globalThis.prepareCameraCollision=async()=>{
+  if(!cameraCollisionEnabled)return false;
+  if(_walkCameraReadiness()==='ready')return true;
+  if(walkSetup.importPending)await walkSetup.importPending;
+  if(!cameraCollisionEnabled)return false;
+  // An explicit retry may reload a saved proxy, but never decode/bake the source.
+  return _walkGenerateCollision({automatic:true,retryCache:true,center:camPos,preserveSpawn:true});
+};
 globalThis.getCameraCollisionState=()=>{
   const readiness=_walkCameraReadiness();
   return {enabled:cameraCollisionEnabled,ready:readiness==='ready',readiness,status:walkSetup.status};
@@ -27944,6 +27964,7 @@ canvas.addEventListener('touchstart',e=>{
   if(typeof _clickPointerArm==='function'&&_handleTouchId===-1&&_lpvTouchId===-1&&_msrPlacingId===-1&&_plcPlacingId===-1)_clickPointerArm('touch',e);
 },{passive:true});
 canvas.addEventListener('touchmove',e=>{
+  if(e.cancelable)e.preventDefault();
   if(typeof _clickPointerMove==='function'&&_clickPointerMove('touch',e)){if(e.cancelable)e.preventDefault();return;}
   // ── Pivot gizmo touch-drag update (highest priority) ──
   if(_lpvTouchId !== -1){
@@ -28045,7 +28066,7 @@ canvas.addEventListener('touchmove',e=>{
       markDirty(3);
       if(layers.some(L=>L.type==='splat')) bumpSplatActive(1500);
     }
-},{passive:true});
+},{passive:false});
 canvas.addEventListener('touchend',e=>{
   const navigationTap=typeof _clickPointerTake==='function'?_clickPointerTake('touch',e,
     _handleTouchId!==-1||_lpvTouchId!==-1||_msrPlacingId!==-1||_plcPlacingId!==-1):null;
@@ -28130,6 +28151,7 @@ canvas.addEventListener('touchend',e=>{
   }
 });
 canvas.addEventListener('touchcancel',e=>{
+  tlId=-1;
   if(typeof _clickPointerStart==='function')_clickPointerStart('touch',e);
   // Abort a pivot gizmo touch-drag on cancel (e.g. iOS palm rejection).
   if(_lpvTouchId !== -1){
@@ -28407,13 +28429,14 @@ canvas.addEventListener('touchcancel',e=>{
       const feetY=floor+(ground.y-floor)*progress+.02,height=p.y+.2-feetY;
       return height>=.3&&core.isCapsuleClear({x:p.x,y:feetY,z:p.z},height,.15);
     };
-  },createGesture(){
+  },createGesture(tolerance=5){
     let pending=null,lastTap=-Infinity;
     return {reset(){pending=null;},arm(p,now){pending={...p,at:now,moved:false};},
-      move(p){if(pending&&(p.id!==pending.id||Math.hypot(p.x-pending.x,p.y-pending.y)>=5))pending.moved=true;},
+      move(p){if(pending&&(p.id!==pending.id||Math.hypot(p.x-pending.x,p.y-pending.y)>=tolerance))pending.moved=true;},
+      waiting(){return !!pending&&!pending.moved;},
       take(p,now,consumed){
         const old=pending;pending=null;
-        if(!old||consumed||old.moved||p.id!==old.id||now-old.at>600||now<old.at||Math.hypot(p.x-old.x,p.y-old.y)>=5)return null;
+        if(!old||consumed||old.moved||p.id!==old.id||now-old.at>600||now<old.at||Math.hypot(p.x-old.x,p.y-old.y)>=tolerance)return null;
         const double=now-lastTap<300;lastTap=now;
         return double?null:p;
       }};
@@ -28481,6 +28504,16 @@ function _clickNavigateAt(clientX,clientY,preview=false,preparedHit=null,prepare
   }
   const now=performance.now();
   if(!globalThis.getCameraCollisionState?.().ready){
+    if(!preview&&globalThis.getCameraCollisionState?.().enabled&&typeof globalThis.prepareCameraCollision==='function'){
+      const intent=_clickNavigationIntent,epoch=walkSetup.epoch,position={...camPos};
+      const yaw=typeof _yawTarget==='undefined'?null:_yawTarget,pitch=typeof _pitchTarget==='undefined'?null:_pitchTarget;
+      globalThis.prepareCameraCollision().then(ready=>{
+        if(!ready||intent!==_clickNavigationIntent||epoch!==walkSetup.epoch||_clickNavigationBusy()||
+          Math.hypot(camPos.x-position.x,camPos.y-position.y,camPos.z-position.z)>.001||
+          (yaw!==null&&(yaw!==_yawTarget||pitch!==_pitchTarget)))return;
+        _clickNavigateAt(clientX,clientY);
+      }).catch(()=>{});
+    }
     if(!preview&&now-_clickNavigationToastAt>1000&&typeof showUndoToast==='function'){
       showUndoToast('当たり判定の準備ができていません');_clickNavigationToastAt=now;
     }
@@ -28591,7 +28624,7 @@ function _clickNavigateAt(clientX,clientY,preview=false,preparedHit=null,prepare
   }catch(_error){if(!preview)_cancelClickNavigation();return false;}
 }
 
-const _clickGestures={mouse:LocahunClickNavigation.createGesture(),touch:LocahunClickNavigation.createGesture()};
+const _clickGestures={mouse:LocahunClickNavigation.createGesture(),touch:LocahunClickNavigation.createGesture(12)};
 let _clickSuppressMouseUntil=0;
 function _clickPointerStart(kind,e){
   if(typeof _navigationHoldReset==='function')_navigationHoldReset();
@@ -28615,6 +28648,7 @@ function _clickPointerMove(kind,e){
   if(typeof _navigationHoldMove==='function'&&_navigationHoldMove(kind,e))return true;
   if(kind==='touch'&&e.touches.length!==1){_clickGestures.touch.reset();return;}
   const p=_clickPointerPoint(kind,e);if(p)_clickGestures[kind].move(p);
+  return kind==='touch'&&_clickGestures.touch.waiting();
 }
 function _clickPointerTake(kind,e,consumed=false){
   if(typeof _navigationHoldTake==='function'){
@@ -29305,7 +29339,7 @@ function _navigationHoldMove(kind,e){
     _navigationHoldReset();return false;
   }
   if(!h.active){
-    if(Math.hypot(point.x-h.point.x,point.y-h.point.y)>=5)_navigationHoldReset();
+    if(Math.hypot(point.x-h.point.x,point.y-h.point.y)>=(kind==='touch'?12:5))_navigationHoldReset();
     return false;
   }
   h.point=point;_navigationHoldPreview();return true;
@@ -29336,6 +29370,7 @@ function _syncWalkJumpButton(){
 })();
 (()=>{
   const touch=matchMedia('(pointer:coarse) and (any-hover:none)');
+  document.body.classList.toggle('v1-ipad',typeof _isIPad!=='undefined'&&_isIPad);
   let frame=0,settled=0;
   const visible=e=>e&&getComputedStyle(e).display!=='none'&&e.getBoundingClientRect().width>0;
   const set=(name,value)=>document.documentElement.style.setProperty(name,value+'px');
@@ -29343,12 +29378,14 @@ function _syncWalkJumpButton(){
     frame=0;if(!touch.matches)return;
     const header=document.getElementById('topbar').getBoundingClientRect();
     set('--v1-header-bottom',header.bottom);
-    if(Math.min(innerWidth,innerHeight)>=700){
+    if(document.body.classList.contains('v1-ipad')||Math.min(innerWidth,innerHeight)>=700){
       const layer=document.getElementById('layer-panel');
       const width=visible(layer)?layer.getBoundingClientRect().width:0;
       const camera=document.getElementById('cam-panel');
       const right=visible(camera)?camera.getBoundingClientRect().left:innerWidth;
       set('--v1-tools-width',Math.max(120,right-width-16));set('--v1-tools-center',(right+width)/2);
+      const toolbar=document.getElementById('view-tl-btns');
+      set('--v1-tablet-sun-top',Math.max(header.bottom+8,toolbar.getBoundingClientRect().bottom+8));
       return;
     }
     const vv=visualViewport;

@@ -176,7 +176,7 @@ function _walkResidentSignature() {
 function _walkGenerateCollision(options={}) {
   if(walkSetup.pending)return walkSetup.pending;
   if(options===null || typeof options!=='object')options={};
-  if(options.automatic&&!options.allowBake&&walkSetup.deferredSignature===_walkSourceSignature())return Promise.resolve(false);
+  if(options.automatic&&!options.allowBake&&!options.retryCache&&walkSetup.deferredSignature===_walkSourceSignature())return Promise.resolve(false);
   const job={epoch:walkSetup.epoch,options,center:_walkPoint(options.center||camPos),view:_walkPoint(camPos)};
   job.abortController=typeof AbortController==='function'?new AbortController():null;
   job.cancelled=new Promise(resolve=>{job.cancel=()=>{job.abortController?.abort();resolve();};});
@@ -500,6 +500,14 @@ globalThis.setCameraCollision=function(enabled){
   markDirty(2);
 };
 globalThis.toggleCameraCollision=()=>globalThis.setCameraCollision(!cameraCollisionEnabled);
+globalThis.prepareCameraCollision=async()=>{
+  if(!cameraCollisionEnabled)return false;
+  if(_walkCameraReadiness()==='ready')return true;
+  if(walkSetup.importPending)await walkSetup.importPending;
+  if(!cameraCollisionEnabled)return false;
+  // An explicit retry may reload a saved proxy, but never decode/bake the source.
+  return _walkGenerateCollision({automatic:true,retryCache:true,center:camPos,preserveSpawn:true});
+};
 globalThis.getCameraCollisionState=()=>{
   const readiness=_walkCameraReadiness();
   return {enabled:cameraCollisionEnabled,ready:readiness==='ready',readiness,status:walkSetup.status};

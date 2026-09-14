@@ -104,13 +104,14 @@
       const feetY=floor+(ground.y-floor)*progress+.02,height=p.y+.2-feetY;
       return height>=.3&&core.isCapsuleClear({x:p.x,y:feetY,z:p.z},height,.15);
     };
-  },createGesture(){
+  },createGesture(tolerance=5){
     let pending=null,lastTap=-Infinity;
     return {reset(){pending=null;},arm(p,now){pending={...p,at:now,moved:false};},
-      move(p){if(pending&&(p.id!==pending.id||Math.hypot(p.x-pending.x,p.y-pending.y)>=5))pending.moved=true;},
+      move(p){if(pending&&(p.id!==pending.id||Math.hypot(p.x-pending.x,p.y-pending.y)>=tolerance))pending.moved=true;},
+      waiting(){return !!pending&&!pending.moved;},
       take(p,now,consumed){
         const old=pending;pending=null;
-        if(!old||consumed||old.moved||p.id!==old.id||now-old.at>600||now<old.at||Math.hypot(p.x-old.x,p.y-old.y)>=5)return null;
+        if(!old||consumed||old.moved||p.id!==old.id||now-old.at>600||now<old.at||Math.hypot(p.x-old.x,p.y-old.y)>=tolerance)return null;
         const double=now-lastTap<300;lastTap=now;
         return double?null:p;
       }};
@@ -178,6 +179,16 @@ function _clickNavigateAt(clientX,clientY,preview=false,preparedHit=null,prepare
   }
   const now=performance.now();
   if(!globalThis.getCameraCollisionState?.().ready){
+    if(!preview&&globalThis.getCameraCollisionState?.().enabled&&typeof globalThis.prepareCameraCollision==='function'){
+      const intent=_clickNavigationIntent,epoch=walkSetup.epoch,position={...camPos};
+      const yaw=typeof _yawTarget==='undefined'?null:_yawTarget,pitch=typeof _pitchTarget==='undefined'?null:_pitchTarget;
+      globalThis.prepareCameraCollision().then(ready=>{
+        if(!ready||intent!==_clickNavigationIntent||epoch!==walkSetup.epoch||_clickNavigationBusy()||
+          Math.hypot(camPos.x-position.x,camPos.y-position.y,camPos.z-position.z)>.001||
+          (yaw!==null&&(yaw!==_yawTarget||pitch!==_pitchTarget)))return;
+        _clickNavigateAt(clientX,clientY);
+      }).catch(()=>{});
+    }
     if(!preview&&now-_clickNavigationToastAt>1000&&typeof showUndoToast==='function'){
       showUndoToast('当たり判定の準備ができていません');_clickNavigationToastAt=now;
     }
@@ -288,7 +299,7 @@ function _clickNavigateAt(clientX,clientY,preview=false,preparedHit=null,prepare
   }catch(_error){if(!preview)_cancelClickNavigation();return false;}
 }
 
-const _clickGestures={mouse:LocahunClickNavigation.createGesture(),touch:LocahunClickNavigation.createGesture()};
+const _clickGestures={mouse:LocahunClickNavigation.createGesture(),touch:LocahunClickNavigation.createGesture(12)};
 let _clickSuppressMouseUntil=0;
 function _clickPointerStart(kind,e){
   if(typeof _navigationHoldReset==='function')_navigationHoldReset();
@@ -312,6 +323,7 @@ function _clickPointerMove(kind,e){
   if(typeof _navigationHoldMove==='function'&&_navigationHoldMove(kind,e))return true;
   if(kind==='touch'&&e.touches.length!==1){_clickGestures.touch.reset();return;}
   const p=_clickPointerPoint(kind,e);if(p)_clickGestures[kind].move(p);
+  return kind==='touch'&&_clickGestures.touch.waiting();
 }
 function _clickPointerTake(kind,e,consumed=false){
   if(typeof _navigationHoldTake==='function'){

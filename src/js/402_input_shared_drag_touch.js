@@ -190,6 +190,7 @@ canvas.addEventListener('touchstart',e=>{
   if(typeof _clickPointerArm==='function'&&_handleTouchId===-1&&_lpvTouchId===-1&&_msrPlacingId===-1&&_plcPlacingId===-1)_clickPointerArm('touch',e);
 },{passive:true});
 canvas.addEventListener('touchmove',e=>{
+  if(e.cancelable)e.preventDefault();
   if(typeof _clickPointerMove==='function'&&_clickPointerMove('touch',e)){if(e.cancelable)e.preventDefault();return;}
   // ── Pivot gizmo touch-drag update (highest priority) ──
   if(_lpvTouchId !== -1){
@@ -291,7 +292,7 @@ canvas.addEventListener('touchmove',e=>{
       markDirty(3);
       if(layers.some(L=>L.type==='splat')) bumpSplatActive(1500);
     }
-},{passive:true});
+},{passive:false});
 canvas.addEventListener('touchend',e=>{
   const navigationTap=typeof _clickPointerTake==='function'?_clickPointerTake('touch',e,
     _handleTouchId!==-1||_lpvTouchId!==-1||_msrPlacingId!==-1||_plcPlacingId!==-1):null;
@@ -376,6 +377,7 @@ canvas.addEventListener('touchend',e=>{
   }
 });
 canvas.addEventListener('touchcancel',e=>{
+  tlId=-1;
   if(typeof _clickPointerStart==='function')_clickPointerStart('touch',e);
   // Abort a pivot gizmo touch-drag on cancel (e.g. iOS palm rejection).
   if(_lpvTouchId !== -1){

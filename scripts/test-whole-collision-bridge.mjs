@@ -179,3 +179,14 @@ test('verified release proxy avoids source rebaking',async()=>{
  f.c.fetch=async()=>new Response(bytes,{headers:{'content-length':String(bytes.length)}});
  assert(await f.run('_walkGenerateCollision({automatic:true,allowBake:true,findSpawn:true,preserveSpawn:true})'),f.run('walkSetup.status'));
 });
+
+test('explicit camera retry recovers a transient failure using cached geometry without baking',async()=>{
+ const f=fixture();assert(await f.run('_walkGenerateCollision({automatic:true,allowBake:true})'));
+ f.run('walkSetup.core=null;walkSetup.settings.signature="";LocahunCollisionBake.generate=()=>{throw Error("Must not bake")};');
+ const create=f.c.LocahunWalkCollision.create;
+ f.c.LocahunWalkCollision.create=async()=>{throw Error('temporary runtime failure');};
+ assert.equal(await f.run('_walkGenerateCollision({automatic:true})'),false);
+ f.c.LocahunWalkCollision.create=create;
+ assert(await f.run('prepareCameraCollision()'),f.run('walkSetup.status'));
+ assert.equal(f.run('getCameraCollisionState().ready'),true);
+});

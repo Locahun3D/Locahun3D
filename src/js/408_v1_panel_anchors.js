@@ -1,5 +1,6 @@
 (()=>{
   const touch=matchMedia('(pointer:coarse) and (any-hover:none)');
+  document.body.classList.toggle('v1-ipad',typeof _isIPad!=='undefined'&&_isIPad);
   let frame=0,settled=0;
   const visible=e=>e&&getComputedStyle(e).display!=='none'&&e.getBoundingClientRect().width>0;
   const set=(name,value)=>document.documentElement.style.setProperty(name,value+'px');
@@ -7,12 +8,14 @@
     frame=0;if(!touch.matches)return;
     const header=document.getElementById('topbar').getBoundingClientRect();
     set('--v1-header-bottom',header.bottom);
-    if(Math.min(innerWidth,innerHeight)>=700){
+    if(document.body.classList.contains('v1-ipad')||Math.min(innerWidth,innerHeight)>=700){
       const layer=document.getElementById('layer-panel');
       const width=visible(layer)?layer.getBoundingClientRect().width:0;
       const camera=document.getElementById('cam-panel');
       const right=visible(camera)?camera.getBoundingClientRect().left:innerWidth;
       set('--v1-tools-width',Math.max(120,right-width-16));set('--v1-tools-center',(right+width)/2);
+      const toolbar=document.getElementById('view-tl-btns');
+      set('--v1-tablet-sun-top',Math.max(header.bottom+8,toolbar.getBoundingClientRect().bottom+8));
       return;
     }
     const vv=visualViewport;

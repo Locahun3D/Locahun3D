@@ -21,6 +21,36 @@ function setup(){
  return {ctx,event,tap,canvas,get moves(){return moves;},setTime:t=>now=t,select:()=>selected=true};
 }
 
+test('touch jitter stays a tap without rotating; deliberate drag rotates',()=>{
+ for(const dx of [8,20]){
+  const f=setup(),p={identifier:1,clientX:400,clientY:200},q={...p,clientX:400+dx};
+  f.event('canvas:touchstart',{changedTouches:[p],touches:[p]});
+  f.event('canvas:touchmove',{changedTouches:[q],touches:[q]});
+  if(dx===8)assert.equal(f.ctx._yawTarget,0);
+  else assert.notEqual(f.ctx._yawTarget,0);
+  f.setTime(1100);f.event('canvas:touchend',{changedTouches:[q]});
+  assert.equal(f.moves,dx===8?1:0);
+ }
+});
+
+test('unready touch waits for cached collision and never replays a stale target',async()=>{
+ for(const change of ['none','scene','view','cancel']){
+  const f=setup(),c=f.ctx;let finish,replays=0;
+  c.walkSetup={epoch:1,settings:{}};c.camPos={x:0,y:1.8,z:0};
+  c.getCameraCollisionState=()=>({enabled:true,ready:false});
+  c.prepareCameraCollision=()=>new Promise(resolve=>{finish=resolve;});
+  const source=read('404_click_navigation.js');
+  vm.runInContext(source.slice(source.indexOf('function _clickNavigateAt'),source.indexOf('const _clickGestures')),c);
+  assert.equal(c._clickNavigateAt(400,200),false);assert.equal(typeof finish,'function');
+  c._clickNavigateAt=()=>replays++;
+  if(change==='scene')c.walkSetup.epoch++;
+  if(change==='view')c._yawTarget=.1;
+  if(change==='cancel')c._cancelClickNavigation();
+  finish(true);await new Promise(resolve=>setImmediate(resolve));
+  assert.equal(replays,change==='none'?1:0,change);
+ }
+});
+
 test('touch joystick tracks twice the prior 153px slack without increasing speed or knob travel',()=>{
  const f=setup(),finger={identifier:8,clientX:88,clientY:88};
  f.event('joy:touchstart',{changedTouches:[finger],touches:[finger]});
