@@ -18,14 +18,14 @@
     }
     return {
       find(from,to,source){
-        if(!zone||source!==mesh.source||!valid(from)||!valid(to)||Math.hypot(from.x-to.x,from.y-to.y,from.z-to.z)>100)return null;
+        if(!zone||source!==mesh.source||!valid(from)||!valid(to)||Math.hypot(from.x-to.x,from.y-to.y,from.z-to.z)>30)return null;
         const a=nearest(from,.35),b=nearest(to,.25);
         if(!a||!b||a.group!==b.group)return null;
         const route=finder.findPath(a.point,b.point,'scene',a.group),last=route?.at(-1);
         if(!last||last.distanceTo(b.point)>.01||route.length>1024)return null;
         let previous=a.point,length=0;
         for(const p of route){if(!valid(p))return null;length+=p.distanceTo(previous);previous=p;}
-        if(length>100)return null;
+        if(length>30)return null;
         return [a.point,...route].map(p=>({x:p.x,y:p.y,z:p.z}));
       },
       dispose(){zone=null;finder.zones={};}

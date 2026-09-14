@@ -46,18 +46,11 @@ test('gesture rejects consumed, outside, long hold, out-and-back drag and stale 
  g.arm(p,1000);assert(g.take(p,1100,false));g.arm(p,1200);assert.equal(g.take(p,1250,false),null);
  g.arm(p,2000);g.reset();assert.equal(g.take(p,2100,false),null);
 });
-test('travel distances through 80m retain bounded speed and per-step collision; over 100m rejected',()=>{
- for(const meters of [3,10,20,40,80]){const f=fixture();assert(f.nav.start({...ground,point:{x:meters,y:0,z:0}},0));let old=0;
-  for(let t=100;t<=20100;t+=100){f.nav.tick(t);assert(f.p.x-old<=.751,'peak speed <=7.5 m/s');old=f.p.x;}
+test('travel distances 3/10/20m have bounded speed and duration; over 30m rejected',()=>{
+ for(const meters of [3,10,20]){const f=fixture();assert(f.nav.start({...ground,point:{x:meters,y:0,z:0}},0));let old=0;
+  for(let t=100;t<=6100;t+=100){f.nav.tick(t);assert(f.p.x-old<=.751,'peak speed <=7.5 m/s');old=f.p.x;}
   assert.equal(f.p.x,meters);assert.equal(f.nav.active,false);}
- assert.equal(fixture().nav.start({...ground,point:{x:101,y:0,z:0}},0),false);
-});
-
-test('touch tolerates small drift, consumes it before look, and allows repeated taps',()=>{
- const g=ctx.LocahunClickNavigation.createGesture({slop:12,suppressDoubleTap:false}),p={x:100,y:100,id:1};
- g.arm(p,0);assert.equal(g.move({...p,x:108}),true);assert(g.take({...p,x:108},120,false));
- g.arm(p,160);assert(g.take(p,230,false));
- g.arm(p,500);assert.equal(g.move({...p,x:114}),false);g.move(p);assert.equal(g.take(p,600,false),null);
+ assert.equal(fixture().nav.start({...ground,point:{x:31,y:0,z:0}},0),false);
 });
 
 test('multi-floor route follows every corner without cutting across a floor',()=>{
@@ -71,7 +64,7 @@ test('multi-floor route follows every corner without cutting across a floor',()=
 });
 
 test('reject incomplete, nonfinite and excessive route length before moving',()=>{
- for(const route of [[],[{x:1,y:1.8,z:0}],[{x:NaN,y:1.8,z:0}], [{x:60,y:1.8,z:0},{x:4,y:1.8,z:0}]]){
+ for(const route of [[],[{x:1,y:1.8,z:0}],[{x:NaN,y:1.8,z:0}], [{x:29,y:1.8,z:0},{x:4,y:1.8,z:0}]]){
   const f=fixture();assert.equal(f.nav.start(ground,0,route),false);assert.equal(f.p.x,0);
  }
 });

@@ -100,11 +100,11 @@ test('actual mouse out-and-back drag and stale release never navigate',()=>{
 test('camera-tool mode still allows existing object selection',()=>{
  const f=setup();let selected=0;f.ctx.cam.active=true;f.ctx._trySelectByClick=()=>{selected++;return true;};f.tap();assert.equal(selected,1);assert.equal(f.moves,0);
 });
-test('actual touch tap dispatches once; compatibility mouse suppressed but deliberate second tap accepted',()=>{
+test('actual touch tap dispatches once; compatibility mouse and second tap suppressed',()=>{
  const f=setup(),finger={identifier:1,clientX:400,clientY:200};
  f.event('canvas:touchstart',{changedTouches:[finger],touches:[finger]});f.setTime(1100);f.event('canvas:touchend',{changedTouches:[finger]});assert.equal(f.moves,1);
  f.tap();assert.equal(f.moves,1);
- f.event('canvas:touchstart',{changedTouches:[finger],touches:[finger]});f.setTime(1250);f.event('canvas:touchend',{changedTouches:[finger]});assert.equal(f.moves,2);
+ f.event('canvas:touchstart',{changedTouches:[finger],touches:[finger]});f.setTime(1250);f.event('canvas:touchend',{changedTouches:[finger]});assert.equal(f.moves,1);
 });
 test('actual multi-touch and cancelled touch do not navigate',()=>{
  for(const cancel of [false,true]){const f=setup(),a={identifier:1,clientX:400,clientY:200},b={...a,identifier:2};
@@ -143,7 +143,6 @@ test('real adapter prepares far target coverage before surface ray, never bakes'
  // setup's dispatcher spy is intentionally replaced by the real adapter here.
  vm.runInContext(read('404_click_navigation.js').slice(read('404_click_navigation.js').indexOf('function _clickNavigateAt'),read('404_click_navigation.js').indexOf('const _clickGestures')),c);
  assert.equal(c._clickNavigateAt(400,200),true);assert.deepEqual(order.slice(0,3),['pick','coverage','ray']);
- order.length=0;x=80;assert.equal(c._clickNavigateAt(400,200),true);assert.deepEqual(order.slice(0,3),['pick','coverage','ray']);
- order.length=0;x=101;assert.equal(c._clickNavigateAt(400,200),false);assert.deepEqual(order,['pick']);
+ order.length=0;x=31;assert.equal(c._clickNavigateAt(400,200),false);assert.deepEqual(order,['pick']);
  order.length=0;ready=false;assert.equal(c._clickNavigateAt(400,200),false);assert.deepEqual(order,[]);
 });

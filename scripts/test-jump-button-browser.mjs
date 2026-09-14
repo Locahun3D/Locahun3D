@@ -7,12 +7,11 @@ const root=new URL('../',import.meta.url),out=new URL('docs/jump-ui-review/',roo
 fs.mkdirSync(out,{recursive:true});
 const button=fs.readFileSync(new URL('src/template.html',root),'utf8').match(/<button id="walk-jump-button"[\s\S]*?<\/button>/)[0];
 const code=fs.readFileSync(new URL('src/js/406_walk_jump_button.js',root),'utf8');
-const css=['012_style_block_mobile.css','063_touch_layout.css'].map(name=>fs.readFileSync(new URL('src/css/'+name,root),'utf8')).join('\n');
 const browser=await chromium.launch({channel:'chrome',headless:true,args:['--disable-gpu']});
 try{
  for(const [width,height]of [[390,844],[844,390],[820,1180],[1180,820]]){
   const context=await browser.newContext({viewport:{width,height},hasTouch:true});const page=await context.newPage();
-  await page.setContent('<style>'+css+'</style><body style="background:#8399a6">'+button+'</body>');
+  await page.setContent('<body style="background:#8399a6">'+button+'</body>');
   await page.addScriptTag({content:'window.walkMode={active:false};window.markDirty=()=>{};'+code});
   assert.equal(await page.locator('#walk-jump-button').isVisible(),false);
   await page.evaluate(()=>{walkMode.active=true;_syncWalkJumpButton();});

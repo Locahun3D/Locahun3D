@@ -19,7 +19,7 @@ test('coverage follows the three-dimensional route, not another floor or a segme
 });
 test('invalid and excessive inputs fail closed without truncated collision',()=>{
  assert.equal(create([box(1)],[]),null);
- assert.equal(create([box(1)],[route[0],{x:101,y:0,z:0}]),null);
+ assert.equal(create([box(1)],[route[0],{x:31,y:0,z:0}]),null);
  assert.equal(create([null]),null);
  assert.equal(create(Array.from({length:8193},()=>box(1))),null);
  assert.equal(create([box(1)],[route[0],{x:Infinity,y:0,z:0}]),null);

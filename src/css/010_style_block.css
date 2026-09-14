@@ -516,16 +516,17 @@ body.protected-mode #em-save-zip { display:none !important; }
    使える関連ペアなので、どちらのモードでも互いに行き来できるようにする — user 2026-06-27）。
    測定・使い方は隠してビューを広く保つ。 */
 @media (pointer:fine) and (hover:hover){
+body.cam-active #hud .cbar > button:not(#btnCamTool):not(#btn-sun){ display:none !important; }
+body.sun-active #hud .cbar > button:not(#btnCamTool):not(#btn-sun){ display:none !important; }
 }
 /* 測定モード中は「📐測定」のみ（測定は日照と排他）。 */
 @media (pointer:fine) and (hover:hover){
+body.msr-active #hud .cbar > button:not(#btnMeasure){ display:none !important; }
 }
 /* カメラモード中は上ボタン行も撮影に使うものだけに絞る：🎞カメラワーク / 📱AR /
    🖥画質チップ のみ表示し、カメラリセット・オブジェクト追加・アバター歩行は隠す
    （user 2026-06-27）。AR は元々タッチ端末でのみ表示。 */
-@media (pointer:fine){
 body.cam-active #view-tl-btns > *:not(#btnCamAnim):not(#btnAR):not(#qi-badge){ display:none !important; }
-}
 /* Camera mode retains the same anchor; phone panels reserve the button bands. */
 body.cam-active #hud .cbar{
   left:50% !important;

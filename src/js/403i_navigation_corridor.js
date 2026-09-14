@@ -8,7 +8,7 @@
     const points=route.map(p=>({...p})),segments=[];let length=0;
     for(let i=1;i<points.length;i++){
       const a=points[i-1],b=points[i],delta=['x','y','z'].map(k=>b[k]-a[k]),square=delta.reduce((n,v)=>n+v*v,0);
-      length+=Math.sqrt(square);if(length>100)return null;
+      length+=Math.sqrt(square);if(length>30)return null;
       segments.push({a,delta,square,min:[Math.min(a.x,b.x)-1,Math.min(a.y,b.y)-.5,Math.min(a.z,b.z)-1],
         max:[Math.max(a.x,b.x)+1,Math.max(a.y,b.y)+2.3,Math.max(a.z,b.z)+1]});
     }

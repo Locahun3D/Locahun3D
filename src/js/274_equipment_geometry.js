@@ -35,10 +35,6 @@
       const geo=new T.ExtrudeGeometry(shape,{depth:width,bevelEnabled:false,steps:1});
       geo.rotateY(Math.PI/2);geo.translate(-width/2,0,0);return part(geo,color,[0,0,0],name);
     }
-    function frontPanel(points,z,color,name){
-      const shape=new T.Shape();points.forEach(([x,y],i)=>i?shape.lineTo(x,y):shape.moveTo(x,y));shape.closePath();
-      return part(new T.ShapeGeometry(shape),color,[0,0,z],name);
-    }
     function glazing(width,front,back,bottom,top) {
       // Individual side panes and pillars keep the cab-over/van silhouette readable.
       for(const side of [-1,1]){
@@ -53,7 +49,6 @@
       const cabWidth=large?2.30:width;
       box([width*.62,.17,length-.18],[0,r+.1,0],'trim','chassis');
       for(const z of [frontAxle,rearAxle])for(const side of [-1,1])wheel(side*(width/2-.11),r,z,r,.20);
-      if(!van)for(const side of [-1,1])wheel(side*(width/2-.32),r,rearAxle,r,.19);
       if(van) {
         const bottom=[[-f+.01,.34]];
         for(const z of [rearAxle,frontAxle]) {
@@ -72,13 +67,9 @@
         }
       } else {
         const cabBack=f-(large?1.96:1.48);
-        const outline=[[cabBack,.40]];
-        for(let i=0;i<=12;i++){const a=Math.PI-i*Math.PI/12;outline.push([frontAxle+(r+.045)*Math.cos(a),.40+(r+.045)*Math.sin(a)]);}
-        outline.push([f-.01,.40],[f-.01,height*.60],[f-.16,height-.09],[f-.30,height],[cabBack+.10,height],[cabBack,height-.12]);
-        profile(outline,cabWidth-.006,'body','cab');
+        profile([[cabBack,.53],[f-.01,.53],[f-.01,height*.70],[f-.16,height-.09],[f-.30,height],[cabBack+.10,height],[cabBack,height-.12]],cabWidth-.006,'body','cab');
         glazing(cabWidth,f-.22,cabBack+.14,height*.64,height-.14);
-        const slope=.15/(height*.40-.09),windY=height*.79;
-        const wind=box([cabWidth-.17,height*.30,.003],[0,windY,f-.01-(windY-height*.60)*slope+.001],'glass','windshield');wind.rotation.x=-Math.atan(slope);
+        const wind=box([cabWidth-.17,height*.27,.015],[0,height*.80,f-.076],'glass','windshield');wind.rotation.x=-.16;
         const bedFront=cabBack-.13, bedRear=-f+.04, bedLength=bedFront-bedRear, deck=large?1.09:.78;
         box([width,.12,bedLength],[0,deck-.06,(bedFront+bedRear)/2],'bed','flatbed-floor');
         for(const side of [-1,1]) {
@@ -90,15 +81,11 @@
         for(const x of [-width/2+.04,width/2-.04])box([.06,height-deck,.07],[x,(height+deck)/2,bedFront],'metal','headboard');
         // Flatbeds remain open; no generic box body substituted for a truck variant.
       }
-      box([cabWidth-.04,van?.24:.28,.06],[0,van?.46:.47,f-.04],'body','front-bumper');
-      box([cabWidth*.64,.12,.012],[0,.51,f-.011],'trim','lower-intake');
+      box([cabWidth-.04,.15,.08],[0,.40,f-.04],'trim','front-bumper');
       box([width-.08,.12,.08],[0,.34,-f+.04],'trim','rear-bumper');
-      box([cabWidth*(large?.67:.50),large?.48:.14,.008],[0,van?.82:height*.46,f-.010],'trim','grille');
+      box([cabWidth*.48,.14,.02],[0,van?.82:height*.46,f-.010],'trim','grille');
       const grilleY=van?.82:height*.46;
-      for(const offset of (large?[-.14,.07]:[-.045,.045])){
-        if(large){const w=cabWidth*.325,y=grilleY+offset;frontPanel([[-w,y+.045],[-w+.10,y-.015],[w-.10,y-.015],[w,y+.045],[w,y+.075],[-w,y+.075]],f-.002,'metal','grille-slats');}
-        else box([cabWidth*.49,.018,.006],[0,grilleY+offset,f-.003],'metal','grille-slats');
-      }
+      for(const offset of [-.045,.045])box([cabWidth*.49,.018,.006],[0,grilleY+offset,f-.003],'metal','grille-slats');
       box([.33,.165,.008],[0,.44,f-.004],'white','number-plate');
       const glass=root.getObjectByName('windshield');glass.updateMatrixWorld(true);
       for(const side of [-1,1]){
@@ -107,29 +94,10 @@
         rod(a.toArray(),b.toArray(),.009,'trim','windshield-wipers');
       }
       for(const side of [-1,1]) {
-        if(large){
-          const cx=side*cabWidth*.415,cy=height*.43;
-          const polygon=(w,h)=>{const p=[[cx-w,cy+h],[cx+w,cy+h],[cx+w,cy-h],[cx-w+.04,cy-h]];return p.reverse();};
-          frontPanel(polygon(.135,.255),f-.003,'trim','headlamp-surround');
-          frontPanel(polygon(.092,.18),f-.001,'white','headlamp');
-        }else{
-          box([cabWidth*.20,van?.20:.23,.025],[side*cabWidth*.34,van?.98:height*.43,f-.015],'trim','headlamp-surround');
-          box([cabWidth*.17,van?.16:.19,.012],[side*cabWidth*.34,van?.98:height*.43,f-.006],'white','headlamp');
-        }
+        box([cabWidth*.20,van?.20:.23,.025],[side*cabWidth*.34,van?.98:height*.43,f-.015],'trim','headlamp-surround');
+        box([cabWidth*.17,van?.16:.19,.012],[side*cabWidth*.34,van?.98:height*.43,f-.006],'white','headlamp');
         box([.06,.08,.009],[side*cabWidth*.42,van?1.01:height*.45,f-.005],'accent','indicator');
         box([.12,.17,.035],[side*(width*.42),.61,-f+.025],'red','tail-lamp');
-        const x=side*(cabWidth/2-.006),doorBack=f-(van?1.27:large?1.83:1.36);
-        box([.004,height*.44,.006],[x,height*.48,doorBack],'trim','door-seam');
-        box([.012,.035,.14],[x,height*.60,doorBack+.16],'trim','cab-door-handle');
-        box([.035,.06,.35],[side*(cabWidth/2-.019),.42,frontAxle-.46],'trim','door-step');
-        const mirrorX=side*(cabWidth/2+(van?.105:.18)),mirrorY=height*.72,mirrorZ=f-(van?.40:.25);
-        const arm=rod([x,mirrorY-.12,mirrorZ-.08],[mirrorX,mirrorY-.09,mirrorZ],.014,'trim','mirror-arm');arm.userData.mirror=true;
-        const housing=box([van?.16:.15,van?.20:large?.40:.29,.11],[mirrorX,mirrorY,mirrorZ],'trim','mirror-housing');housing.userData.mirror=true;
-        const mirror=box([van?.13:.12,van?.17:large?.36:.25,.005],[mirrorX,mirrorY,mirrorZ-.057],'metal','mirror-glass');mirror.userData.mirror=true;
-        if(!van){
-          box([.12,.07,large?2.15:.73],[side*(width/2-.10),.44,(frontAxle+rearAxle)/2],'metal','side-underrun-guard');
-          box([.035,.30,.28],[side*(width/2-.02),.37,rearAxle-.35],'rubber','mudflap');
-        }
       }
     }
     function stand() {

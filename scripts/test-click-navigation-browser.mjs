@@ -90,7 +90,7 @@ try{
  for(const meters of showcase?[]:[3,10,20]){
   await page.evaluate(()=>clickTest.reset());await page.waitForTimeout(350);const p=await page.evaluate(m=>clickTest.point(m),meters);
   await page.mouse.click(p.x,p.y);await page.waitForTimeout(150);const during=await page.evaluate(()=>clickTest.state());assert(during.active,'mouse did not start: '+JSON.stringify({meters,p,during}));
-  await page.waitForFunction(()=>!clickTest.state().active,null,{timeout:12000});const end=await page.evaluate(()=>clickTest.state());
+  await page.waitForFunction(()=>!clickTest.state().active,null,{timeout:7000});const end=await page.evaluate(()=>clickTest.state());
   const actualClick=await page.evaluate(()=>clickTest.lastClick);
   results.events.push({kind:'mouse',meters,p,actualClick,during,end});
   assert(Math.abs(end.pos[2]-actualClick.hit.point.z)<.02);assert(Math.abs(end.pos[1]-1.8)<.02);assert(Math.abs(end.yaw)<1e-6);assert(Math.abs(end.pitch+.15)<1e-6);
@@ -107,7 +107,7 @@ try{
   await page.waitForFunction(()=>!clickTest.state().active,null,{timeout:7000});const end=await page.evaluate(()=>clickTest.state());
   if(kind==='touch')assert(Math.abs(end.pos[2]-(await page.evaluate(()=>clickTest.lastClick.hit.point.z)))<.02);
   if(kind==='wall')assert(end.pos[2]<1.86);
-  if(kind==='range'){assert.equal(end.stopReason,'complete');const hit=await page.evaluate(()=>clickTest.lastClick.hit.point.z);assert(hit>30);assert(Math.abs(end.pos[2]-hit)<.02);}
+  if(kind==='range')assert(Math.abs(end.pos[2])<.01);
   if(kind==='wheel')assert(end.pos[2]<5);
   if(kind==='drag'){assert.equal(end.stopReason,'complete');assert(end.pos[2]>9);assert(Math.abs(end.yaw)>0.01);}
   results.events.push({kind,end});await page.screenshot({path:out+'/'+kind+'.png'});

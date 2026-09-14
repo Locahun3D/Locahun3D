@@ -14,7 +14,6 @@ globalThis.FileReader=class {
 };
 if(!process.argv.includes('--pack')) {
   for(const item of c.LocahunEquipment.catalog){
-    if(process.argv.includes('--vehicles')&&item.category!=='vehicles')continue;
     const mesh=c.LocahunEquipment.build(THREE,item.id);
     const bytes=await new GLTFExporter().parseAsync(mesh,{binary:true});
     fs.writeFileSync(new URL(item.id+'.glb',folder),Buffer.from(bytes));

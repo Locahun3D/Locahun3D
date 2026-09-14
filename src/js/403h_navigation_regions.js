@@ -8,7 +8,7 @@
     let intent=0;
     return {cancel(){intent++;},async find(from,to,accept){
       const ticket=++intent,state=io.read();
-      if(!state||!valid(from)||!valid(to)||distance(from,to)>100||!Array.isArray(state.entries)||state.entries.length>1024)return null;
+      if(!state||!valid(from)||!valid(to)||distance(from,to)>30||!Array.isArray(state.entries)||state.entries.length>1024)return null;
       const a={...from},b={...to};
       const candidates=state.entries.filter(e=>e&&e.source===state.source&&boundsOK(e.bounds)&&inside(a,e.bounds,.35)&&inside(b,e.bounds,.35))
         .map(e=>({...e,bounds:e.bounds.map(v=>[...v])}));
@@ -22,7 +22,7 @@
         let points;try{points=query.find(a,b,entry.key);}catch(_){continue;}
         if(!Array.isArray(points)||!points.length||points.length>1024||points.some(p=>!valid(p)||!inside(p,entry.bounds))||
           distance(points[0],a)>.35||distance(points.at(-1),b)>.25)continue;
-        let length=0;for(let i=1;i<points.length;i++)length+=distance(points[i-1],points[i]);if(length>100)continue;
+        let length=0;for(let i=1;i<points.length;i++)length+=distance(points[i-1],points[i]);if(length>30)continue;
         return {key:entry.key,points:points.map(p=>({...p}))};
       }
       if(typeof io.loadGraph!=='function'||!current())return null;

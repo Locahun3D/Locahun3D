@@ -291,7 +291,7 @@ canvas.addEventListener('touchmove',e=>{
       markDirty(3);
       if(layers.some(L=>L.type==='splat')) bumpSplatActive(1500);
     }
-},{passive:false});
+},{passive:true});
 canvas.addEventListener('touchend',e=>{
   const navigationTap=typeof _clickPointerTake==='function'?_clickPointerTake('touch',e,
     _handleTouchId!==-1||_lpvTouchId!==-1||_msrPlacingId!==-1||_plcPlacingId!==-1):null;
