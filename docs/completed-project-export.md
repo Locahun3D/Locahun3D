@@ -16,7 +16,14 @@ synthetic ZIP in draft st-005, including downloaded SHA256, attachment readback
 and repeat execution without duplicate assets. Production R2 CORS was missing
 content-md5/if-none-match; fixed only for the existing application origin.
 See online `docs/workflow-operator-review.md` for evidence. Another physical PC,
-physical iOS, forced session expiry and large-file live transfer remain unverified.
+physical iOS and forced session expiry remain unverified.
+
+On2026-09-14, the same authorized draft scene also accepted a134218888-byte
+synthetic ZIP (128MiB payload), including downloaded-byte verification and
+attachment readback. Transfer after page reload and file reselection also reached
+the success state. Startup cancellation was observed; cancellation during PUT or
+download verification was not captured. This is not proof of2GiB or physical iOS
+support. See `workflow-large-transfer-20260914.md` for scope and artifact hashes.
 
 ## Portable completion package (2026-09-14)
 
