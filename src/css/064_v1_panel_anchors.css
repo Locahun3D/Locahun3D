@@ -1,0 +1,10 @@
+/* Scoped position fixes; retain v1.0 controls, panel sizes and desktop layout. */
+@media (pointer:coarse) and (any-hover:none) and (min-width:700px) and (min-height:700px){
+  body #layer-panel{top:var(--v1-header-bottom,45px)!important;}
+  body #view-tl-btns,body.cam-active #view-tl-btns{left:var(--v1-tools-center,50%)!important;right:auto!important;transform:translateX(-50%)!important;width:var(--v1-tools-width,calc(100% - 301px))!important;max-width:var(--v1-tools-width,calc(100% - 301px))!important;flex-wrap:wrap!important;justify-content:center;}
+}
+@media (pointer:coarse) and (any-hover:none) and (max-width:699px),
+       (pointer:coarse) and (any-hover:none) and (max-height:699px){
+  body #cam-panel{top:var(--v1-camera-top,64px)!important;bottom:auto!important;max-height:var(--v1-camera-height,calc(100dvh - 280px))!important;overflow-y:auto!important;box-sizing:border-box;}
+  body #sun-panel{left:auto!important;right:calc(14px + env(safe-area-inset-right,0px))!important;top:auto!important;bottom:var(--v1-sun-bottom,264px)!important;max-height:var(--v1-sun-height,calc(100dvh - 330px))!important;overflow-y:auto!important;box-sizing:border-box;}
+}

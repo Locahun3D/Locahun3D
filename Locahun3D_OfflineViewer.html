@@ -2898,6 +2898,16 @@ body.local-project-saving::after,body.local-project-restoring::after {content:''
   body.local-project-mode #tb-brand-text {display:none!important;}
   #local-project-status {font-size:10px;max-width:85px;}
 }
+/* Scoped position fixes; retain v1.0 controls, panel sizes and desktop layout. */
+@media (pointer:coarse) and (any-hover:none) and (min-width:700px) and (min-height:700px){
+  body #layer-panel{top:var(--v1-header-bottom,45px)!important;}
+  body #view-tl-btns,body.cam-active #view-tl-btns{left:var(--v1-tools-center,50%)!important;right:auto!important;transform:translateX(-50%)!important;width:var(--v1-tools-width,calc(100% - 301px))!important;max-width:var(--v1-tools-width,calc(100% - 301px))!important;flex-wrap:wrap!important;justify-content:center;}
+}
+@media (pointer:coarse) and (any-hover:none) and (max-width:699px),
+       (pointer:coarse) and (any-hover:none) and (max-height:699px){
+  body #cam-panel{top:var(--v1-camera-top,64px)!important;bottom:auto!important;max-height:var(--v1-camera-height,calc(100dvh - 280px))!important;overflow-y:auto!important;box-sizing:border-box;}
+  body #sun-panel{left:auto!important;right:calc(14px + env(safe-area-inset-right,0px))!important;top:auto!important;bottom:var(--v1-sun-bottom,264px)!important;max-height:var(--v1-sun-height,calc(100dvh - 330px))!important;overflow-y:auto!important;box-sizing:border-box;}
+}
 </style>
 <dialog id="walk-setup" aria-labelledby="walk-setup-title">
   <form method="dialog"><header><h2 id="walk-setup-title">アバター歩行</h2><button aria-label="閉じる" title="閉じる">&#x2715;</button></header></form>
@@ -2962,7 +2972,7 @@ window.KAWAII_MALE_GLB_B64="Z2xURgIAAADsaRIAoPYCAEpTT057ImFzc2V0Ijp7InZlcnNpb24i
      the HTML. -->
 
 <script>
-window.__locahunBuildRelease="fae8b1459d94e87b2cd509dbb452726bebc1f3fd7f7217b46f16ab792afb1c0a";
+window.__locahunBuildRelease="358a13a69a1114e462463960c6ec0712120b4473120ffa1641a676428a80881c";
 (function(root) {
   'use strict';
   const ORIGIN='https://viewer.locahun3d.com';
@@ -29323,6 +29333,55 @@ function _syncWalkJumpButton(){
     if(!walkMode.active)return;
     walkMode.jumpRequested=true;markDirty(3);
   });
+})();
+(()=>{
+  const touch=matchMedia('(pointer:coarse) and (any-hover:none)');
+  let frame=0,settled=0;
+  const visible=e=>e&&getComputedStyle(e).display!=='none'&&e.getBoundingClientRect().width>0;
+  const set=(name,value)=>document.documentElement.style.setProperty(name,value+'px');
+  function layout(){
+    frame=0;if(!touch.matches)return;
+    const header=document.getElementById('topbar').getBoundingClientRect();
+    set('--v1-header-bottom',header.bottom);
+    if(Math.min(innerWidth,innerHeight)>=700){
+      const layer=document.getElementById('layer-panel');
+      const width=visible(layer)?layer.getBoundingClientRect().width:0;
+      const camera=document.getElementById('cam-panel');
+      const right=visible(camera)?camera.getBoundingClientRect().left:innerWidth;
+      set('--v1-tools-width',Math.max(120,right-width-16));set('--v1-tools-center',(right+width)/2);
+      return;
+    }
+    const vv=visualViewport;
+    const bottom=Math.min(innerHeight,vv?vv.offsetTop+vv.height:innerHeight);
+    const toolbar=document.getElementById('view-tl-btns');
+    const obstacles=[...document.querySelectorAll('#hud .cbar>button,#joy,#joy-vert')].filter(visible).map(e=>e.getBoundingClientRect());
+    for(const [id,prefix] of [['cam-panel','camera'],['sun-panel','sun']]){
+      const panel=document.getElementById(id);if(!visible(panel))continue;
+      const r=panel.getBoundingClientRect();
+      const overlap=b=>r.left<b.right&&r.right>b.left;
+      let top=header.bottom+4,limit=bottom-12;
+      if(visible(toolbar)){
+        for(const e of toolbar.querySelectorAll('button,#qi-badge'))if(visible(e)){
+          const b=e.getBoundingClientRect();if(overlap(b))top=Math.max(top,b.bottom+8);
+        }
+      }
+      for(const b of obstacles)if(overlap(b)&&b.top>=top)limit=Math.min(limit,b.top-8);
+      set('--v1-'+prefix+'-height',Math.max(48,limit-top));
+      if(prefix==='camera')set('--v1-camera-top',top);
+      else set('--v1-sun-bottom',innerHeight-limit);
+    }
+  }
+  const schedule=()=>{if(!frame)frame=requestAnimationFrame(layout);};
+  const resize=()=>{schedule();clearTimeout(settled);settled=setTimeout(schedule,280);};
+  for(const name of ['resize','pageshow','orientationchange'])window.addEventListener(name,resize);
+  window.visualViewport?.addEventListener('resize',schedule);
+  window.visualViewport?.addEventListener('scroll',schedule);
+  document.addEventListener('click',schedule,true);
+  touch.addEventListener('change',schedule);
+  new ResizeObserver(schedule).observe(document.getElementById('topbar'));
+  new ResizeObserver(schedule).observe(document.getElementById('layer-panel'));
+  new ResizeObserver(schedule).observe(document.querySelector('#hud .cbar'));
+  schedule();
 })();
 // ══════════════════════════════════════════════════
 //  UI CONTROLS
