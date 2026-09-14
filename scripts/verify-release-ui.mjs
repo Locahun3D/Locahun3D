@@ -16,7 +16,7 @@ try{
  await page.goto(origin+endpoint+'?verify='+Date.now()+(online?'':'&demo=1&showcase=1'),{waitUntil:'domcontentloaded'});
  await page.waitForFunction(()=>typeof window.setPathLabel==='function',null,{timeout:90000});
  assert.equal(await page.evaluate(()=>window.__locahunBuildRelease),release);
- assert.equal(await page.locator('#hud .cbar #btnCamAnim').count(),1);
+ assert.equal(await page.locator('#btnCamAnim').count(),1);
  if(!online){await page.locator('[id^="lr-"]').first().waitFor({state:'attached',timeout:90000});await page.waitForTimeout(10000);}
  else {await page.locator('#emptyBtn').click();await page.locator('#dz').waitFor({state:'hidden'});}
  await page.waitForFunction(()=>document.getElementById('lbl-walk')?.textContent==='歩行',null,{timeout:60000});
