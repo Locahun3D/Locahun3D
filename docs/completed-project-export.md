@@ -10,10 +10,13 @@ metadata is retained. Selecting files does not upload; the transfer button does.
 No source project editing, owner approval, publication or sharing is performed.
 
 The complete panel passed an isolated Chrome fixture at1440/820/390 widths,
-including retry, corrupt download, CORS rejection and cancellation. This does NOT
-establish live authenticated R2 transfer success. See online
-`docs/workflow-operator-review.md` for evidence and limitations. Another physical
-PC and authorized isolated live transfer remain unverified.
+including retry, corrupt download, CORS rejection and cancellation.
+The separately authorized live Chrome test on2026-09-14 now passed with a1495-byte
+synthetic ZIP in draft st-005, including downloaded SHA256, attachment readback
+and repeat execution without duplicate assets. Production R2 CORS was missing
+content-md5/if-none-match; fixed only for the existing application origin.
+See online `docs/workflow-operator-review.md` for evidence. Another physical PC,
+physical iOS, forced session expiry and large-file live transfer remain unverified.
 
 ## Portable completion package (2026-09-14)
 
