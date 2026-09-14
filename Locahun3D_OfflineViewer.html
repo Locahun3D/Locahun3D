@@ -2904,7 +2904,7 @@ body.local-project-saving::after,body.local-project-restoring::after {content:''
   body #view-tl-btns button{min-height:40px!important;font-size:12px!important;padding:6px 8px!important;letter-spacing:0!important;}
   body #hud .cbar{left:50%!important;transform:translateX(-50%)!important;display:grid!important;grid-template-columns:1fr 1.6fr .8fr 1.1fr;gap:4px!important;width:min(420px,calc(100vw - 24px));max-width:calc(100vw - 24px)!important;bottom:calc(24px + env(safe-area-inset-bottom,0px))!important;}
   body #hud .cbar>button:is(#btnCamTool,#btnCamAnim,#btn-sun,#btnMeasure){display:inline-flex!important;align-items:center;justify-content:center;min-height:44px!important;margin:0!important;padding:6px 10px!important;font-size:12px!important;letter-spacing:0!important;white-space:nowrap;background:rgba(20,20,22,.92);border-radius:6px;}
-  body :is(#cam-panel,#sun-panel,#gizmo,#cam-anim-panel,#quality-panel){
+  body :is(#gizmo,#cam-anim-panel,#quality-panel){
     top:var(--touch-panel-top,92px)!important;bottom:auto!important;right:calc(12px + env(safe-area-inset-right,0px))!important;left:auto!important;transform:none!important;
     width:min(340px,calc(100vw - 24px))!important;height:auto!important;min-height:0!important;
     max-height:var(--touch-panel-height,calc(100dvh - 320px))!important;
@@ -2912,12 +2912,15 @@ body.local-project-saving::after,body.local-project-restoring::after {content:''
     font-size:12px!important;border-radius:6px!important;
   }
   body [data-touch-occluded="true"]{visibility:hidden!important;pointer-events:none!important;}
+  body :is(#cam-panel,#sun-panel){max-height:var(--touch-panel-height)!important;box-sizing:border-box;overflow-y:auto!important;}
+  body #cam-panel{top:var(--touch-camera-top,var(--touch-panel-top,92px))!important;max-height:var(--touch-camera-height,var(--touch-panel-height))!important;}
+  body #sun-panel{left:auto!important;right:calc(14px + env(safe-area-inset-right,0px))!important;top:auto!important;bottom:var(--touch-panel-bottom,80px)!important;}
   body :is(#cam-panel,#sun-panel,#gizmo,#cam-anim-panel,#quality-panel) :is(button,select,input:not([type=checkbox]):not([type=range])){min-height:34px;box-sizing:border-box;max-width:100%;}
   body :is(#cam-panel,#sun-panel,#gizmo,#cam-anim-panel,#quality-panel) :is(input,select){min-width:0;}
   body #cam-panel .cm-focal-btn{min-width:34px;}
   body #cam-anim-panel{padding:12px!important;}
   body #cam-anim-panel>div{flex-wrap:wrap;}
-  body #layer-panel{top:92px!important;max-height:calc(100dvh - 310px)!important;}
+  body #layer-panel{top:var(--touch-header-bottom,40px)!important;width:var(--touch-layer-width,285px)!important;max-height:calc(100dvh - var(--touch-header-bottom,40px))!important;}
   body #walk-jump-button{bottom:var(--joy-viewport-bottom,24px);}
 }
 @media (pointer:coarse) and (any-hover:none) and (orientation:portrait) and (max-width:900px){
@@ -2926,11 +2929,12 @@ body.local-project-saving::after,body.local-project-restoring::after {content:''
 @media (pointer:coarse) and (any-hover:none) and (orientation:landscape) and (max-height:699px){
   body #hud .cbar{width:calc(100vw - 416px)!important;max-width:420px!important;bottom:calc(12px + env(safe-area-inset-bottom,0px))!important;}
   body #hud .cbar>button:is(#btnCamTool,#btnCamAnim,#btn-sun,#btnMeasure){padding:6px!important;}
-  body :is(#cam-panel,#sun-panel,#gizmo,#cam-anim-panel,#quality-panel){width:min(340px,calc(100vw - 404px))!important;}
+  body :is(#gizmo,#cam-anim-panel,#quality-panel){width:min(340px,calc(100vw - 404px))!important;}
 }
 @media (pointer:coarse) and (any-hover:none) and (orientation:landscape){
   body #joy-vert{left:auto!important;right:calc(24px + env(safe-area-inset-right,0px))!important;}
-  body :is(#cam-panel,#sun-panel,#gizmo,#cam-anim-panel,#quality-panel){right:calc(104px + env(safe-area-inset-right,0px))!important;}
+  body:is(.cam-active,.sun-active) #joy-vert{left:208px!important;right:auto!important;bottom:var(--touch-joy-tool-bottom,76px)!important;}
+  body :is(#gizmo,#cam-anim-panel,#quality-panel){right:calc(104px + env(safe-area-inset-right,0px))!important;}
 }
 @media (pointer:coarse) and (any-hover:none) and (orientation:landscape) and (max-height:699px) and (max-width:740px){
   body #hud .cbar{grid-template-columns:1fr 1fr;}
@@ -2999,7 +3003,7 @@ window.KAWAII_MALE_GLB_B64="Z2xURgIAAADsaRIAoPYCAEpTT057ImFzc2V0Ijp7InZlcnNpb24i
      the HTML. -->
 
 <script>
-window.__locahunBuildRelease="7e07874f8fb94efc93dccfea1d3b460e3bd5d78bfdfec9b966c92397cddd5982";
+window.__locahunBuildRelease="7da44321d898b93ba1ac420dbc1b0364eabe912e66dafd710ff72586c5851c92";
 (function(root) {
   'use strict';
   const ORIGIN='https://viewer.locahun3d.com';
@@ -29428,12 +29432,25 @@ function _syncWalkJumpButton(){
     if(!touch.matches){for(const p of panels)p.removeAttribute('data-touch-occluded');return;}
     const available=panels.filter(open),selected=available.find(p=>p.id===preferred)||available.at(-1);
     for(const p of panels){const value=String(open(p)&&p!==selected);if(p.dataset.touchOccluded!==value)p.dataset.touchOccluded=value;}
-    const top=document.getElementById('view-tl-btns')?.getBoundingClientRect().bottom||84;
+    const toolbar=document.getElementById('view-tl-btns')?.getBoundingClientRect();
+    const top=toolbar?.bottom||84;
+    const headerBottom=document.getElementById('topbar')?.getBoundingClientRect().bottom||40;
+    document.documentElement.style.setProperty('--touch-header-bottom',headerBottom+'px');
     const bar=document.querySelector('#hud .cbar')?.getBoundingClientRect();
+    document.documentElement.style.setProperty('--touch-layer-width',Math.min(285,Math.max(180,(toolbar?.left||293)-8))+'px');
+    document.documentElement.style.setProperty('--touch-joy-tool-bottom',Math.max(76,innerHeight-(bar?.top||innerHeight)+8)+'px');
     const vv=window.visualViewport,bottom=Math.min(innerHeight,vv?vv.offsetTop+vv.height:innerHeight);
     const limit=Math.min(bar?.height?bar.top-8:bottom-88,bottom-104);
+    document.documentElement.style.setProperty('--touch-panel-bottom',(innerHeight-limit)+'px');
     document.documentElement.style.setProperty('--touch-panel-top',(top+8)+'px');
     document.documentElement.style.setProperty('--touch-panel-height',Math.max(48,limit-top-8)+'px');
+    const cameraPanel=document.getElementById('cam-panel');
+    if(open(cameraPanel)){
+      const bounds=cameraPanel.getBoundingClientRect();
+      const cameraTop=toolbar&&bounds.left<toolbar.right&&bounds.right>toolbar.left?top+8:headerBottom;
+      document.documentElement.style.setProperty('--touch-camera-top',cameraTop+'px');
+      document.documentElement.style.setProperty('--touch-camera-height',Math.max(48,limit-cameraTop)+'px');
+    }
   }
   const schedule=()=>{clearTimeout(timer);timer=setTimeout(layout,0);};
   // The quality chip handles touchend itself and suppresses the synthetic click.

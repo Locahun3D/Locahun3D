@@ -9,12 +9,25 @@
     if(!touch.matches){for(const p of panels)p.removeAttribute('data-touch-occluded');return;}
     const available=panels.filter(open),selected=available.find(p=>p.id===preferred)||available.at(-1);
     for(const p of panels){const value=String(open(p)&&p!==selected);if(p.dataset.touchOccluded!==value)p.dataset.touchOccluded=value;}
-    const top=document.getElementById('view-tl-btns')?.getBoundingClientRect().bottom||84;
+    const toolbar=document.getElementById('view-tl-btns')?.getBoundingClientRect();
+    const top=toolbar?.bottom||84;
+    const headerBottom=document.getElementById('topbar')?.getBoundingClientRect().bottom||40;
+    document.documentElement.style.setProperty('--touch-header-bottom',headerBottom+'px');
     const bar=document.querySelector('#hud .cbar')?.getBoundingClientRect();
+    document.documentElement.style.setProperty('--touch-layer-width',Math.min(285,Math.max(180,(toolbar?.left||293)-8))+'px');
+    document.documentElement.style.setProperty('--touch-joy-tool-bottom',Math.max(76,innerHeight-(bar?.top||innerHeight)+8)+'px');
     const vv=window.visualViewport,bottom=Math.min(innerHeight,vv?vv.offsetTop+vv.height:innerHeight);
     const limit=Math.min(bar?.height?bar.top-8:bottom-88,bottom-104);
+    document.documentElement.style.setProperty('--touch-panel-bottom',(innerHeight-limit)+'px');
     document.documentElement.style.setProperty('--touch-panel-top',(top+8)+'px');
     document.documentElement.style.setProperty('--touch-panel-height',Math.max(48,limit-top-8)+'px');
+    const cameraPanel=document.getElementById('cam-panel');
+    if(open(cameraPanel)){
+      const bounds=cameraPanel.getBoundingClientRect();
+      const cameraTop=toolbar&&bounds.left<toolbar.right&&bounds.right>toolbar.left?top+8:headerBottom;
+      document.documentElement.style.setProperty('--touch-camera-top',cameraTop+'px');
+      document.documentElement.style.setProperty('--touch-camera-height',Math.max(48,limit-cameraTop)+'px');
+    }
   }
   const schedule=()=>{clearTimeout(timer);timer=setTimeout(layout,0);};
   // The quality chip handles touchend itself and suppresses the synthetic click.
