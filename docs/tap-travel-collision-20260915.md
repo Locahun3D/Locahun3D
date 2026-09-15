@@ -6,7 +6,7 @@
 - Destination selection still requires a real surface/floor hit and ends at floor + 1.8 m. The existing 30 m limit remains.
 - Independent taps are no longer discarded by the 300 ms double-tap filter; synthetic mouse events following touch remain suppressed.
 - Ground preparation no longer discards a pending tap solely because the view rotated. New intent, scene replacement and active tool ownership still invalidate it.
-- No renderer or layout changes. Local build only; not deployed.
+- No renderer or layout changes.
 
 ## Verification
 
@@ -17,3 +17,11 @@
 - Evidence: `F:/Codex/3dgs-renderer-research-20260911/click-browser-1789469849097`.
 - `node build.mjs` and `git diff --check` passed.
 - Physical iPhone/iPad and production/private 3DGS scene verification have not been performed for this change. Browser fixture coverage does not establish performance or floor-picking quality in every scan.
+
+## Publication
+
+- User authorized publication. Source `da9160b` pushed to main; online sync `48f2ad8` pushed to morning-restored.
+- Standalone Worker `dbe3dfc0-1093-4738-9c27-b8a64fb676ff`, release `d81de0b0a5d8026ff8a6b6e5b9ce84d13586e47a3f6e0cbc9a74ed01e6b6a69b`, published through the guarded wrapper. 111 release regressions, preview asset checks and actual file-origin startup update passed. Public 64 panel combinations passed with zero errors.
+- Online Actions `34961292161` succeeded. Public HTML HTTP 200 and SHA256 `e757eb85b4ad0b5b6842b87dc53add98695062aaa3ecc02c4799ead75197ff72` match the generated online variant.
+- Online public 64 panel combinations also passed, zero errors; release `fbeff329bd2af15decb2fd9f98bb62d5140fb704e7149325e4cdcae1fac81402`. iPad landscape expanded-layer/camera screenshot inspected.
+- Dropbox 10 viewer files updated with backup `F:/Codex/locahun-navigation-20260913/distribution-1789470293266`; 18355 non-viewer file metadata entries unchanged.
