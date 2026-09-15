@@ -190,3 +190,17 @@ test('explicit camera retry recovers a transient failure using cached geometry w
  assert(await f.run('prepareCameraCollision()'),f.run('walkSetup.status'));
  assert.equal(f.run('getCameraCollisionState().ready'),true);
 });
+
+test('camera OFF to ON retries saved collision after a transient failure without baking',async()=>{
+ const f=fixture();assert(await f.run('_walkGenerateCollision({automatic:true,allowBake:true})'));
+ f.run('walkSetup.core=null;walkSetup.settings.signature="";LocahunCollisionBake.generate=()=>{throw Error("Must not bake")};');
+ const create=f.c.LocahunWalkCollision.create;
+ f.c.LocahunWalkCollision.create=async()=>{throw Error('temporary runtime failure');};
+ assert.equal(await f.run('_walkGenerateCollision({automatic:true})'),false);
+ f.c.LocahunWalkCollision.create=create;
+ await f.run('setCameraCollision(false)');
+ await f.run('setCameraCollision(true)');
+ assert.equal(f.run('getCameraCollisionState().ready'),true);
+ const builds=f.builds();await f.run('setCameraCollision(true)');
+ assert.equal(f.builds(),builds);
+});

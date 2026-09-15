@@ -13,6 +13,14 @@ if(typeof _walkRunWholeGeneration==='function'){
  _walkRunWholeGeneration=async(...args)=>{try{return await runWhole(...args);}catch(error){console.error('[collision-test]',error.stack);throw error;}};
 }
 window.cameraTest={
+ async failPreparation(){
+  walkSetup.core?.dispose();walkSetup.core=null;walkSetup.settings.signature='';
+  const create=LocahunWalkCollision.create;
+  try{LocahunWalkCollision.create=async()=>{throw Error('Synthetic transient preparation failure');};
+   await _walkGenerateCollision({automatic:true});
+  }finally{LocahunWalkCollision.create=create;}
+  return getCameraCollisionState();
+ },
  proxy(){return {whole:walkSetup.settings.whole,cellSize:walkSetup.wholeIndex?.cellSize,tiles:walkSetup.wholeIndex?.tiles.size,boxes:walkSetup.wholeIndex?.total,sources:layers.filter(L=>L.type==='splat'&&L.visible).map(L=>({identity:_wholeIdentityCache.get(L.mesh)?.identity,matrix:[...L.mesh.matrixWorld.elements]}))};},
  state(){return {status:walkSetup.status,busy:walkSetup.busy,signature:walkSetup.settings.signature,whole:!!walkSetup.wholeIndex,importPending:!!walkSetup.importPending,sources:layers.filter(L=>L.type==='splat').map(L=>({url:(L._streamUrl||L.mesh?.paged?.rootUrl||'').split('?')[0],rawBytes:L._rawBuffer?.byteLength}))};},
  async airborne(){
@@ -74,7 +82,20 @@ try{
  await page.route('http://127.0.0.1:18995/',r=>r.fulfill({contentType:'text/html',body:html}));
  await page.goto('http://127.0.0.1:18995/');
  await page.waitForFunction(()=>window.cameraTest,null,{timeout:60000});
- if(process.argv.includes('--real')){
+ if(process.argv.includes('--retry-only')){
+  await page.evaluate(()=>window.cameraTest.setup());
+  const failed=await page.evaluate(()=>window.cameraTest.failPreparation());assert.equal(failed.ready,false);
+  await page.locator('#qi-badge').click();
+  const toggle=page.locator('#camera-collision-toggle');
+  assert.equal(await toggle.textContent(),'未準備');
+  await toggle.click();assert.equal(await toggle.textContent(),'OFF');
+  await toggle.click();await page.waitForFunction(()=>getCameraCollisionState().ready);
+  assert.equal(await toggle.textContent(),'ON');
+  const on=await page.evaluate(()=>window.cameraTest.move('keyboard'));
+  assert(on.x>.7&&on.x<.86,JSON.stringify(on));
+  await page.screenshot({path:out+'/retry-ready.png'});
+  assert.deepEqual(errors,[]);console.log('PASS actual Chrome OFF/ON recovers failed preparation and real Rapier blocks wall');
+ }else if(process.argv.includes('--real')){
   const zip=process.env.CAMERA_TEST_ZIP||'C:/Users/askgg/Dropbox/KWI/Products/Locahun3D/01_3DData/StudioSeeYouTomorrow/260907/3_Locahun3DOnline_ViewerData/4FStudio.zip';
   const digest=()=>createHash('sha256').update(fs.readFileSync(zip)).digest('hex'),before=digest();
   await page.locator('#fi').setInputFiles(zip);

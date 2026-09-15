@@ -495,9 +495,14 @@ function _walkUpdateCameraReadiness(){
   }
 }
 globalThis.setCameraCollision=function(enabled){
+  const wasEnabled=cameraCollisionEnabled;
   cameraCollisionEnabled=!!enabled;
   _walkUpdateCameraReadiness();
   markDirty(2);
+  // Explicit re-enabling retries saved geometry; background failures stay throttled.
+  if(cameraCollisionEnabled&&!wasEnabled)return globalThis.prepareCameraCollision().catch(error=>{
+    _walkStatus(error.message);_walkUpdateCameraReadiness();return false;
+  });
 };
 globalThis.toggleCameraCollision=()=>globalThis.setCameraCollision(!cameraCollisionEnabled);
 globalThis.prepareCameraCollision=async()=>{
