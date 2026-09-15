@@ -16,7 +16,8 @@
         const n=Math.hypot(hit.normal.x,hit.normal.y,hit.normal.z);
         if(n<1e-8||hit.normal.y/n<Math.SQRT1_2)return false;
         const from={...io.position()},to={...hit.point,y:hit.point.y+1.8};
-        if(!valid(from)||!valid(to)||!io.ready()||io.blocked()||!io.coverage(from,to)||!io.clear(from,0)||!io.clear(to,1))return false;
+        if(!valid(from)||!valid(to)||!io.ready()||io.blocked())return false;
+        if(io.collision!==false&&(!io.coverage(from,to)||!io.clear(from,0)||!io.clear(to,1)))return false;
         if(route!==undefined&&(!Array.isArray(route)||!route.length||route.length>1024||!route.every(valid)||distance(route.at(-1),to)>.001))return false;
         const corners=route||[to],path=[{point:from,at:0}];let length=0,previous=from;
         for(const corner of corners){
@@ -47,8 +48,8 @@
         if(targets.length>256){cancel('step-limit');return false;}
         for(const sample of targets){
           const next=sample.point,progress=sample.at/m.length;
-          if(!io.coverage(m.last,next)||!io.clear(next,progress)){cancel('clearance-or-coverage');return false;}
-          const swept=io.sweep(m.last,next);
+          if(io.collision!==false&&(!io.coverage(m.last,next)||!io.clear(next,progress))){cancel('clearance-or-coverage');return false;}
+          const swept=io.collision===false?next:io.sweep(m.last,next);
           // moveCamera supports sliding; click travel deliberately does not.
           if(!valid(swept)||distance(swept,next)>.0001){cancel('sweep');return false;}
           io.setPosition(next);m.last=next;
@@ -105,15 +106,14 @@
       return height>=.3&&core.isCapsuleClear({x:p.x,y:feetY,z:p.z},height,.15);
     };
   },createGesture(tolerance=5){
-    let pending=null,lastTap=-Infinity;
+    let pending=null;
     return {reset(){pending=null;},arm(p,now){pending={...p,at:now,moved:false};},
       move(p){if(pending&&(p.id!==pending.id||Math.hypot(p.x-pending.x,p.y-pending.y)>=tolerance))pending.moved=true;},
       waiting(){return !!pending&&!pending.moved;},
       take(p,now,consumed){
         const old=pending;pending=null;
         if(!old||consumed||old.moved||p.id!==old.id||now-old.at>600||now<old.at||Math.hypot(p.x-old.x,p.y-old.y)>=tolerance)return null;
-        const double=now-lastTap<300;lastTap=now;
-        return double?null:p;
+        return p;
       }};
   }};
 })();
@@ -160,145 +160,65 @@ function _clickNavigationCoverage(a,b){
   if(typeof _walkNeedsRegion!=='function'||_walkNeedsRegion(a,.3,false)||_walkNeedsRegion(b,.3,false))return false;
   return !walkSetup.wholeIndex||(typeof _walkWholeCoverage==='function'&&_walkWholeCoverage(a,b,{drop:2,margin:.3})===true);
 }
-// The caller owns a supplied lease until a non-preview move is accepted.
-function _clickNavigateAt(clientX,clientY,preview=false,preparedHit=null,preparedLease=null){
-  if(!preview)_cancelClickNavigation(!!preparedLease);
-  if(preparedLease&&!preparedLease.valid())return false;
+// Tap travel uses collision geometry only to identify a destination floor.
+function _clickNavigateAt(clientX,clientY,preview=false,preparedHit=null){
+  if(!preview)_cancelClickNavigation();
   if(_clickNavigationBusy())return false;
-  if(!_clickNavigationJourney&&walkSetup.settings.navigationRegions&&typeof _prepareRegionalNavigationProvider==='function'){
-    const intent=_clickNavigationIntent,epoch=walkSetup.epoch,position=camPos.clone();
-    const hold=preview&&typeof _navigationHold!=='undefined'?_navigationHold:null;
-    if(hold?.navigationPending)return false;
-    if(hold)hold.navigationPending=true;
-    _prepareRegionalNavigationProvider().then(provider=>{
-      if(!provider||intent!==_clickNavigationIntent||epoch!==walkSetup.epoch||camPos.distanceTo(position)>=.001||_clickNavigationBusy())return;
-      if(preview){if(hold?.active&&typeof _navigationHold!=='undefined'&&_navigationHold===hold){hold.navigationPending=false;_navigationHoldPreview();}}
-      else _clickNavigateAt(clientX,clientY,false,preparedHit);
-    }).catch(()=>{}).finally(()=>{if(hold)hold.navigationPending=false;});
-    return false;
-  }
   const now=performance.now();
-  if(!globalThis.getCameraCollisionState?.().ready){
-    if(!preview&&globalThis.getCameraCollisionState?.().enabled&&typeof globalThis.prepareCameraCollision==='function'){
-      const intent=_clickNavigationIntent,epoch=walkSetup.epoch,position={...camPos};
-      const yaw=typeof _yawTarget==='undefined'?null:_yawTarget,pitch=typeof _pitchTarget==='undefined'?null:_pitchTarget;
+  const rect=canvas.getBoundingClientRect();
+  if(!Number.isFinite(clientX)||!Number.isFinite(clientY)||rect.width<=0||rect.height<=0||clientX<rect.left||clientX>rect.right||clientY<rect.top||clientY>rect.bottom)return false;
+  if(!walkSetup.core||walkSetup.importPending||walkSetup.settings.signature!==_walkSourceSignature()){
+    if(!preview&&typeof globalThis.prepareCameraCollision==='function'){
+      const intent=_clickNavigationIntent,epoch=walkSetup.epoch;
       globalThis.prepareCameraCollision().then(ready=>{
-        if(!ready||intent!==_clickNavigationIntent||epoch!==walkSetup.epoch||_clickNavigationBusy()||
-          Math.hypot(camPos.x-position.x,camPos.y-position.y,camPos.z-position.z)>.001||
-          (yaw!==null&&(yaw!==_yawTarget||pitch!==_pitchTarget)))return;
-        _clickNavigateAt(clientX,clientY);
+        if(ready&&intent===_clickNavigationIntent&&epoch===walkSetup.epoch&&!_clickNavigationBusy())
+          _clickNavigateAt(clientX,clientY);
       }).catch(()=>{});
     }
     if(!preview&&now-_clickNavigationToastAt>1000&&typeof showUndoToast==='function'){
-      showUndoToast('当たり判定の準備ができていません');_clickNavigationToastAt=now;
+      showUndoToast('移動先の地面を準備しています');_clickNavigationToastAt=now;
     }
     return false;
   }
-  const rect=canvas.getBoundingClientRect();
-  if(!Number.isFinite(clientX)||!Number.isFinite(clientY)||rect.width<=0||rect.height<=0||clientX<rect.left||clientX>rect.right||clientY<rect.top||clientY>rect.bottom)return false;
   const pickCamera=_useOrtho?_orthoCamera:camera;
+  // Use the currently displayed camera, including its latest eased rotation.
   pickCamera.updateWorldMatrix(true,false);
   const ray=new THREE.Raycaster();
   ray.setFromCamera(new THREE.Vector2((clientX-rect.left)/rect.width*2-1,1-(clientY-rect.top)/rect.height*2),pickCamera);
   try{
-    // Seed the collision tile region from a single visible surface pick; do not
-    // raycast only the currently resident near-camera tile or start a bake.
     if(walkSetup.wholeIndex){
       if(typeof pickWorldPos!=='function')return false;
       const depth=msr.placeDepth;let point;
       try{point=pickWorldPos(clientX,clientY,{strictVisible:true});}finally{msr.placeDepth=depth;}
-      if(!point||Math.hypot(point.x-camPos.x,point.y+1.8-camPos.y,point.z-camPos.z)>30||!_clickNavigationCoverage(camPos,point))return false;
+      if(!point||Math.hypot(point.x-camPos.x,point.y+1.8-camPos.y,point.z-camPos.z)>30)return false;
+      // Load only the target's floor data; missing corridor tiles must not block travel.
+      if(typeof _walkWholeCoverage==='function')_walkWholeCoverage(point,point,{drop:4,margin:.5});
     }
-    const picked=preparedHit||walkSetup.core.raycastSurface(ray.ray.origin,ray.ray.direction,Math.min(1000,pickCamera.far));
+    const core=walkSetup.core;
+    const picked=preparedHit||core.raycastSurface(ray.ray.origin,ray.ray.direction,Math.min(1000,pickCamera.far));
     if(!picked)return false;
-    let hit=LocahunClickNavigation.resolveSurface(picked,camPos,(a,b,d)=>walkSetup.core.raycastSurface(a,b,d));
-    // A coarse stair voxel may contain the downward probe. The regional query
-    // still requires a nearby connected walkable triangle before accepting it.
-    if(!hit&&_clickNavigationJourney)hit={...picked,normal:{x:0,y:1,z:0}};
+    const hit=LocahunClickNavigation.resolveSurface(picked,camPos,(a,b,d)=>core.raycastSurface(a,b,d));
     if(!hit)return preview?{point:picked.point,valid:false}:false;
-    if(_clickNavigationJourney&&!preparedLease){
-      const provider=_clickNavigationJourney,intent=_clickNavigationIntent,epoch=walkSetup.epoch,position=camPos.clone();
-      const hold=preview&&typeof _navigationHold!=='undefined'?_navigationHold:null;
-      if(preview&&!hold?.active)return {point:hit.point,valid:false};
-      if(hold?.navigationPending)return {point:hit.point,valid:false};
-      if(hold)hold.navigationPending=true;
-      provider.acquire(LocahunClickNavigation.resolveOrigin(walkSetup.core,position),hit.point).then(lease=>{
-        if(!lease)return;
-        let adopted=false;
-        try{
-          if(provider!==_clickNavigationJourney||intent!==_clickNavigationIntent||epoch!==walkSetup.epoch||camPos.distanceTo(position)>=.001||_clickNavigationBusy())return;
-          if(preview){
-            if(!hold.active||typeof _navigationHold==='undefined'||_navigationHold!==hold)return;
-            if(hold.point&&(hold.point.x!==clientX||hold.point.y!==clientY))return;
-            const result=_clickNavigateAt(clientX,clientY,true,hit,lease);
-            if(result&&typeof _showNavigationPoint==='function')_showNavigationPoint(result.point,result.valid);
-          }else adopted=_clickNavigateAt(clientX,clientY,false,hit,lease)===true;
-        }finally{if(!adopted)lease.dispose();}
-      }).catch(()=>{}).finally(()=>{
-        if(hold)hold.navigationPending=false;
-        if(preview&&hold?.active&&typeof _navigationHold!=='undefined'&&_navigationHold===hold&&
-          hold.point&&(hold.point.x!==clientX||hold.point.y!==clientY)&&intent===_clickNavigationIntent&&epoch===walkSetup.epoch&&
-          typeof _navigationHoldPreview==='function')_navigationHoldPreview();
-      });
-      return preview?{point:hit.point,valid:false}:false;
-    }
-    let route=null,clear;
-    const movementCore=preparedLease?.core||walkSetup.core;
-    if(preparedLease){
-      const points=preparedLease.points;
-      if(!Array.isArray(points)||!points.length)return false;
-      hit={...hit,point:points.at(-1)};route=points.map(p=>({x:p.x,y:p.y+1.8,z:p.z}));
-      clear=LocahunClickNavigation.createRouteClearance(movementCore,camPos,points);
-    }else if(walkSetup.settings?.navigation){
-      const query=_getNavigationQuery();
-      if(!query){
-        const intent=_clickNavigationIntent,epoch=walkSetup.epoch,position=camPos.clone();
-        const hold=preview&&typeof _navigationHold!=='undefined'?_navigationHold:null;
-        if(hold?.navigationPending)return {point:hit.point,valid:false};
-        if(hold)hold.navigationPending=true;
-        _prepareNavigationQuery().then(ready=>{
-          if(preview&&ready&&hold?.active&&typeof _navigationHold!=='undefined'&&_navigationHold===hold&&
-            intent===_clickNavigationIntent&&epoch===walkSetup.epoch&&!_clickNavigationBusy())_navigationHoldPreview();
-          if(!preview&&ready&&intent===_clickNavigationIntent&&epoch===walkSetup.epoch&&camPos.distanceTo(position)<.001&&!_clickNavigationBusy())
-            _clickNavigateAt(clientX,clientY,false,hit);
-        }).finally(()=>{if(hold)hold.navigationPending=false;});
-        return preview?{point:hit.point,valid:false}:false;
-      }
-      const points=query.find(LocahunClickNavigation.resolveOrigin(walkSetup.core,camPos),hit.point,walkSetup.settings.navigation.key);
-      if(!points)return preview?{point:hit.point,valid:false}:false;
-      hit={...hit,point:points.at(-1)};route=points.map(p=>({x:p.x,y:p.y+1.8,z:p.z}));
-      clear=LocahunClickNavigation.createRouteClearance(walkSetup.core,camPos,points);
-    }else clear=LocahunClickNavigation.createClearance(walkSetup.core,camPos,hit.point);
-    if(!clear)return preview?{point:hit.point,valid:false}:false;
-    const routeGround=preparedLease?LocahunClickNavigation.createRouteGround(camPos,preparedLease.points):null;
     const controller=LocahunClickNavigation.create({
+      collision:false,
       position:()=>camPos,setPosition:p=>{camPos.set(p.x,p.y,p.z);markDirty(3);if(typeof bumpSplatActive==='function')bumpSplatActive(500);},
-      ready:()=>!!globalThis.getCameraCollisionState?.().ready&&(!preparedLease||preparedLease.valid()),
-      epoch:()=>walkSetup.epoch,blocked:_clickNavigationBusy,
-      coverage:preparedLease?(a,b)=>[a,b].every(p=>preparedLease.covers(routeGround(p))):_clickNavigationCoverage,
-      clear,
-      sweep:(a,b)=>movementCore.moveCamera(a,{x:b.x-a.x,y:b.y-a.y,z:b.z-a.z},.15)
+      ready:()=>true,epoch:()=>walkSetup.epoch,blocked:_clickNavigationBusy
     });
-    const accepted=controller.start(hit,now,route||undefined);
+    const accepted=controller.start(hit,now);
     if(preview)return {point:hit.point,valid:accepted};
     if(!accepted)return false;
     _clickNavigationController=controller;
-    _clickNavigationLease=preparedLease;
     if(typeof _showNavigationPoint==='function')_showNavigationPoint(hit.point,true);
     const step=()=>{
       _clickNavigationTimer=null;
-      try{_clickNavigationController.tick(performance.now());}catch(_error){_cancelClickNavigation();}
-      if(_clickNavigationController.active)_clickNavigationTimer=setTimeout(step,16);
-      else{
-        _clickNavigationLease?.dispose();_clickNavigationLease=null;
-        if(typeof _hideNavigationPoint==='function')_hideNavigationPoint();
-      }
+      try{controller.tick(performance.now());}catch(_error){_cancelClickNavigation();}
+      if(controller.active)_clickNavigationTimer=setTimeout(step,16);
+      else if(typeof _hideNavigationPoint==='function')_hideNavigationPoint();
     };
     _clickNavigationTimer=setTimeout(step,16);
     return true;
   }catch(_error){if(!preview)_cancelClickNavigation();return false;}
 }
-
 const _clickGestures={mouse:LocahunClickNavigation.createGesture(),touch:LocahunClickNavigation.createGesture(12)};
 let _clickSuppressMouseUntil=0;
 function _clickPointerStart(kind,e){

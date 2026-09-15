@@ -519,6 +519,7 @@ globalThis.getCameraCollisionState=()=>{
 };
 function _applyFreeCameraCollision(start){
   if(!cameraCollisionEnabled)return;
+  if(typeof _clickNavigationController!=='undefined'&&_clickNavigationController?.active)return;
   const delta={x:camPos.x-start.x,y:camPos.y-start.y,z:camPos.z-start.z};
   if(Math.hypot(delta.x,delta.y,delta.z)<1e-8)return;
   const hasTargets=layers.some(L=>L.mesh&&L.visible&&(L.type==='splat'||walkSetup.settings.meshIds.includes(L.id)));

@@ -4,100 +4,36 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import * as THREE from './navigation-assets/node_modules/three/build/three.module.js';
 function fixture(){
- let now=0,release,ready=false,picks=0;
- const to={x:0,y:3,z:3},route=[{x:0,y:0,z:0},{x:3,y:0,z:0},{x:3,y:3,z:3},to];
- const camPos=new THREE.Vector3(0,1.8,0),core={raycastSurface(from,dir){if(dir.y===-1)return null;picks++;return {point:to,normal:{x:0,y:1,z:0}};},isCapsuleClear:()=>true,moveCamera:(a,d)=>({x:a.x+d.x,y:a.y+d.y,z:a.z+d.z})};
- const c=vm.createContext({THREE,camPos,camera:new THREE.PerspectiveCamera(),canvas:{getBoundingClientRect:()=>({left:0,top:0,width:100,height:100})},
- performance:{now:()=>now},setTimeout:()=>1,clearTimeout(){},_useOrtho:false,msr:{active:false},walkSetup:{core,epoch:1,settings:{navigation:{key:'a'}}},
- getCameraCollisionState:()=>({ready:true}),_walkNeedsRegion:()=>false,markDirty(){},_getNavigationQuery:()=>ready?{find:()=>route}:null,
- _prepareNavigationQuery:()=>new Promise(r=>release=()=>{ready=true;r(true);})});
+ let now=0,picks=0;
+ const to={x:0,y:3,z:3},camPos=new THREE.Vector3(0,1.8,0);
+ const forbidden=()=>{throw Error('Tap movement must not query routes or collision clearance');};
+ const core={raycastSurface(){picks++;return {point:to,normal:{x:0,y:1,z:0}};},isCapsuleClear:forbidden,moveCamera:forbidden};
+ const c=vm.createContext({THREE,camPos,camera:new THREE.PerspectiveCamera(),canvas:{getBoundingClientRect:()=>({left:0,top:0,right:100,bottom:100,width:100,height:100})},
+ performance:{now:()=>now},setTimeout:()=>1,clearTimeout(){},_useOrtho:false,msr:{active:false},walkSetup:{core,epoch:1,settings:{signature:'scene',navigation:{key:'a'},navigationRegions:{}}},
+ _walkSourceSignature:()=> 'scene',getCameraCollisionState:()=>({enabled:false,ready:false}),markDirty(){},
+ _prepareRegionalNavigationProvider:forbidden,_getNavigationQuery:forbidden,_prepareNavigationQuery:forbidden});
  vm.runInContext(fs.readFileSync(new URL('../src/js/404_click_navigation.js',import.meta.url),'utf8'),c);
- return {c,release:()=>release(),get picks(){return picks;},run(){for(now=16;now<=5000;now+=16)vm.runInContext('_clickNavigationController?.tick(performance.now())',c);}};
+ return {c,get picks(){return picks;},tick(t){now=t;vm.runInContext('_clickNavigationController?.tick(performance.now())',c);},run(){for(let t=now+16;t<=5000;t+=16)this.tick(t);}};
 }
-test('loading navigation resumes captured destination without picking again',async()=>{
- const f=fixture();assert.equal(f.c._clickNavigateAt(50,50),false);f.release();await new Promise(r=>setImmediate(r));
- f.run();assert.equal(f.picks,1);assert.equal(f.c.camPos.y,4.8);assert.equal(f.c.camPos.z,3);
+// Routed/collision-enforced journey modules retain their own tests. The tap
+// adapter now deliberately uses direct collision-free movement per user request.
+test('direct tap ignores blocked navigation routes and collision toggle, retaining target floor height',()=>{
+ const f=fixture();assert(f.c._clickNavigateAt(50,50));f.run();
+ assert.equal(f.c.camPos.z,3);assert.equal(f.c.camPos.y,4.8);assert.equal(f.picks,1);
 });
-test('cancelled input never resumes when navigation preparation finishes',async()=>{
- const f=fixture();f.c._clickNavigateAt(50,50);f.c._cancelClickNavigation();f.release();await new Promise(r=>setImmediate(r));
- f.run();assert.equal(f.c.camPos.y,1.8);assert.equal(f.c.camPos.z,0);
+test('hold preview resolves target without moving or creating a journey',()=>{
+ const f=fixture(),p=f.c._clickNavigateAt(50,50,true);assert(p.valid);f.run();assert.equal(f.c.camPos.z,0);
 });
-
-test('stationary hold refreshes when its navigation data becomes ready without starting travel',async()=>{
- const f=fixture();let refreshed=0;f.c._navigationHold={active:true};f.c._navigationHoldPreview=()=>refreshed++;
- f.c._clickNavigateAt(50,50,true);f.release();await new Promise(r=>setImmediate(r));
- assert.equal(refreshed,1);assert.equal(f.c.camPos.z,0);
+test('scene replacement and explicit cancellation still stop direct travel',()=>{
+ for(const change of ['scene','cancel']){const f=fixture();assert(f.c._clickNavigateAt(50,50));
+ if(change==='scene')f.c.walkSetup.epoch++;else f.c._cancelClickNavigation();
+ f.run();assert.equal(f.c.camPos.z,0);}
 });
-test('released or replaced hold does not refresh after an earlier load',async()=>{
- for(const next of [null,{active:true}]){
-  const f=fixture();let refreshed=0;f.c._navigationHold={active:true};f.c._navigationHoldPreview=()=>refreshed++;
-  f.c._clickNavigateAt(50,50,true);f.c._navigationHold=next;f.release();await new Promise(r=>setImmediate(r));
-  assert.equal(refreshed,0);
- }
+test('missing target and out-of-canvas coordinates never fabricate movement',()=>{
+ const f=fixture();f.c.walkSetup.core.raycastSurface=()=>null;
+ assert.equal(f.c._clickNavigateAt(50,50),false);assert.equal(f.c._clickNavigateAt(110,50),false);f.run();assert.equal(f.c.camPos.z,0);
 });
-
-test('prepared journey uses its own collision without replacing the scene core',()=>{
- const f=fixture(),original=f.c.walkSetup.core;let disposed=0;
- const point={x:0,y:0,z:3},lease={valid:()=>true,points:[{x:0,y:0,z:0},point],covers:p=>Math.abs(p.y)<.1,
-  core:{isCapsuleClear:()=>true,moveCamera:(a,d)=>({x:a.x+d.x,y:a.y+d.y,z:a.z+d.z})},dispose(){disposed++;}};
- original.isCapsuleClear=()=>{throw Error('Coarse core must not check fine route');};
- assert.equal(f.c._clickNavigateAt(50,50,false,{point,normal:{x:0,y:1,z:0}},lease),true);
- f.run();assert.equal(f.c.camPos.z,3);assert.equal(f.c.walkSetup.core,original);
- f.c._cancelClickNavigation();assert.equal(disposed,1);
-});
-
-test('invalid prepared journey cannot start travel',()=>{
- const f=fixture();assert.equal(f.c._clickNavigateAt(50,50,false,{point:{x:0,y:0,z:3},normal:{x:0,y:1,z:0}},{valid:()=>false}),false);
- assert.equal(f.c.camPos.z,0);
-});
-
-test('regional query starts at observed support for a saved low camera',async()=>{
- const f=fixture();f.c.camPos.y=1.3;let origin;
- f.c.walkSetup.core.raycastSurface=(from,dir)=>dir.y===-1?{point:{x:from.x,y:0,z:from.z},normal:{x:0,y:1,z:0},distance:1.3}:{point:{x:0,y:0,z:3},normal:{x:0,y:1,z:0}};
- f.c.provider={cancel(){},acquire:async from=>{origin=from;return null;}};
- vm.runInContext('_clickNavigationJourney=provider',f.c);
- f.c._clickNavigateAt(50,50);await new Promise(r=>setImmediate(r));
- assert.equal(origin.y,0);assert.equal(f.c.camPos.y,1.3);
-});
-
-test('prepared route raises a low camera without placing its capsule under the floor',()=>{
- const f=fixture();f.c.camPos.y=1.3;const checked=[];
- const point={x:0,y:0,z:3},lease={valid:()=>true,points:[{x:0,y:0,z:0},point],covers:p=>Math.abs(p.y)<.1,
-  core:{isCapsuleClear:(p,h)=>{checked.push({p,h});return p.y>=0;},moveCamera:(a,d)=>({x:a.x+d.x,y:a.y+d.y,z:a.z+d.z})},dispose(){}};
- assert.equal(f.c._clickNavigateAt(50,50,false,{point,normal:{x:0,y:1,z:0}},lease),true);
- assert.equal(f.c.camPos.y,1.3);f.run();assert.equal(f.c.camPos.y,1.8);assert.equal(f.c.camPos.z,3);
- assert(checked.every(({p,h})=>p.y>=0&&h>=.3));
-});
-
-test('regional provider asynchronously resumes click and never uses legacy query',async()=>{
- const f=fixture();let disposed=0;
- const lease={valid:()=>true,points:[{x:0,y:0,z:0},{x:0,y:3,z:3}],covers:()=>true,core:f.c.walkSetup.core,dispose(){disposed++;}};
- f.c.provider={cancel(){},acquire:async()=>lease};vm.runInContext('_clickNavigationJourney=provider',f.c);
- assert.equal(f.c._clickNavigateAt(50,50),false);await new Promise(r=>setImmediate(r));f.run();assert.equal(f.c.camPos.z,3);
- f.c._cancelClickNavigation();assert.equal(disposed,1);
-});
-
-test('late regional provider response after cancellation is disposed and does not move',async()=>{
- const f=fixture();let release,disposed=0;
- f.c.provider={cancel(){},acquire:()=>new Promise(r=>release=r)};vm.runInContext('_clickNavigationJourney=provider',f.c);
- f.c._clickNavigateAt(50,50);f.c._cancelClickNavigation();
- release({dispose(){disposed++;}});await new Promise(r=>setImmediate(r));assert.equal(disposed,1);assert.equal(f.c.camPos.z,0);
-});
-
-test('regional hold updates marker without moving and DOM cancellation still cancels provider',async()=>{
- const f=fixture();let marked=0,disposed=0,cancelled=0;
- f.c._navigationHold={active:true,point:{x:50,y:50}};f.c._showNavigationPoint=(_p,valid)=>{if(valid)marked++;};
- f.c.provider={cancel(){cancelled++;},acquire:async()=>({valid:()=>true,points:[{x:0,y:0,z:0},{x:0,y:3,z:3}],covers:()=>true,core:f.c.walkSetup.core,dispose(){disposed++;}})};
- vm.runInContext('_clickNavigationJourney=provider',f.c);f.c._clickNavigateAt(50,50,true);await new Promise(r=>setImmediate(r));
- assert.equal(marked,1);assert.equal(disposed,1);assert.equal(f.c.camPos.z,0);
- f.c._cancelClickNavigation({type:'blur'});assert.equal(cancelled,1);
-});
-
-test('regional query can resolve a stair edge when coarse wall-to-floor probing is inside a voxel',async()=>{
- const f=fixture();let target=null;
- f.c.walkSetup.core.raycastSurface=()=>({point:{x:0,y:3,z:3},normal:{x:0,y:0,z:0},distance:0});
- f.c.provider={cancel(){},acquire:async(_from,to)=>{target=to;return null;}};
- vm.runInContext('_clickNavigationJourney=provider',f.c);
- f.c._clickNavigateAt(50,50,false,{point:{x:0,y:3,z:3},normal:{x:0,y:0,z:1}});
- await new Promise(r=>setImmediate(r));assert.equal(target?.z,3);assert.equal(f.c.camPos.z,0);
+test('new destination replaces active movement even after repeated rapid taps',()=>{
+ const f=fixture();for(let i=0;i<10;i++){assert(f.c._clickNavigateAt(50,50));f.tick(i*16);}
+ f.run();assert.equal(f.c.camPos.z,3);
 });

@@ -11,6 +11,19 @@ function fixture(overrides={}){
  return {nav,get p(){return p;},setReady:v=>ready=v,setEpoch:v=>epoch=v,setBlocked:v=>blocked=v};
 }
 const ground={point:{x:4,y:0,z:0},normal:{x:0,y:1,z:0}};
+
+test('collision-free tap travel ignores wall sweeps and clearance, including source overlaps',()=>{
+ const fail=()=>{throw Error('Tap movement must not query collision');};
+ const f=fixture({collision:false,coverage:fail,clear:fail,sweep:fail});
+ assert(f.nav.start(ground,0));
+ for(let t=100;t<=2000;t+=100)f.nav.tick(t);
+ assert.equal(f.p.x,4);assert.equal(f.p.y,1.8);assert.equal(f.nav.stopReason,'complete');
+});
+
+test('successive quick taps remain actionable',()=>{
+ const g=ctx.LocahunClickNavigation.createGesture(),p={x:10,y:10,id:1};
+ for(let time=0;time<1000;time+=100){g.arm(p,time);assert(g.take(p,time+40,false));}
+});
 test('ground +1.8, no instantaneous jump, bounded eased motion',()=>{
  const f=fixture();assert(f.nav.start(ground,0));assert.equal(f.p.x,0);
  f.nav.tick(100);assert(f.p.x>0&&f.p.x<4);
@@ -43,7 +56,7 @@ test('gesture rejects consumed, outside, long hold, out-and-back drag and stale 
   assert.equal(g.take(p,reason==='long'?900:100,reason==='outside'||reason==='consumed'),null);
   assert.equal(g.take(p,100,false),null);
  }
- g.arm(p,1000);assert(g.take(p,1100,false));g.arm(p,1200);assert.equal(g.take(p,1250,false),null);
+ g.arm(p,1000);assert(g.take(p,1100,false));g.arm(p,1200);assert(g.take(p,1250,false));
  g.arm(p,2000);g.reset();assert.equal(g.take(p,2100,false),null);
 });
 test('travel distances 3/10/20m have bounded speed and duration; over 30m rejected',()=>{

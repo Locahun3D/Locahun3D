@@ -11,7 +11,7 @@ function setup(){
   _pathMode:false,_placeMode:false,_pathDragH:-1,_pathEditId:null,_pathProbing:false,_placeProbing:false,
   _boneRotDrag:{active:false},_ikDrag:{active:false},_handleTouchId:-1,_handleTouchKind:'',_lpvTouchId:-1,_lpvTouchHit:null,
   selectedLayerId:null,dragOn:false,tlId:-1,tlX:0,tlY:0,_yawTarget:0,_pitchTarget:0,_clickStartX:0,_clickStartY:0,
-  _checkBoneRotateRingHit:()=>null,_checkIKHandleHit:()=>null,checkLpvHandle:()=>null,markDirty:noop,bumpSplatActive:noop,
+  _walkSourceSignature:()=>undefined,_checkBoneRotateRingHit:()=>null,_checkIKHandleHit:()=>null,checkLpvHandle:()=>null,markDirty:noop,bumpSplatActive:noop,
   updateEventPanelHover:noop,_updateFigureHover:noop,_trySelectByClick:()=>selected,_pathUpdateProbe:noop,_placeUpdateProbe:noop,
   _placePathPoint:noop,_pathHideProbe:noop,_commitPlace:noop,commitPreview:noop,_endIKHandleDrag:noop,_endBoneRotateDrag:noop});
  vm.runInContext(read('400_input.js')+'\n'+read('402_input_shared_drag_touch.js')+'\n'+read('404_click_navigation.js'),ctx);
@@ -33,7 +33,7 @@ test('touch jitter stays a tap without rotating; deliberate drag rotates',()=>{
  }
 });
 
-test('unready touch waits for cached collision and never replays a stale target',async()=>{
+test('ground preparation survives view rotation but not scene changes or cancellation',async()=>{
  for(const change of ['none','scene','view','cancel']){
   const f=setup(),c=f.ctx;let finish,replays=0;
   c.walkSetup={epoch:1,settings:{}};c.camPos={x:0,y:1.8,z:0};
@@ -47,7 +47,7 @@ test('unready touch waits for cached collision and never replays a stale target'
   if(change==='view')c._yawTarget=.1;
   if(change==='cancel')c._cancelClickNavigation();
   finish(true);await new Promise(resolve=>setImmediate(resolve));
-  assert.equal(replays,change==='none'?1:0,change);
+  assert.equal(replays,['none','view'].includes(change)?1:0,change);
  }
 });
 
@@ -130,11 +130,11 @@ test('actual mouse out-and-back drag and stale release never navigate',()=>{
 test('camera-tool mode still allows existing object selection',()=>{
  const f=setup();let selected=0;f.ctx.cam.active=true;f.ctx._trySelectByClick=()=>{selected++;return true;};f.tap();assert.equal(selected,1);assert.equal(f.moves,0);
 });
-test('actual touch tap dispatches once; compatibility mouse and second tap suppressed',()=>{
+test('actual touch taps dispatch independently while compatibility mouse stays suppressed',()=>{
  const f=setup(),finger={identifier:1,clientX:400,clientY:200};
  f.event('canvas:touchstart',{changedTouches:[finger],touches:[finger]});f.setTime(1100);f.event('canvas:touchend',{changedTouches:[finger]});assert.equal(f.moves,1);
  f.tap();assert.equal(f.moves,1);
- f.event('canvas:touchstart',{changedTouches:[finger],touches:[finger]});f.setTime(1250);f.event('canvas:touchend',{changedTouches:[finger]});assert.equal(f.moves,1);
+ f.event('canvas:touchstart',{changedTouches:[finger],touches:[finger]});f.setTime(1250);f.event('canvas:touchend',{changedTouches:[finger]});assert.equal(f.moves,2);
 });
 test('actual multi-touch and cancelled touch do not navigate',()=>{
  for(const cancel of [false,true]){const f=setup(),a={identifier:1,clientX:400,clientY:200},b={...a,identifier:2};
@@ -174,5 +174,5 @@ test('real adapter prepares far target coverage before surface ray, never bakes'
  vm.runInContext(read('404_click_navigation.js').slice(read('404_click_navigation.js').indexOf('function _clickNavigateAt'),read('404_click_navigation.js').indexOf('const _clickGestures')),c);
  assert.equal(c._clickNavigateAt(400,200),true);assert.deepEqual(order.slice(0,3),['pick','coverage','ray']);
  order.length=0;x=31;assert.equal(c._clickNavigateAt(400,200),false);assert.deepEqual(order,['pick']);
- order.length=0;ready=false;assert.equal(c._clickNavigateAt(400,200),false);assert.deepEqual(order,[]);
+ order.length=0;ready=false;x=20;assert.equal(c._clickNavigateAt(400,200),true,'camera collision toggle does not disable target picking');assert.deepEqual(order.slice(0,3),['pick','coverage','ray']);
 });

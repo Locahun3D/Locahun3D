@@ -106,7 +106,7 @@ try{
   if(kind==='drag'){await page.mouse.move(700,600);await page.mouse.down({button:'right'});await page.mouse.move(740,610);await page.mouse.up({button:'right'});}
   await page.waitForFunction(()=>!clickTest.state().active,null,{timeout:7000});const end=await page.evaluate(()=>clickTest.state());
   if(kind==='touch')assert(Math.abs(end.pos[2]-(await page.evaluate(()=>clickTest.lastClick.hit.point.z)))<.02);
-  if(kind==='wall')assert(end.pos[2]<1.86);
+  if(kind==='wall'){assert(end.pos[2]>9);assert.equal(end.stopReason,'complete');}
   if(kind==='range')assert(Math.abs(end.pos[2])<.01);
   if(kind==='wheel')assert(end.pos[2]<5);
   if(kind==='drag'){assert.equal(end.stopReason,'complete');assert(end.pos[2]>9);assert(Math.abs(end.yaw)>0.01);}
@@ -114,6 +114,30 @@ try{
   if(kind==='touch')await page.waitForTimeout(1100);
  }
  if(!showcase){
+  const cdp=await context.newCDPSession(page);
+  await page.evaluate(()=>{clickTest.floor();clickTest.reset();});
+  await cdp.send('Input.dispatchTouchEvent',{type:'touchStart',touchPoints:[{x:650,y:550,id:1}]});
+  await cdp.send('Input.dispatchTouchEvent',{type:'touchMove',touchPoints:[{x:690,y:560,id:1}]});
+  await cdp.send('Input.dispatchTouchEvent',{type:'touchEnd',touchPoints:[]});
+  const rotated=await page.evaluate(()=>clickTest.state());
+  assert(Math.abs(rotated.yaw)>.01,'touch drag must rotate before the next tap');
+  const nextPoint=await page.evaluate(()=>clickTest.point(10));
+  await page.touchscreen.tap(nextPoint.x,nextPoint.y);
+  assert((await page.evaluate(()=>clickTest.state())).active,'tap immediately after rotation must start travel');
+  for(let i=0;i<8;i++){
+   const p=await page.evaluate(m=>clickTest.point(m),10+i*.5);
+   await page.touchscreen.tap(p.x,p.y);
+   assert((await page.evaluate(()=>clickTest.state())).active,'rapid tap '+i+' must replace travel');
+  }
+  const finalHit=await page.evaluate(()=>clickTest.lastClick.hit.point);
+  await page.waitForFunction(()=>!clickTest.state().active,null,{timeout:7000});
+  const rapidEnd=await page.evaluate(()=>clickTest.state());
+  assert.equal(rapidEnd.stopReason,'complete');
+  assert(Math.abs(rapidEnd.pos[2]-finalHit.z)<.02);
+  results.events.push({kind:'touch-rotation-then-rapid-taps',rotated,end:rapidEnd});
+  await page.screenshot({path:out+'/touch-rotation-rapid.png'});
+  await cdp.detach();
+  await page.waitForTimeout(1100);
   await page.evaluate(()=>clickTest.reset());await page.waitForTimeout(350);
   const wallPoint=await page.evaluate(()=>clickTest.wallTarget());
   await page.mouse.click(wallPoint.x,wallPoint.y);await page.waitForTimeout(100);
