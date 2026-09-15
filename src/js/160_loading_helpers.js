@@ -61,7 +61,7 @@ function showHUD() {
     const el = document.getElementById(id);
     if(el) el.style.display = hide ? 'none' : '';
   };
-  _phoneHide('btnSaveCamera', _isPhoneTier);
+  _phoneHide('btnSaveCamera', _isPhoneTier && !(typeof _isIPad!=='undefined' && _isIPad));
   // Camera animation (🎞) IS now exposed on phones too (user request 2026-06).
   _phoneHide('btnCamAnim',    false);
   // #btnViewRec lives in the cbar now and the cbar's smartphone media query
@@ -82,4 +82,3 @@ function hideDZ()  {
   _hideDzTimer=setTimeout(()=>{ d.style.display='none'; _hideDzTimer=null; },500);
 }
 function sleep(ms) { return new Promise(r=>setTimeout(r,ms)); }
-

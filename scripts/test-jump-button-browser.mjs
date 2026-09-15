@@ -17,6 +17,14 @@ try{
   await page.evaluate(()=>{walkMode.active=true;_syncWalkJumpButton();});
   const rect=await page.locator('#walk-jump-button').boundingBox();
   assert(rect.x>width/2&&rect.y>height/2&&rect.x+rect.width<=width&&rect.y+rect.height<=height);
+  await page.evaluate(()=>{walkMode.jumpRequested=false;window.joyDX=1;window.joyDY=0;});
+  await page.locator('#walk-jump-button').dispatchEvent('pointerdown',{pointerId:2,pointerType:'touch',isPrimary:false,button:0});
+  assert.equal(await page.evaluate(()=>walkMode.jumpRequested),true,'second finger must jump without a synthetic click');
+  assert.equal(await page.evaluate(()=>joyDX),1,'jump must preserve running input');
+  await page.evaluate(()=>{walkMode.jumpRequested=false;});
+  await page.locator('#walk-jump-button').dispatchEvent('pointerup',{pointerId:2,pointerType:'touch',isPrimary:false,button:0});
+  await page.locator('#walk-jump-button').dispatchEvent('click',{detail:1});
+  assert.equal(await page.evaluate(()=>walkMode.jumpRequested),false,'release click must not queue another jump');
   await page.locator('#walk-jump-button').tap();assert.equal(await page.evaluate(()=>walkMode.jumpRequested),true);
   await page.screenshot({path:new URL(width+'x'+height+'.png',out).pathname.replace(/^\/([A-Z]:)/,'$1')});
   await page.evaluate(()=>{walkMode.active=false;_syncWalkJumpButton();});

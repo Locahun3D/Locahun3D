@@ -2,6 +2,8 @@
 @media (pointer:coarse) and (any-hover:none){
   html{position:fixed;inset:0;overscroll-behavior:none;}
   body.v1-ipad #layer-panel{display:flex!important;top:var(--v1-header-bottom,45px)!important;}
+  body.v1-ipad #layer-panel:not(.collapsed) #lp-footer-bar{display:grid!important;}
+  body.v1-ipad #obj-type-menu-top[style*="display: flex"]{display:flex!important;}
   body.v1-ipad #qi-badge{display:flex!important;}
   body.v1-ipad #cam-panel{top:calc(var(--v1-header-bottom,45px) + 1px)!important;bottom:0!important;max-height:calc(100dvh - var(--v1-header-bottom,45px) - 1px)!important;}
   body.v1-ipad #sun-panel{top:var(--v1-tablet-sun-top,94px)!important;bottom:auto!important;max-height:calc(100dvh - var(--v1-tablet-sun-top,94px) - 116px)!important;overflow-y:auto;}
