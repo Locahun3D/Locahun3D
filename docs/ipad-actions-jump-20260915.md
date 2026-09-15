@@ -14,4 +14,7 @@
 
 ## Publication
 
-- Local source and generated standalone HTML updated. These changes have not been pushed, deployed or distributed to Dropbox yet.
+- Source016c3de pushed. Standalone release ebb42a507039c9677ab59faf428af771a02603ce2c8ca4084d94038215ae13ae, Worker99bdf0b2-772d-48fb-afec-c4db52b7b9c2 published and verified. Public64 layout combinations, asset gates and actual file-origin automatic update pass. HTML SHA2567f40f69c1bbe4174a47192fd7fae4e39ed9b34c518c5471e824f4287dac59493.
+- Initial promotion safely rolled back because the verifier's default-cache manifest read was stale while the viewer loaded the new release. Changed verifier fetch to no-store, kept all assertions/rollback guards and reran the complete wrapper successfully. No runtime renderer change.
+- Dropbox10 viewers updated; backup F:/Codex/locahun-navigation-20260913/distribution-1789469070811.18355 non-viewer file metadata entries unchanged.
+- Online viewer sync5a67219 pushed; Actions34959396373 completed successfully. Public viewer HTTP200 and SHA25694a2a59866865996ddb285ba3bf4a89b1924ec48a00fbf3252ae273376803692 match the generated online HTML.

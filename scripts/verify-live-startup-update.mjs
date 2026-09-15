@@ -7,7 +7,7 @@ const require=createRequire('C:/Users/askgg/.cache/codex-runtimes/codex-primary-
 const {chromium}=require('playwright');
 const source='F:/Htlml/3DGS/Locahun3D/viewer-dist/Locahun3D_OfflineViewer.html';
 const before=fs.readFileSync(source);
-let manifest=await fetch('https://viewer.locahun3d.com/releases/stable.json').then(r=>r.json());
+let manifest=await fetch('https://viewer.locahun3d.com/releases/stable.json',{cache:'no-store',redirect:'error'}).then(r=>{assert.equal(r.status,200);return r.json();});
 const candidate=process.argv.includes('--candidate')?fs.readFileSync('Locahun3D_OfflineViewer.html'):null;
 if(candidate){
  const release=candidate.toString('utf8').match(/window\.__locahunBuildRelease="([a-f0-9]{64})"/)[1];

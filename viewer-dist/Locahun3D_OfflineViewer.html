@@ -2902,6 +2902,8 @@ body.local-project-saving::after,body.local-project-restoring::after {content:''
 @media (pointer:coarse) and (any-hover:none){
   html{position:fixed;inset:0;overscroll-behavior:none;}
   body.v1-ipad #layer-panel{display:flex!important;top:var(--v1-header-bottom,45px)!important;}
+  body.v1-ipad #layer-panel:not(.collapsed) #lp-footer-bar{display:grid!important;}
+  body.v1-ipad #obj-type-menu-top[style*="display: flex"]{display:flex!important;}
   body.v1-ipad #qi-badge{display:flex!important;}
   body.v1-ipad #cam-panel{top:calc(var(--v1-header-bottom,45px) + 1px)!important;bottom:0!important;max-height:calc(100dvh - var(--v1-header-bottom,45px) - 1px)!important;}
   body.v1-ipad #sun-panel{top:var(--v1-tablet-sun-top,94px)!important;bottom:auto!important;max-height:calc(100dvh - var(--v1-tablet-sun-top,94px) - 116px)!important;overflow-y:auto;}
@@ -2984,7 +2986,7 @@ window.KAWAII_MALE_GLB_B64="Z2xURgIAAADsaRIAoPYCAEpTT057ImFzc2V0Ijp7InZlcnNpb24i
      the HTML. -->
 
 <script>
-window.__locahunBuildRelease="174f666f087a26332ee8b9812eb7c56582fffc9252bffda9a46d9709127169f7";
+window.__locahunBuildRelease="ebb42a507039c9677ab59faf428af771a02603ce2c8ca4084d94038215ae13ae";
 (function(root) {
   'use strict';
   const ORIGIN='https://viewer.locahun3d.com';
@@ -10362,7 +10364,7 @@ function showHUD() {
     const el = document.getElementById(id);
     if(el) el.style.display = hide ? 'none' : '';
   };
-  _phoneHide('btnSaveCamera', _isPhoneTier);
+  _phoneHide('btnSaveCamera', _isPhoneTier && !(typeof _isIPad!=='undefined' && _isIPad));
   // Camera animation (🎞) IS now exposed on phones too (user request 2026-06).
   _phoneHide('btnCamAnim',    false);
   // #btnViewRec lives in the cbar now and the cbar's smartphone media query
@@ -10383,7 +10385,6 @@ function hideDZ()  {
   _hideDzTimer=setTimeout(()=>{ d.style.display='none'; _hideDzTimer=null; },500);
 }
 function sleep(ms) { return new Promise(r=>setTimeout(r,ms)); }
-
 // ══════════════════════════════════════════════════
 //  SCENE STATS (for camera placement)
 // ══════════════════════════════════════════════════
@@ -29367,8 +29368,18 @@ function _syncWalkJumpButton(){
 }
 (()=>{
   const button=document.getElementById('walk-jump-button');if(!button)return;
+  let suppressClickUntil=0;
+  button.addEventListener('pointerdown',e=>{
+    if(e.button!==0)return;
+    e.preventDefault();e.stopPropagation();
+    suppressClickUntil=performance.now()+700;
+    if(!walkMode.active)return;
+    walkMode.jumpRequested=true;markDirty(3);
+  });
+  button.addEventListener('pointerup',()=>{suppressClickUntil=performance.now()+700;});
   button.addEventListener('click',e=>{
     e.preventDefault();e.stopPropagation();
+    if(e.detail!==0&&performance.now()<suppressClickUntil)return;
     if(!walkMode.active)return;
     walkMode.jumpRequested=true;markDirty(3);
   });
