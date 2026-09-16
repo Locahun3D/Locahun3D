@@ -110,11 +110,11 @@ async function _walkInstallCore(boxes, job=null) {
       const p=walkMode.avatar.position;
       let feet={x:p.x,y:p.y+walkMode.groundOffset,z:p.z};
       if(!_walkFeetClear(core,feet,!walkMode.airborne)) {
-        settled=core.reconcileFeet?.(feet,walkMode.height,walkMode.bodyRadius,!walkMode.airborne);
+        settled=core.reconcileFeet?.(feet,_walkBodyHeight(),walkMode.bodyRadius,!walkMode.airborne);
         if(!settled)throw new Error('追加判定では現在位置の床・空きを確認できません。歩行を停止し、開始位置を確認してください。');
         feet=settled;
       }
-      core.setCharacter(feet,walkMode.height,walkMode.bodyRadius);
+      core.setCharacter(feet,_walkBodyHeight(),walkMode.bodyRadius);
     }
   } catch(e) { core.dispose(); throw e; }
   if (walkSetup.core) walkSetup.core.dispose();
@@ -314,15 +314,14 @@ async function _walkPrepareCollision() {
   if(walkSetup.importPending && !await walkSetup.importPending)throw new Error(walkSetup.status||'3DGS読込を中止しました。');
   if(walkSetup.pending)await walkSetup.pending;
   if(epoch!==walkSetup.epoch)throw new Error('シーンが変更されました。');
-  if(!walkMode.active && walkSetup.settings.spawn && _walkNeedsRegion(walkSetup.settings.spawn,.5)) {
-    if(!await _walkGenerateCollision({automatic:true,allowBake:true,center:walkSetup.settings.spawn,preserveSpawn:true}))throw new Error(walkSetup.status);
+  if(!walkMode.active && _walkNeedsRegion(camPos,.5)) {
+    if(!await _walkGenerateCollision({automatic:true,allowBake:true,center:camPos,preserveSpawn:true}))throw new Error(walkSetup.status);
   }
   if(walkSetup.settings.signature !== _walkSourceSignature() || !walkSetup.core) {
     if(walkSetup.settings.signature && walkSetup.settings.signature === _walkSourceSignature())
       await _walkInstallCore(walkSetup.settings.boxes);
-    else if(!await _walkGenerateCollision({automatic:true,allowBake:true,findSpawn:true,preserveSpawn:true})) throw new Error(walkSetup.status);
+    else if(!await _walkGenerateCollision({automatic:true,allowBake:true,center:camPos,preserveSpawn:true})) throw new Error(walkSetup.status);
   }
-  _walkPrepareDeferredSpawn(epoch);
 }
 function _walkPrepareDeferredSpawn(epoch) {
   if(!walkSetup.wholeSpawnDeferred||walkMode.active||walkSetup.settings.spawn)return;
@@ -370,7 +369,7 @@ function _walkAutoImport(epoch=walkSetup.epoch,mesh=null) {
   }
   walkSetup.autoEnabled=true;walkSetup.failedKey='';walkSetup.deferredSignature='';
   if(!walkSetup.autoTimer && typeof setInterval==='function')walkSetup.autoTimer=setInterval(()=>{_walkAutoTick().catch(e=>{_walkStatus(e.message);showUndoToast(e.message);});},750);
-  return _walkGenerateCollision({automatic:true,findSpawn:true,preserveSpawn:true,reuse:true});
+  return _walkGenerateCollision({automatic:true,allowBake:true,findSpawn:false,preserveSpawn:true,reuse:true});
 }
 async function _walkAutoTick() {
   if(!walkSetup.autoEnabled || walkSetup.pending || walkSetup.importPending || document.hidden)return;
@@ -385,9 +384,22 @@ async function _walkAutoTick() {
     return _walkGenerateCollision({automatic:true,center:(!moved&&walkSetup.settings.region)?walkSetup.settings.region.center:target,
       findSpawn:!walkSetup.settings.region,preserveSpawn:true});
 }
-// Ground support is sampled separately; body clearance uses the physical capsule.
+// Keep lower-body blocking while ignoring noisy head/shoulder scan geometry.
+function _walkBodyHeight(){return Math.min(walkMode.height||1.65,1);}
+function _walkCameraSpawnPosition(){
+  const point=_walkPoint(camPos),core=walkSetup.core;
+  if(!core)throw new Error('歩行用の当たり判定を準備中です。');
+  if(walkSetup.wholeIndex&&_walkWholeCoverage(point,point,{drop:22})===false)throw new Error(walkSetup.status);
+  const distance=core.raycast(point,{x:0,y:-1,z:0},20);
+  if(Number.isFinite(distance)&&distance>0){
+    const feet={x:point.x,y:point.y-distance+.05,z:point.z};
+    if(_walkFeetClear(core,feet))return feet;
+  }
+  throw new Error('カメラの真下に歩ける床がありません。床の上へ視点を移してください。');
+}
+// Ground support is sampled separately; body clearance uses the lower capsule.
 function _walkFeetClear(core,feet,requireSupport=true) {
-  const radius=walkMode.bodyRadius||.22,height=walkMode.height||1.7;
+  const radius=walkMode.bodyRadius||.22,height=_walkBodyHeight();
   let supports=0;
   for(const [dx,dz] of [[0,0],[radius*.7,0],[-radius*.7,0],[0,radius*.7],[0,-radius*.7]]) {
     const p={x:feet.x+dx,y:feet.y+.25,z:feet.z+dz};
@@ -471,7 +483,7 @@ function _walkCollisionAdvance(av,dt,dx,dz,jump) {
   }
   if(!walkMode.airborne)walkMode.jumpFlightSeconds=undefined;
   walkMode.groundY=av.position.y+walkMode.groundOffset;
-  if(walkMode.groundY < (walkSetup.settings.spawn?.y ?? 0)-30) {
+  if(walkMode.groundY < (walkMode.entryGroundY ?? walkSetup.settings.spawn?.y ?? 0)-30) {
     _avatarWalkExit(); _walkStatus('判定範囲の外に落下しました。開始位置を再設定してください。'); return false;
   }
   walkMode.actualSpeed=Math.hypot(av.position.x-oldX,av.position.z-oldZ)/Math.max(dt,.0001);

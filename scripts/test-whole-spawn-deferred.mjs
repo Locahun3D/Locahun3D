@@ -22,16 +22,16 @@ test('camera-only whole reuse skips spawn scan and keeps initial coverage around
   assert.equal(f.c.camPos.x,0);assert.equal(f.c.camPos.y,2);
   assert.deepEqual(Array.from(f.coverage[0].min),[-3,-20,-3]);
 });
-test('first explicit entry scans once using ready core and persists verified spawn and yaw',async()=>{
+test('entry reuses prepared geometry without scanning or adopting a distant spawn',async()=>{
   const f=await cameraFixture();assert(await f.run('_walkAutoImport()'));
   const core=f.run('walkSetup.core'),index=f.run('walkSetup.wholeIndex');
   f.c.LocahunWholeCollision.decodeTiles=()=>{throw Error('Unexpected proxy decode');};
   await f.run('_walkPrepareCollision()');
-  assert.equal(f.c.scans,1);assert.equal(f.c.validations,1);assert.equal(f.c.coreBuilds,1);assert.equal(f.c.bakes,0);
+  assert.equal(f.c.scans,0);assert.equal(f.c.validations,0);assert.equal(f.c.coreBuilds,1);assert.equal(f.c.bakes,0);
   assert.equal(f.run('walkSetup.core'),core);assert.equal(f.run('walkSetup.wholeIndex'),index);
-  assert.equal(f.run('walkSetup.settings.spawn.x'),10);assert.equal(f.run('walkSetup.settings.spawnYaw'),.5);
+  assert.equal(f.run('walkSetup.settings.spawn'),null);
   assert.equal(f.c.camPos.x,0);assert.equal(f.c.walkMode.active,false);
-  await f.run('_walkPrepareCollision()');assert.equal(f.c.scans,1);
+  await f.run('_walkPrepareCollision()');assert.equal(f.c.scans,0);
 });
 test('saved distant spawn and yaw survive camera preparation with no scan or camera recenter',async()=>{
   const f=await cameraFixture({x:100,y:1,z:100});assert(await f.run('_walkAutoImport()'));
@@ -42,7 +42,7 @@ test('saved distant spawn and yaw survive camera preparation with no scan or cam
 test('invalid floor never saves a deferred spawn or activates avatar',async()=>{
   const f=await cameraFixture();assert(await f.run('_walkAutoImport()'));
   f.run('_walkSpawnPosition=()=>{throw Error("No safe floor");}');
-  await assert.rejects(f.run('_walkPrepareCollision()'),/No safe floor/);
+  assert.throws(()=>f.run('walkSetup.wholeSpawnDeferred=true;_walkPrepareDeferredSpawn(walkSetup.epoch)'),/No safe floor/);
   assert.equal(f.run('walkSetup.settings.spawn'),null);assert.equal(f.c.walkMode.active,false);
 });
 test('scene or source change during deferred scan never writes stale candidate or spawn',async()=>{
@@ -52,7 +52,7 @@ test('scene or source change during deferred scan never writes stale candidate o
       f.run(kind==='scene'?'_walkRestoreSettings(null)':'layers[0].mesh.matrixWorld.elements[12]=9');
       return {position:{x:10,y:1,z:12},yaw:.5};
     };
-    await assert.rejects(f.run('_walkPrepareCollision()'));
+    assert.throws(()=>f.run('walkSetup.wholeSpawnDeferred=true;_walkPrepareDeferredSpawn(walkSetup.epoch)'));
     assert.equal(f.run('walkSetup.settings.spawn'),null);assert.equal(f.run('walkSetup.spawnCandidate'),null);assert.equal(f.c.validations,0);
   }
 });
@@ -62,14 +62,14 @@ test('explicit generation still computes a spawn only once',async()=>{
 });
 test('replacing whole core with mesh-only core clears deferred whole-spawn state',async()=>{
   const f=await cameraFixture();assert(await f.run('_walkAutoImport()'));
-  assert.equal(f.run('walkSetup.wholeSpawnDeferred'),true);
+  f.run('walkSetup.wholeSpawnDeferred=true');
   await f.run('_walkInstallCore([{center:[0,0,0],half:[1,1,1]}])');
   assert.equal(f.run('walkSetup.wholeSpawnDeferred'),false);
 });
-test('no automatic candidate still uses the existing validated fallback at explicit entry',async()=>{
+test('entry does not need an automatic camera candidate',async()=>{
   const f=await cameraFixture();assert(await f.run('_walkAutoImport()'));
   f.c.computeAutoInitialView=()=>{f.c.scans++;return {failed:true};};
   await f.run('_walkPrepareCollision()');
-  assert.equal(f.c.validations,1);assert.equal(f.run('walkSetup.settings.spawn.x'),f.c.camPos.x);
+  assert.equal(f.c.validations,0);assert.equal(f.run('walkSetup.settings.spawn'),null);
   assert.equal(f.run('walkSetup.spawnCandidate'),null);assert.equal(f.c.coreBuilds,1);
 });

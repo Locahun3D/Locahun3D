@@ -30,6 +30,24 @@ function harness(beforeBridge) {
   return {context,ready,cores,sizes,toasts,samples,run:s=>vm.runInContext(s,context)};
 }
 
+test('import permits a new bake without choosing a saved spawn', async()=>{
+ const h=harness();
+ h.run('_walkGenerateCollision=options=>Promise.resolve(options)');
+ const options=await h.run('_walkAutoImport()');
+ assert.equal(options.allowBake,true);
+ assert.equal(options.findSpawn,false);
+});
+
+test('current camera spawn ignores saved spawn and never looks above the camera',()=>{
+ const h=harness();
+ h.run(`walkSetup.settings.spawn={x:20,y:10,z:20};camPos={x:2,y:4.8,z:3};
+ walkSetup.core={raycast(o,d,max){return o.y>=3&&o.y-3<=max?o.y-3:null;},isCapsuleClear(p,height){return height<=1;}};`);
+ const spawn=h.run('_walkCameraSpawnPosition()');
+ assert.deepEqual(plain(spawn),{x:2,y:3.05,z:3});
+ h.run('walkSetup.core.raycast=()=>null');
+ assert.throws(()=>h.run('_walkCameraSpawnPosition()'));
+});
+
 test('import waits for Spark, automatically builds, and a walk request joins that job', {timeout:3000}, async () => {
   const h=harness();
   const automatic=h.run('_walkAutoImport()');
@@ -112,7 +130,7 @@ test('automatic placement uses a spawn candidate without moving the visible came
   h.context.camPos={x:0,y:80,z:0};
   h.context.computeAutoInitialView=()=>({position:{x:0,y:2,z:0},yaw:0,failed:false});
   const before=plain(h.context.camPos);
-  assert.equal(await h.run('_walkAutoImport()'),true);
+  assert.equal(await h.run('_walkGenerateCollision({findSpawn:true})'),true);
   assert.deepEqual(plain(h.context.camPos),before);
   assert.ok(h.run('_walkSpawnPosition().y')<1,'spawn should be on collision floor, not at overview camera height');
   assert.ok(h.run('_walkSaveSettings().region.center.y')<10);
@@ -202,7 +220,7 @@ test('automatic spawn retains candidate yaw without applying it to the overview 
   const h=harness();h.ready.resolve();
   h.context.camPos.y=80;
   h.context.computeAutoInitialView=()=>({position:{x:0,y:2,z:0},yaw:1.25});
-  await h.run('_walkAutoImport()');
+  await h.run('_walkGenerateCollision({findSpawn:true})');
   assert.equal(h.context.yaw,0);
   assert.equal(h.run('_walkSpawnPosition().yaw'),1.25);
 });
@@ -210,7 +228,7 @@ test('automatic spawn retains candidate yaw without applying it to the overview 
 test('overview camera does not replace an automatic spawn region unless actually moved', {timeout:3000}, async () => {
   const h=harness();h.ready.resolve();h.context.camPos.y=80;
   h.context.computeAutoInitialView=()=>({position:{x:0,y:2,z:0},yaw:1});
-  await h.run('_walkAutoImport()');
+  await h.run('_walkGenerateCollision({findSpawn:true})');
   await h.run('_walkAutoTick()');await h.run('_walkAutoTick()');
   assert.equal(h.cores.length,1);
   assert.equal(h.run('walkSetup.settings.region.center.y'),2);
@@ -243,7 +261,7 @@ test('walk button shows background work while remaining clickable and clears bus
 test('saving before the first walk retains the automatically found spawn and yaw', {timeout:3000}, async () => {
   const h=harness();h.ready.resolve();h.context.camPos.y=80;
   h.context.computeAutoInitialView=()=>({position:{x:0,y:2,z:0},yaw:1.25});
-  await h.run('_walkAutoImport()');
+  await h.run('_walkGenerateCollision({findSpawn:true})');
   const saved=plain(h.run('_walkSaveSettings()'));
   assert.ok(saved.spawn,'automatic spawn must survive saving without entering walk');
   assert.equal(saved.spawnYaw,1.25);
@@ -306,7 +324,7 @@ test('spawn rejects a tiny support and a low ceiling using actual collision quer
   h.run('walkSetup.core=core;walkMode.height=1.7;walkMode.bodyRadius=.22;walkSetup.settings.spawn={x:0,y:0,z:0}');
   core.rebuild({boxes:[{center:[0,-.1,0],half:[.02,.1,.02]}]});
   assert.throws(()=>h.run('_walkSpawnPosition()'));
-  core.rebuild({boxes:[{center:[0,-.1,0],half:[5,.1,5]},{center:[0,1.3,0],half:[5,.1,5]}]});
+  core.rebuild({boxes:[{center:[0,-.1,0],half:[5,.1,5]},{center:[0,.8,0],half:[5,.1,5]}]});
   assert.throws(()=>h.run('_walkSpawnPosition()'));
   core.rebuild({boxes:[{center:[0,-.1,0],half:[5,.1,5]}]});
   assert.ok(h.run('_walkSpawnPosition().y')<.1);
@@ -339,7 +357,7 @@ test('active replacement commits vertical settling only after new character inst
  assert.equal(old.disposed,true);assert.equal(position.x,2);assert.equal(position.z,3);assert.equal(position.y,.07);
 });
 
-test('moving the view preserves saved spawn and prepares its region again on walk entry', {timeout:3000}, async () => {
+test('walk entry prepares the current camera region without overwriting saved metadata', {timeout:3000}, async () => {
   const h=harness();h.ready.resolve();await h.run('_walkAutoImport()');
   h.run('walkSetup.settings.spawn={x:0,y:.05,z:0};walkSetup.settings.spawnYaw=1.25');
   h.context.camPos.x=20;
@@ -348,7 +366,7 @@ test('moving the view preserves saved spawn and prepares its region again on wal
   assert.deepEqual(plain(h.run('_walkSaveSettings().spawn')),{x:0,y:.05,z:0});
   assert.equal(h.run('_walkSaveSettings().spawnYaw'),1.25);
   await h.run('_walkPrepareCollision()');
-  assert.equal(h.run('walkSetup.settings.region.center.x'),0);
+  assert.equal(h.run('walkSetup.settings.region.center.x'),20);
   assert.equal(h.context.camPos.x,20);
 });
 
@@ -440,5 +458,5 @@ test('saved capsule with legal ceiling clearance is not rejected by inflated hea
   assert.equal(h.run('_walkSpawnPosition().y'),.01);
   core.rebuild({boxes:[{center:[0,-.1,0],half:[5,.1,5]},
     {center:[0,1.79,0],half:[5,.1,5]}]});
-  assert.throws(()=>h.run('_walkSpawnPosition()'),'actual low ceiling must still be rejected');
+  assert.equal(h.run('_walkSpawnPosition().y'),.01,'head-only obstacles no longer reject lower-body clearance');
 });

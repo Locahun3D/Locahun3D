@@ -332,8 +332,7 @@ async function _avatarWalkEnter(){
   if(typeof camAnim!=='undefined' && camAnim.playing)throw new Error('カメラワークの再生を停止してから歩行を開始してください。');
   const epoch=walkSetup.epoch;
   await _walkPrepareCollision();
-  const spawn=_walkSpawnPosition();
-  // Place avatar 2.5m in front of camera, snapped to ground
+  // Resolve below the current camera after preparation and avatar loading.
   if(!walkMode.avatar){
     try {
       const built=await _avatarBuild();
@@ -351,6 +350,7 @@ async function _avatarWalkEnter(){
     _avatarMeasureGroundOffset(walkMode.avatar);
   }
   if(epoch!==walkSetup.epoch) throw new Error('シーンが変更されたため歩行開始を中止しました。');
+  const spawn=_walkCameraSpawnPosition();
   walkMode.entryCamera={position:{x:camPos.x,y:camPos.y,z:camPos.z},yaw,pitch};
   walkMode.moveX=0;walkMode.moveZ=0;walkMode.actualSpeed=0;
   walkMode.jumpHeld=!!keys.Space;walkMode.awaitInputRelease=false;
@@ -385,7 +385,8 @@ async function _avatarWalkEnter(){
   walkMode._lastDetectedY = undefined;
   walkMode._lastDetectionWasReal = false;
   const sy = spawn.y;
-  walkSetup.core.setCharacter(spawn,walkMode.height,walkMode.bodyRadius);
+  walkMode.entryGroundY=sy;
+  walkSetup.core.setCharacter(spawn,_walkBodyHeight(),walkMode.bodyRadius);
   if(!walkSetup.settings.spawn) walkSetup.settings.spawn={...spawn};
   walkMode.avatar.position.set(sx, sy - walkMode.groundOffset, sz);
   walkMode.avatar.rotation.set(0, yaw, 0);

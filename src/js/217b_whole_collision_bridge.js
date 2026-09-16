@@ -221,7 +221,7 @@ async function _walkRunWholeGeneration(job,splats){
     if(walkMode.active&&walkMode.avatar){
       const p=walkMode.avatar.position,feet={x:p.x,y:p.y+walkMode.groundOffset,z:p.z};
       if(!_walkFeetClear(core,feet,!walkMode.airborne))throw new Error('更新後の判定で現在位置の空きを確認できません。');
-      core.setCharacter(feet,walkMode.height,walkMode.bodyRadius);
+      core.setCharacter(feet,_walkBodyHeight(),walkMode.bodyRadius);
     }
     _walkCheckJob(job);
   }catch(error){core.dispose();throw error;}

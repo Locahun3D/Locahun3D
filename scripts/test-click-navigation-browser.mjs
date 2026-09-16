@@ -9,7 +9,15 @@ let html=fs.readFileSync(new URL('../src/template.html',import.meta.url),'utf8')
 const hook=`
 if(new URLSearchParams(location.search).get('autoload')==='fixture')loadFromURL=async()=>{};
 window.clickTest={
- walk(){return {active:walkMode.active,airborne:walkMode.airborne,y:walkMode.avatar?.position.y,state:walkMode.avatar?.userData.kawaiiAnimation?.state};},
+ walk(){return {active:walkMode.active,airborne:walkMode.airborne,y:walkMode.avatar?.position.y,feet:walkMode.avatar?{x:walkMode.avatar.position.x,z:walkMode.avatar.position.z}:null,bodyHeight:walkSetup.core?._height,state:walkMode.avatar?.userData.kawaiiAnimation?.state};},
+ lowCeiling(){
+  this.reset();camPos.set(2,4.8,0);updateCamera();
+  walkSetup.settings.spawn={x:20,y:.05,z:20};
+  walkSetup.core.rebuild({boxes:[{center:[0,-.1,0],half:[40,.1,40]},
+   {center:[2,2.9,3],half:[4,.1,8]},
+   {center:[2,4.4,2],half:[3,.1,1]},
+   {center:[2,4,5],half:[3,1,.1]}]});
+ },
  tools(){return {measure:msr.active,camera:cam.active,sun:sun.active,time:sun.timeMin};},
  measurement(){return {step:msr.step,active:msr.active};},
  tourActive(){return {tour:window.__scTour.cam(),busy:_clickNavigationBusy(),accepted:_clickNavigateAt(640,600)};},
@@ -168,6 +176,24 @@ try{
   await page.waitForFunction(()=>!clickTest.walk().airborne,null,{timeout:5000});
   await page.locator('#btnAvatarWalk').tap();assert.equal((await page.evaluate(()=>clickTest.walk())).active,false);
   assert.equal(await jump.isVisible(),false);results.events.push({kind:'phone-jump-and-exit',bounds});
+  await page.evaluate(()=>clickTest.lowCeiling());
+  await page.locator('#btnAvatarWalk').tap();
+  await page.waitForFunction(()=>clickTest.walk().active,null,{timeout:15000});
+  const placed=await page.evaluate(()=>clickTest.walk());
+  assert(Math.abs(placed.feet.x-2)<.01&&Math.abs(placed.feet.z)<.01,'spawn directly beneath current camera, not saved spawn');
+  assert(placed.y>2.8&&placed.y<3.2,'start on upper storey');
+  assert.equal(placed.bodyHeight,1);
+  await page.keyboard.down('w');
+  await page.waitForFunction(()=>clickTest.walk().feet.z>4.5,null,{timeout:10000});
+  await page.waitForTimeout(500);await page.keyboard.up('w');
+  const walked=await page.evaluate(()=>clickTest.walk());
+  results.events.push({kind:'walk-low-ceiling-upper-storey',placed,walked});
+  await page.screenshot({path:out+'/walk-low-ceiling-upper-storey.png'});
+  assert(walked.feet.z>3.1,'pass beneath head-height obstruction');
+  assert(walked.feet.z<4.9,'lower body must stop at full-height wall');
+  assert(walked.y>2.8&&walked.y<3.2,'remain on the upper floor');
+  await page.screenshot({path:out+'/walk-low-ceiling-upper-storey.png'});
+  await page.locator('#btnAvatarWalk').tap();
  }
  assert.deepEqual(results.errors,[]);await context.close();
 }catch(e){results.failure=String(e);process.exitCode=1;}

@@ -419,7 +419,7 @@ window.repositionAvatar = function(){
   if(walkSetup.core){
     try{
       const p=_walkSpawnPosition(false);
-      walkSetup.core.setCharacter(p,walkMode.height,walkMode.bodyRadius);
+      walkSetup.core.setCharacter(p,_walkBodyHeight(),walkMode.bodyRadius);
       walkMode.avatar.position.set(p.x,p.y-walkMode.groundOffset,p.z);
       walkMode.velocity.set(0,0,0);walkMode.airborne=false;walkMode.groundY=p.y;
       _avatarResetBones();markDirty(5);
@@ -476,4 +476,3 @@ function updateCamera(){
   // the image plane around the lens axis, matching real-world dutch-angle behavior.
   camera.rotation.set(pitch, yaw + Math.PI, roll, 'YXZ');
 }
-
