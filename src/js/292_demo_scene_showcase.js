@@ -279,13 +279,13 @@ setTimeout(async ()=>{
     // (e.g. /api/r2/assets/splat/foo.zip). Under ?protected=1 the
     // authenticated same-origin stream lives at /api/viewer-stream/<r2key>,
     // so reduce the value to the bare R2 object key (strip leading slashes
-    // and the /api/r2/ proxy prefix, matching toR2Key() in /api/viewer-asset
+    // and either /api/r2/ or /api/viewer-stream/ proxy prefix, matching toR2Key() in /api/viewer-asset
     // on the online SaaS side) and route it through that endpoint instead.
     // blob: URLs (local-file salvage flows) and already-absolute http(s)
     // URLs are left untouched.
     if(typeof _protected !== 'undefined' && _protected &&
        !(/^https?:\/\//.test(autoUrl)) && !autoUrl.startsWith('blob:')){
-      const r2key = autoUrl.replace(/^\/+/, '').replace(/^api\/r2\//, '');
+      const r2key = autoUrl.replace(/^\/+/, '').replace(/^api\/(r2|viewer-stream)\//, '');
       autoUrl = '/api/viewer-stream/' + r2key;
     }
     // ?autoname=<filename> — online SaaS admin preview-capture only: when a

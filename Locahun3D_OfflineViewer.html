@@ -2988,7 +2988,7 @@ window.KAWAII_MALE_GLB_B64="Z2xURgIAAADsaRIAoPYCAEpTT057ImFzc2V0Ijp7InZlcnNpb24i
      the HTML. -->
 
 <script>
-window.__locahunBuildRelease="1a6d4d7224649cfeb64996a07375471d03d678db1334d624945c18ae3bd37f95";
+window.__locahunBuildRelease="b7e2820ebbb63503b19844f0df0b88513870884c297db8032c386e0ec932d471";
 (function(root) {
   'use strict';
   const ORIGIN='https://viewer.locahun3d.com';
@@ -21768,13 +21768,13 @@ setTimeout(async ()=>{
     // (e.g. /api/r2/assets/splat/foo.zip). Under ?protected=1 the
     // authenticated same-origin stream lives at /api/viewer-stream/<r2key>,
     // so reduce the value to the bare R2 object key (strip leading slashes
-    // and the /api/r2/ proxy prefix, matching toR2Key() in /api/viewer-asset
+    // and either /api/r2/ or /api/viewer-stream/ proxy prefix, matching toR2Key() in /api/viewer-asset
     // on the online SaaS side) and route it through that endpoint instead.
     // blob: URLs (local-file salvage flows) and already-absolute http(s)
     // URLs are left untouched.
     if(typeof _protected !== 'undefined' && _protected &&
        !(/^https?:\/\//.test(autoUrl)) && !autoUrl.startsWith('blob:')){
-      const r2key = autoUrl.replace(/^\/+/, '').replace(/^api\/r2\//, '');
+      const r2key = autoUrl.replace(/^\/+/, '').replace(/^api\/(r2|viewer-stream)\//, '');
       autoUrl = '/api/viewer-stream/' + r2key;
     }
     // ?autoname=<filename> — online SaaS admin preview-capture only: when a
