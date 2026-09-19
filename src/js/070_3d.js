@@ -242,7 +242,9 @@ function _syncJoystickViewport(){
   const vv = window.visualViewport;
   if(!Number.isFinite(vv.height) || !Number.isFinite(vv.offsetTop)) return;
   // iPad browser chrome may obscure the layout viewport before the first resize.
-  const inset = Math.max(0, innerHeight - vv.height - vv.offsetTop);
+  // With the visible-viewport shell, <body> already ends at the visible bottom edge.
+  const shell = document.documentElement.classList && document.documentElement.classList.contains('vv-shell');
+  const inset = shell ? 0 : Math.max(0, innerHeight - vv.height - vv.offsetTop);
   document.documentElement.style.setProperty('--joy-viewport-bottom',
     'calc(' + inset + 'px + max(24px, env(safe-area-inset-bottom, 0px)))');
 }
@@ -254,8 +256,9 @@ function _doViewportResize(){
   // ここで setSize すると撮影中バッファが変わり出力が崩れるので何もしない（撮影終了時に
   // captureCamShot 側が現在サイズへ再フィットする）。
   if(window._captureBusy) return;
-  const w = Math.max(1, innerWidth);
-  const h = Math.max(1, innerHeight);
+  const visible = typeof window._visibleViewportSize === 'function' ? window._visibleViewportSize() : null;
+  const w = visible ? visible.width : Math.max(1, innerWidth);
+  const h = visible ? visible.height : Math.max(1, innerHeight);
   renderer.setSize(w, h);
   camera.aspect = w / h;
   camera.updateProjectionMatrix();
