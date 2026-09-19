@@ -140,6 +140,22 @@ async function _getZipExporter(){
   const { GLTFExporter } = await import('three/addons/exporters/GLTFExporter.js');
   return new GLTFExporter();
 }
+function _validateOnlineModelBytes(bytes,extension){
+  const ext=String(extension||'').toLowerCase();
+  if(ext!=='gltf' && ext!=='glb')return;
+  let jsonBytes=bytes;
+  if(ext==='glb'){
+    if(bytes.byteLength<20)throw new Error('Incomplete GLB');
+    const view=new DataView(bytes.buffer,bytes.byteOffset,bytes.byteLength);
+    if(view.getUint32(0,true)!==0x46546c67 || view.getUint32(4,true)!==2 || view.getUint32(8,true)!==bytes.byteLength || view.getUint32(16,true)!==0x4e4f534a)throw new Error('Incomplete GLB');
+    const end=20+view.getUint32(12,true);if(end>bytes.byteLength)throw new Error('Incomplete GLB');
+    jsonBytes=bytes.subarray(20,end);
+  }
+  const json=JSON.parse(new TextDecoder().decode(jsonBytes));
+  for(const resource of [...(json.buffers||[]),...(json.images||[])]){
+    if(resource.uri && !/^data:/i.test(resource.uri))throw new Error('Incomplete model: external dependency');
+  }
+}
 let _zipSaving = false;
 // forceLite: user-triggered "軽量保存" (export modal) — same code path the
 // phone-memory auto-guard below already used, just opt-in on any device
@@ -152,12 +168,17 @@ let _zipSaving = false;
 // postMessage で渡すために使う。通常のUI呼び出し(引数なし)の挙動は不変。
 window.saveProjectZip = async function(forceLite, opts){
   opts = opts || {};
+  if(opts.strictOnline){
+    if(typeof _pathMode!=='undefined' && _pathMode)throw new Error('Finish the active path before saving');
+    if(layers.some(L=>!['folder','cube','sphere','obj','splat','light','figure','event','path'].includes(L.type)))throw new Error('Unsupported project layer');
+    if(layers.some(L=>L.type==='event' && L.eventImage && !/^data:image\/(png|jpeg|webp|gif);base64,/i.test(L.eventImage)))throw new Error('Incomplete event image');
+  }
   if(opts.localProject){
     const unsupported=layers.find(L=>!['folder','cube','sphere','obj','splat','light','figure','event','path'].includes(L.type));
     if(unsupported)throw new Error('ローカル保存未対応のレイヤーです: '+unsupported.type+' ('+unsupported.name+')');
   }
   if(_zipSaving){
-    if(opts.localProject) throw new Error('Save already in progress');
+    if(opts.localProject || opts.strictOnline) throw new Error('Save already in progress');
     showUndoToast(T('zip-saving')); return;
   }
   _zipSaving = true;
@@ -202,6 +223,7 @@ window.saveProjectZip = async function(forceLite, opts){
       }
     }
     const _skipSplatData = !!forceLite || (_isPhoneClass && _totalSplatBytes > PHONE_SPLAT_BUDGET);
+    if(opts.strictOnline && (_skipSplatData || (_isPhoneClass && layers.some(L=>L.type==='splat' && !L._rawBuffer))))throw new Error('Device capacity insufficient for complete archive');
     if(_skipSplatData){
       const mb = Math.round(_totalSplatBytes / 1024 / 1024);
       console.warn(`[saveZIP] lite save (${forceLite?'user-requested':'phone-class device'}) — ${mb} MB splat data excluded`);
@@ -251,7 +273,7 @@ window.saveProjectZip = async function(forceLite, opts){
             const fname=`models/${fileIdx++}_${safeName}.glb`;
             files[fname]=buf; entry.file=fname; entry.rawExt='glb';
             console.log(`[saveZIP] obj "${L.name}" → GLTFExporter → ${fname} (${(buf.length/1024).toFixed(1)}KB)`);
-          } catch(e){ console.error(`[saveZIP] GLTFExporter失敗 "${L.name}":`,e); }
+          } catch(e){ if(opts.strictOnline)throw e; console.error(`[saveZIP] GLTFExporter失敗 "${L.name}":`,e); }
         }
       } else if(L.type==='splat'){
         if(opts.localProject){
@@ -309,7 +331,7 @@ window.saveProjectZip = async function(forceLite, opts){
               // fallback (restore prefers embedded bytes; streamUrl is only used
               // when entry._buf is absent). Also lets a future re-save re-fetch
               // if the bytes were somehow dropped.
-              entry.streamUrl=L._streamUrl;
+              if(!opts.strictOnline)entry.streamUrl=L._streamUrl;
               _embedded=true;
               console.log(`[saveZIP] splat "${L.name}" embedded from URL → ${fname} (${(r.bytes.length/1048576).toFixed(1)}MB)`);
             } else if(r && r.tooBig){
@@ -324,6 +346,7 @@ window.saveProjectZip = async function(forceLite, opts){
             }
           }
           if(!_embedded){
+            if(opts.strictOnline)throw new Error('Incomplete streamed asset: '+L.name);
             // Option-A fallback: phone-class device, oversized file, or fetch
             // failure. Persist the source URL and let restore re-stream it. NOT
             // a fully-offline archive, but reconstructable while the URL is up.
@@ -390,6 +413,14 @@ window.saveProjectZip = async function(forceLite, opts){
       const regional=await _collectRegionalNavigationFiles(project.walk.navigationRegions);
       for(const [name,bytes] of regional.files)files[name]=bytes;
     }
+    if(opts.strictOnline){
+      for(const entry of serialized){
+        if(entry.missing || (['splat','obj'].includes(entry.type) && (!entry.file || !files[entry.file]?.byteLength)))throw new Error('Incomplete asset: '+entry.name);
+        if(entry.type==='obj')_validateOnlineModelBytes(files[entry.file],entry.rawExt);
+      }
+      const bytes=Object.values(files).reduce((sum,value)=>sum+value.byteLength,0);
+      if(bytes>MAX_EMBED_BYTES || (_isPhoneClass && bytes>PHONE_SPLAT_BUDGET))throw new Error('Device capacity insufficient for complete archive');
+    }
     files['project.json']=fflate.strToU8(JSON.stringify(project,null,2));
 
     // ── Bundle the viewer HTML itself for fully-offline playback ──
@@ -403,7 +434,7 @@ window.saveProjectZip = async function(forceLite, opts){
     // play anything standalone anyway, and re-fetching+re-zipping the whole
     // viewer on every checkpoint save is exactly the "why is this so slow"
     // cost a lite save exists to avoid.
-    if(!_skipSplatData) try {
+    if(!_skipSplatData) if(!opts.strictOnline) try {
       if(window.__locahunWeb){
         files['Locahun3D_OfflineViewer.html']=await _fetchOfflineViewerForZip();
         _bundledHtml=true;
@@ -474,7 +505,7 @@ window.saveProjectZip = async function(forceLite, opts){
              :`✅ ZIP保存完了 (${fileCount}ファイル + project.json${_offlineNote}${_streamNote})`));
     }
   } catch(e){
-    if(opts.localProject) throw e;
+    if(opts.localProject || opts.strictOnline) throw e;
     console.error(e); showUndoToast(T('zip-fail')+e.message);
   } finally { _zipSaving = false; }
 };

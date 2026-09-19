@@ -455,12 +455,19 @@ window.importEventImage = function(id){
   inp.onchange=function(e){
     const file=e.target.files[0]; if(!file) return;
     const reader=new FileReader();
+    window.onlineSceneEditor?.beginAssetRead?.();
+    let finished=false;
+    const finish=()=>{if(!finished){finished=true;window.onlineSceneEditor?.endAssetRead?.();}};
     reader.onload=function(ev){
-      L.eventImage=ev.target.result;
-      L.eventImageName=file.name;
-      renderTransformPanel();
+      try{
+        if(findLayer(id)!==L)return;
+        L.eventImage=ev.target.result;
+        L.eventImageName=file.name;
+        renderTransformPanel();
+      }finally{finish();}
     };
-    reader.readAsDataURL(file);
+    reader.onerror=reader.onabort=finish;
+    try{reader.readAsDataURL(file);}catch(error){finish();throw error;}
   };
   inp.click();
 };
@@ -487,4 +494,3 @@ window.setEventGuide = function(id, text){
   const L=findLayer(id); if(!L||L.type!=='event') return;
   L.eventGuide=text;
 };
-

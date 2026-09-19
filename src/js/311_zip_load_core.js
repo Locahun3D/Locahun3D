@@ -1,3 +1,54 @@
+// Online editing never uses the tolerant offline reattach/placeholder path.
+// Validate all archive references before mutating the currently displayed scene.
+async function _loadOnlineSceneFile(file, fileName){
+  const shortEdge=Math.min(window.innerWidth||0,window.innerHeight||0);
+  const limit=isMobile && shortEdge>0 && shortEdge<700 ? 200*1024**2 : MAX_EMBED_BYTES;
+  if(!file.size || file.size>limit)throw new Error('Device capacity insufficient for complete archive');
+  const ext=(fileName.split('.').pop()||'').toLowerCase();
+  const bytes=new Uint8Array(await file.arrayBuffer());
+  let project,regionalFiles=null;
+  if(ext==='zip'){
+    const codec=await getFflate();let expanded=0;
+    const files=codec.unzipSync(bytes,{filter:entry=>{
+      expanded+=entry.originalSize;
+      if(expanded>limit)throw new Error('Device capacity insufficient for complete archive');
+      return true;
+    }});
+    const keys=Object.keys(files).filter(name=>/(^|\/)project\.json$/.test(name));
+    if(keys.length!==1)throw new Error('Incomplete project archive');
+    const key=keys[0],prefix=key.slice(0,-'project.json'.length);
+    project=JSON.parse(codec.strFromU8(files[key]));
+    if(![1,2,3,4].includes(project.version) || !Array.isArray(project.layers))throw new Error('Unsupported project format');
+    const ids=new Set();
+    for(const entry of project.layers){
+      if(!entry || ids.has(entry.id) || !['folder','cube','sphere','obj','splat','light','figure','event','path'].includes(entry.type))throw new Error('Unsupported project layer');
+      ids.add(entry.id);
+      if(entry.type==='event' && entry.eventImage && !/^data:image\/(png|jpeg|webp|gif);base64,/i.test(entry.eventImage))throw new Error('Incomplete event image');
+      if(['splat','obj'].includes(entry.type)){
+        const name=entry.file;
+        if(typeof name!=='string' || name.includes('..') || name.startsWith('/') || name.includes('\\') || !files[prefix+name]?.byteLength)throw new Error('Incomplete asset: '+entry.name);
+        entry._buf=files[prefix+name].slice().buffer;
+        entry._ext=name.split('.').pop().toLowerCase();
+        if(entry.type==='obj')_validateOnlineModelBytes(new Uint8Array(entry._buf),entry._ext);
+        delete entry.streamUrl;
+        delete entry.rawData;
+        delete entry.meshData;
+      }
+    }
+    if(project.walk?.navigationRegions)regionalFiles=await LocahunNavigationFiles.read(project.walk.navigationRegions,name=>files[prefix+name]);
+  }else{
+    if(!['rad','ply','splat','spz','ksplat','sog','pcsogs','pcsogszip'].includes(ext))throw new Error('Unsupported scene file');
+    project={version:4,projectName:fileName,layerNextId:2,layers:[{
+      id:1,name:fileName,type:'splat',file:fileName,rawExt:ext,_ext:ext,_buf:bytes.buffer,isMain:true,
+      pos:{x:0,y:0,z:0},rot:{x:0,y:0,z:0},scale:{x:1,y:1,z:1},size:{x:1,y:1,z:1},visible:true,
+    }]};
+  }
+  const restored=await restoreProject(project,{strict:true});
+  if(!restored || restored.epoch!==walkSetup.epoch || layers.length!==project.layers.length || !restored.layers.every((layer,i)=>layer===layers[i]))throw new Error('Project load was interrupted');
+  _regionalNavigationFiles=regionalFiles;
+  return restored;
+}
+
 // Explains why a re-select is about to happen, via a blocking modal (not an
 // auto-hiding toast — a toast disappearing right as the OS file dialog pops
 // up left users staring at an unexplained picker with no idea why). Only
