@@ -20,7 +20,7 @@ const inventory=async()=>{
  await visit(root);return result.sort((a,b)=>a.file.localeCompare(b.file));
 };
 const before=await inventory(),targets=before.filter(f=>['Locahun3D_OfflineViewer.html','viewer.html'].includes(path.basename(f.file)));
-assert.equal(targets.length,12,'Viewer inventory changed; review targets');
+assert.equal(targets.length,16,'Viewer inventory changed; review targets');
 for(const target of targets)assert([known,expected].includes(hash(await fs.readFile(target.file))),'Unreviewed changed viewer: '+target.file);
 const backup='F:/Codex/locahun-navigation-20260913/distribution-'+Date.now();await fs.mkdir(backup);
 const updates=[];
