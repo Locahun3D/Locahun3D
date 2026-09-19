@@ -5,10 +5,11 @@
   const visible=e=>e&&getComputedStyle(e).display!=='none'&&e.getBoundingClientRect().width>0;
   const set=(name,value)=>document.documentElement.style.setProperty(name,value+'px');
   function layout(){
-    frame=0;if(!touch.matches)return;
+    frame=0;
     const header=document.getElementById('topbar').getBoundingClientRect();
     set('--v1-header-bottom',header.bottom);
-    if(document.body.classList.contains('v1-ipad')||Math.min(innerWidth,innerHeight)>=700){
+    if(!touch.matches&&innerWidth>1100)return;
+    if(!touch.matches||document.body.classList.contains('v1-ipad')||Math.min(innerWidth,innerHeight)>=700){
       const layer=document.getElementById('layer-panel');
       const width=visible(layer)?layer.getBoundingClientRect().width:0;
       const camera=document.getElementById('cam-panel');

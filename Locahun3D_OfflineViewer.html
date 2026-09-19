@@ -678,7 +678,7 @@ body.cam-active #view-tl-btns{
 }
 /* ══════ LAYER PANEL ══════ */
 #layer-panel{
-  position:fixed;left:0;top:45px;bottom:0;width:285px;
+  position:fixed;left:0;top:var(--v1-header-bottom,45px);bottom:0;width:285px;
   background:rgba(22,22,24,.96);display:flex;flex-direction:column;
   z-index:55;pointer-events:all;transition:opacity .5s;opacity:0;
   border-right:1px solid rgba(255,255,255,.07);
@@ -1148,7 +1148,6 @@ body.cam-active #view-tl-btns{
   flex:1;background:transparent;border:none;border-bottom:1px solid rgba(255,255,255,.2);
   color:#C0C0C0;font-size:.75em;padding:0 2px;outline:none;
 }
-
 /* Phone tier uses the short edge in either orientation; iPad mini is 744px. */
 @media (pointer:coarse) and (any-hover:none) and (min-width:700px) and (min-height:700px) and (orientation:portrait){
   body #sun-panel{bottom:280px!important;max-height:calc(100dvh - 350px)!important;overflow-y:auto;}
@@ -1175,10 +1174,6 @@ body.cam-active #view-tl-btns{
 @media (pointer:coarse) and (any-hover:none) and (max-width:699px) and (orientation:landscape){
   body #hud .cbar{bottom:212px!important;}
   body #cam-panel{top:calc(100dvh - 196px)!important;max-height:172px!important;}
-}
-/* Panel space is reserved even when collapsed, so controls never move. */
-@media (max-width:1100px){
-  #layer-panel{top:128px!important;}
 }
 @media (pointer:coarse) and (any-hover:none) and (min-width:700px) and (min-height:700px) and (max-width:900px){
   body #layer-panel:not(.collapsed){bottom:268px!important;}
@@ -2901,7 +2896,7 @@ body.local-project-saving::after,body.local-project-restoring::after {content:''
 /* Scoped position fixes; retain v1.0 controls, panel sizes and desktop layout. */
 @media (pointer:coarse) and (any-hover:none){
   html{position:fixed;inset:0;overscroll-behavior:none;}
-  body.v1-ipad #layer-panel{display:flex!important;top:var(--v1-header-bottom,45px)!important;}
+  body.v1-ipad #layer-panel{display:flex!important;}
   body.v1-ipad #layer-panel:not(.collapsed) #lp-footer-bar{display:grid!important;}
   body.v1-ipad #obj-type-menu-top[style*="display: flex"]{display:flex!important;}
   body.v1-ipad #qi-badge{display:flex!important;}
@@ -2914,8 +2909,15 @@ body.local-project-saving::after,body.local-project-restoring::after {content:''
   }
 }
 @media (pointer:coarse) and (any-hover:none) and (min-width:700px) and (min-height:700px){
-  body #layer-panel{top:var(--v1-header-bottom,45px)!important;}
   body #view-tl-btns,body.cam-active #view-tl-btns{left:var(--v1-tools-center,50%)!important;right:auto!important;transform:translateX(-50%)!important;width:var(--v1-tools-width,calc(100% - 301px))!important;max-width:var(--v1-tools-width,calc(100% - 301px))!important;flex-wrap:wrap!important;justify-content:center;}
+}
+/* Reserve the layer column on compact desktops too, even when collapsed. */
+@media (max-width:1100px) and (pointer:fine), (max-width:1100px) and (any-hover:hover){
+  body #view-tl-btns,body.cam-active #view-tl-btns{
+    left:var(--v1-tools-center,50%)!important;right:auto!important;transform:translateX(-50%)!important;
+    width:var(--v1-tools-width,calc(100% - 301px))!important;max-width:var(--v1-tools-width,calc(100% - 301px))!important;
+    flex-wrap:wrap!important;justify-content:center;
+  }
 }
 @media (pointer:coarse) and (any-hover:none) and (max-width:699px),
        (pointer:coarse) and (any-hover:none) and (max-height:699px){
@@ -2986,7 +2988,7 @@ window.KAWAII_MALE_GLB_B64="Z2xURgIAAADsaRIAoPYCAEpTT057ImFzc2V0Ijp7InZlcnNpb24i
      the HTML. -->
 
 <script>
-window.__locahunBuildRelease="2b1185db28fdc0fc7602edabb4c8789b73db6ed462b074bfdbc2267354e60783";
+window.__locahunBuildRelease="1a6d4d7224649cfeb64996a07375471d03d678db1334d624945c18ae3bd37f95";
 (function(root) {
   'use strict';
   const ORIGIN='https://viewer.locahun3d.com';
@@ -29324,10 +29326,11 @@ function _syncWalkJumpButton(){
   const visible=e=>e&&getComputedStyle(e).display!=='none'&&e.getBoundingClientRect().width>0;
   const set=(name,value)=>document.documentElement.style.setProperty(name,value+'px');
   function layout(){
-    frame=0;if(!touch.matches)return;
+    frame=0;
     const header=document.getElementById('topbar').getBoundingClientRect();
     set('--v1-header-bottom',header.bottom);
-    if(document.body.classList.contains('v1-ipad')||Math.min(innerWidth,innerHeight)>=700){
+    if(!touch.matches&&innerWidth>1100)return;
+    if(!touch.matches||document.body.classList.contains('v1-ipad')||Math.min(innerWidth,innerHeight)>=700){
       const layer=document.getElementById('layer-panel');
       const width=visible(layer)?layer.getBoundingClientRect().width:0;
       const camera=document.getElementById('cam-panel');

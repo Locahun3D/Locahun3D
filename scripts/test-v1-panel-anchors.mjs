@@ -12,14 +12,26 @@ const out=new URL('docs/v1-panel-review/',root);fs.mkdirSync(out,{recursive:true
 const browser=await (process.env.WEBKIT?webkit:chromium).launch({...(process.env.WEBKIT?{}:{channel:'chrome'}),headless:true});
 const results=[],errors=[];
 try{
- for(const mode of ['touch','ipad','pc']){
+ for(const mode of process.env.ANCHOR_PC_ONLY?['pc']:['touch','ipad','pc']){
   const touch=mode!=='pc',ipad=mode==='ipad';
   const context=await browser.newContext({hasTouch:touch,isMobile:touch,viewport:{width:820,height:1180},...(ipad?{userAgent:'Mozilla/5.0 (iPad; CPU OS 18_0 like Mac OS X) AppleWebKit/605.1.15 Version/18.0 Mobile/15E148 Safari/604.1'}:{})});
   const page=await context.newPage();page.on('pageerror',e=>errors.push(e.message));
   if(live){await page.goto(live+'?verify='+Date.now());await page.locator('#emptyBtn').click();await page.locator('#dz').waitFor({state:'hidden'});assert.equal(await page.evaluate(()=>window.__locahunBuildRelease),expected);}
   else{await page.route('http://127.0.0.1:18995/**',r=>r.fulfill({contentType:'text/html',body:html}));await page.goto('http://127.0.0.1:18995/');await page.waitForFunction(()=>window.anchorSetup,null,{timeout:60000});await page.evaluate(()=>anchorSetup());}
-  for(const [width,height] of ipad?[[1024,650],[1180,650],[744,1024]]:touch?[[390,844],[844,390],[375,667],[667,375],[360,740],[740,360],[820,1180],[1180,820],[744,1133],[1133,744],[1024,1366],[1366,1024]]:[[1440,900]]){
+  for(const [width,height] of ipad?[[1024,650],[1180,650],[744,1024]]:touch?[[390,844],[844,390],[375,667],[667,375],[360,740],[740,360],[820,1180],[1180,820],[744,1133],[1133,744],[1024,1366],[1366,1024]]:[[722,414],[900,650],[1100,700],[1101,700],[1440,900]]){
    await page.setViewportSize({width,height});await page.waitForTimeout(350);
+   const anchor=await page.evaluate(()=>{const l=document.getElementById('layer-panel').getBoundingClientRect(),h=document.getElementById('topbar').getBoundingClientRect();return {visible:l.width>0,top:l.top,bottom:h.bottom};});
+   if(anchor.visible)assert(Math.abs(anchor.top-anchor.bottom)<1,`${mode} ${width}x${height}: layer top ${anchor.top}, header bottom ${anchor.bottom}`);
+   if(!touch&&width===722){
+    await page.evaluate(()=>{if(document.body.classList.contains('cam-active'))window.toggleCamTool();if(document.body.classList.contains('sun-active'))window.toggleSunMode();document.getElementById('layer-panel').classList.add('collapsed');});
+    await page.waitForTimeout(100);
+    await page.screenshot({path:new URL('pc-722-414-header-connected.png',out).pathname.replace(/^\/(\w:)/,'$1')});
+    const tools=await page.evaluate(()=>{
+     const right=document.getElementById('layer-panel').getBoundingClientRect().right;
+     return [...document.querySelectorAll('#view-tl-btns>button')].filter(e=>e.getBoundingClientRect().width).every(e=>e.getBoundingClientRect().left>=right);
+    });
+    assert(tools,'compact desktop top controls must not overlap the layer header');
+   }
    for(const expanded of [false,true])for(const [button,panel] of [['btnCamTool','cam-panel'],['btn-sun','sun-panel']]){
     if(live)await page.evaluate(()=>{if(document.body.classList.contains('cam-active'))window.toggleCamTool();if(document.body.classList.contains('sun-active'))window.toggleSunMode();});
     else await page.evaluate(()=>anchorClose());
@@ -35,15 +47,20 @@ try{
      return {panel:r,header:rect(document.getElementById('topbar')),layer:rect(document.getElementById('layer-panel')),buttons,tools,scroll:p.scrollWidth,client:p.clientWidth,pageX:scrollX,pageY:scrollY};
     },panel);
     const phone=touch&&!ipad&&Math.min(width,height)<700;
-    const layerOk=!touch||phone||(state.layer.w>0&&Math.abs(state.layer.y-state.header.bottom)<1&&state.tools.every(b=>b.x>=state.layer.right&&b.right<=width));
+    const layerOk=phone||(state.layer.w>0&&Math.abs(state.layer.y-state.header.bottom)<1&&(!touch||state.tools.every(b=>b.x>=state.layer.right&&b.right<=width)));
     const blockers=state.buttons.filter(b=>state.panel.x<b.right&&state.panel.right>b.x);
     const panelOk=!phone||(state.panel.x>=0&&state.panel.right<=width+1&&state.panel.bottom<=height+1&&state.scroll<=state.client+1&&state.buttons.every(b=>b.hit)&&(!blockers.length||state.panel.bottom<=Math.min(...blockers.map(b=>b.y))-4));
-    const desktopOk=touch||(state.layer.y===45&&state.header.bottom===45&&(panel!=='cam-panel'||(state.panel.y===46&&state.panel.right===width)));
+    const desktopOk=touch||(Math.abs(state.layer.y-state.header.bottom)<1&&state.header.bottom===45&&(panel!=='cam-panel'||(state.panel.y===46&&state.panel.right===width)));
     const scrollOk=state.pageX===0&&state.pageY===0;
     const sunOk=!ipad||panel!=='sun-panel'||state.panel.y>=Math.max(...state.tools.map(b=>b.bottom));
     results.push({touch,mode,width,height,expanded,panelId:panel,ok:layerOk&&panelOk&&desktopOk&&scrollOk&&sunOk,...state});
     await page.screenshot({path:new URL(`${process.env.WEBKIT?'webkit-':''}${live?'live-':''}${mode}-${width}-${height}-${expanded}-${panel}.png`,out).pathname.replace(/^\/(\w:)/,'$1')});
    }
+  }
+  if(!touch&&!live){
+   await page.evaluate(()=>document.getElementById('topbar').style.setProperty('height','63px','important'));
+   await page.waitForFunction(()=>Math.abs(document.getElementById('layer-panel').getBoundingClientRect().top-document.getElementById('topbar').getBoundingClientRect().bottom)<1);
+   assert.equal(await page.evaluate(()=>document.getElementById('layer-panel').getBoundingClientRect().top),63);
   }
   await context.close();
  }

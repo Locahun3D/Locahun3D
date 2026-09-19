@@ -25,10 +25,6 @@
   body #hud .cbar{bottom:212px!important;}
   body #cam-panel{top:calc(100dvh - 196px)!important;max-height:172px!important;}
 }
-/* Panel space is reserved even when collapsed, so controls never move. */
-@media (max-width:1100px){
-  #layer-panel{top:128px!important;}
-}
 @media (pointer:coarse) and (any-hover:none) and (min-width:700px) and (min-height:700px) and (max-width:900px){
   body #layer-panel:not(.collapsed){bottom:268px!important;}
   #hud .cbar{bottom:212px!important;}

@@ -1,7 +1,7 @@
 /* Scoped position fixes; retain v1.0 controls, panel sizes and desktop layout. */
 @media (pointer:coarse) and (any-hover:none){
   html{position:fixed;inset:0;overscroll-behavior:none;}
-  body.v1-ipad #layer-panel{display:flex!important;top:var(--v1-header-bottom,45px)!important;}
+  body.v1-ipad #layer-panel{display:flex!important;}
   body.v1-ipad #layer-panel:not(.collapsed) #lp-footer-bar{display:grid!important;}
   body.v1-ipad #obj-type-menu-top[style*="display: flex"]{display:flex!important;}
   body.v1-ipad #qi-badge{display:flex!important;}
@@ -14,8 +14,15 @@
   }
 }
 @media (pointer:coarse) and (any-hover:none) and (min-width:700px) and (min-height:700px){
-  body #layer-panel{top:var(--v1-header-bottom,45px)!important;}
   body #view-tl-btns,body.cam-active #view-tl-btns{left:var(--v1-tools-center,50%)!important;right:auto!important;transform:translateX(-50%)!important;width:var(--v1-tools-width,calc(100% - 301px))!important;max-width:var(--v1-tools-width,calc(100% - 301px))!important;flex-wrap:wrap!important;justify-content:center;}
+}
+/* Reserve the layer column on compact desktops too, even when collapsed. */
+@media (max-width:1100px) and (pointer:fine), (max-width:1100px) and (any-hover:hover){
+  body #view-tl-btns,body.cam-active #view-tl-btns{
+    left:var(--v1-tools-center,50%)!important;right:auto!important;transform:translateX(-50%)!important;
+    width:var(--v1-tools-width,calc(100% - 301px))!important;max-width:var(--v1-tools-width,calc(100% - 301px))!important;
+    flex-wrap:wrap!important;justify-content:center;
+  }
 }
 @media (pointer:coarse) and (any-hover:none) and (max-width:699px),
        (pointer:coarse) and (any-hover:none) and (max-height:699px){

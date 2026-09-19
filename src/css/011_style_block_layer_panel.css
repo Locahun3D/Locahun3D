@@ -1,6 +1,6 @@
 /* ══════ LAYER PANEL ══════ */
 #layer-panel{
-  position:fixed;left:0;top:45px;bottom:0;width:285px;
+  position:fixed;left:0;top:var(--v1-header-bottom,45px);bottom:0;width:285px;
   background:rgba(22,22,24,.96);display:flex;flex-direction:column;
   z-index:55;pointer-events:all;transition:opacity .5s;opacity:0;
   border-right:1px solid rgba(255,255,255,.07);
@@ -470,4 +470,3 @@
   flex:1;background:transparent;border:none;border-bottom:1px solid rgba(255,255,255,.2);
   color:#C0C0C0;font-size:.75em;padding:0 2px;outline:none;
 }
-
