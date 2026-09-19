@@ -20,8 +20,9 @@ function _applyMeshBasicToScene(root){
 }
 
 async function restoreProject(project, opts = {}) {
-  if(window.localProject)opts={...opts,strict:true};
+  if(window.localProject || window.onlineSceneEditor)opts={...opts,strict:true};
   const localRestoreTicket=window.localProject?.beginRestore?.();
+  const onlineRestoreTicket=window.onlineSceneEditor?.beginRestore?.();
   let localRestoreSucceeded=false;
   try {
   if(opts.strict){
@@ -394,5 +395,8 @@ async function restoreProject(project, opts = {}) {
   localRestoreSucceeded=true;
   return {layers:[...layers],epoch:walkImportEpoch};
   } catch(e) {_walkFailImport(walkImportEpoch,e);throw e;}
-  } finally {window.localProject?.endRestore?.(localRestoreTicket,localRestoreSucceeded);}
+  } finally {
+    window.localProject?.endRestore?.(localRestoreTicket,localRestoreSucceeded);
+    window.onlineSceneEditor?.endRestore?.(onlineRestoreTicket,localRestoreSucceeded);
+  }
 }
