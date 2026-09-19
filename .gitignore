@@ -50,3 +50,4 @@ __pycache__/
 
 # ── Brainstorming visual companion scratch (superpowers skill) ───────────
 .superpowers/
+/.worktrees/
