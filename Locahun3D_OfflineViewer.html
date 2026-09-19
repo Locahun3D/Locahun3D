@@ -2999,7 +2999,7 @@ window.KAWAII_MALE_GLB_B64="Z2xURgIAAADsaRIAoPYCAEpTT057ImFzc2V0Ijp7InZlcnNpb24i
      the HTML. -->
 
 <script>
-window.__locahunBuildRelease="99ba8c96ffe892df246587d198dc1eaf7b6ea8c4d4c89465e778b8b53821690c";
+window.__locahunBuildRelease="e1710ccb58fcf5962b46106eb96bf01fa5d81aef7aa7116b605ecbc1f181ce28";
 (function(root) {
   'use strict';
   const ORIGIN='https://viewer.locahun3d.com';
@@ -24669,6 +24669,22 @@ async function _getZipExporter(){
   const { GLTFExporter } = await import('three/addons/exporters/GLTFExporter.js');
   return new GLTFExporter();
 }
+function _validateOnlineModelBytes(bytes,extension){
+  const ext=String(extension||'').toLowerCase();
+  if(ext!=='gltf' && ext!=='glb')return;
+  let jsonBytes=bytes;
+  if(ext==='glb'){
+    if(bytes.byteLength<20)throw new Error('Incomplete GLB');
+    const view=new DataView(bytes.buffer,bytes.byteOffset,bytes.byteLength);
+    if(view.getUint32(0,true)!==0x46546c67 || view.getUint32(4,true)!==2 || view.getUint32(8,true)!==bytes.byteLength || view.getUint32(16,true)!==0x4e4f534a)throw new Error('Incomplete GLB');
+    const end=20+view.getUint32(12,true);if(end>bytes.byteLength)throw new Error('Incomplete GLB');
+    jsonBytes=bytes.subarray(20,end);
+  }
+  const json=JSON.parse(new TextDecoder().decode(jsonBytes));
+  for(const resource of [...(json.buffers||[]),...(json.images||[])]){
+    if(resource.uri && !/^data:/i.test(resource.uri))throw new Error('Incomplete model: external dependency');
+  }
+}
 let _zipSaving = false;
 // forceLite: user-triggered "軽量保存" (export modal) — same code path the
 // phone-memory auto-guard below already used, just opt-in on any device
@@ -24681,12 +24697,17 @@ let _zipSaving = false;
 // postMessage で渡すために使う。通常のUI呼び出し(引数なし)の挙動は不変。
 window.saveProjectZip = async function(forceLite, opts){
   opts = opts || {};
+  if(opts.strictOnline){
+    if(typeof _pathMode!=='undefined' && _pathMode)throw new Error('Finish the active path before saving');
+    if(layers.some(L=>!['folder','cube','sphere','obj','splat','light','figure','event','path'].includes(L.type)))throw new Error('Unsupported project layer');
+    if(layers.some(L=>L.type==='event' && L.eventImage && !/^data:image\/(png|jpeg|webp|gif);base64,/i.test(L.eventImage)))throw new Error('Incomplete event image');
+  }
   if(opts.localProject){
     const unsupported=layers.find(L=>!['folder','cube','sphere','obj','splat','light','figure','event','path'].includes(L.type));
     if(unsupported)throw new Error('ローカル保存未対応のレイヤーです: '+unsupported.type+' ('+unsupported.name+')');
   }
   if(_zipSaving){
-    if(opts.localProject) throw new Error('Save already in progress');
+    if(opts.localProject || opts.strictOnline) throw new Error('Save already in progress');
     showUndoToast(T('zip-saving')); return;
   }
   _zipSaving = true;
@@ -24731,6 +24752,7 @@ window.saveProjectZip = async function(forceLite, opts){
       }
     }
     const _skipSplatData = !!forceLite || (_isPhoneClass && _totalSplatBytes > PHONE_SPLAT_BUDGET);
+    if(opts.strictOnline && (_skipSplatData || (_isPhoneClass && layers.some(L=>L.type==='splat' && !L._rawBuffer))))throw new Error('Device capacity insufficient for complete archive');
     if(_skipSplatData){
       const mb = Math.round(_totalSplatBytes / 1024 / 1024);
       console.warn(`[saveZIP] lite save (${forceLite?'user-requested':'phone-class device'}) — ${mb} MB splat data excluded`);
@@ -24780,7 +24802,7 @@ window.saveProjectZip = async function(forceLite, opts){
             const fname=`models/${fileIdx++}_${safeName}.glb`;
             files[fname]=buf; entry.file=fname; entry.rawExt='glb';
             console.log(`[saveZIP] obj "${L.name}" → GLTFExporter → ${fname} (${(buf.length/1024).toFixed(1)}KB)`);
-          } catch(e){ console.error(`[saveZIP] GLTFExporter失敗 "${L.name}":`,e); }
+          } catch(e){ if(opts.strictOnline)throw e; console.error(`[saveZIP] GLTFExporter失敗 "${L.name}":`,e); }
         }
       } else if(L.type==='splat'){
         if(opts.localProject){
@@ -24838,7 +24860,7 @@ window.saveProjectZip = async function(forceLite, opts){
               // fallback (restore prefers embedded bytes; streamUrl is only used
               // when entry._buf is absent). Also lets a future re-save re-fetch
               // if the bytes were somehow dropped.
-              entry.streamUrl=L._streamUrl;
+              if(!opts.strictOnline)entry.streamUrl=L._streamUrl;
               _embedded=true;
               console.log(`[saveZIP] splat "${L.name}" embedded from URL → ${fname} (${(r.bytes.length/1048576).toFixed(1)}MB)`);
             } else if(r && r.tooBig){
@@ -24853,6 +24875,7 @@ window.saveProjectZip = async function(forceLite, opts){
             }
           }
           if(!_embedded){
+            if(opts.strictOnline)throw new Error('Incomplete streamed asset: '+L.name);
             // Option-A fallback: phone-class device, oversized file, or fetch
             // failure. Persist the source URL and let restore re-stream it. NOT
             // a fully-offline archive, but reconstructable while the URL is up.
@@ -24919,6 +24942,14 @@ window.saveProjectZip = async function(forceLite, opts){
       const regional=await _collectRegionalNavigationFiles(project.walk.navigationRegions);
       for(const [name,bytes] of regional.files)files[name]=bytes;
     }
+    if(opts.strictOnline){
+      for(const entry of serialized){
+        if(entry.missing || (['splat','obj'].includes(entry.type) && (!entry.file || !files[entry.file]?.byteLength)))throw new Error('Incomplete asset: '+entry.name);
+        if(entry.type==='obj')_validateOnlineModelBytes(files[entry.file],entry.rawExt);
+      }
+      const bytes=Object.values(files).reduce((sum,value)=>sum+value.byteLength,0);
+      if(bytes>MAX_EMBED_BYTES || (_isPhoneClass && bytes>PHONE_SPLAT_BUDGET))throw new Error('Device capacity insufficient for complete archive');
+    }
     files['project.json']=fflate.strToU8(JSON.stringify(project,null,2));
 
     // ── Bundle the viewer HTML itself for fully-offline playback ──
@@ -24932,7 +24963,7 @@ window.saveProjectZip = async function(forceLite, opts){
     // play anything standalone anyway, and re-fetching+re-zipping the whole
     // viewer on every checkpoint save is exactly the "why is this so slow"
     // cost a lite save exists to avoid.
-    if(!_skipSplatData) try {
+    if(!_skipSplatData) if(!opts.strictOnline) try {
       if(window.__locahunWeb){
         files['Locahun3D_OfflineViewer.html']=await _fetchOfflineViewerForZip();
         _bundledHtml=true;
@@ -25003,10 +25034,61 @@ window.saveProjectZip = async function(forceLite, opts){
              :`✅ ZIP保存完了 (${fileCount}ファイル + project.json${_offlineNote}${_streamNote})`));
     }
   } catch(e){
-    if(opts.localProject) throw e;
+    if(opts.localProject || opts.strictOnline) throw e;
     console.error(e); showUndoToast(T('zip-fail')+e.message);
   } finally { _zipSaving = false; }
 };
+// Online editing never uses the tolerant offline reattach/placeholder path.
+// Validate all archive references before mutating the currently displayed scene.
+async function _loadOnlineSceneFile(file, fileName){
+  const shortEdge=Math.min(window.innerWidth||0,window.innerHeight||0);
+  const limit=isMobile && shortEdge>0 && shortEdge<700 ? 200*1024**2 : MAX_EMBED_BYTES;
+  if(!file.size || file.size>limit)throw new Error('Device capacity insufficient for complete archive');
+  const ext=(fileName.split('.').pop()||'').toLowerCase();
+  const bytes=new Uint8Array(await file.arrayBuffer());
+  let project,regionalFiles=null;
+  if(ext==='zip'){
+    const codec=await getFflate();let expanded=0;
+    const files=codec.unzipSync(bytes,{filter:entry=>{
+      expanded+=entry.originalSize;
+      if(expanded>limit)throw new Error('Device capacity insufficient for complete archive');
+      return true;
+    }});
+    const keys=Object.keys(files).filter(name=>/(^|\/)project\.json$/.test(name));
+    if(keys.length!==1)throw new Error('Incomplete project archive');
+    const key=keys[0],prefix=key.slice(0,-'project.json'.length);
+    project=JSON.parse(codec.strFromU8(files[key]));
+    if(![1,2,3,4].includes(project.version) || !Array.isArray(project.layers))throw new Error('Unsupported project format');
+    const ids=new Set();
+    for(const entry of project.layers){
+      if(!entry || ids.has(entry.id) || !['folder','cube','sphere','obj','splat','light','figure','event','path'].includes(entry.type))throw new Error('Unsupported project layer');
+      ids.add(entry.id);
+      if(entry.type==='event' && entry.eventImage && !/^data:image\/(png|jpeg|webp|gif);base64,/i.test(entry.eventImage))throw new Error('Incomplete event image');
+      if(['splat','obj'].includes(entry.type)){
+        const name=entry.file;
+        if(typeof name!=='string' || name.includes('..') || name.startsWith('/') || name.includes('\\') || !files[prefix+name]?.byteLength)throw new Error('Incomplete asset: '+entry.name);
+        entry._buf=files[prefix+name].slice().buffer;
+        entry._ext=name.split('.').pop().toLowerCase();
+        if(entry.type==='obj')_validateOnlineModelBytes(new Uint8Array(entry._buf),entry._ext);
+        delete entry.streamUrl;
+        delete entry.rawData;
+        delete entry.meshData;
+      }
+    }
+    if(project.walk?.navigationRegions)regionalFiles=await LocahunNavigationFiles.read(project.walk.navigationRegions,name=>files[prefix+name]);
+  }else{
+    if(!['rad','ply','splat','spz','ksplat','sog','pcsogs','pcsogszip'].includes(ext))throw new Error('Unsupported scene file');
+    project={version:4,projectName:fileName,layerNextId:2,layers:[{
+      id:1,name:fileName,type:'splat',file:fileName,rawExt:ext,_ext:ext,_buf:bytes.buffer,isMain:true,
+      pos:{x:0,y:0,z:0},rot:{x:0,y:0,z:0},scale:{x:1,y:1,z:1},size:{x:1,y:1,z:1},visible:true,
+    }]};
+  }
+  const restored=await restoreProject(project,{strict:true});
+  if(!restored || restored.epoch!==walkSetup.epoch || layers.length!==project.layers.length || !restored.layers.every((layer,i)=>layer===layers[i]))throw new Error('Project load was interrupted');
+  _regionalNavigationFiles=regionalFiles;
+  return restored;
+}
+
 // Explains why a re-select is about to happen, via a blocking modal (not an
 // auto-hiding toast — a toast disappearing right as the OS file dialog pops
 // up left users staring at an unexplained picker with no idea why). Only
@@ -25417,8 +25499,9 @@ function _applyMeshBasicToScene(root){
 }
 
 async function restoreProject(project, opts = {}) {
-  if(window.localProject)opts={...opts,strict:true};
+  if(window.localProject || window.onlineSceneEditor)opts={...opts,strict:true};
   const localRestoreTicket=window.localProject?.beginRestore?.();
+  const onlineRestoreTicket=window.onlineSceneEditor?.beginRestore?.();
   let localRestoreSucceeded=false;
   try {
   if(opts.strict){
@@ -25791,7 +25874,10 @@ async function restoreProject(project, opts = {}) {
   localRestoreSucceeded=true;
   return {layers:[...layers],epoch:walkImportEpoch};
   } catch(e) {_walkFailImport(walkImportEpoch,e);throw e;}
-  } finally {window.localProject?.endRestore?.(localRestoreTicket,localRestoreSucceeded);}
+  } finally {
+    window.localProject?.endRestore?.(localRestoreTicket,localRestoreSucceeded);
+    window.onlineSceneEditor?.endRestore?.(onlineRestoreTicket,localRestoreSucceeded);
+  }
 }
 // ══════════════════════════════════════════════════
 //  LIGHT OBJECTS
@@ -26427,12 +26513,19 @@ window.importEventImage = function(id){
   inp.onchange=function(e){
     const file=e.target.files[0]; if(!file) return;
     const reader=new FileReader();
+    window.onlineSceneEditor?.beginAssetRead?.();
+    let finished=false;
+    const finish=()=>{if(!finished){finished=true;window.onlineSceneEditor?.endAssetRead?.();}};
     reader.onload=function(ev){
-      L.eventImage=ev.target.result;
-      L.eventImageName=file.name;
-      renderTransformPanel();
+      try{
+        if(findLayer(id)!==L)return;
+        L.eventImage=ev.target.result;
+        L.eventImageName=file.name;
+        renderTransformPanel();
+      }finally{finish();}
     };
-    reader.readAsDataURL(file);
+    reader.onerror=reader.onabort=finish;
+    try{reader.readAsDataURL(file);}catch(error){finish();throw error;}
   };
   inp.click();
 };
@@ -26459,7 +26552,6 @@ window.setEventGuide = function(id, text){
   const L=findLayer(id); if(!L||L.type!=='event') return;
   L.eventGuide=text;
 };
-
 // Extend the shared mouse/touch placement dispatcher without changing its owned source.
 (() => {
   const commitExisting=_commitPlace;
@@ -30124,6 +30216,114 @@ if(new URLSearchParams(location.search).get('localProject')==='1') {
     }catch(error){local.ready=false;local.status='error';status('読込失敗: '+error.message,true);controls();}
   }
   queueMicrotask(open);
+}
+// Dedicated same-origin editor transport. No session, source URL or credential
+// is placed in the viewer URL, project metadata, or exported archive.
+if(new URLSearchParams(location.search).get('onlineSceneEdit')==='1'){
+  let sameOriginParent=false;
+  try{sameOriginParent=parent!==window && parent.location.origin===location.origin;}catch(_){}
+  if(sameOriginParent){
+    const origin=location.origin,seen=new Set();
+    const state={ready:false,busy:false,dirty:false,version:0,pendingAssets:0};
+    window.onlineSceneEditor=state;
+    const saveButton=document.getElementById?.('tb-save-btn'),saveLabel=document.getElementById?.('tb-save-lbl');
+    if(saveButton)saveButton.title='シーンに保存';
+    if(saveLabel){saveLabel.id='online-scene-save-label';saveLabel.textContent='シーンに保存';}
+    let loaded=false,lastExport=null,restoreTicket=0;
+    const send=data=>parent.postMessage(data,origin);
+    const lock=busy=>{
+      state.busy=busy;
+      document.body.classList[busy?'add':'remove']('local-project-saving');
+      if(busy && typeof window.dispatchEvent==='function')window.dispatchEvent(new Event('blur'));
+    };
+    const changed=()=>{
+      if(!state.ready)return;
+      state.dirty=true;state.version++;
+      send({type:'locahun:scene-dirty'});
+    };
+    state.changed=changed;
+    state.beginAssetRead=()=>{state.pendingAssets++;changed();};
+    state.endAssetRead=()=>{state.pendingAssets=Math.max(0,state.pendingAssets-1);changed();};
+    state.beginRestore=()=>{
+      state.ready=false;state.version++;state.dirty=true;
+      return ++restoreTicket;
+    };
+    state.endRestore=(ticket,success)=>{
+      if(ticket!==restoreTicket)return;
+      if(!success){state.ready=false;send({type:'locahun:scene-invalid',code:'incomplete'});}
+      else if(loaded){state.ready=true;changed();}
+    };
+    for(const type of ['pointerdown','pointerup','mousedown','mouseup','touchstart','touchend','click','dblclick','keydown','wheel','input','change','drop']){
+      document.addEventListener(type,event=>{
+        if(state.busy || !state.ready){event.preventDefault();event.stopImmediatePropagation();return;}
+        if(type==='click' && event.target?.closest?.('#tb-save-btn')){
+          event.preventDefault();event.stopImmediatePropagation();send({type:'locahun:scene-save-requested'});return;
+        }
+        // The outer page owns the server save; never let Ctrl-S download a ZIP
+        // that could be mistaken for an attached online revision.
+        if(type==='keydown' && (event.ctrlKey||event.metaKey) && event.key?.toLowerCase()==='s'){
+          event.preventDefault();event.stopImmediatePropagation();send({type:'locahun:scene-save-requested'});return;
+        }
+        if(['pointerup','input','change','keydown','wheel','drop'].includes(type))changed();
+      },{capture:true,passive:false});
+    }
+    window.addEventListener('beforeunload',event=>{
+      if(state.dirty||state.busy){event.preventDefault();event.returnValue='';}
+    });
+    window.addEventListener('message',async event=>{
+      if(event.origin!==origin || event.source!==parent)return;
+      const data=event.data;
+      if(!data || typeof data.requestId!=='string' || !data.requestId || data.requestId.length>128)return;
+      if(data.type==='locahun:scene-saved'){
+        if(lastExport?.requestId===data.requestId && lastExport.version===state.version && !state.busy)state.dirty=false;
+        return;
+      }
+      if(!['locahun:scene-load','locahun:scene-export'].includes(data.type) || seen.has(data.requestId))return;
+      seen.add(data.requestId);
+      const loading=data.type==='locahun:scene-load';
+      const fail=code=>send({type:loading?'locahun:scene-load-error':'locahun:scene-export-error',requestId:data.requestId,code});
+      if(state.busy){fail('busy');return;}
+      if(loading){
+        if(loaded){fail('already_loaded');return;}
+        let source;
+        try{
+          source=new URL(data.sourceUrl,location.href);
+          if(source.origin!==origin || source.pathname!=='/api/scene-edit/source' || source.hash || source.username || source.password ||
+            !/^\?sessionKey=[a-f0-9]{64}$/.test(source.search) || typeof data.fileName!=='string' || !data.fileName || data.fileName.length>256)throw Error('Invalid source');
+        }catch(_){fail('invalid_source');return;}
+        lock(true);state.ready=false;
+        const controller=new AbortController(),timer=setTimeout(()=>controller.abort(),120000);
+        try{
+          const response=await fetch(source.href,{credentials:'same-origin',cache:'no-store',redirect:'error',signal:controller.signal});
+          if(!response.ok)throw Error('Source download failed');
+          const shortEdge=Math.min(window.innerWidth||0,window.innerHeight||0);
+          const limit=isMobile && shortEdge>0 && shortEdge<700 ? 200*1024**2 : MAX_EMBED_BYTES;
+          if(Number(response.headers.get('content-length'))>limit)throw Error('Device capacity exceeded');
+          const reader=response.body?.getReader();if(!reader)throw Error('Source stream unavailable');
+          const chunks=[];let size=0;
+          try{
+            for(;;){const {done,value}=await reader.read();if(done)break;size+=value.byteLength;if(size>limit)throw Error('Device capacity exceeded');chunks.push(value);}
+          }catch(error){await reader.cancel().catch(()=>{});throw error;}finally{reader.releaseLock();}
+          await _loadOnlineSceneFile(new Blob(chunks),data.fileName);
+          loaded=true;state.ready=true;state.dirty=false;
+          send({type:'locahun:scene-ready',requestId:data.requestId});
+        }catch(error){state.ready=false;fail(/capacity/i.test(error.message)?'capacity':'incomplete');}
+        finally{clearTimeout(timer);lock(false);}
+      }else{
+        if(!state.ready){fail('not_ready');return;}
+        if(state.pendingAssets){fail('asset_pending');return;}
+        lock(true);const version=state.version;
+        try{
+          const archive=await window.saveProjectZip(false,{returnBlob:true,strictOnline:true});
+          if(!(archive instanceof Blob) || !archive.size || version!==state.version || !state.ready)throw Error('Incomplete snapshot');
+          lastExport={requestId:data.requestId,version};
+          send({type:'locahun:scene-exported',requestId:data.requestId,archive});
+        }catch(error){state.dirty=true;fail(/capacity/i.test(error.message)?'capacity':/path/i.test(error.message)?'unfinished_path':'incomplete');}
+        finally{lock(false);}
+      }
+    });
+    send({type:'locahun:scene-editor-ready'});
+  }
 }
 if(window.__locahunUpdateFrame)parent.postMessage({type:'locahun-update-ready',nonce:window.__locahunUpdateFrame},'*');
 </script>
