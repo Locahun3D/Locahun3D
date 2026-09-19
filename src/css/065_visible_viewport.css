@@ -1,0 +1,11 @@
+/* Visible-viewport shell (touch devices; class set by 409_visible_viewport.js).
+   <body> covers exactly the area the user can see. transform makes it the
+   containing block for every position:fixed descendant, so bottom:0 / bottom:24px
+   anchors to the visible bottom edge instead of the (possibly taller) layout
+   viewport. Individual controls keep their own offsets; no per-control patch. */
+html.vv-shell body{
+  top:var(--vv-top,0px)!important;
+  height:var(--vv-height,100%)!important;
+  transform:translateZ(0);
+}
+html.vv-shell #c{height:100%!important;width:100%!important;}
