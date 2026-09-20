@@ -529,6 +529,7 @@ globalThis.getCameraCollisionState=()=>{
   const readiness=_walkCameraReadiness();
   return {enabled:cameraCollisionEnabled,ready:readiness==='ready',readiness,status:walkSetup.status};
 };
+const _FREE_CAMERA_RADIUS=.06;
 function _applyFreeCameraCollision(start){
   if(!cameraCollisionEnabled)return;
   if(typeof _clickNavigationController!=='undefined'&&_clickNavigationController?.active)return;
@@ -544,7 +545,10 @@ function _applyFreeCameraCollision(start){
     return;
   }
   if(walkSetup.wholeIndex&&_walkWholeCoverage(start,camPos)===false){camPos.set(start.x,start.y,start.z);return;}
-  const p=walkSetup.core.moveCamera(start,delta);
+  // 自由カメラの球は小さく（2026-09-20 本人報告「廊下の隙間に入れない」）。判定の箱はマス単位で、壁は実物より
+  // 最大1マス（既定25cm）通路側へ太る。そこへ半径15cmの球だと 80cm の廊下でも通れる幅が残らない。
+  // 歩行アバター（胴体22cm）と経路探索（15cm）は変えない。
+  const p=walkSetup.core.moveCamera(start,delta,_FREE_CAMERA_RADIUS);
   camPos.set(p.x,p.y,p.z);
 }
 function _walkCameraCollision(av) {

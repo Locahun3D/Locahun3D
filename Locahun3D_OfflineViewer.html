@@ -3003,7 +3003,7 @@ window.KAWAII_MALE_GLB_B64="Z2xURgIAAADsaRIAoPYCAEpTT057ImFzc2V0Ijp7InZlcnNpb24i
      the HTML. -->
 
 <script>
-window.__locahunBuildRelease="9fc4bca4c77ad2faff2343075f077c914e4bc8336b3ec6d6c597163fdd1b2fed";
+window.__locahunBuildRelease="e9110935f45f16cd25d00eaae102c214ed91ddbad8a15bcaea4170e92b617caa";
 (function(root) {
   'use strict';
   const ORIGIN='https://viewer.locahun3d.com';
@@ -15546,6 +15546,7 @@ globalThis.getCameraCollisionState=()=>{
   const readiness=_walkCameraReadiness();
   return {enabled:cameraCollisionEnabled,ready:readiness==='ready',readiness,status:walkSetup.status};
 };
+const _FREE_CAMERA_RADIUS=.06;
 function _applyFreeCameraCollision(start){
   if(!cameraCollisionEnabled)return;
   if(typeof _clickNavigationController!=='undefined'&&_clickNavigationController?.active)return;
@@ -15561,7 +15562,10 @@ function _applyFreeCameraCollision(start){
     return;
   }
   if(walkSetup.wholeIndex&&_walkWholeCoverage(start,camPos)===false){camPos.set(start.x,start.y,start.z);return;}
-  const p=walkSetup.core.moveCamera(start,delta);
+  // 自由カメラの球は小さく（2026-09-20 本人報告「廊下の隙間に入れない」）。判定の箱はマス単位で、壁は実物より
+  // 最大1マス（既定25cm）通路側へ太る。そこへ半径15cmの球だと 80cm の廊下でも通れる幅が残らない。
+  // 歩行アバター（胴体22cm）と経路探索（15cm）は変えない。
+  const p=walkSetup.core.moveCamera(start,delta,_FREE_CAMERA_RADIUS);
   camPos.set(p.x,p.y,p.z);
 }
 function _walkCameraCollision(av) {
@@ -28714,9 +28718,10 @@ function _clickNavigateAt(clientX,clientY,preview=false,preparedHit=null){
   const ray=new THREE.Raycaster();
   ray.setFromCamera(new THREE.Vector2((clientX-rect.left)/rect.width*2-1,1-(clientY-rect.top)/rect.height*2),pickCamera);
   try{
+    let point=null;
     if(walkSetup.wholeIndex){
       if(typeof pickWorldPos!=='function')return false;
-      const depth=msr.placeDepth;let point;
+      const depth=msr.placeDepth;
       try{point=pickWorldPos(clientX,clientY,{strictVisible:true});}finally{msr.placeDepth=depth;}
       if(!point||Math.hypot(point.x-camPos.x,point.y+1.8-camPos.y,point.z-camPos.z)>30)return false;
       // Load only the target's floor data; missing corridor tiles must not block travel.
@@ -28725,6 +28730,17 @@ function _clickNavigateAt(clientX,clientY,preview=false,preparedHit=null){
     const core=walkSetup.core;
     const picked=preparedHit||core.raycastSurface(ray.ray.origin,ray.ray.direction,Math.min(1000,pickCamera.far));
     if(!picked)return false;
+    // 壁の外へ出てしまう対策（2026-09-20 本人報告）。判定形状には窓・薄い壁で穴があり、視線がそこを抜けると
+    // 外の地面が行き先になっていた。見えている 3DGS の面が、判定上の当たり位置よりはっきり手前にあるなら
+    // 「見えている壁の向こう」を指しているので行かない（長押しの玉は赤）。戸口越しの床は両者が一致するので通る。
+    if(!preparedHit&&typeof pickWorldPos==='function'){
+      if(!point){const depth=msr.placeDepth;try{point=pickWorldPos(clientX,clientY,{strictVisible:true});}catch(_e){point=null;}finally{msr.placeDepth=depth;}}
+      const o=ray.ray.origin;
+      if(point&&picked.point){
+        const seen=Math.hypot(point.x-o.x,point.y-o.y,point.z-o.z),solid=Math.hypot(picked.point.x-o.x,picked.point.y-o.y,picked.point.z-o.z);
+        if(solid-seen>.75)return preview?{point:{x:point.x,y:point.y,z:point.z},valid:false}:false;
+      }
+    }
     const hit=LocahunClickNavigation.resolveSurface(picked,camPos,(a,b,d)=>core.raycastSurface(a,b,d));
     if(!hit)return preview?{point:picked.point,valid:false}:false;
     const controller=LocahunClickNavigation.create({
