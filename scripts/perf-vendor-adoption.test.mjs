@@ -18,8 +18,13 @@ test('adopted immutable asset is exactly the visually reviewed candidate; old by
  assert.deepEqual(before.flatMap((b,i)=>b.equals(after[i])?[]:[i+imports]),[319]);
  assert.deepEqual(sections(wasm).filter(s=>s.id!==10),sections(old.bytes).filter(s=>s.id!==10));
 });
-test('both importmaps select the original renderer after rollback',()=>{
- for(const f of ['src/assets/importmap.json','src/assets/importmap.online.json'])assert(JSON.parse(fs.readFileSync(new URL(f,root))).imports['@sparkjsdev/spark'].endsWith('/spark-2.0.0-workers16-incrtraverse.module.js'));
+// 2026-09-13 に本人指示で元のレンダラーへ戻した。2026-09-20、perf-rad-turn.mjs の A/B（2回とも再現・出力スプラット数同一・fps同等、
+// 振り向き後の収束 3.2s→1.9s）を根拠に「オンライン版だけ」heap319 を再採用。単体配布版はリリース手順（perf-release-assets）が
+// 元のレンダラーを前提にしているので変えない。戻すときは importmap.online.json を元の名前にし、この期待値も戻す。
+test('standalone keeps the original renderer; online selects heap319 (re-adopted 2026-09-20)',()=>{
+ const pick=f=>JSON.parse(fs.readFileSync(new URL(f,root))).imports['@sparkjsdev/spark'];
+ assert(pick('src/assets/importmap.json').endsWith('/spark-2.0.0-workers16-incrtraverse.module.js'));
+ assert(pick('src/assets/importmap.online.json').endsWith('/'+name));
 });
 test('checked-in provenance and Rust source reproduce review identity',()=>{
  const p=JSON.parse(fs.readFileSync(new URL('vendor/spark-heap319-v1/provenance.json',root)));
