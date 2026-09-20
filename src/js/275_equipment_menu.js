@@ -112,7 +112,7 @@
         const image=document.createElement('img');image.src=getAssets()[item.id].thumbnail;image.width=400;image.height=260;image.alt='';
         const name=document.createElement('span');name.className='equipment-choice-name';name.dataset.ja=item.name;name.dataset.en=item.en;
         const variant=document.createElement('span');variant.className='equipment-choice-variant';variant.dataset.ja=item.variant;variant.dataset.en=item.variantEn;
-        button.title=item.dimensions;button.append(image,name,variant);
+        button.dataset.titleJa=item.dimensions;button.dataset.titleEn=item.dimensionsEn||item.dimensions;button.title=window._lang==='en'?button.dataset.titleEn:button.dataset.titleJa;button.append(image,name,variant);
         button.addEventListener('click',()=>{window._beginPlace('equipment:'+item.id);window.closeObjTypeMenuTop();});panel.append(button);
       }
     }
@@ -133,6 +133,7 @@
       menu.removeAttribute('aria-busy');
       initialize(menu);
       for(const element of menu.querySelectorAll('[data-ja]'))element.textContent=window._lang==='en'?element.dataset.en:element.dataset.ja;
+      for(const element of menu.querySelectorAll('[data-title-ja]'))element.title=window._lang==='en'?element.dataset.titleEn:element.dataset.titleJa;
       // 開くたびに「基本」から（2026-09-20 本人指示。前回のタブは引き継がない）
       selectCategory(menu,'basic');
       menu.querySelector('[role="tab"][aria-selected="true"]')?.focus();

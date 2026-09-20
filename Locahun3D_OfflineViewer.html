@@ -1755,9 +1755,9 @@ body.immersive #immersive-exit{ display:inline-block; }
         <div style="border-top:1px solid rgba(255,255,255,.07);margin:2px 0"></div>
         <button onclick="_beginPlace('event');window.closeObjTypeMenuTop()" style="background:rgba(255,170,68,.06);border:1px solid rgba(255,170,68,.15);color:#C0C0C0;border-radius:5px;padding:7px 14px;cursor:pointer;font-size:.8em;text-align:left;width:100%;white-space:nowrap;transition:background .15s;" onmouseover="this.style.background='rgba(255,170,68,.18)'" onmouseout="this.style.background='rgba(255,170,68,.06)'">🟠 <span id="obj-add-event">Event (イベント)</span></button>
         <div style="border-top:1px solid rgba(255,255,255,.07);margin:2px 0"></div>
-        <button onclick="_beginPlace('figure');window.closeObjTypeMenuTop()" style="background:rgba(255,140,200,.06);border:1px solid rgba(255,140,200,.18);color:#C0C0C0;border-radius:5px;padding:7px 14px;cursor:pointer;font-size:.8em;text-align:left;width:100%;white-space:nowrap;transition:background .15s;" onmouseover="this.style.background='rgba(255,140,200,.20)'" onmouseout="this.style.background='rgba(255,140,200,.06)'" title="フィギュア追加（リグ付き人型モデル・配置場所を左クリック）">👤 <span id="lbl-addfig-top">フィギュア (人型リグ)</span></button>
+        <button onclick="_beginPlace('figure');window.closeObjTypeMenuTop()" style="background:rgba(255,140,200,.06);border:1px solid rgba(255,140,200,.18);color:#C0C0C0;border-radius:5px;padding:7px 14px;cursor:pointer;font-size:.8em;text-align:left;width:100%;white-space:nowrap;transition:background .15s;" onmouseover="this.style.background='rgba(255,140,200,.20)'" onmouseout="this.style.background='rgba(255,140,200,.06)'" title="フィギュア追加（リグ付き人型モデル・配置場所を左クリック）" data-i18n-title="tt-add-figure">👤 <span id="lbl-addfig-top">フィギュア (人型リグ)</span></button>
         <div style="border-top:1px solid rgba(255,255,255,.07);margin:2px 0"></div>
-        <button onclick="addPathLayer();window.closeObjTypeMenuTop()" style="background:rgba(100,200,255,.06);border:1px solid rgba(100,200,255,.16);color:#C0C0C0;border-radius:5px;padding:7px 14px;cursor:pointer;font-size:.8em;text-align:left;width:100%;white-space:nowrap;transition:background .15s;" onmouseover="this.style.background='rgba(100,200,255,.18)'" onmouseout="this.style.background='rgba(100,200,255,.06)'" title="4点を左クリックで囲んで区画を作成（駐車スペース等）。中央にテキストを表示できます">🛣 <span id="obj-add-path">パス (区画＋ラベル)</span></button>
+        <button onclick="addPathLayer();window.closeObjTypeMenuTop()" style="background:rgba(100,200,255,.06);border:1px solid rgba(100,200,255,.16);color:#C0C0C0;border-radius:5px;padding:7px 14px;cursor:pointer;font-size:.8em;text-align:left;width:100%;white-space:nowrap;transition:background .15s;" onmouseover="this.style.background='rgba(100,200,255,.18)'" onmouseout="this.style.background='rgba(100,200,255,.06)'" title="4点を左クリックで囲んで区画を作成（駐車スペース等）。中央にテキストを表示できます" data-i18n-title="tt-add-path">🛣 <span id="obj-add-path">パス (区画＋ラベル)</span></button>
         <!-- Sphere (球体) and Light (ライト) entries removed per user request.
              addSphereLayer / addLightLayer remain as window.* functions for
              programmatic use (e.g. ZIP project restore) but are no longer
@@ -1886,7 +1886,7 @@ body.immersive #immersive-exit{ display:inline-block; }
     <button class="sun-wx-btn" data-wx="snow"   id="sun-wx-snow"   data-i18n="sun-wx-snow"   onclick="onSunWeather('snow')">❄ 雪</button>
   </div>
   <!-- 実際の天気予報 (Open-Meteo, オンライン時のみ) -->
-  <button id="sun-fetch-wx" data-i18n="sun-fetch-wx" onclick="fetchSunForecast()" title="選択中の場所・日付・時刻の実際の天気予報を読み込み、上の天気を自動設定します（インターネット接続が必要）" style="width:100%;margin-bottom:6px;background:rgba(120,180,255,.16);border:1px solid rgba(120,180,255,.4);color:#bdf;border-radius:6px;padding:5px 8px;font-size:.85em;cursor:pointer">🌐 実際の天気予報を取得（オンライン時）</button>
+  <button id="sun-fetch-wx" data-i18n="sun-fetch-wx" data-i18n-title="tt-sun-fetch-wx" onclick="fetchSunForecast()" title="選択中の場所・日付・時刻の実際の天気予報を読み込み、上の天気を自動設定します（インターネット接続が必要）" style="width:100%;margin-bottom:6px;background:rgba(120,180,255,.16);border:1px solid rgba(120,180,255,.4);color:#bdf;border-radius:6px;padding:5px 8px;font-size:.85em;cursor:pointer">🌐 実際の天気予報を取得（オンライン時）</button>
   <div id="sun-forecast" style="display:none;background:rgba(120,180,255,.08);border:1px solid rgba(120,180,255,.22);border-radius:6px;padding:6px 9px;font-size:.88em;margin-bottom:10px;line-height:1.4"></div>
 
   <!-- 日付 (カスタムカレンダー) -->
@@ -1906,9 +1906,9 @@ body.immersive #immersive-exit{ display:inline-block; }
       oninput="onSunTime(this.value)" style="width:100%;accent-color:#ffd49a;display:block">
     <div id="sun-scrub-marks" style="position:relative;height:8px;margin-top:1px">
       <div id="sun-mark-rise" style="display:none;position:absolute;top:0;width:0;height:0;
-        border-left:4px solid transparent;border-right:4px solid transparent;border-top:6px solid #ffd49a;transform:translateX(-4px)" title="日の出"></div>
+        border-left:4px solid transparent;border-right:4px solid transparent;border-top:6px solid #ffd49a;transform:translateX(-4px)" title="日の出" data-i18n-title="tt-sunrise"></div>
       <div id="sun-mark-set" style="display:none;position:absolute;top:0;width:0;height:0;
-        border-left:4px solid transparent;border-right:4px solid transparent;border-top:6px solid #d88" title="日の入り"></div>
+        border-left:4px solid transparent;border-right:4px solid transparent;border-top:6px solid #d88" title="日の入り" data-i18n-title="tt-sunset"></div>
     </div>
   </div>
 
@@ -1928,8 +1928,8 @@ body.immersive #immersive-exit{ display:inline-block; }
     <div style="display:none"><span class="sun-rk" id="sun-rl-alt" data-i18n="sun-rl-alt">↕ 高度</span> <b id="sun-r-alt">—</b></div>
     <div style="display:none"><span class="sun-rk" id="sun-rl-az" data-i18n="sun-rl-az">↗ 方位</span> <b id="sun-r-az">—</b></div>
     <div style="display:none;grid-column:1/-1;border-top:1px solid rgba(255,255,255,.08);margin-top:2px;padding-top:5px"><b id="sun-r-moonphase">—</b></div>
-    <div style="display:none"><span class="sun-rk" id="sun-rl-moonrise">🌘 月の出</span> <b id="sun-r-moonrise">—</b></div>
-    <div style="display:none"><span class="sun-rk" id="sun-rl-moonset">🌗 月の入り</span> <b id="sun-r-moonset">—</b></div>
+    <div style="display:none"><span class="sun-rk" id="sun-rl-moonrise" data-i18n="sun-rl-moonrise">🌘 月の出</span> <b id="sun-r-moonrise">—</b></div>
+    <div style="display:none"><span class="sun-rk" id="sun-rl-moonset" data-i18n="sun-rl-moonset">🌗 月の入り</span> <b id="sun-r-moonset">—</b></div>
   </div>
 </div>
 
@@ -2176,7 +2176,7 @@ body.immersive #immersive-exit{ display:inline-block; }
 <!-- Floating "leave simple-fullscreen" button. Hidden unless body.immersive
      (phone-only mode); sits at the top-right where the topbar used to be so the
      user can always get the UI back. See toggleAppFullscreen(). -->
-<button id="immersive-exit" data-i18n="immersive-exit" onclick="toggleAppFullscreen()" title="全画面表示を終了">⤢ 表示</button>
+<button id="immersive-exit" data-i18n="immersive-exit" onclick="toggleAppFullscreen()" title="全画面表示を終了" data-i18n-title="tt-immersive-exit">⤢ 表示</button>
 
 <canvas id="overlay"></canvas>
 <canvas id="c"></canvas>
@@ -2454,7 +2454,7 @@ body.immersive #immersive-exit{ display:inline-block; }
         </label>
         <label style="display:flex;align-items:center;gap:6px;font-size:.95em;cursor:pointer">
           <input type="checkbox" id="cm-hide-overlays"
-            style="accent-color:#ffb454;cursor:pointer"> <span id="csp-hide-overlays">区画パス・イベントを非表示</span>
+            style="accent-color:#ffb454;cursor:pointer"> <span id="csp-hide-overlays" data-i18n="csp-hide-overlays">区画パス・イベントを非表示</span>
         </label>
         <button onclick="captureCamShot()" id="cm-capture-btn"
           style="margin-top:4px;padding:8px;background:rgba(255,180,84,.2);
@@ -2706,7 +2706,7 @@ body.ar-active #dz{display:none !important;}
   <!-- 右上の × で測定を閉じる（user 2026-06-28）。.gt は applyI18n が innerHTML を
        書き換えるので、その外（パネル直下）に絶対配置で置く。 -->
   <button id="msr-close-x" onclick="toggleMeasure()" ontouchend="if(event.cancelable)event.preventDefault(); toggleMeasure();"
-    title="測定を閉じる" aria-label="閉じる"
+    title="測定を閉じる" aria-label="閉じる" data-i18n-title="tt-msr-close" data-i18n-aria="btn-close"
     style="position:absolute;top:9px;right:11px;background:none;border:none;color:#9a9a9a;font-size:1.05em;line-height:1;cursor:pointer;padding:3px 5px;z-index:2">✕</button>
   <div class="gt">📐 距離測定</div>
 
@@ -2928,23 +2928,23 @@ html.vv-shell body{
 html.vv-shell #c{height:100%!important;width:100%!important;}
 </style>
 <dialog id="walk-setup" aria-labelledby="walk-setup-title">
-  <form method="dialog"><header><h2 id="walk-setup-title">アバター歩行</h2><button aria-label="閉じる" title="閉じる">&#x2715;</button></header></form>
-  <label class="walk-field">判定セルの大きさ (m)
+  <form method="dialog"><header><h2 id="walk-setup-title" data-i18n="walk-setup-title">アバター歩行</h2><button aria-label="閉じる" title="閉じる" data-i18n-aria="btn-close" data-i18n-title="btn-close">&#x2715;</button></header></form>
+  <label class="walk-field"><span data-i18n="walk-cell-lbl">判定セルの大きさ (m)</span>
     <input id="walk-cell" type="number" min="0.1" max="1" step="0.05" value="0.25">
   </label>
-  <label class="walk-field">生成範囲の半径 (m)
+  <label class="walk-field"><span data-i18n="walk-radius-lbl">生成範囲の半径 (m)</span>
     <input id="walk-radius" type="number" min="2" max="50" step="1" value="12">
   </label>
   <div class="walk-actions">
-    <button id="walk-generate" onclick="generateWalkCollision()">判定を生成</button>
-    <button onclick="walkUseSelectedMesh()">選択メッシュの判定を切替</button>
-    <button onclick="walkExcludeSelected()">選択立方体の除外範囲を切替</button>
+    <button id="walk-generate" onclick="generateWalkCollision()" data-i18n="walk-generate">判定を生成</button>
+    <button onclick="walkUseSelectedMesh()" data-i18n="walk-use-mesh">選択メッシュの判定を切替</button>
+    <button onclick="walkExcludeSelected()" data-i18n="walk-exclude">選択立方体の除外範囲を切替</button>
   </div>
-  <label class="walk-field"><span>近似判定を表示</span><input id="walk-preview" type="checkbox" onchange="previewWalkCollision(this.checked)"></label>
-  <label class="walk-field"><span>選択メッシュのみで判定</span><input id="walk-mesh-only" type="checkbox" onchange="walkSetMeshOnly(this.checked)"></label>
+  <label class="walk-field"><span data-i18n="walk-preview-lbl">近似判定を表示</span><input id="walk-preview" type="checkbox" onchange="previewWalkCollision(this.checked)"></label>
+  <label class="walk-field"><span data-i18n="walk-mesh-only-lbl">選択メッシュのみで判定</span><input id="walk-mesh-only" type="checkbox" onchange="walkSetMeshOnly(this.checked)"></label>
   <div class="walk-actions">
-    <button onclick="walkSaveSpawn()">開始位置を保存</button>
-    <button onclick="toggleAvatarWalk();document.getElementById('walk-setup').close()">歩行 / 終了</button>
+    <button onclick="walkSaveSpawn()" data-i18n="walk-save-spawn">開始位置を保存</button>
+    <button onclick="toggleAvatarWalk();document.getElementById('walk-setup').close()" data-i18n="walk-toggle">歩行 / 終了</button>
   </div>
   <output id="walk-status" aria-live="polite">判定形状は未生成です。</output>
 </dialog>
@@ -2990,7 +2990,7 @@ window.KAWAII_MALE_GLB_B64="Z2xURgIAAADsaRIAoPYCAEpTT057ImFzc2V0Ijp7InZlcnNpb24i
      the HTML. -->
 
 <script>
-window.__locahunBuildRelease="9741a43d16e4be4f09ffe0d51eef1f3b0601629860c68ac4d1f23158a99b9502";
+window.__locahunBuildRelease="6c889e9881b83629911873a97722f91833e77b62f750f427251fb2018865ef68";
 (function(root) {
   'use strict';
   const ORIGIN='https://viewer.locahun3d.com';
@@ -4973,7 +4973,7 @@ function _sunFcReadout(){
 window.fetchSunForecast = async function(){
   const btn=document.getElementById('sun-fetch-wx');
   if(typeof navigator!=='undefined' && navigator.onLine===false){
-    _sunFcShow('⚠ オフラインです。天気予報の取得にはインターネット接続が必要です。', true);
+    _sunFcShow((window._lang==='en'?'⚠ You are offline. The forecast needs an internet connection.':'⚠ オフラインです。天気予報の取得にはインターネット接続が必要です。'), true);
     return;
   }
   // 取得日の前後1週間（計15日）をまとめて取得してキャッシュ。以後はパラメータ
@@ -4985,7 +4985,7 @@ window.fetchSunForecast = async function(){
   const sd=fmt(sdD), ed=fmt(edD);
   const loc=sun.lat.toFixed(2)+','+sun.lng.toFixed(2);
   if(btn) btn.disabled=true;
-  _sunFcShow('🌐 取得中…（前後1週間ぶん）', true);
+  _sunFcShow((window._lang==='en'?'🌐 Fetching… (±1 week)':'🌐 取得中…（前後1週間ぶん）'), true);
   try{
     const url='https://api.open-meteo.com/v1/forecast?latitude='+sun.lat+'&longitude='+sun.lng+
       '&hourly=temperature_2m,weather_code,cloud_cover,precipitation,wind_speed_10m&timezone=auto&start_date='+sd+'&end_date='+ed;
@@ -4994,15 +4994,15 @@ window.fetchSunForecast = async function(){
       let reason='';
       try{ const ej=await r.json(); reason=(ej&&ej.reason)?ej.reason:''; }catch(_){}
       if(r.status===400 || /range|out of|date/i.test(reason)){
-        _sunFcShow('⚠ この日付の前後1週間が予報の対象範囲外です（天気予報は約16日先まで、過去は数か月前まで）。', true);
+        _sunFcShow((window._lang==='en'?'⚠ This date is outside the forecast range (about 16 days ahead, a few months back).':'⚠ この日付の前後1週間が予報の対象範囲外です（天気予報は約16日先まで、過去は数か月前まで）。'), true);
       } else {
-        _sunFcShow('⚠ 予報の取得に失敗しました（HTTP '+r.status+(reason?'：'+reason:'')+'）。', true);
+        _sunFcShow((window._lang==='en'?'⚠ Could not get the forecast (HTTP ':'⚠ 予報の取得に失敗しました（HTTP ')+r.status+(reason?(window._lang==='en'?': ':'：')+reason:'')+(window._lang==='en'?').':'）。'), true);
       }
       sun._fc=null; return;
     }
     const j=await r.json();
     if(!j.hourly || !j.hourly.time || !j.hourly.time.length){
-      _sunFcShow('⚠ この期間の予報データがありません（予報は約16日先まで、過去は数か月前まで）。', true);
+      _sunFcShow((window._lang==='en'?'⚠ No forecast data for this period (about 16 days ahead, a few months back).':'⚠ この期間の予報データがありません（予報は約16日先まで、過去は数か月前まで）。'), true);
       sun._fc=null; return;
     }
     sun._fcAuto=true;      // 以後、日時を動かすたびに予報の天気を自動適用
@@ -5011,7 +5011,7 @@ window.fetchSunForecast = async function(){
     if(sun.active && typeof updateSunMode==='function') updateSunMode();  // 光を再計算
     _sunFcReadout();       // 参照表示（日照OFFでも表示）
   }catch(e){
-    _sunFcShow('⚠ 予報の取得に失敗しました（'+((e&&e.message)||e)+'）。接続環境をご確認ください。', true);
+    _sunFcShow((window._lang==='en'?'⚠ Could not get the forecast (':'⚠ 予報の取得に失敗しました（')+((e&&e.message)||e)+(window._lang==='en'?'). Check your connection.':'）。接続環境をご確認ください。'), true);
     sun._fc=null;
   }finally{
     if(btn) btn.disabled=false;
@@ -5422,7 +5422,7 @@ window.toggleAppFullscreen = function(){
   const upd = ()=>{
     const on = !!(document.fullscreenElement || document.webkitFullscreenElement);
     btn.textContent = on ? '⤢' : '⛶';
-    btn.title = on ? '全画面を終了' : '全画面表示';
+    btn.title = on ? (window._lang==='en' ? 'Exit fullscreen' : '全画面を終了') : (window._lang==='en' ? 'Fullscreen' : '全画面表示');
     // Fullscreen change resizes the visual viewport; refit the renderer the
     // same way orientation changes do (iOS commits the new size late).
     if(typeof _doViewportResize === 'function'){
@@ -6334,7 +6334,7 @@ function updatePreview(pos) {
   const isA = (msr.step === 0 || msr.step === 2);
   msr.previewMarker.children[0].material.color.setHex(isA ? 0xffff44 : 0xff8833);
   // Hint text
-  const hint = isA ? '🟡 点 A を配置 — 離して確定' : '🟠 点 B を配置 — 離して確定';
+  const hint = isA ? (window._lang==='en'?'🟡 Place point A — release to confirm':'🟡 点 A を配置 — 離して確定') : (window._lang==='en'?'🟠 Place point B — release to confirm':'🟠 点 B を配置 — 離して確定');
   document.getElementById('msr-hint').textContent = hint;
 }
 function commitPreview() {
@@ -8724,7 +8724,7 @@ window.camAnimRecordExport = function(){
       bumpSplatActive(400);
       markDirty(8);
     }, 150);
-    try { if(typeof showUndoToast === 'function') showUndoToast('ウォームアップ中… LOD 読込'); } catch(_){}
+    try { if(typeof showUndoToast === 'function') showUndoToast((window._lang==='en'?'Warming up… loading LOD':'ウォームアップ中… LOD 読込')); } catch(_){}
   }
 
   // Everything that actually starts the recording + drives the fly-through,
@@ -9357,14 +9357,14 @@ window.captureCamShot = async function(){
         text: fileName,
       });
       _saved = true;
-      showUndoToast('📸 ' + fileName + ' — 共有メニューから「画像を保存」');
+      showUndoToast('📸 ' + fileName + (window._lang==='en'?' — choose "Save Image" in the share sheet':' — 共有メニューから「画像を保存」'));
     } catch(e){
       // AbortError = user dismissed the share sheet without picking an
       // action. Treat as "nothing happened" rather than falling back to
       // download (which would surprise-save the file twice).
       if(e && e.name === 'AbortError'){
         _saved = true;
-        showUndoToast('📸 保存をキャンセルしました');
+        showUndoToast((window._lang==='en'?'📸 Save cancelled':'📸 保存をキャンセルしました'));
       } else {
         console.warn('[capture] navigator.share failed, falling back to download:', e);
       }
@@ -9440,7 +9440,7 @@ async function embedLocahunMetadata(jpegBlob){
 
 async function extractLocahunMetadata(file){
   const buf = new Uint8Array(await file.arrayBuffer());
-  if(buf[0] !== 0xFF || buf[1] !== 0xD8) throw new Error('JPEG ではありません');
+  if(buf[0] !== 0xFF || buf[1] !== 0xD8) throw new Error((window._lang==='en'?'Not a JPEG file':'JPEG ではありません'));
   // Try the current magic first, then any legacy magics. _LOCAHUN_MAGIC
   // is what new JPEGs carry; _LEGACY_MAGICS keeps older "DIGIROKE\0"
   // saves loadable.
@@ -9472,7 +9472,7 @@ async function extractLocahunMetadata(file){
     }
     i += 2 + segLen;
   }
-  throw new Error('ロケハン3Dのメタデータが見つかりません');
+  throw new Error((window._lang==='en'?'No Locahun 3D metadata found':'ロケハン3Dのメタデータが見つかりません'));
 }
 
 window.salvageCamFromFile = async function(file){
@@ -9674,7 +9674,7 @@ function composeBurnInFrame(imgCanvas){
 
   const col1 = [
     ['LENS',   `${cam.focal.toFixed(0)}mm  (35mm-eq ${eq}mm)`],
-    ['画角',   `H ${hfov}°   V ${vfov}°`],
+    [(window._lang==='en'?'FOV':'画角'),   `H ${hfov}°   V ${vfov}°`],
     ['SENSOR', `${cam.sw}×${cam.sh}mm   WB ${cam.wb}K`],
   ];
   const col2 = [
@@ -11840,7 +11840,9 @@ const MAX_SINGLE_BUFFER_BYTES = 2_000_000_000; // safe margin under the ~2.145B 
 function _assertReadableFileSize(file){
   if(file.size >= MAX_SINGLE_BUFFER_BYTES){
     const gb = (file.size / 1024 / 1024 / 1024).toFixed(2);
-    throw new Error(
+    throw new Error(window._lang==='en'
+      ? `This file is ${gb} GB, over the browser's single-buffer limit (about 2 GB), so it cannot be loaded as PLY/SPLAT/OBJ. Convert it to .rad (streaming) — RAD loads at any size.`
+      :
       `このファイルは${gb}GBあり、ブラウザの技術的な上限（単一バッファ約2GB）を超えているため ` +
       `PLY/SPLAT/OBJ形式では読み込めません。.rad（ストリーミング形式）に変換してください — ` +
       `RADは容量に依らず正常に読み込めます。`
@@ -11885,7 +11887,7 @@ async function loadSplatFile(file){
       const mb = Math.round(file.size / 1024 / 1024);
       console.warn('[Locahun] Large file on iPhone (' + mb + ' MB) — risk of tab crash');
       if(typeof showUndoToast === 'function'){
-        showUndoToast('⚠ ファイル ' + mb + ' MB は iPhone のメモリ上限に近いです。SPZ 変換を推奨');
+        showUndoToast(window._lang==='en' ? '⚠ This ' + mb + ' MB file is close to the iPhone memory limit. Converting to SPZ is recommended' : '⚠ ファイル ' + mb + ' MB は iPhone のメモリ上限に近いです。SPZ 変換を推奨');
       }
     }
     // Big-file auto-decimation has been REMOVED across all device classes.
@@ -11986,7 +11988,7 @@ async function loadSplatFile(file){
         // this Spark build hasn't shipped SplatFileType.RAD yet, fail
         // loud rather than silently treating it as PLY.
         if(blobUrl) try{ URL.revokeObjectURL(blobUrl); }catch(_){}
-        throw new Error('このファイル形式は Spark が認識できませんでした。対応形式: PLY / SPLAT / SPZ / KSPLAT / RAD / SOG / PCSOGS');
+        throw new Error((window._lang==='en'?'Spark could not read this file format. Supported: PLY / SPLAT / SPZ / KSPLAT / RAD / SOG / PCSOGS':'このファイル形式は Spark が認識できませんでした。対応形式: PLY / SPLAT / SPZ / KSPLAT / RAD / SOG / PCSOGS'));
       }
     }
     // .RAD via url+paged:true (Spark builds its own url-backed PagedSplats
@@ -12218,7 +12220,7 @@ window.addEventListener('gamepadconnected', e => {
   window._gpEverConnected = true;
   try {
     const id = (e.gamepad && e.gamepad.id) || 'Gamepad';
-    if(typeof showUndoToast === 'function') showUndoToast('🎮 ' + id.substring(0, 40) + ' 接続');
+    if(typeof showUndoToast === 'function') showUndoToast('🎮 ' + id.substring(0, 40) + (window._lang==='en'?' connected':' 接続'));
     console.info('[gamepad] connected:', id, 'index', e.gamepad.index);
   } catch(_){}
 });
@@ -13203,14 +13205,14 @@ window.toggleAvatarWalk = function(){
 };
 
 async function _avatarWalkEnter(){
-  if(typeof camAnim!=='undefined' && camAnim.playing)throw new Error('カメラワークの再生を停止してから歩行を開始してください。');
+  if(typeof camAnim!=='undefined' && camAnim.playing)throw new Error(_walkL('カメラワークの再生を停止してから歩行を開始してください。','Stop camera-move playback before walking.'));
   const epoch=walkSetup.epoch;
   await _walkPrepareCollision();
   // Resolve below the current camera after preparation and avatar loading.
   if(!walkMode.avatar){
     try {
       const built=await _avatarBuild();
-      if(epoch!==walkSetup.epoch){built.userData.kawaiiAnimation?.dispose();throw new Error('シーンが変更されたため歩行開始を中止しました。');}
+      if(epoch!==walkSetup.epoch){built.userData.kawaiiAnimation?.dispose();throw new Error(_walkL('シーンが変更されたため歩行開始を中止しました。','The scene changed, so walking was not started.'));}
       walkMode.avatar=built;
       const api=built.userData.kawaiiAnimation;
       walkMode.bones=null;walkMode.mixer=api.mixer;walkMode.walkAction=api.walkAction;
@@ -13223,7 +13225,7 @@ async function _avatarWalkEnter(){
     scene.add(walkMode.avatar);
     _avatarMeasureGroundOffset(walkMode.avatar);
   }
-  if(epoch!==walkSetup.epoch) throw new Error('シーンが変更されたため歩行開始を中止しました。');
+  if(epoch!==walkSetup.epoch) throw new Error(_walkL('シーンが変更されたため歩行開始を中止しました。','The scene changed, so walking was not started.'));
   const spawn=_walkCameraSpawnPosition();
   walkMode.entryCamera={position:{x:camPos.x,y:camPos.y,z:camPos.z},yaw,pitch};
   walkMode.moveX=0;walkMode.moveZ=0;walkMode.actualSpeed=0;
@@ -15018,6 +15020,8 @@ globalThis.LocahunCollisionManifest=Object.freeze({
   const cache = create();
   globalThis.LocahunCollisionCache = Object.freeze({get:cache.get,put:cache.put,create});
 })();
+// JA/EN picker for walk status + error text (typeof guard: this file also runs in node vm tests).
+function _walkL(ja,en){return (typeof window!=='undefined'&&window._lang==='en')?en:ja;}
 const walkSetup = {
   settings: LocahunWalkSettings.parse(null), core: null, busy: false,
   preview: null, epoch: 0, checkedAt: 0, status: '', entering: false,
@@ -15035,10 +15039,10 @@ function _walkStatus(message) {
   if(button) {
     const busy=walkSetup.busy || !!walkSetup.importPending;
     button.setAttribute('aria-busy',String(busy));
-    button.title=busy?'歩行判定を生成中です。クリックすると完了後に歩行を開始します。':message;
+    button.title=busy?_walkL('歩行判定を生成中です。クリックすると完了後に歩行を開始します。','Preparing walk collision. Click to start walking when it is ready.'):message;
     if(label) {
       if(busy && !button.dataset.walkLabel)button.dataset.walkLabel=label.textContent;
-      if(busy)label.textContent='判定生成中…';
+      if(busy)label.textContent=_walkL('判定生成中…','Preparing…');
       else if(button.dataset.walkLabel){label.textContent=button.dataset.walkLabel;delete button.dataset.walkLabel;}
     }
   }
@@ -15100,11 +15104,11 @@ function _walkMeshGeometry() {
       const p = o.geometry.getAttribute('position');
       if (!p) return;
       total += p.count;
-      if (total > 1000000) throw new Error('判定用メッシュが大きすぎます。軽量メッシュを使用してください。');
+      if (total > 1000000) throw new Error(_walkL('判定用メッシュが大きすぎます。軽量メッシュを使用してください。','The collision mesh is too large. Use a lighter mesh.'));
       const vertices = new Float32Array(p.count*3), vec = new THREE.Vector3();
       for (let i=0;i<p.count;i++) {
         vec.fromBufferAttribute(p,i).applyMatrix4(o.matrixWorld);
-        if (![vec.x,vec.y,vec.z].every(Number.isFinite)) throw new Error('メッシュ座標が無効です。');
+        if (![vec.x,vec.y,vec.z].every(Number.isFinite)) throw new Error(_walkL('メッシュ座標が無効です。','The mesh has invalid coordinates.'));
         vertices.set([vec.x,vec.y,vec.z],i*3);
       }
       const index = o.geometry.getIndex();
@@ -15121,17 +15125,17 @@ async function _walkInstallCore(boxes, job=null) {
   const core = job ? await _walkAwait(creating,job) : await creating;
   let settled=null;
   try {
-    if (epoch !== walkSetup.epoch) throw new Error('生成をキャンセルしました。');
+    if (epoch !== walkSetup.epoch) throw new Error(_walkL('生成をキャンセルしました。','Generation cancelled.'));
     if(job) _walkCheckJob(job);
     const meshes = _walkMeshGeometry();
-    if (!boxes.length && !meshes.length) throw new Error('判定形状がありません。3DGSか判定用メッシュを指定してください。');
+    if (!boxes.length && !meshes.length) throw new Error(_walkL('判定形状がありません。3DGSか判定用メッシュを指定してください。','No collision shape. Add a 3DGS or a collision mesh.'));
     core.rebuild({boxes,meshes});
     if(walkMode.active && walkMode.avatar) {
       const p=walkMode.avatar.position;
       let feet={x:p.x,y:p.y+walkMode.groundOffset,z:p.z};
       if(!_walkFeetClear(core,feet,!walkMode.airborne)) {
         settled=core.reconcileFeet?.(feet,_walkBodyHeight(),walkMode.bodyRadius,!walkMode.airborne);
-        if(!settled)throw new Error('追加判定では現在位置の床・空きを確認できません。歩行を停止し、開始位置を確認してください。');
+        if(!settled)throw new Error(_walkL('追加判定では現在位置の床・空きを確認できません。歩行を停止し、開始位置を確認してください。','The added collision leaves no floor or clearance here. Stop walking and check the start position.'));
         feet=settled;
       }
       core.setCharacter(feet,_walkBodyHeight(),walkMode.bodyRadius);
@@ -15158,15 +15162,15 @@ function _walkExcludeBoxes(boxes) {
   return boxes.filter(b=>!volumes.some(v=>v.bounds.containsPoint(p.fromArray(b.center).applyMatrix4(v.inverse))));
 }
 function _walkCheckJob(job) {
-  if(job.epoch!==walkSetup.epoch || walkSetup.job!==job)throw new Error('生成をキャンセルしました。');
-  if(job.sources?.some(s=>!layers.some(L=>L.id===s.id&&L.mesh===s.mesh)))throw new Error('点群が置換されました。判定形状を再生成します。');
-  if(job.signature!==_walkSourceSignature())throw new Error('レイヤーが変更されました。判定形状を再生成します。');
+  if(job.epoch!==walkSetup.epoch || walkSetup.job!==job)throw new Error(_walkL('生成をキャンセルしました。','Generation cancelled.'));
+  if(job.sources?.some(s=>!layers.some(L=>L.id===s.id&&L.mesh===s.mesh)))throw new Error(_walkL('点群が置換されました。判定形状を再生成します。','The point cloud was replaced. Regenerating collision.'));
+  if(job.signature!==_walkSourceSignature())throw new Error(_walkL('レイヤーが変更されました。判定形状を再生成します。','Layers changed. Regenerating collision.'));
 }
 async function _walkAwait(promise,job) {
   let timer;
   try {
-    return await Promise.race([promise,job.cancelled.then(()=>{throw new Error('生成をキャンセルしました。');}),
-      new Promise((_,reject)=>{timer=setTimeout(()=>reject(new Error('点群の読込または判定生成がタイムアウトしました。歩行ボタンで再試行できます。')),60000);})]);
+    return await Promise.race([promise,job.cancelled.then(()=>{throw new Error(_walkL('生成をキャンセルしました。','Generation cancelled.'));}),
+      new Promise((_,reject)=>{timer=setTimeout(()=>reject(new Error(_walkL('点群の読込または判定生成がタイムアウトしました。歩行ボタンで再試行できます。','Loading or collision generation timed out. Press Walk to retry.'))),60000);})]);
   } finally {clearTimeout(timer);}
 }
 function _walkPoint(p) {return {x:p.x,y:p.y,z:p.z};}
@@ -15220,7 +15224,7 @@ async function _walkRunGeneration(job) {
     job.sources=layers.filter(L=>L.mesh).map(L=>({id:L.id,mesh:L.mesh}));
     const center=job.center;
     const splats = walkSetup.settings.meshOnly ? [] : layers.filter(L => L.type==='splat' && L.visible && L.mesh);
-    _walkStatus(options.automatic&&!options.allowBake?'保存済みの当たり判定を確認中…':'3DGS読込待ち・近似判定を生成中…');
+    _walkStatus(options.automatic&&!options.allowBake?_walkL('保存済みの当たり判定を確認中…','Checking saved collision…'):_walkL('3DGS読込待ち・近似判定を生成中…','Waiting for the 3DGS / generating collision…'));
     await _walkAwait(Promise.all(splats.map(L=>L.mesh.initialized)),job);
     _walkCheckJob(job);
     await _walkAwait(new Promise(resolve=>setTimeout(resolve,0)),job);
@@ -15232,7 +15236,7 @@ async function _walkRunGeneration(job) {
       walkSetup.viewAnchor=_walkPoint(job.view);
       walkSetup.residentAtBuild=_walkResidentSignature();
       walkSetup.failedKey='';
-      _walkStatus('保存済みの歩行判定を復元しました。');
+      _walkStatus(_walkL('保存済みの歩行判定を復元しました。','Restored saved walk collision.'));
       return true;
     }
     let sampled;
@@ -15249,7 +15253,7 @@ async function _walkRunGeneration(job) {
         sampled=splats.length?_acCollectSplatPoints(2000000):{points:null,count:0,meshes:0};
         if(sampled.meshes===splats.length && (!splats.length||sampled.count))break;
       }
-      if(performance.now()>deadline)throw new Error('点群の座標を取得できません。読込形式・ストリーミング状態を確認し、歩行ボタンで再試行してください。');
+      if(performance.now()>deadline)throw new Error(_walkL('点群の座標を取得できません。読込形式・ストリーミング状態を確認し、歩行ボタンで再試行してください。','Could not read point positions. Check the file format and streaming state, then press Walk to retry.'));
       if(typeof bumpSplatActive==='function')bumpSplatActive(1000);
       markDirty(3);
       await _walkAwait(new Promise(resolve=>setTimeout(resolve,250)),job);
@@ -15276,7 +15280,7 @@ async function _walkRunGeneration(job) {
     }
     const combined=output.subarray(0,total*3);
     let boxes=[],cellSize=walkSetup.settings.cellSize;
-    if(splats.length && !total)throw new Error('開始位置の周辺に点群がありません。床のある場所へ視点を移してください。');
+    if(splats.length && !total)throw new Error(_walkL('開始位置の周辺に点群がありません。床のある場所へ視点を移してください。','No points near the start position. Move the view over a floor.'));
     while(total) {
       _walkCheckJob(job);
       try {
@@ -15285,9 +15289,9 @@ async function _walkRunGeneration(job) {
         break;
       } catch(e) {
         if(!/maxCells|(?:maxCandidates|candidate).*exceed/i.test(e.message))throw e;
-        if(cellSize>=1)throw new Error('1 mセルでも判定形状の上限を超えました。生成範囲を小さくするか、判定用メッシュを指定してください。');
+        if(cellSize>=1)throw new Error(_walkL('1 mセルでも判定形状の上限を超えました。生成範囲を小さくするか、判定用メッシュを指定してください。','Collision exceeds the limit even at 1 m cells. Reduce the radius or use a collision mesh.'));
         cellSize=Math.min(1,Math.round(cellSize*1.5*1000)/1000);
-        _walkStatus('判定形状の密度を自動調整中… '+cellSize+' m');
+        _walkStatus(_walkL('判定形状の密度を自動調整中… ','Adjusting collision density… ')+cellSize+' m');
         await _walkAwait(new Promise(resolve=>setTimeout(resolve,0)),job);
       }
     }
@@ -15310,7 +15314,7 @@ async function _walkRunGeneration(job) {
     walkSetup.residentAtBuild=_walkResidentSignature();
     walkSetup.failedKey='';
     _walkShowPreview(!!document.getElementById('walk-preview')?.checked);
-    _walkStatus('近似判定: '+boxes.length.toLocaleString()+'セル / '+cellSize+' m / 半径 '+radius+' m'+(detailed.region?' / 足元 0.1 m':'')+'（範囲端で追加生成）');
+    _walkStatus(_walkL('近似判定: ','Collision: ')+boxes.length.toLocaleString()+_walkL('セル / ',' cells / ')+cellSize+_walkL(' m / 半径 ',' m / radius ')+radius+' m'+(detailed.region?_walkL(' / 足元 0.1 m',' / 0.1 m underfoot'):'')+_walkL('（範囲端で追加生成）',' (extends at the edge)'));
     return true;
   } catch(e) {
     if(epoch === walkSetup.epoch && walkSetup.job===job) {
@@ -15331,9 +15335,9 @@ async function _walkRunGeneration(job) {
 }
 async function _walkPrepareCollision() {
   const epoch=walkSetup.epoch;
-  if(walkSetup.importPending && !await walkSetup.importPending)throw new Error(walkSetup.status||'3DGS読込を中止しました。');
+  if(walkSetup.importPending && !await walkSetup.importPending)throw new Error(walkSetup.status||_walkL('3DGS読込を中止しました。','3DGS loading was cancelled.'));
   if(walkSetup.pending)await walkSetup.pending;
-  if(epoch!==walkSetup.epoch)throw new Error('シーンが変更されました。');
+  if(epoch!==walkSetup.epoch)throw new Error(_walkL('シーンが変更されました。','The scene changed.'));
   if(!walkMode.active && _walkNeedsRegion(camPos,.5)) {
     if(!await _walkGenerateCollision({automatic:true,allowBake:true,center:camPos,preserveSpawn:true}))throw new Error(walkSetup.status);
   }
@@ -15349,7 +15353,7 @@ function _walkPrepareDeferredSpawn(epoch) {
   const check=()=>{
     if(epoch!==walkSetup.epoch||!core||core!==walkSetup.core||!walkSetup.wholeIndex||
       signature!==_walkSourceSignature()||walkSetup.settings.signature!==signature)
-      throw new Error('シーンが変更されたため開始位置の準備を中止しました。');
+      throw new Error(_walkL('シーンが変更されたため開始位置の準備を中止しました。','The scene changed, so start-position setup was cancelled.'));
   };
   check();
   walkSetup.spawnCandidate=null;walkSetup.spawnYawCandidate=null;
@@ -15369,12 +15373,12 @@ function _walkPrepareDeferredSpawn(epoch) {
 function _walkBeginImport() {
   _walkCancelPending();
   walkSetup.importPending=new Promise(resolve=>{walkSetup.importDone=resolve;});
-  _walkStatus('3DGS読込待ち・保存済みの当たり判定を確認します。');
+  _walkStatus(_walkL('3DGS読込待ち・保存済みの当たり判定を確認します。','Waiting for the 3DGS / checking saved collision.'));
   return walkSetup.epoch;
 }
 function _walkFailImport(epoch,error) {
   if(epoch!==walkSetup.epoch)return;
-  _walkStatus('3DGS読込失敗: '+error.message);
+  _walkStatus(_walkL('3DGS読込失敗: ','3DGS load failed: ')+error.message);
   if(walkSetup.importDone)walkSetup.importDone(false);
   walkSetup.importPending=null;walkSetup.importDone=null;
   _walkStatus(walkSetup.status);
@@ -15384,7 +15388,7 @@ function _walkAutoImport(epoch=walkSetup.epoch,mesh=null) {
   if(walkSetup.importDone)walkSetup.importDone(true);
   walkSetup.importPending=null;walkSetup.importDone=null;
   if(!layers.some(L=>L.mesh&&L.visible&&(L.type==='splat'||walkSetup.settings.meshIds.includes(L.id)))) {
-    _walkStatus('判定対象の3DGSまたはメッシュがありません。');
+    _walkStatus(_walkL('判定対象の3DGSまたはメッシュがありません。','No 3DGS or mesh to build collision from.'));
     return Promise.resolve(false);
   }
   walkSetup.autoEnabled=true;walkSetup.failedKey='';walkSetup.deferredSignature='';
@@ -15408,14 +15412,14 @@ async function _walkAutoTick() {
 function _walkBodyHeight(){return Math.min(walkMode.height||1.65,1);}
 function _walkCameraSpawnPosition(){
   const point=_walkPoint(camPos),core=walkSetup.core;
-  if(!core)throw new Error('歩行用の当たり判定を準備中です。');
+  if(!core)throw new Error(_walkL('歩行用の当たり判定を準備中です。','Walk collision is still being prepared.'));
   if(walkSetup.wholeIndex&&_walkWholeCoverage(point,point,{drop:22})===false)throw new Error(walkSetup.status);
   const distance=core.raycast(point,{x:0,y:-1,z:0},20);
   if(Number.isFinite(distance)&&distance>0){
     const feet={x:point.x,y:point.y-distance+.05,z:point.z};
     if(_walkFeetClear(core,feet))return feet;
   }
-  throw new Error('カメラの真下に歩ける床がありません。床の上へ視点を移してください。');
+  throw new Error(_walkL('カメラの真下に歩ける床がありません。床の上へ視点を移してください。','No walkable floor below the camera. Move the view over a floor.'));
 }
 // Ground support is sampled separately; body clearance uses the lower capsule.
 function _walkFeetClear(core,feet,requireSupport=true) {
@@ -15456,7 +15460,7 @@ function _walkSpawnPosition(useSaved=true) {
       return result;
     }
   }
-  throw new Error('十分な床と身体周囲の空きがある開始位置を確認できません。読込完了を待つか、床の近くへ視点を移してください。');
+  throw new Error(_walkL('十分な床と身体周囲の空きがある開始位置を確認できません。読込完了を待つか、床の近くへ視点を移してください。','No start position with enough floor and clearance. Wait for loading to finish or move closer to a floor.'));
 }
 function _walkCollisionAdvance(av,dt,dx,dz,jump) {
   if(!walkMode.airborne)walkMode.jumpFlightSeconds=undefined;
@@ -15466,7 +15470,7 @@ function _walkCollisionAdvance(av,dt,dx,dz,jump) {
   // but never advance against geometry invalidated by an edit/import.
   if(walkSetup.importPending||!walkSetup.settings.signature||walkSetup.settings.signature!==_walkSourceSignature()){
     walkMode.actualSpeed=0;
-    if(walkMode.active){_avatarWalkExit();_walkStatus('シーンの変更により歩行を終了しました。判定の準備後に再開できます。');}
+    if(walkMode.active){_avatarWalkExit();_walkStatus(((typeof window!=='undefined'&&window._lang==='en')?'Walking ended because the scene changed. You can resume once collision is ready.':'シーンの変更により歩行を終了しました。判定の準備後に再開できます。'));}
     return false;
   }
   const next={x:av.position.x+dx*dt,y:av.position.y,z:av.position.z+dz*dt};
@@ -15481,7 +15485,7 @@ function _walkCollisionAdvance(av,dt,dx,dz,jump) {
     if(walkSetup.settings.signature!==_walkSourceSignature()) {
       walkMode.actualSpeed=0;
       if(walkSetup.autoEnabled)_walkAutoTick();
-      else {_avatarWalkExit();_walkStatus('レイヤー変更後は判定形状を再生成してください。');}
+      else {_avatarWalkExit();_walkStatus(((typeof window!=='undefined'&&window._lang==='en')?'Layers changed. Regenerate the collision.':'レイヤー変更後は判定形状を再生成してください。'));}
       return false;
     }
   }
@@ -15504,7 +15508,7 @@ function _walkCollisionAdvance(av,dt,dx,dz,jump) {
   if(!walkMode.airborne)walkMode.jumpFlightSeconds=undefined;
   walkMode.groundY=av.position.y+walkMode.groundOffset;
   if(walkMode.groundY < (walkMode.entryGroundY ?? walkSetup.settings.spawn?.y ?? 0)-30) {
-    _avatarWalkExit(); _walkStatus('判定範囲の外に落下しました。開始位置を再設定してください。'); return false;
+    _avatarWalkExit(); _walkStatus(((typeof window!=='undefined'&&window._lang==='en')?'You fell outside the collision area. Set the start position again.':'判定範囲の外に落下しました。開始位置を再設定してください。')); return false;
   }
   walkMode.actualSpeed=Math.hypot(av.position.x-oldX,av.position.z-oldZ)/Math.max(dt,.0001);
   return walkMode.actualSpeed>.03;
@@ -15521,8 +15525,8 @@ function _walkUpdateCameraReadiness(){
   if(button){
     button.setAttribute('aria-checked',String(cameraCollisionEnabled));
     button.dataset.readiness=state;
-    button.textContent=state==='off'?'OFF':state==='ready'?'ON':state==='preparing'?'準備中':'未準備';
-    button.title=state==='ready'?'カメラ当たり判定 ON':state==='off'?'カメラ当たり判定 OFF':'当たり判定は未準備です。通常閲覧は続けられます。';
+    button.textContent=state==='off'?'OFF':state==='ready'?'ON':state==='preparing'?_walkL('準備中','Preparing'):_walkL('未準備','Not ready');
+    button.title=state==='ready'?_walkL('カメラ当たり判定 ON','Camera collision ON'):state==='off'?_walkL('カメラ当たり判定 OFF','Camera collision OFF'):_walkL('当たり判定は未準備です。通常閲覧は続けられます。','Collision is not ready. You can keep viewing as usual.');
     button.classList.toggle('on',state==='ready');
   }
 }
@@ -15613,7 +15617,7 @@ function _walkRestoreSettings(data) {
   const size=document.getElementById('walk-cell'); if(size) size.value=walkSetup.settings.cellSize;
   const radius=document.getElementById('walk-radius');if(radius)radius.value=walkSetup.settings.radius;
   const meshOnly=document.getElementById('walk-mesh-only');if(meshOnly)meshOnly.checked=walkSetup.settings.meshOnly;
-  _walkStatus(data ? '歩行設定を復元しました。' : '判定形状は未生成です。');
+  _walkStatus(data ? _walkL('歩行設定を復元しました。','Walk settings restored.') : _walkL('判定形状は未生成です。','No collision generated yet.'));
 }
 window.openWalkSetup=function(){document.getElementById('walk-setup').showModal();};
 window.generateWalkCollision=_walkGenerateCollision;
@@ -15623,36 +15627,36 @@ window.walkSetMeshOnly=function(value){
   if(walkMode.active)_avatarWalkExit();
   walkSetup.settings.meshOnly=!!value;
   walkSetup.settings.signature='';
-  _walkStatus('判定方式を変更しました。再生成してください。');
+  _walkStatus(_walkL('判定方式を変更しました。再生成してください。','Collision mode changed. Regenerate.'));
 };
 window.walkUseSelectedMesh=function(){
   if(walkSetup.busy)return;
   const L=layers.find(L=>L.id===selectedLayerId && ['cube','sphere','obj'].includes(L.type));
-  if(!L) {_walkStatus('立方体・球・読込メッシュを選択してください。');return;}
+  if(!L) {_walkStatus(_walkL('立方体・球・読込メッシュを選択してください。','Select a cube, sphere or imported mesh.'));return;}
   const ids=walkSetup.settings.meshIds;
   if(ids.includes(L.id)) ids.splice(ids.indexOf(L.id),1); else ids.push(L.id);
   walkSetup.settings.excludeIds=walkSetup.settings.excludeIds.filter(id=>id!==L.id);
   walkSetup.settings.signature='';
   if(walkMode.active) _avatarWalkExit();
-  _walkStatus((ids.includes(L.id)?'判定に追加: ':'判定から除外: ')+L.name+' / 再生成してください。');
+  _walkStatus((ids.includes(L.id)?_walkL('判定に追加: ','Added to collision: '):_walkL('判定から除外: ','Removed from collision: '))+L.name+_walkL(' / 再生成してください。',' / regenerate to apply.'));
 };
 window.walkExcludeSelected=function(){
   if(walkSetup.busy)return;
   const L=layers.find(L=>L.id===selectedLayerId&&L.type==='cube');
-  if(!L){_walkStatus('除外範囲にする立方体を選択してください。');return;}
+  if(!L){_walkStatus(_walkL('除外範囲にする立方体を選択してください。','Select a cube to use as an exclusion zone.'));return;}
   const ids=walkSetup.settings.excludeIds;
   if(ids.includes(L.id))ids.splice(ids.indexOf(L.id),1);else ids.push(L.id);
   walkSetup.settings.meshIds=walkSetup.settings.meshIds.filter(id=>id!==L.id);
   if(walkMode.active)_avatarWalkExit();
   walkSetup.settings.signature='';
-  _walkStatus((ids.includes(L.id)?'除外範囲に追加: ':'除外範囲を解除: ')+L.name+' / 再生成してください。');
+  _walkStatus((ids.includes(L.id)?_walkL('除外範囲に追加: ','Exclusion zone added: '):_walkL('除外範囲を解除: ','Exclusion zone removed: '))+L.name+_walkL(' / 再生成してください。',' / regenerate to apply.'));
 };
 window.walkSaveSpawn=function(){
-  if(!walkMode.active) {_walkStatus('歩行中に開始位置を保存してください。');return;}
+  if(!walkMode.active) {_walkStatus(_walkL('歩行中に開始位置を保存してください。','Save the start position while walking.'));return;}
   const av=walkMode.avatar;
   walkSetup.settings.spawn={x:av.position.x,y:av.position.y+walkMode.groundOffset,z:av.position.z};
   walkSetup.settings.spawnYaw=yaw;
-  _walkStatus('現在位置を歩行開始位置に保存しました。');
+  _walkStatus(_walkL('現在位置を歩行開始位置に保存しました。','Saved the current position as the walk start.'));
 };
 
 // These loaders bypass loadSplatFile (RAD URL and in-place quality reload).
@@ -15664,7 +15668,7 @@ function _walkObserveImport(importer) {
       const result=await importer.apply(this,args);
       if(epoch===walkSetup.epoch) {
         if(layers.some(L=>L.type==='splat'&&L.mesh&&!before.has(L.mesh)))_walkAutoImport(epoch);
-        else _walkFailImport(epoch,new Error('新しい3DGSは読み込まれていません。'));
+        else _walkFailImport(epoch,new Error(_walkL('新しい3DGSは読み込まれていません。','No new 3DGS was loaded.')));
       }
       return result;
     } catch(e) {_walkFailImport(epoch,e);throw e;}
@@ -15677,7 +15681,7 @@ if(typeof _fetchBinaryChunked==='function') {
   _fetchBinaryChunked=async function(...args) {
     const epoch=walkSetup.epoch;
     const bytes=await fetchImportBytes.apply(this,args);
-    if(epoch!==walkSetup.epoch)throw new Error('古いURL読込を中止しました。');
+    if(epoch!==walkSetup.epoch)throw new Error(_walkL('古いURL読込を中止しました。','Cancelled an outdated URL load.'));
     return bytes;
   };
 }
@@ -15685,12 +15689,12 @@ const _wholeIdentityCache=new WeakMap();
 const _wholeByteCache=new Map();
 function _wholeCacheOnly(job){return !!job.options.automatic&&!job.options.allowBake;}
 function _wholeDeferred(){
-  const error=new Error('当たり判定は未準備です。通常閲覧は続けられます。歩行時に準備します。');
+  const error=new Error(_walkL('当たり判定は未準備です。通常閲覧は続けられます。歩行時に準備します。','Collision is not ready. You can keep viewing; it is prepared when you walk.'));
   error.collisionDeferred=true;return error;
 }
 async function _wholeSourceFetch(url,method,mesh,job){
   _walkCheckJob(job);
-  if(job.abortController?.signal.aborted)throw new Error('生成をキャンセルしました。');
+  if(job.abortController?.signal.aborted)throw new Error(_walkL('生成をキャンセルしました。','Generation cancelled.'));
   const controller=typeof AbortController==='function'?new AbortController():null;
   const abort=()=>controller?.abort();
   job.abortController?.signal.addEventListener('abort',abort,{once:true});
@@ -15778,20 +15782,20 @@ async function _wholeSourceIdentity(layer,job){
       catch(error){_walkCheckJob(job);}
     }
     _walkCheckJob(job);
-    if(response?.status===401||response?.status===403)throw new Error('判定用データの閲覧権限を確認できません。');
+    if(response?.status===401||response?.status===403)throw new Error(_walkL('判定用データの閲覧権限を確認できません。','Could not verify access to the collision source data.'));
     const etag=response?.headers.get('etag'),length=response?.headers.get('content-length');
     if(response?.ok&&etag&&!etag.startsWith('W/')&&/^\d+$/.test(length||''))identity=_wholeLocalDigestIdentity(url,etag)||'etag:'+await _wholeHash(new TextEncoder().encode(_wholeCanonicalSourceUrl(url)))+':'+etag+':'+length;
     else{
       if(_wholeCacheOnly(job))throw _wholeDeferred();
-      const fetched=await _wholeSourceFetch(url,'GET',mesh,job);if(!fetched.ok)throw new Error('判定用の元データを確認できません。');
+      const fetched=await _wholeSourceFetch(url,'GET',mesh,job);if(!fetched.ok)throw new Error(_walkL('判定用の元データを確認できません。','Could not find the collision source data.'));
       const size=Number(fetched.headers.get('content-length'));
-      if(!Number.isFinite(size)||size<=0||size>512*1024*1024){await fetched.body?.cancel();throw new Error('このデータは内容識別子付きの配信が必要です。');}
+      if(!Number.isFinite(size)||size<=0||size>512*1024*1024){await fetched.body?.cancel();throw new Error(_walkL('このデータは内容識別子付きの配信が必要です。','This data must be served with a content identifier.'));}
       identity='sha256:'+await _wholeHash(await _wholeReadResponse(fetched,512*1024*1024,job));
     }
   }else{
     if(_wholeCacheOnly(job))throw _wholeDeferred();
     const bytes=layer._rawBuffer||mesh.packedSplats?.packedArray;
-    if(!bytes)throw new Error('判定用の元データがありません。');identity='sha256:'+await _wholeHash(bytes);
+    if(!bytes)throw new Error(_walkL('判定用の元データがありません。','No collision source data.'));identity='sha256:'+await _wholeHash(bytes);
   }
   _walkCheckJob(job);_wholeIdentityCache.set(mesh,{url,raw:layer._rawBuffer,identity});return identity;
 }
@@ -15802,7 +15806,7 @@ function _walkWholeCoverage(start,end=start,{drop=3,margin=3}={}){
   const min=['x','y','z'].map((k,i)=>Math.min(...points.map(p=>p[k]))-(i===1?drop:margin));
   const max=['x','y','z'].map((k,i)=>Math.max(...points.map(p=>p[k]))+(i===1?walkMode.height+1:margin));
   try{core.setTileCoverage(index,{min,max});return true;}
-  catch(error){_walkStatus('当たり判定の範囲を確認できません: '+error.message);return false;}
+  catch(error){_walkStatus(_walkL('当たり判定の範囲を確認できません: ','Could not determine the collision bounds: ')+error.message);return false;}
 }
 function _walkWholeExcludeBoxes(boxes,cellSize){
   if(!walkSetup.settings.excludeIds.length)return boxes;
@@ -15863,7 +15867,7 @@ async function _walkRunWholeGeneration(job,splats){
   _walkCheckJob(job);
   if(!index){
     if(_wholeCacheOnly(job))throw _wholeDeferred();
-    _walkStatus('全体の当たり判定を準備しています…');
+    _walkStatus(_walkL('全体の当たり判定を準備しています…','Preparing collision for the whole scene…'));
     const decoders=[];let result;
     try{
       const bakeSources=sources.map(source=>{
@@ -15874,12 +15878,12 @@ async function _walkRunWholeGeneration(job,splats){
           requestHeader:original.requestHeader,withCredentials:original.withCredentials,pager:{extSplats:false,maxSh:0}});
         decoders.push(paged);return {...source,paged};
       });
-      result=await LocahunCollisionBake.generate(bakeSources,{cellSize,check:()=>_walkCheckJob(job),awaitJob:p=>_walkAwait(p,job),progress:p=>_walkStatus('全体の当たり判定を準備中 '+Math.round(p.chunk/p.chunks*100)+'%')});
+      result=await LocahunCollisionBake.generate(bakeSources,{cellSize,check:()=>_walkCheckJob(job),awaitJob:p=>_walkAwait(p,job),progress:p=>_walkStatus(_walkL('全体の当たり判定を準備中 ','Preparing scene collision ')+Math.round(p.chunk/p.chunks*100)+'%')});
     }finally{for(const decoder of decoders)decoder.dispose();}
     bytes=await LocahunWholeCollision.encodeTiles(result.tiles,key,result.cellSize);_walkCheckJob(job);
     index=await LocahunWholeCollision.decodeTiles(bytes,key);
   }
-  if(!index.total)throw new Error('全体判定に有効な形状がありません。');
+  if(!index.total)throw new Error(_walkL('全体判定に有効な形状がありません。','No usable shapes for scene collision.'));
   _walkCheckJob(job);
   // Best-effort persistence is awaited before installing, but cannot hold readiness indefinitely.
   if(!persistentHit)await _wholePersistentCache('put',key,bytes,job);
@@ -15903,7 +15907,7 @@ async function _walkRunWholeGeneration(job,splats){
     core.setTileCoverage(index,{min:[c.x-3,c.y-22,c.z-3],max:[c.x+3,c.y+4,c.z+3]});
     if(walkMode.active&&walkMode.avatar){
       const p=walkMode.avatar.position,feet={x:p.x,y:p.y+walkMode.groundOffset,z:p.z};
-      if(!_walkFeetClear(core,feet,!walkMode.airborne))throw new Error('更新後の判定で現在位置の空きを確認できません。');
+      if(!_walkFeetClear(core,feet,!walkMode.airborne))throw new Error(_walkL('更新後の判定で現在位置の空きを確認できません。','The updated collision leaves no clearance at your position.'));
       core.setCharacter(feet,_walkBodyHeight(),walkMode.bodyRadius);
     }
     _walkCheckJob(job);
@@ -15921,7 +15925,7 @@ async function _walkRunWholeGeneration(job,splats){
   walkSetup.viewAnchor=_walkPoint(job.view);walkSetup.residentAtBuild=_walkResidentSignature();
   _walkShowPreview(!!document.getElementById('walk-preview')?.checked);
   _wholeByteCache.set(key,bytes);while(_wholeByteCache.size>2)_wholeByteCache.delete(_wholeByteCache.keys().next().value);
-  _walkStatus('全体の当たり判定を準備しました。');
+  _walkStatus(_walkL('全体の当たり判定を準備しました。','Scene collision is ready.'));
   return true;
 }
 // Share the existing analog movement channel; leave touch navigation untouched.
@@ -16368,7 +16372,7 @@ async function _arEnter(orientPermP){
   }
   const lbl = document.getElementById('lbl-ar');
   if(lbl) lbl.textContent = T('lbl-ar-exit');
-  showUndoToast('📱 AR (WebGL 統合) ON — 端末を傾けて視点を変えられます');
+  showUndoToast((window._lang==='en'?'📱 AR on — tilt the device to look around':'📱 AR (WebGL 統合) ON — 端末を傾けて視点を変えられます'));
   markDirty(10);
 }
 
@@ -16866,7 +16870,7 @@ function addLayer(opts){
   const _mr = opts.mesh ? opts.mesh.rotation : {x:0,y:0,z:0};
   const L = {
     id: _layerNextId++,
-    name: opts.name || 'レイヤー',
+    name: opts.name || ((typeof window!=='undefined'&&window._lang==='en')?'Layer':'レイヤー'),
     type: opts.type,
     mesh: opts.mesh,
     visible: true,
@@ -17593,6 +17597,8 @@ const I18N = {
   }
 };
 function T(key){ return I18N[window._lang]?.[key] ?? I18N.ja[key] ?? key; }
+// True while the UI language is English (shared helper for inline JA/EN picks).
+function _en(){ return window._lang==='en'; }
 
 window.toggleLang = function(){
   window._lang = window._lang==='ja'?'en':'ja';
@@ -17738,6 +17744,12 @@ function applyI18n(){
   const qpT=document.querySelector('#qpanel .qt'); if(qpT) qpT.textContent=T('qp-title');
   const emT=document.querySelector('#export-modal .em-title'); if(emT) emT.textContent=T('em-title');
   const emC=document.querySelector('#export-modal .em-close'); if(emC) emC.textContent=T('btn-cancel');
+  // Generic attribute pass: data-i18n-title / data-i18n-aria / data-i18n-ph carry
+  // the dictionary key for title / aria-label / placeholder (keys: 391_i18n_gaps.js).
+  for(const [attr,target] of [['data-i18n-title','title'],['data-i18n-aria','aria-label'],['data-i18n-ph','placeholder']]){
+    document.querySelectorAll('['+attr+']').forEach(el=>{ el.setAttribute(target, T(el.getAttribute(attr))); });
+  }
+  if(typeof _applyI18nGaps==='function') _applyI18nGaps();
   // Re-render layer list with correct language
   renderLayerList();
   renderTransformPanel();
@@ -18432,7 +18444,7 @@ function renderTransformPanel(){
     evH += '<div style="font-size:.7em;color:#606060;margin-bottom:4px">'+T('lt-event')+'</div>';
     if(L.eventImage){
       evH += '<div style="font-size:.68em;color:#909090;margin-bottom:4px">'+(L.eventImageName||'')+'</div>';
-      evH += '<img src="'+L.eventImage+'" onclick="showEventImage('+L.id+')" style="width:100%;max-height:160px;object-fit:contain;border-radius:4px;border:1px solid rgba(255,255,255,.1);cursor:pointer;margin-bottom:4px;display:block" title="クリックで拡大">';
+      evH += '<img src="'+L.eventImage+'" onclick="showEventImage('+L.id+')" style="width:100%;max-height:160px;object-fit:contain;border-radius:4px;border:1px solid rgba(255,255,255,.1);cursor:pointer;margin-bottom:4px;display:block" title="'+T('tt-ev-zoom')+'">';
       evH += '<div style="display:flex;gap:4px">';
       evH += '<button onclick="showEventImage('+L.id+')" style="flex:1;background:#2A2A2C;border:1px solid rgba(255,255,255,.1);color:#ffd49a;border-radius:4px;padding:3px 6px;font-size:.7em;cursor:pointer">'+T('lt-ev-show')+'</button>';
       evH += '<button onclick="clearEventImage('+L.id+')" style="flex:1;background:#2A2A2C;border:1px solid rgba(255,255,255,.1);color:#ff8888;border-radius:4px;padding:3px 6px;font-size:.7em;cursor:pointer">'+T('lt-ev-clr')+'</button>';
@@ -18442,8 +18454,8 @@ function renderTransformPanel(){
     }
     // Event guide text field
     evH += '<div style="margin-top:6px">';
-    evH += '<div style="font-size:.7em;color:#606060;margin-bottom:3px">🗒 イベントガイド</div>';
-    evH += '<textarea rows="2" style="width:100%;background:#2A2A2C;border:1px solid rgba(255,255,255,.1);color:#C0C0C0;border-radius:4px;padding:4px 6px;font-size:.72em;resize:vertical;box-sizing:border-box;outline:none;font-family:inherit" oninput="window.setEventGuide('+L.id+',this.value)" placeholder="ガイドテキスト...">'+(L.eventGuide||'')+'</textarea>';
+    evH += '<div style="font-size:.7em;color:#606060;margin-bottom:3px">'+T('lt-ev-guide')+'</div>';
+    evH += '<textarea rows="2" style="width:100%;background:#2A2A2C;border:1px solid rgba(255,255,255,.1);color:#C0C0C0;border-radius:4px;padding:4px 6px;font-size:.72em;resize:vertical;box-sizing:border-box;outline:none;font-family:inherit" oninput="window.setEventGuide('+L.id+',this.value)" placeholder="'+T('ph-ev-guide')+'">'+(L.eventGuide||'')+'</textarea>';
     evH += '</div>';
     evH += '</div>';
     el.innerHTML += evH;
@@ -18451,21 +18463,21 @@ function renderTransformPanel(){
   // ── Path: color / opacity / center label ──
   if(L.type==='path'){
     let ph='<div style="margin-top:8px;padding:6px 5px;background:rgba(255,255,255,.03);border-radius:5px;border:1px solid rgba(255,255,255,.07)">';
-    ph+='<div style="font-size:.7em;color:#606060;margin-bottom:4px">🛣 パス情報</div>';
-    ph+='<div style="font-size:.66em;color:#7a8aa0;margin-bottom:6px">黄色い4点をドラッグで形を調整できます</div>';
+    ph+='<div style="font-size:.7em;color:#606060;margin-bottom:4px">'+T('lt-path')+'</div>';
+    ph+='<div style="font-size:.66em;color:#7a8aa0;margin-bottom:6px">'+T('lt-path-hint')+'</div>';
     ph+='<div style="display:flex;align-items:center;gap:6px;margin-bottom:6px">';
-    ph+='<label for="path-color-'+L.id+'" style="font-size:.68em;color:#c0c0c0">色</label>';
-    ph+='<input id="path-color-'+L.id+'" type="color" title="パスの色" value="'+(L.pathColor||'#00d0ff')+'" oninput="setPathColor('+L.id+',this.value)" style="width:36px;height:22px;padding:1px;border:1px solid rgba(255,255,255,.2);background:#1a1a00;border-radius:3px;cursor:pointer">';
-    ph+='<span style="font-size:.68em;color:#909090;width:auto">不透明度</span>';
+    ph+='<label for="path-color-'+L.id+'" style="font-size:.68em;color:#c0c0c0">'+T('lt-path-color')+'</label>';
+    ph+='<input id="path-color-'+L.id+'" type="color" title="'+T('tt-path-color')+'" value="'+(L.pathColor||'#00d0ff')+'" oninput="setPathColor('+L.id+',this.value)" style="width:36px;height:22px;padding:1px;border:1px solid rgba(255,255,255,.2);background:#1a1a00;border-radius:3px;cursor:pointer">';
+    ph+='<span style="font-size:.68em;color:#909090;width:auto">'+T('lt-path-opacity')+'</span>';
     ph+='<input type="range" min="0" max="1" step="0.05" value="'+(L.pathOpacity!=null?L.pathOpacity:0.28)+'" oninput="setPathOpacity('+L.id+',this.value)" style="flex:1;height:4px;accent-color:#D8D8D8">';
     ph+='</div>';
     ph+='<div style="display:flex;align-items:center;gap:6px;margin-bottom:6px;flex-wrap:wrap">';
-    ph+='<label for="path-width-number-'+L.id+'" style="font-size:.68em;color:#c0c0c0">太さ (m)</label>';
+    ph+='<label for="path-width-number-'+L.id+'" style="font-size:.68em;color:#c0c0c0">'+T('lt-path-width')+'</label>';
     ph+='<input id="path-width-number-'+L.id+'" data-path-width="true" type="number" min="0.01" max="2" step="0.01" value="'+_pathWidth(L.pathWidth)+'" oninput="setPathWidth('+L.id+',this.value)" style="width:70px;box-sizing:border-box;background:#2a2a2c;color:#ddd;border:1px solid #666;border-radius:3px">';
-    ph+='<input id="path-width-range-'+L.id+'" aria-label="パスの太さ (m)" type="range" min="0.01" max="2" step="0.01" value="'+_pathWidth(L.pathWidth)+'" oninput="setPathWidth('+L.id+',this.value)" style="flex:1;min-width:60px;width:80px;accent-color:#d8d8d8">';
+    ph+='<input id="path-width-range-'+L.id+'" aria-label="'+T('aria-path-width')+'" type="range" min="0.01" max="2" step="0.01" value="'+_pathWidth(L.pathWidth)+'" oninput="setPathWidth('+L.id+',this.value)" style="flex:1;min-width:60px;width:80px;accent-color:#d8d8d8">';
     ph+='</div>';
-    ph+='<div style="font-size:.7em;color:#606060;margin-bottom:3px">🅿 中央テキスト</div>';
-    ph+='<textarea rows="2" style="width:100%;background:#2A2A2C;border:1px solid rgba(255,255,255,.1);color:#C0C0C0;border-radius:4px;padding:4px 6px;font-size:.72em;resize:vertical;box-sizing:border-box;outline:none;font-family:inherit" oninput="window.setPathLabel('+L.id+',this.value)" placeholder="例: 来客用 P1 / 搬入車両 ...">'+_layerText(L.pathLabel||'')+'</textarea>';
+    ph+='<div style="font-size:.7em;color:#606060;margin-bottom:3px">'+T('lt-path-label')+'</div>';
+    ph+='<textarea rows="2" style="width:100%;background:#2A2A2C;border:1px solid rgba(255,255,255,.1);color:#C0C0C0;border-radius:4px;padding:4px 6px;font-size:.72em;resize:vertical;box-sizing:border-box;outline:none;font-family:inherit" oninput="window.setPathLabel('+L.id+',this.value)" placeholder="'+T('ph-path-label')+'">'+_layerText(L.pathLabel||'')+'</textarea>';
     ph+='</div>';
     el.innerHTML += ph;
   }
@@ -19123,7 +19135,7 @@ window.addFigureLayer = async function(posHint){
       {skinColor:skinDefault, jointColor:jointDefault});
   } catch(e){
     console.warn('[figure] Mixamo GLB load failed, falling back to procedural:', e);
-    showUndoToast('Mixamo モデル読込失敗 → 簡易マネキン表示');
+    showUndoToast((window._lang==='en'?'Could not load the Mixamo model — showing a simple mannequin':'Mixamo モデル読込失敗 → 簡易マネキン表示'));
     figure = _addProceduralFigureToScene(FIGURE_REF_HEIGHT_CM);
   }
   const { root, bones, source, figureMarkers } = figure;
@@ -19965,7 +19977,7 @@ async function loadAdditionalSplat(file){
       const _ft = _splatFileTypeFor(ext);
       if(_ft !== undefined) opts.fileType = _ft;
       else if(ext === 'rad'){
-        throw new Error('このファイル形式は Spark が認識できませんでした。対応形式: PLY / SPLAT / SPZ / KSPLAT / RAD / SOG / PCSOGS');
+        throw new Error((window._lang==='en'?'Spark could not read this file format. Supported: PLY / SPLAT / SPZ / KSPLAT / RAD / SOG / PCSOGS':'このファイル形式は Spark が認識できませんでした。対応形式: PLY / SPLAT / SPZ / KSPLAT / RAD / SOG / PCSOGS'));
       }
     }
     let _radTargetCount2 = 0;
@@ -20040,22 +20052,22 @@ async function loadObjFile(file){
     setMsg(T('parsing'));
     if(ext==='obj'){
       const Cls = await _addonLoader('OBJLoader');
-      if(!Cls) throw new Error('OBJLoader をロードできません（オフライン時はインターネット接続が必要）');
+      if(!Cls) throw new Error((window._lang==='en'?'Could not load OBJLoader (an internet connection is required)':'OBJLoader をロードできません（オフライン時はインターネット接続が必要）'));
       const text=new TextDecoder().decode(buf);
       const loader=new Cls();
       object3d=loader.parse(text);
     } else if(ext==='fbx'){
       try {
         const Cls = await _addonLoader('FBXLoader');
-        if(!Cls) throw new Error('FBXLoader をロードできません（オフライン時はインターネット接続が必要）');
+        if(!Cls) throw new Error((window._lang==='en'?'Could not load FBXLoader (an internet connection is required)':'FBXLoader をロードできません（オフライン時はインターネット接続が必要）'));
         const loader = new Cls();
         object3d = loader.parse(buf);
       } catch(fbxErr) {
-        throw new Error('FBX読み込み失敗: ' + fbxErr.message);
+        throw new Error((window._lang==='en'?'FBX load failed: ':'FBX読み込み失敗: ') + fbxErr.message);
       }
     } else {
       const Cls = await _addonLoader('GLTFLoader');
-      if(!Cls) throw new Error('GLTFLoader をロードできません（オフライン時はインターネット接続が必要）');
+      if(!Cls) throw new Error((window._lang==='en'?'Could not load GLTFLoader (an internet connection is required)':'GLTFLoader をロードできません（オフライン時はインターネット接続が必要）'));
       const loader=new Cls();
       const gltf=await new Promise((res,rej)=>loader.parse(buf,'',res,rej));
       object3d=gltf.scene;
@@ -20309,9 +20321,9 @@ window.toggleQualityPanel=function(){
     {id:'hiace',category:'vehicles',name:'ハイエース',en:'HiAce',variant:'標準幅・標準ルーフ',variantEn:'Standard roof / width',dimensions:'4.695 × 1.695 × 1.980 m'},
     {id:'truck2t',category:'vehicles',name:'2Tトラック',en:'2T truck',variant:'ダイナ・標準平ボディ',variantEn:'Dyna / standard flatbed',dimensions:'4.690 × 1.695 × 1.965 m'},
     {id:'truck4t',category:'vehicles',name:'4Tトラック',en:'4T truck',variant:'フォワード・ワイド平ボディ',variantEn:'Forward / wide flatbed',dimensions:'8.485 × 2.470 × 2.550 m'},
-    {id:'jib',category:'equipment',name:'ジブクレーン',en:'Jib crane',variant:'Jimmy Jib Standard・水平',variantEn:'Jimmy Jib Standard / level',dimensions:'アーム全長 3.15 m'},
-    {id:'scorpio',category:'equipment',name:'スコーピオンクレーン',en:'Scorpio crane',variant:'23’L・最大伸長・水平',variantEn:'23’L / fully extended / level',dimensions:'前方 7.16 m / 後方 2.02 m'},
-    {id:'lightstand',category:'equipment',name:'照明スタンド',en:'Lighting stand',variant:'1004BAC・最大伸長',variantEn:'1004BAC / fully extended',dimensions:'高さ 3.66 m / 開脚径 1.06 m'},
+    {id:'jib',category:'equipment',name:'ジブクレーン',en:'Jib crane',variant:'Jimmy Jib Standard・水平',variantEn:'Jimmy Jib Standard / level',dimensions:'アーム全長 3.15 m',dimensionsEn:'Arm length 3.15 m'},
+    {id:'scorpio',category:'equipment',name:'スコーピオンクレーン',en:'Scorpio crane',variant:'23’L・最大伸長・水平',variantEn:'23’L / fully extended / level',dimensions:'前方 7.16 m / 後方 2.02 m',dimensionsEn:'Front 7.16 m / rear 2.02 m'},
+    {id:'lightstand',category:'equipment',name:'照明スタンド',en:'Lighting stand',variant:'1004BAC・最大伸長',variantEn:'1004BAC / fully extended',dimensions:'高さ 3.66 m / 開脚径 1.06 m',dimensionsEn:'Height 3.66 m / footprint 1.06 m'},
   ].map(Object.freeze);
   function build(T, id) {
     const item = catalog.find(item => item.id === id);
@@ -20588,7 +20600,7 @@ window.toggleQualityPanel=function(){
         const image=document.createElement('img');image.src=getAssets()[item.id].thumbnail;image.width=400;image.height=260;image.alt='';
         const name=document.createElement('span');name.className='equipment-choice-name';name.dataset.ja=item.name;name.dataset.en=item.en;
         const variant=document.createElement('span');variant.className='equipment-choice-variant';variant.dataset.ja=item.variant;variant.dataset.en=item.variantEn;
-        button.title=item.dimensions;button.append(image,name,variant);
+        button.dataset.titleJa=item.dimensions;button.dataset.titleEn=item.dimensionsEn||item.dimensions;button.title=window._lang==='en'?button.dataset.titleEn:button.dataset.titleJa;button.append(image,name,variant);
         button.addEventListener('click',()=>{window._beginPlace('equipment:'+item.id);window.closeObjTypeMenuTop();});panel.append(button);
       }
     }
@@ -20609,6 +20621,7 @@ window.toggleQualityPanel=function(){
       menu.removeAttribute('aria-busy');
       initialize(menu);
       for(const element of menu.querySelectorAll('[data-ja]'))element.textContent=window._lang==='en'?element.dataset.en:element.dataset.ja;
+      for(const element of menu.querySelectorAll('[data-title-ja]'))element.title=window._lang==='en'?element.dataset.titleEn:element.dataset.titleJa;
       // 開くたびに「基本」から（2026-09-20 本人指示。前回のタブは引き継がない）
       selectCategory(menu,'basic');
       menu.querySelector('[role="tab"][aria-selected="true"]')?.focus();
@@ -20866,7 +20879,7 @@ canvas.addEventListener('webglcontextrestored', ()=>{
   // Three.js scene resources are now invalid; the cleanest recovery is a full reload.
   // Defer 200 ms so user sees the message in the toast/console before page reloads.
   if(typeof showUndoToast === 'function'){
-    try { showUndoToast('GPU コンテキスト復帰のためページをリロードします…'); } catch(_){}
+    try { showUndoToast((window._lang==='en'?'Reloading the page to restore the GPU context…':'GPU コンテキスト復帰のためページをリロードします…')); } catch(_){}
   }
   setTimeout(()=>location.reload(), 800);
 }, false);
@@ -21675,7 +21688,7 @@ async function _fetchBinaryChunked(url){
         out.set(part, got); got += part.byteLength; ok = true;
       }catch(e){ lastErr = e; await new Promise(res=>setTimeout(res, 1200 * (attempt + 1))); }
     }
-    if(!ok) throw new Error('チャンク取得失敗 @'+got+': '+(lastErr && lastErr.message ? lastErr.message : lastErr));
+    if(!ok) throw new Error((window._lang==='en'?'Chunk download failed @':'チャンク取得失敗 @')+got+': '+(lastErr && lastErr.message ? lastErr.message : lastErr));
     if(typeof setBar === 'function') setBar(5 + Math.round((got / total) * 35));
     // Workers への連投を避ける小休止（一過性の空応答対策）
     if(got < total) await new Promise(res=>setTimeout(res, 120));
@@ -21689,7 +21702,7 @@ async function _readBodyWithProgress(resp){
   const cl = parseInt(resp.headers.get('content-length') || '0', 10);
   if(!resp.body || !resp.body.getReader){
     const whole = await resp.arrayBuffer();
-    if(cl && whole.byteLength !== cl) throw new Error('通信が途中で切断されました ('+whole.byteLength+'/'+cl+' bytes)');
+    if(cl && whole.byteLength !== cl) throw new Error((window._lang==='en'?'The connection dropped (':'通信が途中で切断されました (')+whole.byteLength+'/'+cl+' bytes)');
     return whole;
   }
   const reader = resp.body.getReader(), parts = [];
@@ -21702,7 +21715,7 @@ async function _readBodyWithProgress(resp){
     const ratio = cl ? got / cl : 1 - Math.exp(-got / (64 * 1024 * 1024));
     if(typeof setBar === 'function') setBar(5 + Math.min(1, ratio) * 35);
   }
-  if(cl && got !== cl) throw new Error('通信が途中で切断されました ('+got+'/'+cl+' bytes)');
+  if(cl && got !== cl) throw new Error((window._lang==='en'?'The connection dropped (':'通信が途中で切断されました (')+got+'/'+cl+' bytes)');
   const out = new Uint8Array(got);
   let at = 0; for(const part of parts){ out.set(part, at); at += part.byteLength; }
   return out.buffer;
@@ -21719,7 +21732,7 @@ async function loadFromURL(url, displayName){
       if(!label){
         try{ label = decodeURIComponent(new URL(url, location.href).pathname.split('/').pop()) || ''; }catch(_){ label = ''; }
       }
-      showLd(label ? `読み込み中: ${label}` : '読み込み中...');
+      showLd(label ? `読み込み中: ${label}` : (window._lang==='en'?'Loading...':'読み込み中...'));
     }
     if(typeof setBar === 'function') setBar(5);
     // .RAD URLs get a streaming path: Spark fetches via HTTP Range
@@ -21739,7 +21752,7 @@ async function loadFromURL(url, displayName){
     if(ext === 'rad'){
       if(ft === undefined){
         if(typeof hideLd === 'function') hideLd();
-        if(typeof showUndoToast === 'function') showUndoToast('このファイル形式は Spark が認識できませんでした。対応形式: PLY / SPLAT / SPZ / KSPLAT / RAD / SOG / PCSOGS');
+        if(typeof showUndoToast === 'function') showUndoToast((window._lang==='en'?'Spark could not read this file format. Supported: PLY / SPLAT / SPZ / KSPLAT / RAD / SOG / PCSOGS':'このファイル形式は Spark が認識できませんでした。対応形式: PLY / SPLAT / SPZ / KSPLAT / RAD / SOG / PCSOGS'));
         return;
       }
       // Stream-load path. Construct a SplatMesh directly with `url:` —
@@ -21804,7 +21817,7 @@ async function loadFromURL(url, displayName){
       if(typeof hideLd === 'function') hideLd();
       if(typeof showHUD === 'function') showHUD();
       if(typeof hideDZ === 'function') hideDZ();
-      if(typeof showUndoToast === 'function') showUndoToast('📡 .RAD ストリーミング読込開始: ' + name);
+      if(typeof showUndoToast === 'function') showUndoToast((window._lang==='en'?'📡 Streaming .RAD: ':'📡 .RAD ストリーミング読込開始: ') + name);
       // Demo/URL parity (RC2): the local-file load path schedules auto-quality
       // calibration, but this URL/RAD-stream path never did — so ?demo=1 and
       // ?autoload= scenes were stuck at the device-tier default and auto-quality
@@ -21840,7 +21853,7 @@ async function loadFromURL(url, displayName){
   }catch(e){
     console.warn('loadFromURL failed', e);
     if(typeof hideLd === 'function') hideLd();
-    if(typeof showUndoToast === 'function') showUndoToast('読み込み失敗: ' + e.message);
+    if(typeof showUndoToast === 'function') showUndoToast((window._lang==='en'?'Load failed: ':'読み込み失敗: ') + e.message);
   }
 }
 
@@ -24787,7 +24800,7 @@ window.saveProjectZip = async function(forceLite, opts){
   }
   if(opts.localProject){
     const unsupported=layers.find(L=>!['folder','cube','sphere','obj','splat','light','figure','event','path'].includes(L.type));
-    if(unsupported)throw new Error('ローカル保存未対応のレイヤーです: '+unsupported.type+' ('+unsupported.name+')');
+    if(unsupported)throw new Error((window._lang==='en'?'This layer type cannot be saved locally: ':'ローカル保存未対応のレイヤーです: ')+unsupported.type+' ('+unsupported.name+')');
   }
   if(_zipSaving){
     if(opts.localProject || opts.strictOnline) throw new Error('Save already in progress');
@@ -25392,7 +25405,7 @@ async function _loadProjectZipFromFile(file){
     hideLd();
     showUndoToast((_en()?'⚠ ZIP load failed: ':'⚠ ZIP読み込み失敗: ')+err.message);
   } finally {
-    if(walkImportEpoch===walkSetup.epoch && walkSetup.importPending)_walkFailImport(walkImportEpoch,new Error('ZIP読込は完了していません。'));
+    if(walkImportEpoch===walkSetup.epoch && walkSetup.importPending)_walkFailImport(walkImportEpoch,new Error((window._lang==='en'?'The ZIP did not finish loading.':'ZIP読込は完了していません。')));
   }
 }
 
@@ -25557,7 +25570,7 @@ async function loadProject_fromFile(file){
     if(walkImportEpoch!==walkSetup.epoch)return;
     console.error(e);showUndoToast(T('load-fail')+e.message);
   } finally {
-    if(walkImportEpoch===walkSetup.epoch && walkSetup.importPending)_walkFailImport(walkImportEpoch,new Error('JSON読込は完了していません。'));
+    if(walkImportEpoch===walkSetup.epoch && walkSetup.importPending)_walkFailImport(walkImportEpoch,new Error((window._lang==='en'?'The JSON did not finish loading.':'JSON読込は完了していません。')));
   }
 }
 // ── 共通ヘルパー: 全メッシュを MeshBasicMaterial に変換 ──
@@ -25726,7 +25739,7 @@ async function restoreProject(project, opts = {}) {
             const _ft = _splatFileTypeFor(ext);
             if(_ft !== undefined) opts.fileType = _ft;
             else if(ext === 'rad'){
-              throw new Error('Spark が認識できない形式です');
+              throw new Error((window._lang==='en'?'Spark could not read this format':'Spark が認識できない形式です'));
             }
           }
           // RAD-restored-from-ZIP needs an explicit PagedSplats (same Spark
@@ -26401,7 +26414,9 @@ function _pathHint(on){
     if(!el){ el=document.createElement('div'); el.id='path-hint'; el.className='guide-banner';
       el.style.background='rgba(0,150,205,.94)';
       document.body.appendChild(el); }
-    el.textContent='🛣 パス: 4点を左クリック長押しで配置（押して位置を探り、離して確定 / 残り '+(4-_pathPts.length)+'）  ｜  Esc で中止';
+    el.textContent=(window._lang==='en')
+      ? '🛣 Path: long-press to place 4 points (hold to aim, release to confirm / '+(4-_pathPts.length)+' left)  |  Esc to cancel'
+      : '🛣 パス: 4点を左クリック長押しで配置（押して位置を探り、離して確定 / 残り '+(4-_pathPts.length)+'）  ｜  Esc で中止';
     el.style.display='block';
   } else if(el){ el.style.display='none'; }
 }
@@ -26460,7 +26475,7 @@ function _finalizePath(){
   pushGlobalUndo({type:'layer-add', id:L.id});  // Ctrl+Z removes the created path
   _cancelPath();
   selectLayer(L.id);
-  showUndoToast('🛣 パスを作成しました — オブジェクト情報でテキストを入力できます');
+  showUndoToast((window._lang==='en'?'🛣 Path created — add its text in the object info':'🛣 パスを作成しました — オブジェクト情報でテキストを入力できます'));
 }
 
 window.addPathLayer=function(){
@@ -27404,6 +27419,83 @@ Object.assign(I18N.en,{
   'redo-layer-del-toast':'↪ Redid layer delete',
   'undo-del-toast':'↩ Undid delete (Y to redo)',
 });
+// ═══ i18n gaps (2026-09-20) ═══
+// Keys for UI text that had no English path: walk-setup dialog, tooltips /
+// aria-labels driven by the generic data-i18n-title / data-i18n-aria pass in
+// applyI18n(), and the event / path blocks of the object-info panel.
+Object.assign(I18N.ja,{
+  'btn-close':'閉じる',
+  'initializing':'初期化中',
+  'walk-setup-title':'アバター歩行',
+  'walk-cell-lbl':'判定セルの大きさ (m)','walk-radius-lbl':'生成範囲の半径 (m)',
+  'walk-generate':'判定を生成','walk-use-mesh':'選択メッシュの判定を切替',
+  'walk-exclude':'選択立方体の除外範囲を切替',
+  'walk-preview-lbl':'近似判定を表示','walk-mesh-only-lbl':'選択メッシュのみで判定',
+  'walk-save-spawn':'開始位置を保存','walk-toggle':'歩行 / 終了',
+  'walk-status-none':'判定形状は未生成です。',
+  'sun-rl-moonrise':'🌘 月の出','sun-rl-moonset':'🌗 月の入り',
+  'tt-sunrise':'日の出','tt-sunset':'日の入り',
+  'tt-sun-fetch-wx':'選択中の場所・日付・時刻の実際の天気予報を読み込み、上の天気を自動設定します（インターネット接続が必要）',
+  'tt-add-figure':'フィギュア追加（リグ付き人型モデル・配置場所を左クリック）',
+  'tt-add-path':'4点を左クリックで囲んで区画を作成（駐車スペース等）。中央にテキストを表示できます',
+  'tt-home':'ホームに戻る — ロケハン3D','aria-home':'ロケハン3D — Home',
+  'tt-fullscreen':'全画面表示','tt-fullscreen-exit':'全画面を終了','tt-immersive-exit':'全画面表示を終了',
+  'tt-msr-close':'測定を閉じる',
+  'tt-ev-zoom':'クリックで拡大','lt-ev-guide':'🗒 イベントガイド','ph-ev-guide':'ガイドテキスト...',
+  'lt-path':'🛣 パス情報','lt-path-hint':'黄色い4点をドラッグで形を調整できます',
+  'lt-path-color':'色','tt-path-color':'パスの色','lt-path-opacity':'不透明度',
+  'lt-path-width':'太さ (m)','aria-path-width':'パスの太さ (m)',
+  'lt-path-label':'🅿 中央テキスト','ph-path-label':'例: 来客用 P1 / 搬入車両 ...',
+});
+Object.assign(I18N.en,{
+  'btn-close':'Close',
+  'initializing':'Initializing',
+  'walk-setup-title':'Avatar walk',
+  'walk-cell-lbl':'Collision cell size (m)','walk-radius-lbl':'Generation radius (m)',
+  'walk-generate':'Generate collision','walk-use-mesh':'Toggle collision for selected mesh',
+  'walk-exclude':'Toggle exclusion zone for selected cube',
+  'walk-preview-lbl':'Show collision preview','walk-mesh-only-lbl':'Use selected meshes only',
+  'walk-save-spawn':'Save start position','walk-toggle':'Walk / Exit',
+  'walk-status-none':'No collision generated yet.',
+  'sun-rl-moonrise':'🌘 Moonrise','sun-rl-moonset':'🌗 Moonset',
+  'tt-sunrise':'Sunrise','tt-sunset':'Sunset',
+  'tt-sun-fetch-wx':'Load the real forecast for the selected place, date and time and set the weather above automatically (needs an internet connection)',
+  'tt-add-figure':'Add a figure (rigged human model — click where to place it)',
+  'tt-add-path':'Click 4 points to outline an area (parking space, etc.). You can show text in its center',
+  'tt-home':'Back to home — Locahun 3D','aria-home':'Locahun 3D — Home',
+  'tt-fullscreen':'Fullscreen','tt-fullscreen-exit':'Exit fullscreen','tt-immersive-exit':'Exit fullscreen',
+  'tt-msr-close':'Close Measure',
+  'tt-ev-zoom':'Click to enlarge','lt-ev-guide':'🗒 Event guide','ph-ev-guide':'Guide text...',
+  'lt-path':'🛣 Path info','lt-path-hint':'Drag the four yellow points to adjust the shape',
+  'lt-path-color':'Color','tt-path-color':'Path color','lt-path-opacity':'Opacity',
+  'lt-path-width':'Width (m)','aria-path-width':'Path width (m)',
+  'lt-path-label':'🅿 Center text','ph-path-label':'e.g. Visitor P1 / Loading vehicles ...',
+});
+
+// State-dependent pieces that a plain data-i18n attribute cannot express.
+// Called at the end of applyI18n().
+function _applyI18nGaps(){
+  // AR button tooltip follows the AR state.
+  const ar=document.getElementById('btnAR');
+  if(ar) ar.title=T((typeof arMode!=='undefined' && arMode.active)?'tt-ar-exit':'tt-ar');
+  // Phone fullscreen toggle follows the fullscreen state.
+  const fs=document.getElementById('tb-fullscreen-btn');
+  if(fs) fs.title=T((document.fullscreenElement||document.webkitFullscreenElement)?'tt-fullscreen-exit':'tt-fullscreen');
+  // Walk jump button paints its own label from window._lang.
+  if(typeof _syncWalkJumpButton==='function' && typeof walkMode!=='undefined') _syncWalkJumpButton();
+  // Texts that carry live status: only swap them while they still show a
+  // stock phrase, never overwrite a status message or the loading guide.
+  const swap=(id,keys)=>{
+    const el=document.getElementById(id); if(!el || el.children.length) return;
+    const cur=el.textContent;
+    for(const k of keys){ if(cur===I18N.ja[k] || cur===I18N.en[k]){ el.textContent=T(k); return; } }
+  };
+  swap('lt',['loading']);
+  swap('lm',['initializing']);
+  swap('walk-status',['walk-status-none']);
+  // Equipment cards: dimension tooltips (JA/EN pairs live on the element).
+  document.querySelectorAll('[data-title-ja]').forEach(el=>{ el.title=_en()?el.dataset.titleEn:el.dataset.titleJa; });
+}
 // ══════════════════════════════════════════════════
 //  INPUT
 // ══════════════════════════════════════════════════
@@ -28711,7 +28803,7 @@ function _clickNavigateAt(clientX,clientY,preview=false,preparedHit=null){
       }).catch(()=>{});
     }
     if(!preview&&now-_clickNavigationToastAt>1000&&typeof showUndoToast==='function'){
-      showUndoToast('移動先の地面を準備しています');_clickNavigationToastAt=now;
+      showUndoToast((window._lang==='en'?'Preparing the ground at the destination':'移動先の地面を準備しています'));_clickNavigationToastAt=now;
     }
     return false;
   }
@@ -29469,7 +29561,7 @@ function _navigationHoldPreview(){
   const unready=!walkSetup.core||walkSetup.importPending||walkSetup.settings.signature!==_walkSourceSignature();
   if(!unready||h.preparing||typeof globalThis.prepareCameraCollision!=='function')return;
   h.preparing=true;
-  if(typeof showUndoToast==='function')showUndoToast('移動先の地面を準備しています');
+  if(typeof showUndoToast==='function')showUndoToast((window._lang==='en'?'Preparing the ground at the destination':'移動先の地面を準備しています'));
   globalThis.prepareCameraCollision().then(ready=>{if(ready&&_navigationHold===h&&h.active)_navigationHoldPreview();}).catch(()=>{});
 }
 function _navigationHoldArm(kind,point){
@@ -29885,7 +29977,7 @@ window.setFOV=function(degrees,idx){
   // the user knows to leave camera mode first.
   if(typeof cam !== 'undefined' && cam && cam.active){
     if(typeof showUndoToast === 'function'){
-      showUndoToast('📷 カメラ撮影モード中は FOV を変更できません');
+      showUndoToast((window._lang==='en'?'📷 FOV is locked while the camera tool is on':'📷 カメラ撮影モード中は FOV を変更できません'));
     }
     // Visual: keep the FOV button highlight in sync with the locked fov
     // (which is sensorVFov, not necessarily one of the 50/70/90/110
@@ -30167,11 +30259,11 @@ window.toggleChangelog = function(){
 };
 
 if(_protected){
-  window.saveProjectZip = ()=>{ showUndoToast('オンライン閲覧モードではデータ保存できません'); };
-  window.exportSplat    = ()=>{ showUndoToast('オンライン閲覧モードではデータ保存できません'); };
+  window.saveProjectZip = ()=>{ showUndoToast((window._lang==='en'?'Saving is not available in online view mode':'オンライン閲覧モードではデータ保存できません')); };
+  window.exportSplat    = ()=>{ showUndoToast((window._lang==='en'?'Saving is not available in online view mode':'オンライン閲覧モードではデータ保存できません')); };
   // JSON保存(saveProject)も splat/モデルの生バッファを base64 で丸ごと埋め込むため、
   // ZIP保存・3DGSエクスポートと同様に閲覧専用モードでは塞ぐ(データ流出防止)。
-  window.saveProject    = ()=>{ showUndoToast('オンライン閲覧モードではデータ保存できません'); };
+  window.saveProject    = ()=>{ showUndoToast((window._lang==='en'?'Saving is not available in online view mode':'オンライン閲覧モードではデータ保存できません')); };
 }
 
 // The local server owns disk writes; the normal downloadable viewer stays unchanged.
@@ -30202,15 +30294,15 @@ if(new URLSearchParams(location.search).get('localProject')==='1') {
   local.beginRestore=()=>{
     const ticket=++restoreTicket;
     local.restoring=true;local.ready=false;local.changeVersion++;local.dirty=true;
-    document.body.classList.add('local-project-restoring');controls();status('読み込み中...');
+    document.body.classList.add('local-project-restoring');controls();status((label()?'Loading...':'読み込み中...'));
     return ticket;
   };
   local.endRestore=(ticket,success)=>{
     if(ticket!==restoreTicket)return;
     local.restoring=false;local.ready=success&&!booting;
     document.body.classList.remove('local-project-restoring');controls();
-    if(!success){local.status='error';status('読込に失敗しました。保存せず、編集を開き直してください。',true);}
-    else if(!booting)status('未保存の変更あり');
+    if(!success){local.status='error';status((label()?'Load failed. Do not save; reopen the editor.':'読込に失敗しました。保存せず、編集を開き直してください。'),true);}
+    else if(!booting)status(label()?'Unsaved changes':'未保存の変更あり');
   };
   async function request(route,options={}){
     const response=await fetch(new URL(route,base),{cache:'no-store',...options});
@@ -30249,14 +30341,14 @@ if(new URLSearchParams(location.search).get('localProject')==='1') {
     try{
       const project=await window.saveProjectZip(false,{localProject:{resolveAsset}});
       if(!project)throw new Error('Project snapshot unavailable');
-      if(changeVersion!==local.changeVersion)throw new Error('読込み・編集が進行中です。完了してから再度保存してください。');
+      if(changeVersion!==local.changeVersion)throw new Error((label()?'Loading or editing is still in progress. Save again when it finishes.':'読込み・編集が進行中です。完了してから再度保存してください。'));
       const response=await request('api/project',{method:'POST',headers:{'Content-Type':'application/json'},
         body:JSON.stringify({revision:local.revision,status:statusValue,project})});
       const saved=await response.json();
       if(!Number.isInteger(saved.revision)||saved.revision!==local.revision+1)throw new Error('Unexpected saved revision. Reopen project.');
       local.revision=saved.revision;local.status=saved.status;local.dirty=changeVersion!==local.changeVersion;
       status((saved.status==='editing_complete'?(label()?'Editing complete':'編集完了'):(label()?'Saved':'保存済み'))+' · r'+saved.revision);
-      if(local.dirty)status('保存後の変更があります。再度保存してください。',true);
+      if(local.dirty)status((label()?'There are changes since the last save. Save again.':'保存後の変更があります。再度保存してください。'),true);
       return true;
     }catch(error){
       local.dirty=true;status((label()?'Save failed: ':'保存失敗: ')+error.message,true);return false;
@@ -30278,10 +30370,10 @@ if(new URLSearchParams(location.search).get('localProject')==='1') {
     // Remove the shared i18n target so subsequent language updates cannot restore "ZIP Save".
     saveLabel.id='local-save-label';saveLabel.textContent='保存';
     completeButton=document.createElement('button');completeButton.id='local-project-complete';
-    completeButton.textContent='編集完了';completeButton.title='確認した内容を保存して編集完了にする';
+    completeButton.textContent='編集完了';completeButton.title=(label()?'Save what you checked and mark editing complete':'確認した内容を保存して編集完了にする');
     completeButton.onclick=local.complete;saveButton.after(completeButton);
     statusEl=document.createElement('div');statusEl.id='local-project-status';statusEl.setAttribute('role','status');
-    completeButton.after(statusEl);status('読み込み中...');controls();
+    completeButton.after(statusEl);status((label()?'Loading...':'読み込み中...'));controls();
     const refreshLabels=()=>{
       saveLabel.textContent=label()?'Save':'保存';saveButton.title=label()?'Save in place':'上書き保存';
       completeButton.textContent=label()?'Complete':'編集完了';
@@ -30321,9 +30413,9 @@ if(new URLSearchParams(location.search).get('localProject')==='1') {
         if(entry.file)assetRefs.set(L,{file:entry.file,raw:L._rawBuffer,url:L._streamUrl});
       }
       booting=false;local.revision=envelope.revision;local.status=envelope.status;local.ready=true;local.dirty=false;
-      status((envelope.status==='editing_complete'?'編集完了':'保存済み')+' · r'+envelope.revision);
+      status((envelope.status==='editing_complete'?(label()?'Editing complete':'編集完了'):(label()?'Saved':'保存済み'))+' · r'+envelope.revision);
       controls();
-    }catch(error){local.ready=false;local.status='error';status('読込失敗: '+error.message,true);controls();}
+    }catch(error){local.ready=false;local.status='error';status((label()?'Load failed: ':'読込失敗: ')+error.message,true);controls();}
   }
   queueMicrotask(open);
 }
@@ -30337,8 +30429,8 @@ if(new URLSearchParams(location.search).get('onlineSceneEdit')==='1'){
     const state={ready:false,busy:false,dirty:false,version:0,pendingAssets:0};
     window.onlineSceneEditor=state;
     const saveButton=document.getElementById?.('tb-save-btn'),saveLabel=document.getElementById?.('tb-save-lbl');
-    if(saveButton)saveButton.title='シーンに保存';
-    if(saveLabel){saveLabel.id='online-scene-save-label';saveLabel.textContent='シーンに保存';}
+    if(saveButton)saveButton.title=window._lang==='en'?'Save to scene':'シーンに保存';
+    if(saveLabel){saveLabel.id='online-scene-save-label';saveLabel.textContent=window._lang==='en'?'Save to scene':'シーンに保存';}
     let loaded=false,lastExport=null,restoreTicket=0;
     const send=data=>parent.postMessage(data,origin);
     const lock=busy=>{

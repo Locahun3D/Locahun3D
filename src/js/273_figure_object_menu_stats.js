@@ -99,7 +99,7 @@ async function loadAdditionalSplat(file){
       const _ft = _splatFileTypeFor(ext);
       if(_ft !== undefined) opts.fileType = _ft;
       else if(ext === 'rad'){
-        throw new Error('このファイル形式は Spark が認識できませんでした。対応形式: PLY / SPLAT / SPZ / KSPLAT / RAD / SOG / PCSOGS');
+        throw new Error((window._lang==='en'?'Spark could not read this file format. Supported: PLY / SPLAT / SPZ / KSPLAT / RAD / SOG / PCSOGS':'このファイル形式は Spark が認識できませんでした。対応形式: PLY / SPLAT / SPZ / KSPLAT / RAD / SOG / PCSOGS'));
       }
     }
     let _radTargetCount2 = 0;
@@ -174,22 +174,22 @@ async function loadObjFile(file){
     setMsg(T('parsing'));
     if(ext==='obj'){
       const Cls = await _addonLoader('OBJLoader');
-      if(!Cls) throw new Error('OBJLoader をロードできません（オフライン時はインターネット接続が必要）');
+      if(!Cls) throw new Error((window._lang==='en'?'Could not load OBJLoader (an internet connection is required)':'OBJLoader をロードできません（オフライン時はインターネット接続が必要）'));
       const text=new TextDecoder().decode(buf);
       const loader=new Cls();
       object3d=loader.parse(text);
     } else if(ext==='fbx'){
       try {
         const Cls = await _addonLoader('FBXLoader');
-        if(!Cls) throw new Error('FBXLoader をロードできません（オフライン時はインターネット接続が必要）');
+        if(!Cls) throw new Error((window._lang==='en'?'Could not load FBXLoader (an internet connection is required)':'FBXLoader をロードできません（オフライン時はインターネット接続が必要）'));
         const loader = new Cls();
         object3d = loader.parse(buf);
       } catch(fbxErr) {
-        throw new Error('FBX読み込み失敗: ' + fbxErr.message);
+        throw new Error((window._lang==='en'?'FBX load failed: ':'FBX読み込み失敗: ') + fbxErr.message);
       }
     } else {
       const Cls = await _addonLoader('GLTFLoader');
-      if(!Cls) throw new Error('GLTFLoader をロードできません（オフライン時はインターネット接続が必要）');
+      if(!Cls) throw new Error((window._lang==='en'?'Could not load GLTFLoader (an internet connection is required)':'GLTFLoader をロードできません（オフライン時はインターネット接続が必要）'));
       const loader=new Cls();
       const gltf=await new Promise((res,rej)=>loader.parse(buf,'',res,rej));
       object3d=gltf.scene;

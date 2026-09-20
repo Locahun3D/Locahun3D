@@ -176,7 +176,7 @@ function _clickNavigateAt(clientX,clientY,preview=false,preparedHit=null){
       }).catch(()=>{});
     }
     if(!preview&&now-_clickNavigationToastAt>1000&&typeof showUndoToast==='function'){
-      showUndoToast('移動先の地面を準備しています');_clickNavigationToastAt=now;
+      showUndoToast((window._lang==='en'?'Preparing the ground at the destination':'移動先の地面を準備しています'));_clickNavigationToastAt=now;
     }
     return false;
   }

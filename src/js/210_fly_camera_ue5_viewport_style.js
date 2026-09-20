@@ -31,7 +31,7 @@ window.addEventListener('gamepadconnected', e => {
   window._gpEverConnected = true;
   try {
     const id = (e.gamepad && e.gamepad.id) || 'Gamepad';
-    if(typeof showUndoToast === 'function') showUndoToast('🎮 ' + id.substring(0, 40) + ' 接続');
+    if(typeof showUndoToast === 'function') showUndoToast('🎮 ' + id.substring(0, 40) + (window._lang==='en'?' connected':' 接続'));
     console.info('[gamepad] connected:', id, 'index', e.gamepad.index);
   } catch(_){}
 });

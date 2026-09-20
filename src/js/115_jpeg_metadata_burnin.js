@@ -57,7 +57,7 @@ async function embedLocahunMetadata(jpegBlob){
 
 async function extractLocahunMetadata(file){
   const buf = new Uint8Array(await file.arrayBuffer());
-  if(buf[0] !== 0xFF || buf[1] !== 0xD8) throw new Error('JPEG ではありません');
+  if(buf[0] !== 0xFF || buf[1] !== 0xD8) throw new Error((window._lang==='en'?'Not a JPEG file':'JPEG ではありません'));
   // Try the current magic first, then any legacy magics. _LOCAHUN_MAGIC
   // is what new JPEGs carry; _LEGACY_MAGICS keeps older "DIGIROKE\0"
   // saves loadable.
@@ -89,7 +89,7 @@ async function extractLocahunMetadata(file){
     }
     i += 2 + segLen;
   }
-  throw new Error('ロケハン3Dのメタデータが見つかりません');
+  throw new Error((window._lang==='en'?'No Locahun 3D metadata found':'ロケハン3Dのメタデータが見つかりません'));
 }
 
 window.salvageCamFromFile = async function(file){
@@ -291,7 +291,7 @@ function composeBurnInFrame(imgCanvas){
 
   const col1 = [
     ['LENS',   `${cam.focal.toFixed(0)}mm  (35mm-eq ${eq}mm)`],
-    ['画角',   `H ${hfov}°   V ${vfov}°`],
+    [(window._lang==='en'?'FOV':'画角'),   `H ${hfov}°   V ${vfov}°`],
     ['SENSOR', `${cam.sw}×${cam.sh}mm   WB ${cam.wb}K`],
   ];
   const col2 = [

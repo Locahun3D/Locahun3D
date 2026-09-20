@@ -30,7 +30,7 @@ function addLayer(opts){
   const _mr = opts.mesh ? opts.mesh.rotation : {x:0,y:0,z:0};
   const L = {
     id: _layerNextId++,
-    name: opts.name || 'レイヤー',
+    name: opts.name || ((typeof window!=='undefined'&&window._lang==='en')?'Layer':'レイヤー'),
     type: opts.type,
     mesh: opts.mesh,
     visible: true,

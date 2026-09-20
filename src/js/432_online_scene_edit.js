@@ -8,8 +8,8 @@ if(new URLSearchParams(location.search).get('onlineSceneEdit')==='1'){
     const state={ready:false,busy:false,dirty:false,version:0,pendingAssets:0};
     window.onlineSceneEditor=state;
     const saveButton=document.getElementById?.('tb-save-btn'),saveLabel=document.getElementById?.('tb-save-lbl');
-    if(saveButton)saveButton.title='シーンに保存';
-    if(saveLabel){saveLabel.id='online-scene-save-label';saveLabel.textContent='シーンに保存';}
+    if(saveButton)saveButton.title=window._lang==='en'?'Save to scene':'シーンに保存';
+    if(saveLabel){saveLabel.id='online-scene-save-label';saveLabel.textContent=window._lang==='en'?'Save to scene':'シーンに保存';}
     let loaded=false,lastExport=null,restoreTicket=0;
     const send=data=>parent.postMessage(data,origin);
     const lock=busy=>{

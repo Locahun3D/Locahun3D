@@ -146,7 +146,7 @@ function _sunFcReadout(){
 window.fetchSunForecast = async function(){
   const btn=document.getElementById('sun-fetch-wx');
   if(typeof navigator!=='undefined' && navigator.onLine===false){
-    _sunFcShow('⚠ オフラインです。天気予報の取得にはインターネット接続が必要です。', true);
+    _sunFcShow((window._lang==='en'?'⚠ You are offline. The forecast needs an internet connection.':'⚠ オフラインです。天気予報の取得にはインターネット接続が必要です。'), true);
     return;
   }
   // 取得日の前後1週間（計15日）をまとめて取得してキャッシュ。以後はパラメータ
@@ -158,7 +158,7 @@ window.fetchSunForecast = async function(){
   const sd=fmt(sdD), ed=fmt(edD);
   const loc=sun.lat.toFixed(2)+','+sun.lng.toFixed(2);
   if(btn) btn.disabled=true;
-  _sunFcShow('🌐 取得中…（前後1週間ぶん）', true);
+  _sunFcShow((window._lang==='en'?'🌐 Fetching… (±1 week)':'🌐 取得中…（前後1週間ぶん）'), true);
   try{
     const url='https://api.open-meteo.com/v1/forecast?latitude='+sun.lat+'&longitude='+sun.lng+
       '&hourly=temperature_2m,weather_code,cloud_cover,precipitation,wind_speed_10m&timezone=auto&start_date='+sd+'&end_date='+ed;
@@ -167,15 +167,15 @@ window.fetchSunForecast = async function(){
       let reason='';
       try{ const ej=await r.json(); reason=(ej&&ej.reason)?ej.reason:''; }catch(_){}
       if(r.status===400 || /range|out of|date/i.test(reason)){
-        _sunFcShow('⚠ この日付の前後1週間が予報の対象範囲外です（天気予報は約16日先まで、過去は数か月前まで）。', true);
+        _sunFcShow((window._lang==='en'?'⚠ This date is outside the forecast range (about 16 days ahead, a few months back).':'⚠ この日付の前後1週間が予報の対象範囲外です（天気予報は約16日先まで、過去は数か月前まで）。'), true);
       } else {
-        _sunFcShow('⚠ 予報の取得に失敗しました（HTTP '+r.status+(reason?'：'+reason:'')+'）。', true);
+        _sunFcShow((window._lang==='en'?'⚠ Could not get the forecast (HTTP ':'⚠ 予報の取得に失敗しました（HTTP ')+r.status+(reason?(window._lang==='en'?': ':'：')+reason:'')+(window._lang==='en'?').':'）。'), true);
       }
       sun._fc=null; return;
     }
     const j=await r.json();
     if(!j.hourly || !j.hourly.time || !j.hourly.time.length){
-      _sunFcShow('⚠ この期間の予報データがありません（予報は約16日先まで、過去は数か月前まで）。', true);
+      _sunFcShow((window._lang==='en'?'⚠ No forecast data for this period (about 16 days ahead, a few months back).':'⚠ この期間の予報データがありません（予報は約16日先まで、過去は数か月前まで）。'), true);
       sun._fc=null; return;
     }
     sun._fcAuto=true;      // 以後、日時を動かすたびに予報の天気を自動適用
@@ -184,7 +184,7 @@ window.fetchSunForecast = async function(){
     if(sun.active && typeof updateSunMode==='function') updateSunMode();  // 光を再計算
     _sunFcReadout();       // 参照表示（日照OFFでも表示）
   }catch(e){
-    _sunFcShow('⚠ 予報の取得に失敗しました（'+((e&&e.message)||e)+'）。接続環境をご確認ください。', true);
+    _sunFcShow((window._lang==='en'?'⚠ Could not get the forecast (':'⚠ 予報の取得に失敗しました（')+((e&&e.message)||e)+(window._lang==='en'?'). Check your connection.':'）。接続環境をご確認ください。'), true);
     sun._fc=null;
   }finally{
     if(btn) btn.disabled=false;

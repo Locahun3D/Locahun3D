@@ -20,7 +20,9 @@ const MAX_SINGLE_BUFFER_BYTES = 2_000_000_000; // safe margin under the ~2.145B 
 function _assertReadableFileSize(file){
   if(file.size >= MAX_SINGLE_BUFFER_BYTES){
     const gb = (file.size / 1024 / 1024 / 1024).toFixed(2);
-    throw new Error(
+    throw new Error(window._lang==='en'
+      ? `This file is ${gb} GB, over the browser's single-buffer limit (about 2 GB), so it cannot be loaded as PLY/SPLAT/OBJ. Convert it to .rad (streaming) — RAD loads at any size.`
+      :
       `このファイルは${gb}GBあり、ブラウザの技術的な上限（単一バッファ約2GB）を超えているため ` +
       `PLY/SPLAT/OBJ形式では読み込めません。.rad（ストリーミング形式）に変換してください — ` +
       `RADは容量に依らず正常に読み込めます。`
@@ -65,7 +67,7 @@ async function loadSplatFile(file){
       const mb = Math.round(file.size / 1024 / 1024);
       console.warn('[Locahun] Large file on iPhone (' + mb + ' MB) — risk of tab crash');
       if(typeof showUndoToast === 'function'){
-        showUndoToast('⚠ ファイル ' + mb + ' MB は iPhone のメモリ上限に近いです。SPZ 変換を推奨');
+        showUndoToast(window._lang==='en' ? '⚠ This ' + mb + ' MB file is close to the iPhone memory limit. Converting to SPZ is recommended' : '⚠ ファイル ' + mb + ' MB は iPhone のメモリ上限に近いです。SPZ 変換を推奨');
       }
     }
     // Big-file auto-decimation has been REMOVED across all device classes.
@@ -166,7 +168,7 @@ async function loadSplatFile(file){
         // this Spark build hasn't shipped SplatFileType.RAD yet, fail
         // loud rather than silently treating it as PLY.
         if(blobUrl) try{ URL.revokeObjectURL(blobUrl); }catch(_){}
-        throw new Error('このファイル形式は Spark が認識できませんでした。対応形式: PLY / SPLAT / SPZ / KSPLAT / RAD / SOG / PCSOGS');
+        throw new Error((window._lang==='en'?'Spark could not read this file format. Supported: PLY / SPLAT / SPZ / KSPLAT / RAD / SOG / PCSOGS':'このファイル形式は Spark が認識できませんでした。対応形式: PLY / SPLAT / SPZ / KSPLAT / RAD / SOG / PCSOGS'));
       }
     }
     // .RAD via url+paged:true (Spark builds its own url-backed PagedSplats

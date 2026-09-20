@@ -272,14 +272,14 @@ window.captureCamShot = async function(){
         text: fileName,
       });
       _saved = true;
-      showUndoToast('📸 ' + fileName + ' — 共有メニューから「画像を保存」');
+      showUndoToast('📸 ' + fileName + (window._lang==='en'?' — choose "Save Image" in the share sheet':' — 共有メニューから「画像を保存」'));
     } catch(e){
       // AbortError = user dismissed the share sheet without picking an
       // action. Treat as "nothing happened" rather than falling back to
       // download (which would surprise-save the file twice).
       if(e && e.name === 'AbortError'){
         _saved = true;
-        showUndoToast('📸 保存をキャンセルしました');
+        showUndoToast((window._lang==='en'?'📸 Save cancelled':'📸 保存をキャンセルしました'));
       } else {
         console.warn('[capture] navigator.share failed, falling back to download:', e);
       }

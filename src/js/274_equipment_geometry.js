@@ -5,9 +5,9 @@
     {id:'hiace',category:'vehicles',name:'ハイエース',en:'HiAce',variant:'標準幅・標準ルーフ',variantEn:'Standard roof / width',dimensions:'4.695 × 1.695 × 1.980 m'},
     {id:'truck2t',category:'vehicles',name:'2Tトラック',en:'2T truck',variant:'ダイナ・標準平ボディ',variantEn:'Dyna / standard flatbed',dimensions:'4.690 × 1.695 × 1.965 m'},
     {id:'truck4t',category:'vehicles',name:'4Tトラック',en:'4T truck',variant:'フォワード・ワイド平ボディ',variantEn:'Forward / wide flatbed',dimensions:'8.485 × 2.470 × 2.550 m'},
-    {id:'jib',category:'equipment',name:'ジブクレーン',en:'Jib crane',variant:'Jimmy Jib Standard・水平',variantEn:'Jimmy Jib Standard / level',dimensions:'アーム全長 3.15 m'},
-    {id:'scorpio',category:'equipment',name:'スコーピオンクレーン',en:'Scorpio crane',variant:'23’L・最大伸長・水平',variantEn:'23’L / fully extended / level',dimensions:'前方 7.16 m / 後方 2.02 m'},
-    {id:'lightstand',category:'equipment',name:'照明スタンド',en:'Lighting stand',variant:'1004BAC・最大伸長',variantEn:'1004BAC / fully extended',dimensions:'高さ 3.66 m / 開脚径 1.06 m'},
+    {id:'jib',category:'equipment',name:'ジブクレーン',en:'Jib crane',variant:'Jimmy Jib Standard・水平',variantEn:'Jimmy Jib Standard / level',dimensions:'アーム全長 3.15 m',dimensionsEn:'Arm length 3.15 m'},
+    {id:'scorpio',category:'equipment',name:'スコーピオンクレーン',en:'Scorpio crane',variant:'23’L・最大伸長・水平',variantEn:'23’L / fully extended / level',dimensions:'前方 7.16 m / 後方 2.02 m',dimensionsEn:'Front 7.16 m / rear 2.02 m'},
+    {id:'lightstand',category:'equipment',name:'照明スタンド',en:'Lighting stand',variant:'1004BAC・最大伸長',variantEn:'1004BAC / fully extended',dimensions:'高さ 3.66 m / 開脚径 1.06 m',dimensionsEn:'Height 3.66 m / footprint 1.06 m'},
   ].map(Object.freeze);
   function build(T, id) {
     const item = catalog.find(item => item.id === id);

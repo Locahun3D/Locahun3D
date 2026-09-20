@@ -575,7 +575,7 @@ function renderTransformPanel(){
     evH += '<div style="font-size:.7em;color:#606060;margin-bottom:4px">'+T('lt-event')+'</div>';
     if(L.eventImage){
       evH += '<div style="font-size:.68em;color:#909090;margin-bottom:4px">'+(L.eventImageName||'')+'</div>';
-      evH += '<img src="'+L.eventImage+'" onclick="showEventImage('+L.id+')" style="width:100%;max-height:160px;object-fit:contain;border-radius:4px;border:1px solid rgba(255,255,255,.1);cursor:pointer;margin-bottom:4px;display:block" title="クリックで拡大">';
+      evH += '<img src="'+L.eventImage+'" onclick="showEventImage('+L.id+')" style="width:100%;max-height:160px;object-fit:contain;border-radius:4px;border:1px solid rgba(255,255,255,.1);cursor:pointer;margin-bottom:4px;display:block" title="'+T('tt-ev-zoom')+'">';
       evH += '<div style="display:flex;gap:4px">';
       evH += '<button onclick="showEventImage('+L.id+')" style="flex:1;background:#2A2A2C;border:1px solid rgba(255,255,255,.1);color:#ffd49a;border-radius:4px;padding:3px 6px;font-size:.7em;cursor:pointer">'+T('lt-ev-show')+'</button>';
       evH += '<button onclick="clearEventImage('+L.id+')" style="flex:1;background:#2A2A2C;border:1px solid rgba(255,255,255,.1);color:#ff8888;border-radius:4px;padding:3px 6px;font-size:.7em;cursor:pointer">'+T('lt-ev-clr')+'</button>';
@@ -585,8 +585,8 @@ function renderTransformPanel(){
     }
     // Event guide text field
     evH += '<div style="margin-top:6px">';
-    evH += '<div style="font-size:.7em;color:#606060;margin-bottom:3px">🗒 イベントガイド</div>';
-    evH += '<textarea rows="2" style="width:100%;background:#2A2A2C;border:1px solid rgba(255,255,255,.1);color:#C0C0C0;border-radius:4px;padding:4px 6px;font-size:.72em;resize:vertical;box-sizing:border-box;outline:none;font-family:inherit" oninput="window.setEventGuide('+L.id+',this.value)" placeholder="ガイドテキスト...">'+(L.eventGuide||'')+'</textarea>';
+    evH += '<div style="font-size:.7em;color:#606060;margin-bottom:3px">'+T('lt-ev-guide')+'</div>';
+    evH += '<textarea rows="2" style="width:100%;background:#2A2A2C;border:1px solid rgba(255,255,255,.1);color:#C0C0C0;border-radius:4px;padding:4px 6px;font-size:.72em;resize:vertical;box-sizing:border-box;outline:none;font-family:inherit" oninput="window.setEventGuide('+L.id+',this.value)" placeholder="'+T('ph-ev-guide')+'">'+(L.eventGuide||'')+'</textarea>';
     evH += '</div>';
     evH += '</div>';
     el.innerHTML += evH;
@@ -594,21 +594,21 @@ function renderTransformPanel(){
   // ── Path: color / opacity / center label ──
   if(L.type==='path'){
     let ph='<div style="margin-top:8px;padding:6px 5px;background:rgba(255,255,255,.03);border-radius:5px;border:1px solid rgba(255,255,255,.07)">';
-    ph+='<div style="font-size:.7em;color:#606060;margin-bottom:4px">🛣 パス情報</div>';
-    ph+='<div style="font-size:.66em;color:#7a8aa0;margin-bottom:6px">黄色い4点をドラッグで形を調整できます</div>';
+    ph+='<div style="font-size:.7em;color:#606060;margin-bottom:4px">'+T('lt-path')+'</div>';
+    ph+='<div style="font-size:.66em;color:#7a8aa0;margin-bottom:6px">'+T('lt-path-hint')+'</div>';
     ph+='<div style="display:flex;align-items:center;gap:6px;margin-bottom:6px">';
-    ph+='<label for="path-color-'+L.id+'" style="font-size:.68em;color:#c0c0c0">色</label>';
-    ph+='<input id="path-color-'+L.id+'" type="color" title="パスの色" value="'+(L.pathColor||'#00d0ff')+'" oninput="setPathColor('+L.id+',this.value)" style="width:36px;height:22px;padding:1px;border:1px solid rgba(255,255,255,.2);background:#1a1a00;border-radius:3px;cursor:pointer">';
-    ph+='<span style="font-size:.68em;color:#909090;width:auto">不透明度</span>';
+    ph+='<label for="path-color-'+L.id+'" style="font-size:.68em;color:#c0c0c0">'+T('lt-path-color')+'</label>';
+    ph+='<input id="path-color-'+L.id+'" type="color" title="'+T('tt-path-color')+'" value="'+(L.pathColor||'#00d0ff')+'" oninput="setPathColor('+L.id+',this.value)" style="width:36px;height:22px;padding:1px;border:1px solid rgba(255,255,255,.2);background:#1a1a00;border-radius:3px;cursor:pointer">';
+    ph+='<span style="font-size:.68em;color:#909090;width:auto">'+T('lt-path-opacity')+'</span>';
     ph+='<input type="range" min="0" max="1" step="0.05" value="'+(L.pathOpacity!=null?L.pathOpacity:0.28)+'" oninput="setPathOpacity('+L.id+',this.value)" style="flex:1;height:4px;accent-color:#D8D8D8">';
     ph+='</div>';
     ph+='<div style="display:flex;align-items:center;gap:6px;margin-bottom:6px;flex-wrap:wrap">';
-    ph+='<label for="path-width-number-'+L.id+'" style="font-size:.68em;color:#c0c0c0">太さ (m)</label>';
+    ph+='<label for="path-width-number-'+L.id+'" style="font-size:.68em;color:#c0c0c0">'+T('lt-path-width')+'</label>';
     ph+='<input id="path-width-number-'+L.id+'" data-path-width="true" type="number" min="0.01" max="2" step="0.01" value="'+_pathWidth(L.pathWidth)+'" oninput="setPathWidth('+L.id+',this.value)" style="width:70px;box-sizing:border-box;background:#2a2a2c;color:#ddd;border:1px solid #666;border-radius:3px">';
-    ph+='<input id="path-width-range-'+L.id+'" aria-label="パスの太さ (m)" type="range" min="0.01" max="2" step="0.01" value="'+_pathWidth(L.pathWidth)+'" oninput="setPathWidth('+L.id+',this.value)" style="flex:1;min-width:60px;width:80px;accent-color:#d8d8d8">';
+    ph+='<input id="path-width-range-'+L.id+'" aria-label="'+T('aria-path-width')+'" type="range" min="0.01" max="2" step="0.01" value="'+_pathWidth(L.pathWidth)+'" oninput="setPathWidth('+L.id+',this.value)" style="flex:1;min-width:60px;width:80px;accent-color:#d8d8d8">';
     ph+='</div>';
-    ph+='<div style="font-size:.7em;color:#606060;margin-bottom:3px">🅿 中央テキスト</div>';
-    ph+='<textarea rows="2" style="width:100%;background:#2A2A2C;border:1px solid rgba(255,255,255,.1);color:#C0C0C0;border-radius:4px;padding:4px 6px;font-size:.72em;resize:vertical;box-sizing:border-box;outline:none;font-family:inherit" oninput="window.setPathLabel('+L.id+',this.value)" placeholder="例: 来客用 P1 / 搬入車両 ...">'+_layerText(L.pathLabel||'')+'</textarea>';
+    ph+='<div style="font-size:.7em;color:#606060;margin-bottom:3px">'+T('lt-path-label')+'</div>';
+    ph+='<textarea rows="2" style="width:100%;background:#2A2A2C;border:1px solid rgba(255,255,255,.1);color:#C0C0C0;border-radius:4px;padding:4px 6px;font-size:.72em;resize:vertical;box-sizing:border-box;outline:none;font-family:inherit" oninput="window.setPathLabel('+L.id+',this.value)" placeholder="'+T('ph-path-label')+'">'+_layerText(L.pathLabel||'')+'</textarea>';
     ph+='</div>';
     el.innerHTML += ph;
   }

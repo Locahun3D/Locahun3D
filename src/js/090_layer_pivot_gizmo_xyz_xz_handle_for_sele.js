@@ -607,7 +607,7 @@ function updatePreview(pos) {
   const isA = (msr.step === 0 || msr.step === 2);
   msr.previewMarker.children[0].material.color.setHex(isA ? 0xffff44 : 0xff8833);
   // Hint text
-  const hint = isA ? '🟡 点 A を配置 — 離して確定' : '🟠 点 B を配置 — 離して確定';
+  const hint = isA ? (window._lang==='en'?'🟡 Place point A — release to confirm':'🟡 点 A を配置 — 離して確定') : (window._lang==='en'?'🟠 Place point B — release to confirm':'🟠 点 B を配置 — 離して確定');
   document.getElementById('msr-hint').textContent = hint;
 }
 function commitPreview() {

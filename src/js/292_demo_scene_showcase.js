@@ -108,7 +108,7 @@ async function _fetchBinaryChunked(url){
         out.set(part, got); got += part.byteLength; ok = true;
       }catch(e){ lastErr = e; await new Promise(res=>setTimeout(res, 1200 * (attempt + 1))); }
     }
-    if(!ok) throw new Error('チャンク取得失敗 @'+got+': '+(lastErr && lastErr.message ? lastErr.message : lastErr));
+    if(!ok) throw new Error((window._lang==='en'?'Chunk download failed @':'チャンク取得失敗 @')+got+': '+(lastErr && lastErr.message ? lastErr.message : lastErr));
     if(typeof setBar === 'function') setBar(5 + Math.round((got / total) * 35));
     // Workers への連投を避ける小休止（一過性の空応答対策）
     if(got < total) await new Promise(res=>setTimeout(res, 120));
@@ -122,7 +122,7 @@ async function _readBodyWithProgress(resp){
   const cl = parseInt(resp.headers.get('content-length') || '0', 10);
   if(!resp.body || !resp.body.getReader){
     const whole = await resp.arrayBuffer();
-    if(cl && whole.byteLength !== cl) throw new Error('通信が途中で切断されました ('+whole.byteLength+'/'+cl+' bytes)');
+    if(cl && whole.byteLength !== cl) throw new Error((window._lang==='en'?'The connection dropped (':'通信が途中で切断されました (')+whole.byteLength+'/'+cl+' bytes)');
     return whole;
   }
   const reader = resp.body.getReader(), parts = [];
@@ -135,7 +135,7 @@ async function _readBodyWithProgress(resp){
     const ratio = cl ? got / cl : 1 - Math.exp(-got / (64 * 1024 * 1024));
     if(typeof setBar === 'function') setBar(5 + Math.min(1, ratio) * 35);
   }
-  if(cl && got !== cl) throw new Error('通信が途中で切断されました ('+got+'/'+cl+' bytes)');
+  if(cl && got !== cl) throw new Error((window._lang==='en'?'The connection dropped (':'通信が途中で切断されました (')+got+'/'+cl+' bytes)');
   const out = new Uint8Array(got);
   let at = 0; for(const part of parts){ out.set(part, at); at += part.byteLength; }
   return out.buffer;
@@ -152,7 +152,7 @@ async function loadFromURL(url, displayName){
       if(!label){
         try{ label = decodeURIComponent(new URL(url, location.href).pathname.split('/').pop()) || ''; }catch(_){ label = ''; }
       }
-      showLd(label ? `読み込み中: ${label}` : '読み込み中...');
+      showLd(label ? `読み込み中: ${label}` : (window._lang==='en'?'Loading...':'読み込み中...'));
     }
     if(typeof setBar === 'function') setBar(5);
     // .RAD URLs get a streaming path: Spark fetches via HTTP Range
@@ -172,7 +172,7 @@ async function loadFromURL(url, displayName){
     if(ext === 'rad'){
       if(ft === undefined){
         if(typeof hideLd === 'function') hideLd();
-        if(typeof showUndoToast === 'function') showUndoToast('このファイル形式は Spark が認識できませんでした。対応形式: PLY / SPLAT / SPZ / KSPLAT / RAD / SOG / PCSOGS');
+        if(typeof showUndoToast === 'function') showUndoToast((window._lang==='en'?'Spark could not read this file format. Supported: PLY / SPLAT / SPZ / KSPLAT / RAD / SOG / PCSOGS':'このファイル形式は Spark が認識できませんでした。対応形式: PLY / SPLAT / SPZ / KSPLAT / RAD / SOG / PCSOGS'));
         return;
       }
       // Stream-load path. Construct a SplatMesh directly with `url:` —
@@ -237,7 +237,7 @@ async function loadFromURL(url, displayName){
       if(typeof hideLd === 'function') hideLd();
       if(typeof showHUD === 'function') showHUD();
       if(typeof hideDZ === 'function') hideDZ();
-      if(typeof showUndoToast === 'function') showUndoToast('📡 .RAD ストリーミング読込開始: ' + name);
+      if(typeof showUndoToast === 'function') showUndoToast((window._lang==='en'?'📡 Streaming .RAD: ':'📡 .RAD ストリーミング読込開始: ') + name);
       // Demo/URL parity (RC2): the local-file load path schedules auto-quality
       // calibration, but this URL/RAD-stream path never did — so ?demo=1 and
       // ?autoload= scenes were stuck at the device-tier default and auto-quality
@@ -273,7 +273,7 @@ async function loadFromURL(url, displayName){
   }catch(e){
     console.warn('loadFromURL failed', e);
     if(typeof hideLd === 'function') hideLd();
-    if(typeof showUndoToast === 'function') showUndoToast('読み込み失敗: ' + e.message);
+    if(typeof showUndoToast === 'function') showUndoToast((window._lang==='en'?'Load failed: ':'読み込み失敗: ') + e.message);
   }
 }
 

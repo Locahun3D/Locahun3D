@@ -164,7 +164,7 @@ async function restoreProject(project, opts = {}) {
             const _ft = _splatFileTypeFor(ext);
             if(_ft !== undefined) opts.fileType = _ft;
             else if(ext === 'rad'){
-              throw new Error('Spark が認識できない形式です');
+              throw new Error((window._lang==='en'?'Spark could not read this format':'Spark が認識できない形式です'));
             }
           }
           // RAD-restored-from-ZIP needs an explicit PagedSplats (same Spark

@@ -32,7 +32,7 @@ function _navigationHoldPreview(){
   const unready=!walkSetup.core||walkSetup.importPending||walkSetup.settings.signature!==_walkSourceSignature();
   if(!unready||h.preparing||typeof globalThis.prepareCameraCollision!=='function')return;
   h.preparing=true;
-  if(typeof showUndoToast==='function')showUndoToast('移動先の地面を準備しています');
+  if(typeof showUndoToast==='function')showUndoToast((window._lang==='en'?'Preparing the ground at the destination':'移動先の地面を準備しています'));
   globalThis.prepareCameraCollision().then(ready=>{if(ready&&_navigationHold===h&&h.active)_navigationHoldPreview();}).catch(()=>{});
 }
 function _navigationHoldArm(kind,point){

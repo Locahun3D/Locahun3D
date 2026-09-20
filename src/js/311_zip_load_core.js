@@ -269,7 +269,7 @@ async function _loadProjectZipFromFile(file){
     hideLd();
     showUndoToast((_en()?'⚠ ZIP load failed: ':'⚠ ZIP読み込み失敗: ')+err.message);
   } finally {
-    if(walkImportEpoch===walkSetup.epoch && walkSetup.importPending)_walkFailImport(walkImportEpoch,new Error('ZIP読込は完了していません。'));
+    if(walkImportEpoch===walkSetup.epoch && walkSetup.importPending)_walkFailImport(walkImportEpoch,new Error((window._lang==='en'?'The ZIP did not finish loading.':'ZIP読込は完了していません。')));
   }
 }
 
@@ -434,6 +434,6 @@ async function loadProject_fromFile(file){
     if(walkImportEpoch!==walkSetup.epoch)return;
     console.error(e);showUndoToast(T('load-fail')+e.message);
   } finally {
-    if(walkImportEpoch===walkSetup.epoch && walkSetup.importPending)_walkFailImport(walkImportEpoch,new Error('JSON読込は完了していません。'));
+    if(walkImportEpoch===walkSetup.epoch && walkSetup.importPending)_walkFailImport(walkImportEpoch,new Error((window._lang==='en'?'The JSON did not finish loading.':'JSON読込は完了していません。')));
   }
 }

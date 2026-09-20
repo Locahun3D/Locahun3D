@@ -2,12 +2,12 @@ const _wholeIdentityCache=new WeakMap();
 const _wholeByteCache=new Map();
 function _wholeCacheOnly(job){return !!job.options.automatic&&!job.options.allowBake;}
 function _wholeDeferred(){
-  const error=new Error('当たり判定は未準備です。通常閲覧は続けられます。歩行時に準備します。');
+  const error=new Error(_walkL('当たり判定は未準備です。通常閲覧は続けられます。歩行時に準備します。','Collision is not ready. You can keep viewing; it is prepared when you walk.'));
   error.collisionDeferred=true;return error;
 }
 async function _wholeSourceFetch(url,method,mesh,job){
   _walkCheckJob(job);
-  if(job.abortController?.signal.aborted)throw new Error('生成をキャンセルしました。');
+  if(job.abortController?.signal.aborted)throw new Error(_walkL('生成をキャンセルしました。','Generation cancelled.'));
   const controller=typeof AbortController==='function'?new AbortController():null;
   const abort=()=>controller?.abort();
   job.abortController?.signal.addEventListener('abort',abort,{once:true});
@@ -95,20 +95,20 @@ async function _wholeSourceIdentity(layer,job){
       catch(error){_walkCheckJob(job);}
     }
     _walkCheckJob(job);
-    if(response?.status===401||response?.status===403)throw new Error('判定用データの閲覧権限を確認できません。');
+    if(response?.status===401||response?.status===403)throw new Error(_walkL('判定用データの閲覧権限を確認できません。','Could not verify access to the collision source data.'));
     const etag=response?.headers.get('etag'),length=response?.headers.get('content-length');
     if(response?.ok&&etag&&!etag.startsWith('W/')&&/^\d+$/.test(length||''))identity=_wholeLocalDigestIdentity(url,etag)||'etag:'+await _wholeHash(new TextEncoder().encode(_wholeCanonicalSourceUrl(url)))+':'+etag+':'+length;
     else{
       if(_wholeCacheOnly(job))throw _wholeDeferred();
-      const fetched=await _wholeSourceFetch(url,'GET',mesh,job);if(!fetched.ok)throw new Error('判定用の元データを確認できません。');
+      const fetched=await _wholeSourceFetch(url,'GET',mesh,job);if(!fetched.ok)throw new Error(_walkL('判定用の元データを確認できません。','Could not find the collision source data.'));
       const size=Number(fetched.headers.get('content-length'));
-      if(!Number.isFinite(size)||size<=0||size>512*1024*1024){await fetched.body?.cancel();throw new Error('このデータは内容識別子付きの配信が必要です。');}
+      if(!Number.isFinite(size)||size<=0||size>512*1024*1024){await fetched.body?.cancel();throw new Error(_walkL('このデータは内容識別子付きの配信が必要です。','This data must be served with a content identifier.'));}
       identity='sha256:'+await _wholeHash(await _wholeReadResponse(fetched,512*1024*1024,job));
     }
   }else{
     if(_wholeCacheOnly(job))throw _wholeDeferred();
     const bytes=layer._rawBuffer||mesh.packedSplats?.packedArray;
-    if(!bytes)throw new Error('判定用の元データがありません。');identity='sha256:'+await _wholeHash(bytes);
+    if(!bytes)throw new Error(_walkL('判定用の元データがありません。','No collision source data.'));identity='sha256:'+await _wholeHash(bytes);
   }
   _walkCheckJob(job);_wholeIdentityCache.set(mesh,{url,raw:layer._rawBuffer,identity});return identity;
 }
@@ -119,7 +119,7 @@ function _walkWholeCoverage(start,end=start,{drop=3,margin=3}={}){
   const min=['x','y','z'].map((k,i)=>Math.min(...points.map(p=>p[k]))-(i===1?drop:margin));
   const max=['x','y','z'].map((k,i)=>Math.max(...points.map(p=>p[k]))+(i===1?walkMode.height+1:margin));
   try{core.setTileCoverage(index,{min,max});return true;}
-  catch(error){_walkStatus('当たり判定の範囲を確認できません: '+error.message);return false;}
+  catch(error){_walkStatus(_walkL('当たり判定の範囲を確認できません: ','Could not determine the collision bounds: ')+error.message);return false;}
 }
 function _walkWholeExcludeBoxes(boxes,cellSize){
   if(!walkSetup.settings.excludeIds.length)return boxes;
@@ -180,7 +180,7 @@ async function _walkRunWholeGeneration(job,splats){
   _walkCheckJob(job);
   if(!index){
     if(_wholeCacheOnly(job))throw _wholeDeferred();
-    _walkStatus('全体の当たり判定を準備しています…');
+    _walkStatus(_walkL('全体の当たり判定を準備しています…','Preparing collision for the whole scene…'));
     const decoders=[];let result;
     try{
       const bakeSources=sources.map(source=>{
@@ -191,12 +191,12 @@ async function _walkRunWholeGeneration(job,splats){
           requestHeader:original.requestHeader,withCredentials:original.withCredentials,pager:{extSplats:false,maxSh:0}});
         decoders.push(paged);return {...source,paged};
       });
-      result=await LocahunCollisionBake.generate(bakeSources,{cellSize,check:()=>_walkCheckJob(job),awaitJob:p=>_walkAwait(p,job),progress:p=>_walkStatus('全体の当たり判定を準備中 '+Math.round(p.chunk/p.chunks*100)+'%')});
+      result=await LocahunCollisionBake.generate(bakeSources,{cellSize,check:()=>_walkCheckJob(job),awaitJob:p=>_walkAwait(p,job),progress:p=>_walkStatus(_walkL('全体の当たり判定を準備中 ','Preparing scene collision ')+Math.round(p.chunk/p.chunks*100)+'%')});
     }finally{for(const decoder of decoders)decoder.dispose();}
     bytes=await LocahunWholeCollision.encodeTiles(result.tiles,key,result.cellSize);_walkCheckJob(job);
     index=await LocahunWholeCollision.decodeTiles(bytes,key);
   }
-  if(!index.total)throw new Error('全体判定に有効な形状がありません。');
+  if(!index.total)throw new Error(_walkL('全体判定に有効な形状がありません。','No usable shapes for scene collision.'));
   _walkCheckJob(job);
   // Best-effort persistence is awaited before installing, but cannot hold readiness indefinitely.
   if(!persistentHit)await _wholePersistentCache('put',key,bytes,job);
@@ -220,7 +220,7 @@ async function _walkRunWholeGeneration(job,splats){
     core.setTileCoverage(index,{min:[c.x-3,c.y-22,c.z-3],max:[c.x+3,c.y+4,c.z+3]});
     if(walkMode.active&&walkMode.avatar){
       const p=walkMode.avatar.position,feet={x:p.x,y:p.y+walkMode.groundOffset,z:p.z};
-      if(!_walkFeetClear(core,feet,!walkMode.airborne))throw new Error('更新後の判定で現在位置の空きを確認できません。');
+      if(!_walkFeetClear(core,feet,!walkMode.airborne))throw new Error(_walkL('更新後の判定で現在位置の空きを確認できません。','The updated collision leaves no clearance at your position.'));
       core.setCharacter(feet,_walkBodyHeight(),walkMode.bodyRadius);
     }
     _walkCheckJob(job);
@@ -238,6 +238,6 @@ async function _walkRunWholeGeneration(job,splats){
   walkSetup.viewAnchor=_walkPoint(job.view);walkSetup.residentAtBuild=_walkResidentSignature();
   _walkShowPreview(!!document.getElementById('walk-preview')?.checked);
   _wholeByteCache.set(key,bytes);while(_wholeByteCache.size>2)_wholeByteCache.delete(_wholeByteCache.keys().next().value);
-  _walkStatus('全体の当たり判定を準備しました。');
+  _walkStatus(_walkL('全体の当たり判定を準備しました。','Scene collision is ready.'));
   return true;
 }

@@ -84,7 +84,7 @@ window.setFOV=function(degrees,idx){
   // the user knows to leave camera mode first.
   if(typeof cam !== 'undefined' && cam && cam.active){
     if(typeof showUndoToast === 'function'){
-      showUndoToast('📷 カメラ撮影モード中は FOV を変更できません');
+      showUndoToast((window._lang==='en'?'📷 FOV is locked while the camera tool is on':'📷 カメラ撮影モード中は FOV を変更できません'));
     }
     // Visual: keep the FOV button highlight in sync with the locked fov
     // (which is sensorVFov, not necessarily one of the 50/70/90/110

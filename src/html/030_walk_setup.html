@@ -1,21 +1,21 @@
 <dialog id="walk-setup" aria-labelledby="walk-setup-title">
-  <form method="dialog"><header><h2 id="walk-setup-title">アバター歩行</h2><button aria-label="閉じる" title="閉じる">&#x2715;</button></header></form>
-  <label class="walk-field">判定セルの大きさ (m)
+  <form method="dialog"><header><h2 id="walk-setup-title" data-i18n="walk-setup-title">アバター歩行</h2><button aria-label="閉じる" title="閉じる" data-i18n-aria="btn-close" data-i18n-title="btn-close">&#x2715;</button></header></form>
+  <label class="walk-field"><span data-i18n="walk-cell-lbl">判定セルの大きさ (m)</span>
     <input id="walk-cell" type="number" min="0.1" max="1" step="0.05" value="0.25">
   </label>
-  <label class="walk-field">生成範囲の半径 (m)
+  <label class="walk-field"><span data-i18n="walk-radius-lbl">生成範囲の半径 (m)</span>
     <input id="walk-radius" type="number" min="2" max="50" step="1" value="12">
   </label>
   <div class="walk-actions">
-    <button id="walk-generate" onclick="generateWalkCollision()">判定を生成</button>
-    <button onclick="walkUseSelectedMesh()">選択メッシュの判定を切替</button>
-    <button onclick="walkExcludeSelected()">選択立方体の除外範囲を切替</button>
+    <button id="walk-generate" onclick="generateWalkCollision()" data-i18n="walk-generate">判定を生成</button>
+    <button onclick="walkUseSelectedMesh()" data-i18n="walk-use-mesh">選択メッシュの判定を切替</button>
+    <button onclick="walkExcludeSelected()" data-i18n="walk-exclude">選択立方体の除外範囲を切替</button>
   </div>
-  <label class="walk-field"><span>近似判定を表示</span><input id="walk-preview" type="checkbox" onchange="previewWalkCollision(this.checked)"></label>
-  <label class="walk-field"><span>選択メッシュのみで判定</span><input id="walk-mesh-only" type="checkbox" onchange="walkSetMeshOnly(this.checked)"></label>
+  <label class="walk-field"><span data-i18n="walk-preview-lbl">近似判定を表示</span><input id="walk-preview" type="checkbox" onchange="previewWalkCollision(this.checked)"></label>
+  <label class="walk-field"><span data-i18n="walk-mesh-only-lbl">選択メッシュのみで判定</span><input id="walk-mesh-only" type="checkbox" onchange="walkSetMeshOnly(this.checked)"></label>
   <div class="walk-actions">
-    <button onclick="walkSaveSpawn()">開始位置を保存</button>
-    <button onclick="toggleAvatarWalk();document.getElementById('walk-setup').close()">歩行 / 終了</button>
+    <button onclick="walkSaveSpawn()" data-i18n="walk-save-spawn">開始位置を保存</button>
+    <button onclick="toggleAvatarWalk();document.getElementById('walk-setup').close()" data-i18n="walk-toggle">歩行 / 終了</button>
   </div>
   <output id="walk-status" aria-live="polite">判定形状は未生成です。</output>
 </dialog>

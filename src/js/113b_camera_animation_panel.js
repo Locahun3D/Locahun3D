@@ -518,7 +518,7 @@ window.camAnimRecordExport = function(){
       bumpSplatActive(400);
       markDirty(8);
     }, 150);
-    try { if(typeof showUndoToast === 'function') showUndoToast('ウォームアップ中… LOD 読込'); } catch(_){}
+    try { if(typeof showUndoToast === 'function') showUndoToast((window._lang==='en'?'Warming up… loading LOD':'ウォームアップ中… LOD 読込')); } catch(_){}
   }
 
   // Everything that actually starts the recording + drives the fly-through,

@@ -260,7 +260,9 @@ function _pathHint(on){
     if(!el){ el=document.createElement('div'); el.id='path-hint'; el.className='guide-banner';
       el.style.background='rgba(0,150,205,.94)';
       document.body.appendChild(el); }
-    el.textContent='🛣 パス: 4点を左クリック長押しで配置（押して位置を探り、離して確定 / 残り '+(4-_pathPts.length)+'）  ｜  Esc で中止';
+    el.textContent=(window._lang==='en')
+      ? '🛣 Path: long-press to place 4 points (hold to aim, release to confirm / '+(4-_pathPts.length)+' left)  |  Esc to cancel'
+      : '🛣 パス: 4点を左クリック長押しで配置（押して位置を探り、離して確定 / 残り '+(4-_pathPts.length)+'）  ｜  Esc で中止';
     el.style.display='block';
   } else if(el){ el.style.display='none'; }
 }
@@ -319,7 +321,7 @@ function _finalizePath(){
   pushGlobalUndo({type:'layer-add', id:L.id});  // Ctrl+Z removes the created path
   _cancelPath();
   selectLayer(L.id);
-  showUndoToast('🛣 パスを作成しました — オブジェクト情報でテキストを入力できます');
+  showUndoToast((window._lang==='en'?'🛣 Path created — add its text in the object info':'🛣 パスを作成しました — オブジェクト情報でテキストを入力できます'));
 }
 
 window.addPathLayer=function(){

@@ -341,7 +341,7 @@ window.toggleAppFullscreen = function(){
   const upd = ()=>{
     const on = !!(document.fullscreenElement || document.webkitFullscreenElement);
     btn.textContent = on ? '⤢' : '⛶';
-    btn.title = on ? '全画面を終了' : '全画面表示';
+    btn.title = on ? (window._lang==='en' ? 'Exit fullscreen' : '全画面を終了') : (window._lang==='en' ? 'Fullscreen' : '全画面表示');
     // Fullscreen change resizes the visual viewport; refit the renderer the
     // same way orientation changes do (iOS commits the new size late).
     if(typeof _doViewportResize === 'function'){

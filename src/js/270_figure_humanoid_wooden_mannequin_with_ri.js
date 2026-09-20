@@ -556,7 +556,7 @@ window.addFigureLayer = async function(posHint){
       {skinColor:skinDefault, jointColor:jointDefault});
   } catch(e){
     console.warn('[figure] Mixamo GLB load failed, falling back to procedural:', e);
-    showUndoToast('Mixamo モデル読込失敗 → 簡易マネキン表示');
+    showUndoToast((window._lang==='en'?'Could not load the Mixamo model — showing a simple mannequin':'Mixamo モデル読込失敗 → 簡易マネキン表示'));
     figure = _addProceduralFigureToScene(FIGURE_REF_HEIGHT_CM);
   }
   const { root, bones, source, figureMarkers } = figure;

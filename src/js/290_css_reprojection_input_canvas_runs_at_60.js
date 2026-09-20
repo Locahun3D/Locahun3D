@@ -160,7 +160,7 @@ canvas.addEventListener('webglcontextrestored', ()=>{
   // Three.js scene resources are now invalid; the cleanest recovery is a full reload.
   // Defer 200 ms so user sees the message in the toast/console before page reloads.
   if(typeof showUndoToast === 'function'){
-    try { showUndoToast('GPU コンテキスト復帰のためページをリロードします…'); } catch(_){}
+    try { showUndoToast((window._lang==='en'?'Reloading the page to restore the GPU context…':'GPU コンテキスト復帰のためページをリロードします…')); } catch(_){}
   }
   setTimeout(()=>location.reload(), 800);
 }, false);

@@ -76,9 +76,9 @@
         <div style="border-top:1px solid rgba(255,255,255,.07);margin:2px 0"></div>
         <button onclick="_beginPlace('event');window.closeObjTypeMenuTop()" style="background:rgba(255,170,68,.06);border:1px solid rgba(255,170,68,.15);color:#C0C0C0;border-radius:5px;padding:7px 14px;cursor:pointer;font-size:.8em;text-align:left;width:100%;white-space:nowrap;transition:background .15s;" onmouseover="this.style.background='rgba(255,170,68,.18)'" onmouseout="this.style.background='rgba(255,170,68,.06)'">🟠 <span id="obj-add-event">Event (イベント)</span></button>
         <div style="border-top:1px solid rgba(255,255,255,.07);margin:2px 0"></div>
-        <button onclick="_beginPlace('figure');window.closeObjTypeMenuTop()" style="background:rgba(255,140,200,.06);border:1px solid rgba(255,140,200,.18);color:#C0C0C0;border-radius:5px;padding:7px 14px;cursor:pointer;font-size:.8em;text-align:left;width:100%;white-space:nowrap;transition:background .15s;" onmouseover="this.style.background='rgba(255,140,200,.20)'" onmouseout="this.style.background='rgba(255,140,200,.06)'" title="フィギュア追加（リグ付き人型モデル・配置場所を左クリック）">👤 <span id="lbl-addfig-top">フィギュア (人型リグ)</span></button>
+        <button onclick="_beginPlace('figure');window.closeObjTypeMenuTop()" style="background:rgba(255,140,200,.06);border:1px solid rgba(255,140,200,.18);color:#C0C0C0;border-radius:5px;padding:7px 14px;cursor:pointer;font-size:.8em;text-align:left;width:100%;white-space:nowrap;transition:background .15s;" onmouseover="this.style.background='rgba(255,140,200,.20)'" onmouseout="this.style.background='rgba(255,140,200,.06)'" title="フィギュア追加（リグ付き人型モデル・配置場所を左クリック）" data-i18n-title="tt-add-figure">👤 <span id="lbl-addfig-top">フィギュア (人型リグ)</span></button>
         <div style="border-top:1px solid rgba(255,255,255,.07);margin:2px 0"></div>
-        <button onclick="addPathLayer();window.closeObjTypeMenuTop()" style="background:rgba(100,200,255,.06);border:1px solid rgba(100,200,255,.16);color:#C0C0C0;border-radius:5px;padding:7px 14px;cursor:pointer;font-size:.8em;text-align:left;width:100%;white-space:nowrap;transition:background .15s;" onmouseover="this.style.background='rgba(100,200,255,.18)'" onmouseout="this.style.background='rgba(100,200,255,.06)'" title="4点を左クリックで囲んで区画を作成（駐車スペース等）。中央にテキストを表示できます">🛣 <span id="obj-add-path">パス (区画＋ラベル)</span></button>
+        <button onclick="addPathLayer();window.closeObjTypeMenuTop()" style="background:rgba(100,200,255,.06);border:1px solid rgba(100,200,255,.16);color:#C0C0C0;border-radius:5px;padding:7px 14px;cursor:pointer;font-size:.8em;text-align:left;width:100%;white-space:nowrap;transition:background .15s;" onmouseover="this.style.background='rgba(100,200,255,.18)'" onmouseout="this.style.background='rgba(100,200,255,.06)'" title="4点を左クリックで囲んで区画を作成（駐車スペース等）。中央にテキストを表示できます" data-i18n-title="tt-add-path">🛣 <span id="obj-add-path">パス (区画＋ラベル)</span></button>
         <!-- Sphere (球体) and Light (ライト) entries removed per user request.
              addSphereLayer / addLightLayer remain as window.* functions for
              programmatic use (e.g. ZIP project restore) but are no longer
@@ -207,7 +207,7 @@
     <button class="sun-wx-btn" data-wx="snow"   id="sun-wx-snow"   data-i18n="sun-wx-snow"   onclick="onSunWeather('snow')">❄ 雪</button>
   </div>
   <!-- 実際の天気予報 (Open-Meteo, オンライン時のみ) -->
-  <button id="sun-fetch-wx" data-i18n="sun-fetch-wx" onclick="fetchSunForecast()" title="選択中の場所・日付・時刻の実際の天気予報を読み込み、上の天気を自動設定します（インターネット接続が必要）" style="width:100%;margin-bottom:6px;background:rgba(120,180,255,.16);border:1px solid rgba(120,180,255,.4);color:#bdf;border-radius:6px;padding:5px 8px;font-size:.85em;cursor:pointer">🌐 実際の天気予報を取得（オンライン時）</button>
+  <button id="sun-fetch-wx" data-i18n="sun-fetch-wx" data-i18n-title="tt-sun-fetch-wx" onclick="fetchSunForecast()" title="選択中の場所・日付・時刻の実際の天気予報を読み込み、上の天気を自動設定します（インターネット接続が必要）" style="width:100%;margin-bottom:6px;background:rgba(120,180,255,.16);border:1px solid rgba(120,180,255,.4);color:#bdf;border-radius:6px;padding:5px 8px;font-size:.85em;cursor:pointer">🌐 実際の天気予報を取得（オンライン時）</button>
   <div id="sun-forecast" style="display:none;background:rgba(120,180,255,.08);border:1px solid rgba(120,180,255,.22);border-radius:6px;padding:6px 9px;font-size:.88em;margin-bottom:10px;line-height:1.4"></div>
 
   <!-- 日付 (カスタムカレンダー) -->
@@ -227,9 +227,9 @@
       oninput="onSunTime(this.value)" style="width:100%;accent-color:#ffd49a;display:block">
     <div id="sun-scrub-marks" style="position:relative;height:8px;margin-top:1px">
       <div id="sun-mark-rise" style="display:none;position:absolute;top:0;width:0;height:0;
-        border-left:4px solid transparent;border-right:4px solid transparent;border-top:6px solid #ffd49a;transform:translateX(-4px)" title="日の出"></div>
+        border-left:4px solid transparent;border-right:4px solid transparent;border-top:6px solid #ffd49a;transform:translateX(-4px)" title="日の出" data-i18n-title="tt-sunrise"></div>
       <div id="sun-mark-set" style="display:none;position:absolute;top:0;width:0;height:0;
-        border-left:4px solid transparent;border-right:4px solid transparent;border-top:6px solid #d88" title="日の入り"></div>
+        border-left:4px solid transparent;border-right:4px solid transparent;border-top:6px solid #d88" title="日の入り" data-i18n-title="tt-sunset"></div>
     </div>
   </div>
 
@@ -249,8 +249,8 @@
     <div style="display:none"><span class="sun-rk" id="sun-rl-alt" data-i18n="sun-rl-alt">↕ 高度</span> <b id="sun-r-alt">—</b></div>
     <div style="display:none"><span class="sun-rk" id="sun-rl-az" data-i18n="sun-rl-az">↗ 方位</span> <b id="sun-r-az">—</b></div>
     <div style="display:none;grid-column:1/-1;border-top:1px solid rgba(255,255,255,.08);margin-top:2px;padding-top:5px"><b id="sun-r-moonphase">—</b></div>
-    <div style="display:none"><span class="sun-rk" id="sun-rl-moonrise">🌘 月の出</span> <b id="sun-r-moonrise">—</b></div>
-    <div style="display:none"><span class="sun-rk" id="sun-rl-moonset">🌗 月の入り</span> <b id="sun-r-moonset">—</b></div>
+    <div style="display:none"><span class="sun-rk" id="sun-rl-moonrise" data-i18n="sun-rl-moonrise">🌘 月の出</span> <b id="sun-r-moonrise">—</b></div>
+    <div style="display:none"><span class="sun-rk" id="sun-rl-moonset" data-i18n="sun-rl-moonset">🌗 月の入り</span> <b id="sun-r-moonset">—</b></div>
   </div>
 </div>
 
@@ -533,7 +533,7 @@
         </label>
         <label style="display:flex;align-items:center;gap:6px;font-size:.95em;cursor:pointer">
           <input type="checkbox" id="cm-hide-overlays"
-            style="accent-color:#ffb454;cursor:pointer"> <span id="csp-hide-overlays">区画パス・イベントを非表示</span>
+            style="accent-color:#ffb454;cursor:pointer"> <span id="csp-hide-overlays" data-i18n="csp-hide-overlays">区画パス・イベントを非表示</span>
         </label>
         <button onclick="captureCamShot()" id="cm-capture-btn"
           style="margin-top:4px;padding:8px;background:rgba(255,180,84,.2);
@@ -707,7 +707,7 @@
   <!-- 右上の × で測定を閉じる（user 2026-06-28）。.gt は applyI18n が innerHTML を
        書き換えるので、その外（パネル直下）に絶対配置で置く。 -->
   <button id="msr-close-x" onclick="toggleMeasure()" ontouchend="if(event.cancelable)event.preventDefault(); toggleMeasure();"
-    title="測定を閉じる" aria-label="閉じる"
+    title="測定を閉じる" aria-label="閉じる" data-i18n-title="tt-msr-close" data-i18n-aria="btn-close"
     style="position:absolute;top:9px;right:11px;background:none;border:none;color:#9a9a9a;font-size:1.05em;line-height:1;cursor:pointer;padding:3px 5px;z-index:2">✕</button>
   <div class="gt">📐 距離測定</div>
 
@@ -959,6 +959,7 @@ await window.__locahunStartupGate;
 {{include:src/js/370_type_visibility_filter.js}}
 {{include:src/js/380_resizable_layer_panel.js}}
 {{include:src/js/390_i18n_extensions_home_screen_settings.js}}
+{{include:src/js/391_i18n_gaps.js}}
 {{include:src/js/400_input.js}}
 {{include:src/js/401_input_mouse.js}}
 {{include:src/js/402_input_shared_drag_touch.js}}

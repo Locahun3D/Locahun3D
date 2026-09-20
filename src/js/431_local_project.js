@@ -26,15 +26,15 @@ if(new URLSearchParams(location.search).get('localProject')==='1') {
   local.beginRestore=()=>{
     const ticket=++restoreTicket;
     local.restoring=true;local.ready=false;local.changeVersion++;local.dirty=true;
-    document.body.classList.add('local-project-restoring');controls();status('読み込み中...');
+    document.body.classList.add('local-project-restoring');controls();status((label()?'Loading...':'読み込み中...'));
     return ticket;
   };
   local.endRestore=(ticket,success)=>{
     if(ticket!==restoreTicket)return;
     local.restoring=false;local.ready=success&&!booting;
     document.body.classList.remove('local-project-restoring');controls();
-    if(!success){local.status='error';status('読込に失敗しました。保存せず、編集を開き直してください。',true);}
-    else if(!booting)status('未保存の変更あり');
+    if(!success){local.status='error';status((label()?'Load failed. Do not save; reopen the editor.':'読込に失敗しました。保存せず、編集を開き直してください。'),true);}
+    else if(!booting)status(label()?'Unsaved changes':'未保存の変更あり');
   };
   async function request(route,options={}){
     const response=await fetch(new URL(route,base),{cache:'no-store',...options});
@@ -73,14 +73,14 @@ if(new URLSearchParams(location.search).get('localProject')==='1') {
     try{
       const project=await window.saveProjectZip(false,{localProject:{resolveAsset}});
       if(!project)throw new Error('Project snapshot unavailable');
-      if(changeVersion!==local.changeVersion)throw new Error('読込み・編集が進行中です。完了してから再度保存してください。');
+      if(changeVersion!==local.changeVersion)throw new Error((label()?'Loading or editing is still in progress. Save again when it finishes.':'読込み・編集が進行中です。完了してから再度保存してください。'));
       const response=await request('api/project',{method:'POST',headers:{'Content-Type':'application/json'},
         body:JSON.stringify({revision:local.revision,status:statusValue,project})});
       const saved=await response.json();
       if(!Number.isInteger(saved.revision)||saved.revision!==local.revision+1)throw new Error('Unexpected saved revision. Reopen project.');
       local.revision=saved.revision;local.status=saved.status;local.dirty=changeVersion!==local.changeVersion;
       status((saved.status==='editing_complete'?(label()?'Editing complete':'編集完了'):(label()?'Saved':'保存済み'))+' · r'+saved.revision);
-      if(local.dirty)status('保存後の変更があります。再度保存してください。',true);
+      if(local.dirty)status((label()?'There are changes since the last save. Save again.':'保存後の変更があります。再度保存してください。'),true);
       return true;
     }catch(error){
       local.dirty=true;status((label()?'Save failed: ':'保存失敗: ')+error.message,true);return false;
@@ -102,10 +102,10 @@ if(new URLSearchParams(location.search).get('localProject')==='1') {
     // Remove the shared i18n target so subsequent language updates cannot restore "ZIP Save".
     saveLabel.id='local-save-label';saveLabel.textContent='保存';
     completeButton=document.createElement('button');completeButton.id='local-project-complete';
-    completeButton.textContent='編集完了';completeButton.title='確認した内容を保存して編集完了にする';
+    completeButton.textContent='編集完了';completeButton.title=(label()?'Save what you checked and mark editing complete':'確認した内容を保存して編集完了にする');
     completeButton.onclick=local.complete;saveButton.after(completeButton);
     statusEl=document.createElement('div');statusEl.id='local-project-status';statusEl.setAttribute('role','status');
-    completeButton.after(statusEl);status('読み込み中...');controls();
+    completeButton.after(statusEl);status((label()?'Loading...':'読み込み中...'));controls();
     const refreshLabels=()=>{
       saveLabel.textContent=label()?'Save':'保存';saveButton.title=label()?'Save in place':'上書き保存';
       completeButton.textContent=label()?'Complete':'編集完了';
@@ -145,9 +145,9 @@ if(new URLSearchParams(location.search).get('localProject')==='1') {
         if(entry.file)assetRefs.set(L,{file:entry.file,raw:L._rawBuffer,url:L._streamUrl});
       }
       booting=false;local.revision=envelope.revision;local.status=envelope.status;local.ready=true;local.dirty=false;
-      status((envelope.status==='editing_complete'?'編集完了':'保存済み')+' · r'+envelope.revision);
+      status((envelope.status==='editing_complete'?(label()?'Editing complete':'編集完了'):(label()?'Saved':'保存済み'))+' · r'+envelope.revision);
       controls();
-    }catch(error){local.ready=false;local.status='error';status('読込失敗: '+error.message,true);controls();}
+    }catch(error){local.ready=false;local.status='error';status((label()?'Load failed: ':'読込失敗: ')+error.message,true);controls();}
   }
   queueMicrotask(open);
 }

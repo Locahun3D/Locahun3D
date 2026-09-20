@@ -342,7 +342,7 @@ async function _arEnter(orientPermP){
   }
   const lbl = document.getElementById('lbl-ar');
   if(lbl) lbl.textContent = T('lbl-ar-exit');
-  showUndoToast('📱 AR (WebGL 統合) ON — 端末を傾けて視点を変えられます');
+  showUndoToast((window._lang==='en'?'📱 AR on — tilt the device to look around':'📱 AR (WebGL 統合) ON — 端末を傾けて視点を変えられます'));
   markDirty(10);
 }
 

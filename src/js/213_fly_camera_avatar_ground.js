@@ -329,14 +329,14 @@ window.toggleAvatarWalk = function(){
 };
 
 async function _avatarWalkEnter(){
-  if(typeof camAnim!=='undefined' && camAnim.playing)throw new Error('カメラワークの再生を停止してから歩行を開始してください。');
+  if(typeof camAnim!=='undefined' && camAnim.playing)throw new Error(_walkL('カメラワークの再生を停止してから歩行を開始してください。','Stop camera-move playback before walking.'));
   const epoch=walkSetup.epoch;
   await _walkPrepareCollision();
   // Resolve below the current camera after preparation and avatar loading.
   if(!walkMode.avatar){
     try {
       const built=await _avatarBuild();
-      if(epoch!==walkSetup.epoch){built.userData.kawaiiAnimation?.dispose();throw new Error('シーンが変更されたため歩行開始を中止しました。');}
+      if(epoch!==walkSetup.epoch){built.userData.kawaiiAnimation?.dispose();throw new Error(_walkL('シーンが変更されたため歩行開始を中止しました。','The scene changed, so walking was not started.'));}
       walkMode.avatar=built;
       const api=built.userData.kawaiiAnimation;
       walkMode.bones=null;walkMode.mixer=api.mixer;walkMode.walkAction=api.walkAction;
@@ -349,7 +349,7 @@ async function _avatarWalkEnter(){
     scene.add(walkMode.avatar);
     _avatarMeasureGroundOffset(walkMode.avatar);
   }
-  if(epoch!==walkSetup.epoch) throw new Error('シーンが変更されたため歩行開始を中止しました。');
+  if(epoch!==walkSetup.epoch) throw new Error(_walkL('シーンが変更されたため歩行開始を中止しました。','The scene changed, so walking was not started.'));
   const spawn=_walkCameraSpawnPosition();
   walkMode.entryCamera={position:{x:camPos.x,y:camPos.y,z:camPos.z},yaw,pitch};
   walkMode.moveX=0;walkMode.moveZ=0;walkMode.actualSpeed=0;

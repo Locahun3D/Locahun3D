@@ -259,6 +259,8 @@ const I18N = {
   }
 };
 function T(key){ return I18N[window._lang]?.[key] ?? I18N.ja[key] ?? key; }
+// True while the UI language is English (shared helper for inline JA/EN picks).
+function _en(){ return window._lang==='en'; }
 
 window.toggleLang = function(){
   window._lang = window._lang==='ja'?'en':'ja';
@@ -404,6 +406,12 @@ function applyI18n(){
   const qpT=document.querySelector('#qpanel .qt'); if(qpT) qpT.textContent=T('qp-title');
   const emT=document.querySelector('#export-modal .em-title'); if(emT) emT.textContent=T('em-title');
   const emC=document.querySelector('#export-modal .em-close'); if(emC) emC.textContent=T('btn-cancel');
+  // Generic attribute pass: data-i18n-title / data-i18n-aria / data-i18n-ph carry
+  // the dictionary key for title / aria-label / placeholder (keys: 391_i18n_gaps.js).
+  for(const [attr,target] of [['data-i18n-title','title'],['data-i18n-aria','aria-label'],['data-i18n-ph','placeholder']]){
+    document.querySelectorAll('['+attr+']').forEach(el=>{ el.setAttribute(target, T(el.getAttribute(attr))); });
+  }
+  if(typeof _applyI18nGaps==='function') _applyI18nGaps();
   // Re-render layer list with correct language
   renderLayerList();
   renderTransformPanel();

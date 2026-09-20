@@ -1,3 +1,5 @@
+// JA/EN picker for walk status + error text (typeof guard: this file also runs in node vm tests).
+function _walkL(ja,en){return (typeof window!=='undefined'&&window._lang==='en')?en:ja;}
 const walkSetup = {
   settings: LocahunWalkSettings.parse(null), core: null, busy: false,
   preview: null, epoch: 0, checkedAt: 0, status: '', entering: false,
@@ -15,10 +17,10 @@ function _walkStatus(message) {
   if(button) {
     const busy=walkSetup.busy || !!walkSetup.importPending;
     button.setAttribute('aria-busy',String(busy));
-    button.title=busy?'歩行判定を生成中です。クリックすると完了後に歩行を開始します。':message;
+    button.title=busy?_walkL('歩行判定を生成中です。クリックすると完了後に歩行を開始します。','Preparing walk collision. Click to start walking when it is ready.'):message;
     if(label) {
       if(busy && !button.dataset.walkLabel)button.dataset.walkLabel=label.textContent;
-      if(busy)label.textContent='判定生成中…';
+      if(busy)label.textContent=_walkL('判定生成中…','Preparing…');
       else if(button.dataset.walkLabel){label.textContent=button.dataset.walkLabel;delete button.dataset.walkLabel;}
     }
   }
@@ -80,11 +82,11 @@ function _walkMeshGeometry() {
       const p = o.geometry.getAttribute('position');
       if (!p) return;
       total += p.count;
-      if (total > 1000000) throw new Error('判定用メッシュが大きすぎます。軽量メッシュを使用してください。');
+      if (total > 1000000) throw new Error(_walkL('判定用メッシュが大きすぎます。軽量メッシュを使用してください。','The collision mesh is too large. Use a lighter mesh.'));
       const vertices = new Float32Array(p.count*3), vec = new THREE.Vector3();
       for (let i=0;i<p.count;i++) {
         vec.fromBufferAttribute(p,i).applyMatrix4(o.matrixWorld);
-        if (![vec.x,vec.y,vec.z].every(Number.isFinite)) throw new Error('メッシュ座標が無効です。');
+        if (![vec.x,vec.y,vec.z].every(Number.isFinite)) throw new Error(_walkL('メッシュ座標が無効です。','The mesh has invalid coordinates.'));
         vertices.set([vec.x,vec.y,vec.z],i*3);
       }
       const index = o.geometry.getIndex();
@@ -101,17 +103,17 @@ async function _walkInstallCore(boxes, job=null) {
   const core = job ? await _walkAwait(creating,job) : await creating;
   let settled=null;
   try {
-    if (epoch !== walkSetup.epoch) throw new Error('生成をキャンセルしました。');
+    if (epoch !== walkSetup.epoch) throw new Error(_walkL('生成をキャンセルしました。','Generation cancelled.'));
     if(job) _walkCheckJob(job);
     const meshes = _walkMeshGeometry();
-    if (!boxes.length && !meshes.length) throw new Error('判定形状がありません。3DGSか判定用メッシュを指定してください。');
+    if (!boxes.length && !meshes.length) throw new Error(_walkL('判定形状がありません。3DGSか判定用メッシュを指定してください。','No collision shape. Add a 3DGS or a collision mesh.'));
     core.rebuild({boxes,meshes});
     if(walkMode.active && walkMode.avatar) {
       const p=walkMode.avatar.position;
       let feet={x:p.x,y:p.y+walkMode.groundOffset,z:p.z};
       if(!_walkFeetClear(core,feet,!walkMode.airborne)) {
         settled=core.reconcileFeet?.(feet,_walkBodyHeight(),walkMode.bodyRadius,!walkMode.airborne);
-        if(!settled)throw new Error('追加判定では現在位置の床・空きを確認できません。歩行を停止し、開始位置を確認してください。');
+        if(!settled)throw new Error(_walkL('追加判定では現在位置の床・空きを確認できません。歩行を停止し、開始位置を確認してください。','The added collision leaves no floor or clearance here. Stop walking and check the start position.'));
         feet=settled;
       }
       core.setCharacter(feet,_walkBodyHeight(),walkMode.bodyRadius);
@@ -138,15 +140,15 @@ function _walkExcludeBoxes(boxes) {
   return boxes.filter(b=>!volumes.some(v=>v.bounds.containsPoint(p.fromArray(b.center).applyMatrix4(v.inverse))));
 }
 function _walkCheckJob(job) {
-  if(job.epoch!==walkSetup.epoch || walkSetup.job!==job)throw new Error('生成をキャンセルしました。');
-  if(job.sources?.some(s=>!layers.some(L=>L.id===s.id&&L.mesh===s.mesh)))throw new Error('点群が置換されました。判定形状を再生成します。');
-  if(job.signature!==_walkSourceSignature())throw new Error('レイヤーが変更されました。判定形状を再生成します。');
+  if(job.epoch!==walkSetup.epoch || walkSetup.job!==job)throw new Error(_walkL('生成をキャンセルしました。','Generation cancelled.'));
+  if(job.sources?.some(s=>!layers.some(L=>L.id===s.id&&L.mesh===s.mesh)))throw new Error(_walkL('点群が置換されました。判定形状を再生成します。','The point cloud was replaced. Regenerating collision.'));
+  if(job.signature!==_walkSourceSignature())throw new Error(_walkL('レイヤーが変更されました。判定形状を再生成します。','Layers changed. Regenerating collision.'));
 }
 async function _walkAwait(promise,job) {
   let timer;
   try {
-    return await Promise.race([promise,job.cancelled.then(()=>{throw new Error('生成をキャンセルしました。');}),
-      new Promise((_,reject)=>{timer=setTimeout(()=>reject(new Error('点群の読込または判定生成がタイムアウトしました。歩行ボタンで再試行できます。')),60000);})]);
+    return await Promise.race([promise,job.cancelled.then(()=>{throw new Error(_walkL('生成をキャンセルしました。','Generation cancelled.'));}),
+      new Promise((_,reject)=>{timer=setTimeout(()=>reject(new Error(_walkL('点群の読込または判定生成がタイムアウトしました。歩行ボタンで再試行できます。','Loading or collision generation timed out. Press Walk to retry.'))),60000);})]);
   } finally {clearTimeout(timer);}
 }
 function _walkPoint(p) {return {x:p.x,y:p.y,z:p.z};}
@@ -200,7 +202,7 @@ async function _walkRunGeneration(job) {
     job.sources=layers.filter(L=>L.mesh).map(L=>({id:L.id,mesh:L.mesh}));
     const center=job.center;
     const splats = walkSetup.settings.meshOnly ? [] : layers.filter(L => L.type==='splat' && L.visible && L.mesh);
-    _walkStatus(options.automatic&&!options.allowBake?'保存済みの当たり判定を確認中…':'3DGS読込待ち・近似判定を生成中…');
+    _walkStatus(options.automatic&&!options.allowBake?_walkL('保存済みの当たり判定を確認中…','Checking saved collision…'):_walkL('3DGS読込待ち・近似判定を生成中…','Waiting for the 3DGS / generating collision…'));
     await _walkAwait(Promise.all(splats.map(L=>L.mesh.initialized)),job);
     _walkCheckJob(job);
     await _walkAwait(new Promise(resolve=>setTimeout(resolve,0)),job);
@@ -212,7 +214,7 @@ async function _walkRunGeneration(job) {
       walkSetup.viewAnchor=_walkPoint(job.view);
       walkSetup.residentAtBuild=_walkResidentSignature();
       walkSetup.failedKey='';
-      _walkStatus('保存済みの歩行判定を復元しました。');
+      _walkStatus(_walkL('保存済みの歩行判定を復元しました。','Restored saved walk collision.'));
       return true;
     }
     let sampled;
@@ -229,7 +231,7 @@ async function _walkRunGeneration(job) {
         sampled=splats.length?_acCollectSplatPoints(2000000):{points:null,count:0,meshes:0};
         if(sampled.meshes===splats.length && (!splats.length||sampled.count))break;
       }
-      if(performance.now()>deadline)throw new Error('点群の座標を取得できません。読込形式・ストリーミング状態を確認し、歩行ボタンで再試行してください。');
+      if(performance.now()>deadline)throw new Error(_walkL('点群の座標を取得できません。読込形式・ストリーミング状態を確認し、歩行ボタンで再試行してください。','Could not read point positions. Check the file format and streaming state, then press Walk to retry.'));
       if(typeof bumpSplatActive==='function')bumpSplatActive(1000);
       markDirty(3);
       await _walkAwait(new Promise(resolve=>setTimeout(resolve,250)),job);
@@ -256,7 +258,7 @@ async function _walkRunGeneration(job) {
     }
     const combined=output.subarray(0,total*3);
     let boxes=[],cellSize=walkSetup.settings.cellSize;
-    if(splats.length && !total)throw new Error('開始位置の周辺に点群がありません。床のある場所へ視点を移してください。');
+    if(splats.length && !total)throw new Error(_walkL('開始位置の周辺に点群がありません。床のある場所へ視点を移してください。','No points near the start position. Move the view over a floor.'));
     while(total) {
       _walkCheckJob(job);
       try {
@@ -265,9 +267,9 @@ async function _walkRunGeneration(job) {
         break;
       } catch(e) {
         if(!/maxCells|(?:maxCandidates|candidate).*exceed/i.test(e.message))throw e;
-        if(cellSize>=1)throw new Error('1 mセルでも判定形状の上限を超えました。生成範囲を小さくするか、判定用メッシュを指定してください。');
+        if(cellSize>=1)throw new Error(_walkL('1 mセルでも判定形状の上限を超えました。生成範囲を小さくするか、判定用メッシュを指定してください。','Collision exceeds the limit even at 1 m cells. Reduce the radius or use a collision mesh.'));
         cellSize=Math.min(1,Math.round(cellSize*1.5*1000)/1000);
-        _walkStatus('判定形状の密度を自動調整中… '+cellSize+' m');
+        _walkStatus(_walkL('判定形状の密度を自動調整中… ','Adjusting collision density… ')+cellSize+' m');
         await _walkAwait(new Promise(resolve=>setTimeout(resolve,0)),job);
       }
     }
@@ -290,7 +292,7 @@ async function _walkRunGeneration(job) {
     walkSetup.residentAtBuild=_walkResidentSignature();
     walkSetup.failedKey='';
     _walkShowPreview(!!document.getElementById('walk-preview')?.checked);
-    _walkStatus('近似判定: '+boxes.length.toLocaleString()+'セル / '+cellSize+' m / 半径 '+radius+' m'+(detailed.region?' / 足元 0.1 m':'')+'（範囲端で追加生成）');
+    _walkStatus(_walkL('近似判定: ','Collision: ')+boxes.length.toLocaleString()+_walkL('セル / ',' cells / ')+cellSize+_walkL(' m / 半径 ',' m / radius ')+radius+' m'+(detailed.region?_walkL(' / 足元 0.1 m',' / 0.1 m underfoot'):'')+_walkL('（範囲端で追加生成）',' (extends at the edge)'));
     return true;
   } catch(e) {
     if(epoch === walkSetup.epoch && walkSetup.job===job) {
@@ -311,9 +313,9 @@ async function _walkRunGeneration(job) {
 }
 async function _walkPrepareCollision() {
   const epoch=walkSetup.epoch;
-  if(walkSetup.importPending && !await walkSetup.importPending)throw new Error(walkSetup.status||'3DGS読込を中止しました。');
+  if(walkSetup.importPending && !await walkSetup.importPending)throw new Error(walkSetup.status||_walkL('3DGS読込を中止しました。','3DGS loading was cancelled.'));
   if(walkSetup.pending)await walkSetup.pending;
-  if(epoch!==walkSetup.epoch)throw new Error('シーンが変更されました。');
+  if(epoch!==walkSetup.epoch)throw new Error(_walkL('シーンが変更されました。','The scene changed.'));
   if(!walkMode.active && _walkNeedsRegion(camPos,.5)) {
     if(!await _walkGenerateCollision({automatic:true,allowBake:true,center:camPos,preserveSpawn:true}))throw new Error(walkSetup.status);
   }
@@ -329,7 +331,7 @@ function _walkPrepareDeferredSpawn(epoch) {
   const check=()=>{
     if(epoch!==walkSetup.epoch||!core||core!==walkSetup.core||!walkSetup.wholeIndex||
       signature!==_walkSourceSignature()||walkSetup.settings.signature!==signature)
-      throw new Error('シーンが変更されたため開始位置の準備を中止しました。');
+      throw new Error(_walkL('シーンが変更されたため開始位置の準備を中止しました。','The scene changed, so start-position setup was cancelled.'));
   };
   check();
   walkSetup.spawnCandidate=null;walkSetup.spawnYawCandidate=null;
@@ -349,12 +351,12 @@ function _walkPrepareDeferredSpawn(epoch) {
 function _walkBeginImport() {
   _walkCancelPending();
   walkSetup.importPending=new Promise(resolve=>{walkSetup.importDone=resolve;});
-  _walkStatus('3DGS読込待ち・保存済みの当たり判定を確認します。');
+  _walkStatus(_walkL('3DGS読込待ち・保存済みの当たり判定を確認します。','Waiting for the 3DGS / checking saved collision.'));
   return walkSetup.epoch;
 }
 function _walkFailImport(epoch,error) {
   if(epoch!==walkSetup.epoch)return;
-  _walkStatus('3DGS読込失敗: '+error.message);
+  _walkStatus(_walkL('3DGS読込失敗: ','3DGS load failed: ')+error.message);
   if(walkSetup.importDone)walkSetup.importDone(false);
   walkSetup.importPending=null;walkSetup.importDone=null;
   _walkStatus(walkSetup.status);
@@ -364,7 +366,7 @@ function _walkAutoImport(epoch=walkSetup.epoch,mesh=null) {
   if(walkSetup.importDone)walkSetup.importDone(true);
   walkSetup.importPending=null;walkSetup.importDone=null;
   if(!layers.some(L=>L.mesh&&L.visible&&(L.type==='splat'||walkSetup.settings.meshIds.includes(L.id)))) {
-    _walkStatus('判定対象の3DGSまたはメッシュがありません。');
+    _walkStatus(_walkL('判定対象の3DGSまたはメッシュがありません。','No 3DGS or mesh to build collision from.'));
     return Promise.resolve(false);
   }
   walkSetup.autoEnabled=true;walkSetup.failedKey='';walkSetup.deferredSignature='';
@@ -388,14 +390,14 @@ async function _walkAutoTick() {
 function _walkBodyHeight(){return Math.min(walkMode.height||1.65,1);}
 function _walkCameraSpawnPosition(){
   const point=_walkPoint(camPos),core=walkSetup.core;
-  if(!core)throw new Error('歩行用の当たり判定を準備中です。');
+  if(!core)throw new Error(_walkL('歩行用の当たり判定を準備中です。','Walk collision is still being prepared.'));
   if(walkSetup.wholeIndex&&_walkWholeCoverage(point,point,{drop:22})===false)throw new Error(walkSetup.status);
   const distance=core.raycast(point,{x:0,y:-1,z:0},20);
   if(Number.isFinite(distance)&&distance>0){
     const feet={x:point.x,y:point.y-distance+.05,z:point.z};
     if(_walkFeetClear(core,feet))return feet;
   }
-  throw new Error('カメラの真下に歩ける床がありません。床の上へ視点を移してください。');
+  throw new Error(_walkL('カメラの真下に歩ける床がありません。床の上へ視点を移してください。','No walkable floor below the camera. Move the view over a floor.'));
 }
 // Ground support is sampled separately; body clearance uses the lower capsule.
 function _walkFeetClear(core,feet,requireSupport=true) {
@@ -436,7 +438,7 @@ function _walkSpawnPosition(useSaved=true) {
       return result;
     }
   }
-  throw new Error('十分な床と身体周囲の空きがある開始位置を確認できません。読込完了を待つか、床の近くへ視点を移してください。');
+  throw new Error(_walkL('十分な床と身体周囲の空きがある開始位置を確認できません。読込完了を待つか、床の近くへ視点を移してください。','No start position with enough floor and clearance. Wait for loading to finish or move closer to a floor.'));
 }
 function _walkCollisionAdvance(av,dt,dx,dz,jump) {
   if(!walkMode.airborne)walkMode.jumpFlightSeconds=undefined;
@@ -446,7 +448,7 @@ function _walkCollisionAdvance(av,dt,dx,dz,jump) {
   // but never advance against geometry invalidated by an edit/import.
   if(walkSetup.importPending||!walkSetup.settings.signature||walkSetup.settings.signature!==_walkSourceSignature()){
     walkMode.actualSpeed=0;
-    if(walkMode.active){_avatarWalkExit();_walkStatus('シーンの変更により歩行を終了しました。判定の準備後に再開できます。');}
+    if(walkMode.active){_avatarWalkExit();_walkStatus(((typeof window!=='undefined'&&window._lang==='en')?'Walking ended because the scene changed. You can resume once collision is ready.':'シーンの変更により歩行を終了しました。判定の準備後に再開できます。'));}
     return false;
   }
   const next={x:av.position.x+dx*dt,y:av.position.y,z:av.position.z+dz*dt};
@@ -461,7 +463,7 @@ function _walkCollisionAdvance(av,dt,dx,dz,jump) {
     if(walkSetup.settings.signature!==_walkSourceSignature()) {
       walkMode.actualSpeed=0;
       if(walkSetup.autoEnabled)_walkAutoTick();
-      else {_avatarWalkExit();_walkStatus('レイヤー変更後は判定形状を再生成してください。');}
+      else {_avatarWalkExit();_walkStatus(((typeof window!=='undefined'&&window._lang==='en')?'Layers changed. Regenerate the collision.':'レイヤー変更後は判定形状を再生成してください。'));}
       return false;
     }
   }
@@ -484,7 +486,7 @@ function _walkCollisionAdvance(av,dt,dx,dz,jump) {
   if(!walkMode.airborne)walkMode.jumpFlightSeconds=undefined;
   walkMode.groundY=av.position.y+walkMode.groundOffset;
   if(walkMode.groundY < (walkMode.entryGroundY ?? walkSetup.settings.spawn?.y ?? 0)-30) {
-    _avatarWalkExit(); _walkStatus('判定範囲の外に落下しました。開始位置を再設定してください。'); return false;
+    _avatarWalkExit(); _walkStatus(((typeof window!=='undefined'&&window._lang==='en')?'You fell outside the collision area. Set the start position again.':'判定範囲の外に落下しました。開始位置を再設定してください。')); return false;
   }
   walkMode.actualSpeed=Math.hypot(av.position.x-oldX,av.position.z-oldZ)/Math.max(dt,.0001);
   return walkMode.actualSpeed>.03;
@@ -501,8 +503,8 @@ function _walkUpdateCameraReadiness(){
   if(button){
     button.setAttribute('aria-checked',String(cameraCollisionEnabled));
     button.dataset.readiness=state;
-    button.textContent=state==='off'?'OFF':state==='ready'?'ON':state==='preparing'?'準備中':'未準備';
-    button.title=state==='ready'?'カメラ当たり判定 ON':state==='off'?'カメラ当たり判定 OFF':'当たり判定は未準備です。通常閲覧は続けられます。';
+    button.textContent=state==='off'?'OFF':state==='ready'?'ON':state==='preparing'?_walkL('準備中','Preparing'):_walkL('未準備','Not ready');
+    button.title=state==='ready'?_walkL('カメラ当たり判定 ON','Camera collision ON'):state==='off'?_walkL('カメラ当たり判定 OFF','Camera collision OFF'):_walkL('当たり判定は未準備です。通常閲覧は続けられます。','Collision is not ready. You can keep viewing as usual.');
     button.classList.toggle('on',state==='ready');
   }
 }
@@ -593,7 +595,7 @@ function _walkRestoreSettings(data) {
   const size=document.getElementById('walk-cell'); if(size) size.value=walkSetup.settings.cellSize;
   const radius=document.getElementById('walk-radius');if(radius)radius.value=walkSetup.settings.radius;
   const meshOnly=document.getElementById('walk-mesh-only');if(meshOnly)meshOnly.checked=walkSetup.settings.meshOnly;
-  _walkStatus(data ? '歩行設定を復元しました。' : '判定形状は未生成です。');
+  _walkStatus(data ? _walkL('歩行設定を復元しました。','Walk settings restored.') : _walkL('判定形状は未生成です。','No collision generated yet.'));
 }
 window.openWalkSetup=function(){document.getElementById('walk-setup').showModal();};
 window.generateWalkCollision=_walkGenerateCollision;
@@ -603,36 +605,36 @@ window.walkSetMeshOnly=function(value){
   if(walkMode.active)_avatarWalkExit();
   walkSetup.settings.meshOnly=!!value;
   walkSetup.settings.signature='';
-  _walkStatus('判定方式を変更しました。再生成してください。');
+  _walkStatus(_walkL('判定方式を変更しました。再生成してください。','Collision mode changed. Regenerate.'));
 };
 window.walkUseSelectedMesh=function(){
   if(walkSetup.busy)return;
   const L=layers.find(L=>L.id===selectedLayerId && ['cube','sphere','obj'].includes(L.type));
-  if(!L) {_walkStatus('立方体・球・読込メッシュを選択してください。');return;}
+  if(!L) {_walkStatus(_walkL('立方体・球・読込メッシュを選択してください。','Select a cube, sphere or imported mesh.'));return;}
   const ids=walkSetup.settings.meshIds;
   if(ids.includes(L.id)) ids.splice(ids.indexOf(L.id),1); else ids.push(L.id);
   walkSetup.settings.excludeIds=walkSetup.settings.excludeIds.filter(id=>id!==L.id);
   walkSetup.settings.signature='';
   if(walkMode.active) _avatarWalkExit();
-  _walkStatus((ids.includes(L.id)?'判定に追加: ':'判定から除外: ')+L.name+' / 再生成してください。');
+  _walkStatus((ids.includes(L.id)?_walkL('判定に追加: ','Added to collision: '):_walkL('判定から除外: ','Removed from collision: '))+L.name+_walkL(' / 再生成してください。',' / regenerate to apply.'));
 };
 window.walkExcludeSelected=function(){
   if(walkSetup.busy)return;
   const L=layers.find(L=>L.id===selectedLayerId&&L.type==='cube');
-  if(!L){_walkStatus('除外範囲にする立方体を選択してください。');return;}
+  if(!L){_walkStatus(_walkL('除外範囲にする立方体を選択してください。','Select a cube to use as an exclusion zone.'));return;}
   const ids=walkSetup.settings.excludeIds;
   if(ids.includes(L.id))ids.splice(ids.indexOf(L.id),1);else ids.push(L.id);
   walkSetup.settings.meshIds=walkSetup.settings.meshIds.filter(id=>id!==L.id);
   if(walkMode.active)_avatarWalkExit();
   walkSetup.settings.signature='';
-  _walkStatus((ids.includes(L.id)?'除外範囲に追加: ':'除外範囲を解除: ')+L.name+' / 再生成してください。');
+  _walkStatus((ids.includes(L.id)?_walkL('除外範囲に追加: ','Exclusion zone added: '):_walkL('除外範囲を解除: ','Exclusion zone removed: '))+L.name+_walkL(' / 再生成してください。',' / regenerate to apply.'));
 };
 window.walkSaveSpawn=function(){
-  if(!walkMode.active) {_walkStatus('歩行中に開始位置を保存してください。');return;}
+  if(!walkMode.active) {_walkStatus(_walkL('歩行中に開始位置を保存してください。','Save the start position while walking.'));return;}
   const av=walkMode.avatar;
   walkSetup.settings.spawn={x:av.position.x,y:av.position.y+walkMode.groundOffset,z:av.position.z};
   walkSetup.settings.spawnYaw=yaw;
-  _walkStatus('現在位置を歩行開始位置に保存しました。');
+  _walkStatus(_walkL('現在位置を歩行開始位置に保存しました。','Saved the current position as the walk start.'));
 };
 
 // These loaders bypass loadSplatFile (RAD URL and in-place quality reload).
@@ -644,7 +646,7 @@ function _walkObserveImport(importer) {
       const result=await importer.apply(this,args);
       if(epoch===walkSetup.epoch) {
         if(layers.some(L=>L.type==='splat'&&L.mesh&&!before.has(L.mesh)))_walkAutoImport(epoch);
-        else _walkFailImport(epoch,new Error('新しい3DGSは読み込まれていません。'));
+        else _walkFailImport(epoch,new Error(_walkL('新しい3DGSは読み込まれていません。','No new 3DGS was loaded.')));
       }
       return result;
     } catch(e) {_walkFailImport(epoch,e);throw e;}
@@ -657,7 +659,7 @@ if(typeof _fetchBinaryChunked==='function') {
   _fetchBinaryChunked=async function(...args) {
     const epoch=walkSetup.epoch;
     const bytes=await fetchImportBytes.apply(this,args);
-    if(epoch!==walkSetup.epoch)throw new Error('古いURL読込を中止しました。');
+    if(epoch!==walkSetup.epoch)throw new Error(_walkL('古いURL読込を中止しました。','Cancelled an outdated URL load.'));
     return bytes;
   };
 }

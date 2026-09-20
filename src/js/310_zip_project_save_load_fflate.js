@@ -175,7 +175,7 @@ window.saveProjectZip = async function(forceLite, opts){
   }
   if(opts.localProject){
     const unsupported=layers.find(L=>!['folder','cube','sphere','obj','splat','light','figure','event','path'].includes(L.type));
-    if(unsupported)throw new Error('ローカル保存未対応のレイヤーです: '+unsupported.type+' ('+unsupported.name+')');
+    if(unsupported)throw new Error((window._lang==='en'?'This layer type cannot be saved locally: ':'ローカル保存未対応のレイヤーです: ')+unsupported.type+' ('+unsupported.name+')');
   }
   if(_zipSaving){
     if(opts.localProject || opts.strictOnline) throw new Error('Save already in progress');
