@@ -13,7 +13,8 @@ function setup(height=1.7){
     walkSetup:{epoch:0,core:{setCharacter(){}},settings:{}},camPos:new THREE.Vector3(),
     keys:{},joyDX:0,joyDY:0,yaw:0,pitch:0,camAnim:{playing:false},cam:{active:false},arMode:{active:false},
     markDirty(){},T:x=>x,showUndoToast(){},_refreshResetBtnLabel(){},_avatarResetBones(){},
-    _walkPrepareCollision:async()=>{},_walkSpawnPosition:()=>({x:0,y:0,z:0}),
+    // 2026-09-21: 213 が呼ぶのは 217 の _walkCameraSpawnPosition（旧 _walkSpawnPosition からの改名）。スタブを追随させる
+    _walkPrepareCollision:async()=>{},_walkSpawnPosition:()=>({x:0,y:0,z:0}),_walkCameraSpawnPosition:()=>({x:0,y:0,z:0}),_walkBodyHeight:()=>Math.min(height||1.65,1),
     scene:new THREE.Scene(),setCamRotImmediate(){}};
   vm.createContext(c);vm.runInContext(read('213_fly_camera_avatar_ground.js')+'\n'+read('219_collision_walk_update.js'),c);
   return c;

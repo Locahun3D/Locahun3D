@@ -31,6 +31,10 @@ try{
  assert(Math.abs(placed[1].pos.x+3)<.15&&Math.abs(placed[1].pos.y)<.15&&Math.abs(placed[1].pos.z-3)<.15,JSON.stringify({placed,target}));
  await page.screenshot({path:new URL('placed.png',out).pathname.replace(/^\/([A-Z]:)/,'$1')});
  await page.evaluate(()=>dragTest.open());
+ // 2026-09-21: メニューは開くたび「基本」に戻る（2026-09-20 本人指示）ため車両タブを選び直す。
+ // ドロップ直後 700ms はカード誤クリック抑止が効くので、その窓が明けてからタブを押す。
+ await page.waitForTimeout(700);
+ await page.getByRole('tab',{name:'車両',exact:true}).click();
  const again=await card.boundingBox();await page.mouse.move(again.x+again.width/2,again.y+again.height/2);await page.mouse.down();await page.waitForTimeout(500);await page.mouse.up();
  await page.waitForTimeout(150);assert.equal((await page.evaluate(()=>dragTest.layers())).length,2);
  const cdp=await page.context().newCDPSession(page);
@@ -60,6 +64,9 @@ try{
    await page.keyboard.press('Escape');await page.mouse.up();await page.waitForTimeout(100);
    assert.equal((await page.evaluate(()=>dragTest.layers())).length,1,'Escape must not insert figure');
    await page.evaluate(()=>dragTest.open());
+   // 2026-09-21: 開き直しは必ず「基本」なので人物タブを選び直す（誤クリック抑止 700ms の明けを待つ）
+   await page.waitForTimeout(700);
+   await page.getByRole('tab',{name:category,exact:true}).click();
   }
   await page.mouse.move(b.x+b.width/2,b.y+b.height/2);await page.mouse.down();await page.waitForTimeout(1500);
   await page.mouse.move(p.x,p.y);await page.waitForTimeout(200);

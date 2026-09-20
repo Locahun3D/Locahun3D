@@ -29,7 +29,9 @@ test('private sidecars preserve exact embedded bytes and support both URL prefix
     assert.ok(asset.path.includes(asset.descriptor.sha256));
     assert.equal(hash(fs.readFileSync(path.join(out, asset.fragment))), asset.fragmentSha256);
   }
-  assert.equal(online.assets[0].descriptor.sha256, '3584be9f73ecdc7bbcd2ed141d5134bcfc50270169f7fcf18ec784dfb821a604');
+  // 2026-09-21: equipment_models.html はこのピンを書いた be27b8d からバイト単位で不変。
+  // 旧値 3584be9f… は当時から一致しておらず（mixamo 側のピンは正しい）、書き間違いなので実値に直す。
+  assert.equal(online.assets[0].descriptor.sha256, 'a8de344c5503b5d79f7b0d06f6f00c53bb366993f95428426b04a955d3bacad3');
   assert.equal(online.assets[1].descriptor.sha256, '0a557402f6f9411c708d49b428f2e22f443861be8602b53d650b4aba6d2c03d6');
   assert.deepEqual(inputs.map(f => hash(fs.readFileSync(f))), before);
 });

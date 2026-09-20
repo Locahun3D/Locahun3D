@@ -31,6 +31,8 @@ try {
     await page.setViewportSize(viewport);await page.evaluate(()=>closeObjTypeMenuTop());
     await page.locator('#btnAddCubeTop').click();
     assert.equal(await page.getByRole('tab').count(),4);
+    // 2026-09-21: 開くたびに「基本」から（2026-09-20 本人指示。前回のタブは引き継がない）
+    assert.equal(await page.getByRole('tab',{name:'基本',exact:true}).getAttribute('aria-selected'),'true','menu always opens on the Basic tab');
     for(const [category,label] of [['vehicles','車両'],['equipment','機材']]){
       await page.getByRole('tab',{name:label,exact:true}).click();
       assert.equal(await page.getByRole('tab',{name:label,exact:true}).getAttribute('aria-selected'),'true');
@@ -65,6 +67,9 @@ try {
     assert.equal(await page.locator('#obj-type-menu-top').evaluate(e=>e.style.display),'none');
     assert.equal(await page.evaluate(()=>document.activeElement.id),'btnAddCubeTop');
     await page.locator('#btnAddCubeTop').click();
+    // 2026-09-21: 直前が「機材」でも開き直しは必ず「基本」。機材のボタンを触る前にタブを選び直す
+    assert.equal(await page.getByRole('tab',{name:'基本',exact:true}).getAttribute('aria-selected'),'true','reopening forgets the previous category');
+    await page.getByRole('tab',{name:'機材',exact:true}).click();
     await page.locator('#equipment-panel-equipment button').last().focus();
     await page.keyboard.press('Tab');
     assert.equal(await page.evaluate(()=>document.getElementById('obj-type-menu-top').contains(document.activeElement)),false);
