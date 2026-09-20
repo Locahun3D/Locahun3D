@@ -41,6 +41,8 @@ function checkAxisHandle(clientX, clientY) {
     for (const ax of ['x','y','z']) {
       if (msr.axisHandles[pt][ax]) allMeshes.push(...msr.axisHandles[pt][ax]);
     }
+    // 太い当たり判定も対象に（その点の矢印のものだけ）
+    for (const h of (msr.axisHitMeshes || [])) if (h.userData.axisHandle.point === pt) allMeshes.push(h);
   }
   if (allMeshes.length) {
     const hits = _ray.intersectObjects(allMeshes, false);
@@ -66,6 +68,7 @@ function updateAxisHover(clientX, clientY) {
       }
     }
     _hoveredAxis = null;
+    markDirty(2);   // 描画はオンデマンドなので、色を戻したら描き直す
   }
 
   if (hit && hit !== _hoveredAxis) {
@@ -79,6 +82,9 @@ function updateAxisHover(clientX, clientY) {
     }
     _hoveredAxis = hit;
     canvas.style.cursor = 'crosshair';
+    // 2026-09-20 本人指摘「選択できている矢印をハイライト。オブジェクト移動と同じ仕様に」。色は以前から白へ変えていたが、
+    // 描き直しを要求していなかったため、静止中は画面に出ていなかった（レイヤーのピボット側は markDirty 済みだった）。
+    markDirty(2);
   }
 }
 

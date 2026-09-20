@@ -278,7 +278,7 @@ body.protected-mode #em-save-zip { display:none !important; }
    はみ出す。高さ基準でさらに圧縮し、収まる範囲を広げる。 */
 @media (max-height:500px){
   #dz{ padding:44px 12px 12px !important; gap:6px !important; }
-  #dz .dz-logo svg{ width:42px !important; }
+  #dz .dz-logo svg,#dz .dz-logo img{ width:42px !important; }
   #dz h1{ font-size:1.4em !important; }
   #dz .sub{ font-size:.72em !important; }
   #dz .zone{ padding:9px 22px !important; }
@@ -305,10 +305,13 @@ body.protected-mode #em-save-zip { display:none !important; }
 /* Home-screen brand logo (vector reproduction of the app icon: camera-frame
    brackets + amber record-ring). Sits above the ロケハン3D wordmark. */
 #dz .dz-logo{position:relative;line-height:0;flex-shrink:0;}
-#dz .dz-logo svg{width:clamp(76px,9vw,104px);height:auto;display:block;
+#dz .dz-logo svg,#dz .dz-logo img{width:clamp(76px,9vw,104px);height:auto;display:block;
   filter:drop-shadow(0 6px 18px rgba(0,0,0,.5));}
+/* 商標ワードマーク: h1 の字の高さに合わせる（画像は L の頭〜ベースライン） */
+#dz h1.tm-word{line-height:1;}
+#dz h1.tm-word img{display:block;height:.78em;width:auto;max-width:100%;}
 @media (pointer:coarse) and (any-hover:none){
-  #dz .dz-logo svg{width:clamp(64px,16vw,92px);}
+  #dz .dz-logo svg,#dz .dz-logo img{width:clamp(64px,16vw,92px);}
 }
 #dz .sub{
   font-size:.92em;color:rgba(255,255,255,.5);letter-spacing:.04em;

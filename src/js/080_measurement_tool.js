@@ -151,13 +151,23 @@ function addAxisArrows(markerGroup, label) {
 
     arrowGroup.add(shaft, head);
 
+    // 見えない太い当たり判定（レイヤーのピボットと同じ考え方）。細い軸そのものだと狙いにくい。
+    const hit = new THREE.Mesh(
+      new THREE.CylinderGeometry(HR * 1.6, HR * 1.6, SL + HL, 6),
+      new THREE.MeshBasicMaterial({ transparent:true, opacity:0, depthTest:false, depthWrite:false, colorWrite:false })
+    );
+    hit.position.y = (SL + HL) / 2;
+    arrowGroup.add(hit);
+
     // Tag both meshes for raycasting / hover
     const meta = { point: label, axisName: name, axisDir: AXIS_DIRS[name].clone(), color, shaft, head };
     shaft.userData.axisHandle = meta;
     head.userData.axisHandle  = meta;
+    hit.userData.axisHandle   = meta;
 
     markerGroup.add(arrowGroup);
     msr.axisHandles[label][name] = [shaft, head];
+    (msr.axisHitMeshes || (msr.axisHitMeshes = [])).push(hit);
   }
   // XZ horizontal plane handle
   addHorizontalHandle(markerGroup, label);

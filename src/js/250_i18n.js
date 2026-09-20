@@ -49,7 +49,7 @@ const I18N = {
     'msr-pa':'🟡 点 A を配置 — 離して確定','msr-pb':'🟠 点 B を配置 — 離して確定',
     'msr-active':'📐 測定中','msr-end':'測定終了',
     'undo-info':'Z: 戻る —','undo-max':'これ以上戻れません',
-    'undo-done-tpl':'↩ 戻りました（残り {n} 回）',
+    'undo-done-tpl':'↩ 戻りました',   // 2026-09-20 本人指示: 回数表示は不要
     'msr-h0':'左クリックで点 A を配置','msr-h1':'左クリックで点 B を配置',
     'msr-h2':'左クリックで再測定 ｜ 矢印でドラッグ微調整',
   'lp-h-scene':'シーンレイヤー',
@@ -176,7 +176,7 @@ const I18N = {
     'msr-pa':'🟡 Placing Point A — release to confirm','msr-pb':'🟠 Placing Point B — release to confirm',
     'msr-active':'📐 Measuring','msr-end':'End Measurement',
     'undo-info':'Z: Undo —','undo-max':'No more undos',
-    'undo-done-tpl':'↩ Undone ({n} remaining)',
+    'undo-done-tpl':'↩ Undone',
     'msr-h0':'Left-click to place Point A','msr-h1':'Left-click to place Point B',
     'msr-h2':'Left-click to re-measure | Drag arrows to fine-tune',
   'lp-h-scene':'Scene Layers',

@@ -16,7 +16,7 @@ function updateUndoInfo() {
   const n = msr.undoStack.length;
   // #undoInfo ("Z: 戻る — n/20") was removed per user request; guard the lookup.
   const _ui = document.getElementById('undoInfo');
-  if(_ui) _ui.textContent = `${T('undo-info')} ${n}/${MAX_UNDO}`;
+  if(_ui) _ui.textContent = T('undo-info').replace(/\s*[—-]\s*$/, '');   // 回数（n/20）は出さない
   const _bu = document.getElementById('btnUndo');
   if(_bu) _bu.style.color = n > 0 ? '#ffdd0099' : '#443300';
 }

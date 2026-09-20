@@ -51,7 +51,13 @@ function _navigationHoldMove(kind,e){
     _navigationHoldReset();return false;
   }
   if(!h.active){
-    if(Math.hypot(point.x-h.point.x,point.y-h.point.y)>=(kind==='touch'?12:5))_navigationHoldReset();
+    if(Math.hypot(point.x-h.point.x,point.y-h.point.y)>=(kind==='touch'?12:5)){
+      // マウスは左ドラッグに他の役割が無いので、押して動かした時点で「探り」を始める（測定ツールの A/B 点と同じ手触り。
+      // 2026-09-20 本人指摘: 静止して 0.35 秒待たないと玉が出ず、動かすと取り消されて「選べない」）。
+      // タッチの1本指ドラッグは見回しなので、従来どおり長押しだけで始める。
+      if(kind!=='mouse'||_clickNavigationBusy()){_navigationHoldReset();return false;}
+      clearTimeout(h.timer);h.active=true;h.point=point;_navigationHoldPreview();return true;
+    }
     return false;
   }
   h.point=point;_navigationHoldPreview();return true;
@@ -65,3 +71,5 @@ function _navigationHoldTake(kind,e,consumed){
 }
 window.addEventListener('blur',_navigationHoldReset);
 canvas.addEventListener('touchcancel',_navigationHoldReset,{passive:true});
+// 診断用（自動テストから玉の状態を読む）。UI からは使わない。
+window.__navPoint=()=>_navigationPoint?{visible:_navigationPoint.visible,x:+_navigationPoint.position.x.toFixed(3),y:+_navigationPoint.position.y.toFixed(3),z:+_navigationPoint.position.z.toFixed(3),ok:_navigationPoint.material.color.getHex()===0x63edbd,hold:!!_navigationHold,active:!!(_navigationHold&&_navigationHold.active)}:{visible:false,hold:!!_navigationHold};

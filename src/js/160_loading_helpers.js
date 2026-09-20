@@ -15,10 +15,10 @@ function _ldGuide(){
   // 読み込み中は操作方法を見せる（ファイル名は出さない）。端末ごとに内容を変える。
   const touch=typeof isMobile!=='undefined'&&isMobile,en=typeof _en==='function'&&_en();
   const rows=touch
-    ?(en?[['Move','Tap a spot to go there'],['Pick a spot','Press and hold, slide, release'],['Look','Drag with one finger'],['Walk','Bottom-left stick']]
-        :[['移動方法','タッチでその場所に移動'],['移動先を選ぶ','長押しして玉を動かし、離す'],['見回す','1本指でドラッグ'],['歩く','左下のスティック']])
-    :(en?[['Move','Click a spot to go there'],['Pick a spot','Hold left button, move, release'],['Look','Right-drag'],['Fly','W A S D / Q E, Shift = fast']]
-        :[['移動方法','クリックでその場所に移動'],['移動先を選ぶ','左ボタン長押しで玉を動かし、離す'],['見回す','右ドラッグ'],['キー移動','W A S D ／ Q E（Shiftで高速）']]);
+    ?(en?[['Move','Tap a spot to go there'],['Look','Drag with one finger'],['Walk','Bottom-left stick']]
+        :[['移動方法','タッチでその場所に移動'],['見回す','1本指でドラッグ'],['歩く','左下のスティック']])
+    :(en?[['Move','Click a spot to go there'],['Look','Right-drag'],['Keys','W A S D move / E up, Q down (Shift = fast)']]
+        :[['移動方法','クリックでその場所に移動'],['見回す','右ドラッグ'],['キー移動','W A S D 前後左右 ／ E 上昇・Q 下降（Shiftで高速）']]);
   const lt=document.getElementById('lt');lt.replaceChildren();lt.classList.add('ld-guide');
   for(const [k,v] of rows){
     const row=document.createElement('div'),a=document.createElement('span'),b=document.createElement('span');
