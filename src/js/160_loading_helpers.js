@@ -1,21 +1,55 @@
 // ══════════════════════════════════════════════════
 //  LOADING HELPERS
 // ══════════════════════════════════════════════════
+// 通し進捗（2026-09-20 本人指示「5%から一気に進むのを直す」）。
+// ダウンロード→ZIP展開→3DGS構築の各段がそれぞれ showLd()/setBar(5) でやり直すため、バーが
+// 低い値に戻っては跳ぶ動きになっていた。表示値は戻さず、値が下がったら「次の段が始まった」とみなして
+// 残りの幅へ割り付ける。段の途中で止まって見えないよう、少しずつ前へにじませる。
+const _ld={shown:0,base:0,rawStart:0,lastRaw:0,realAt:0,timer:null};
+function _ldPaint(){
+  const v=Math.max(0,Math.min(100,_ld.shown));
+  document.getElementById('bar').style.width=v+'%';
+  const lp=document.getElementById('lpct');if(lp)lp.textContent=Math.floor(v)+'%';
+}
+function _ldGuide(){
+  // 読み込み中は操作方法を見せる（ファイル名は出さない）。端末ごとに内容を変える。
+  const touch=typeof isMobile!=='undefined'&&isMobile,en=typeof _en==='function'&&_en();
+  const rows=touch
+    ?(en?[['Move','Tap a spot to go there'],['Pick a spot','Press and hold, slide, release'],['Look','Drag with one finger'],['Walk','Bottom-left stick']]
+        :[['移動方法','タッチでその場所に移動'],['移動先を選ぶ','長押しして玉を動かし、離す'],['見回す','1本指でドラッグ'],['歩く','左下のスティック']])
+    :(en?[['Move','Click a spot to go there'],['Pick a spot','Hold left button, move, release'],['Look','Right-drag'],['Fly','W A S D / Q E, Shift = fast']]
+        :[['移動方法','クリックでその場所に移動'],['移動先を選ぶ','左ボタン長押しで玉を動かし、離す'],['見回す','右ドラッグ'],['キー移動','W A S D ／ Q E（Shiftで高速）']]);
+  const lt=document.getElementById('lt');lt.replaceChildren();lt.classList.add('ld-guide');
+  for(const [k,v] of rows){
+    const row=document.createElement('div'),a=document.createElement('span'),b=document.createElement('span');
+    a.className='k';a.textContent=k;b.className='v';b.textContent=v;row.append(a,b);lt.append(row);
+  }
+}
 function showLd(t) {
-  document.getElementById('lt').textContent = t||'読み込み中...';
-  document.getElementById('bar').style.width='0%';
-  const lp=document.getElementById('lpct'); if(lp){ lp.textContent='0%'; lp.style.display='block'; }
-  document.getElementById('lm').textContent='';
+  _ldGuide();
+  const fresh=document.getElementById('ld').classList.contains('hidden');
+  if(fresh){_ld.shown=0;_ld.base=0;_ld.rawStart=0;_ld.lastRaw=0;_ld.realAt=performance.now();_ldPaint();}
+  if(!_ld.timer)_ld.timer=setInterval(()=>{
+    if(document.getElementById('ld').classList.contains('hidden')){clearInterval(_ld.timer);_ld.timer=null;return;}
+    // 実進捗が来ない間も、次の節目の手前まではゆっくり進める（止まって見せない・追い越さない）
+    const ceiling=Math.min(97,_ld.shown+(100-_ld.shown)*.25);
+    if(performance.now()-_ld.realAt>300&&_ld.shown<ceiling){_ld.shown+=Math.max(.02,(ceiling-_ld.shown)*.01);_ldPaint();}
+  },120);
+  const lp=document.getElementById('lpct'); if(lp) lp.style.display='block';
+  document.getElementById('lm').textContent=(typeof t==='string'&&!/^読み込み中[:：]/.test(t))?t:'';
   const e=document.getElementById('lerr');e.style.display='none';e.textContent='';
   document.getElementById('lm').style.display='block';
   document.getElementById('ld').classList.remove('hidden');
 }
 function hideLd()  { document.getElementById('ld').classList.add('hidden'); }
 function setBar(p) {
-  const v = Math.max(0, Math.min(100, +p || 0));
-  document.getElementById('bar').style.width = v + '%';
-  const lp = document.getElementById('lpct');
-  if(lp) lp.textContent = v.toFixed(0) + '%';
+  const raw = Math.max(0, Math.min(100, +p || 0));
+  if(raw < _ld.lastRaw - .5){ _ld.base = _ld.shown; _ld.rawStart = raw; }   // 次の段が始まった
+  _ld.lastRaw = raw;
+  const span = Math.max(1, 100 - _ld.rawStart);
+  const mapped = _ld.base + (raw - _ld.rawStart) / span * (100 - _ld.base);
+  if(mapped > _ld.shown){ _ld.shown = mapped; _ld.realAt = performance.now(); }
+  _ldPaint();
 }
 function setMsg(m) { document.getElementById('lm').textContent=m; }
 function setErr(m) {

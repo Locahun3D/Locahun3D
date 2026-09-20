@@ -25,8 +25,13 @@ function drawArrowHead(x, y, angle, size, color) {
   octx.restore();
 }
 
-function drawPointLabel(sx, sy, label, color) {
-  const R = 15;
+function drawPointLabel(px, py, label, color) {
+  // 丸ラベルを点の真上に重ねると、肝心の 3D マーカー（奥行きの手がかり）が隠れる（2026-09-20）。
+  // 点には小さな照準だけ残し、ラベルは引き出し線で斜め上へ逃がす。
+  const R = 11, sx = px + 20, sy = py - 24;
+  octx.beginPath(); octx.moveTo(px, py); octx.lineTo(sx - R*.7, sy + R*.7);
+  octx.strokeStyle = color + 'aa'; octx.lineWidth = 1.5; octx.stroke();
+  octx.beginPath(); octx.arc(px, py, 2.5, 0, Math.PI*2); octx.fillStyle = color; octx.fill();
   // Outer glow ring
   octx.beginPath();
   octx.arc(sx, sy, R + 3, 0, Math.PI*2);
@@ -43,7 +48,7 @@ function drawPointLabel(sx, sy, label, color) {
   octx.stroke();
   // Label text
   octx.fillStyle = color;
-  octx.font = 'bold 12px "Segoe UI",monospace';
+  octx.font = 'bold 11px "Segoe UI",monospace';
   octx.textAlign = 'center';
   octx.textBaseline = 'middle';
   octx.fillText(label, sx, sy);

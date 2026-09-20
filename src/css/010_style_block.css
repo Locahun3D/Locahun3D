@@ -439,6 +439,10 @@ body.protected-mode #em-save-zip { display:none !important; }
 }
 #ld.hidden{display:none;}
 #ld .lt{font-size:1.05em;color:#C0C0C0;letter-spacing:.04em;font-weight:300;}
+#ld .lt.ld-guide{display:grid;gap:7px;width:min(420px,calc(100vw - 48px));font-size:.92em;margin-bottom:6px;}
+#ld .lt.ld-guide>div{display:grid;grid-template-columns:7.5em 1fr;gap:12px;align-items:baseline;text-align:left;}
+#ld .lt.ld-guide .k{color:#ffb454;font-size:.82em;letter-spacing:.08em;white-space:nowrap;}
+#ld .lt.ld-guide .v{color:#E0E0E0;line-height:1.5;}
 #ld .bw{width:300px;height:3px;background:rgba(255,255,255,.07);border-radius:2px;}
 #ld .bar{height:100%;width:0%;background:linear-gradient(90deg,#484848,#D8D8D8);border-radius:2px;transition:width .2s;}
 #ld .lm{font-size:.8em;color:#484848;letter-spacing:.04em;}

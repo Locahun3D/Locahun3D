@@ -27,6 +27,19 @@ const msr = {
 const _ray = new THREE.Raycaster();
 const _v2  = new THREE.Vector2();
 
+// 奥行きの手がかり（2026-09-20 本人指摘「3DGSに隠れず最上位表示で、奥行きがわからない」）。
+// 常に最前面の描画を「薄い透かし」に落とし、同じ形を深度テストありの実体として重ねる。
+// 実体は不透明キューで 3DGS より先に描かれ深度を書くので、手前のスプラットには隠れ、奥のものには勝つ。
+// → 見えている部分＝手前、透けている部分＝何かの裏、と読める。子にするので表示/位置は親に追従する。
+function _msrDepthCue(obj, ghostOpacity=.22) {
+  const solid = new obj.constructor(obj.geometry, obj.material.clone());
+  Object.assign(solid.material, { depthTest:true, depthWrite:true, transparent:false, opacity:1 });
+  solid.renderOrder = 0; solid.raycast = () => {}; solid.frustumCulled = obj.frustumCulled;
+  Object.assign(obj.material, { transparent:true, opacity:ghostOpacity, depthWrite:false });
+  obj.add(solid);
+  return obj;
+}
+
 // Build a visible marker group: sphere + 3 axis cross rings
 function makeMarker(color) {
   const g = new THREE.Group();
@@ -38,7 +51,7 @@ function makeMarker(color) {
     new THREE.MeshBasicMaterial({ color, depthTest:false })
   );
   sphere.renderOrder = 999;
-  g.add(sphere);
+  g.add(_msrDepthCue(sphere, .3));
 
   // Cross arms (3 short lines on each axis)
   const ARM = 0.18;
@@ -49,7 +62,7 @@ function makeMarker(color) {
     geo.setAttribute('position', new THREE.Float32BufferAttribute(pts, 3));
     const ln = new THREE.Line(geo, lineMat);
     ln.renderOrder = 999;
-    g.add(ln);
+    g.add(_msrDepthCue(ln));
   }
 
   // Circle ring (in XZ plane)
@@ -63,7 +76,7 @@ function makeMarker(color) {
   ringGeo.setAttribute('position', new THREE.Float32BufferAttribute(ringPts, 3));
   const ring = new THREE.Line(ringGeo, lineMat.clone());
   ring.renderOrder = 999;
-  g.add(ring);
+  g.add(_msrDepthCue(ring));
 
   g.visible = false;
   return g;
@@ -164,7 +177,7 @@ function buildMeasureObjects() {
   lineGeo.setAttribute('position', new THREE.Float32BufferAttribute([0,0,0,0,0,0], 3));
   msr.line = new THREE.Line(lineGeo,
     new THREE.LineBasicMaterial({ color:0xffdd00, depthTest:false, linewidth:2 }));
-  msr.line.renderOrder = 998;
+  msr.line.renderOrder = 998; msr.line.frustumCulled = false; _msrDepthCue(msr.line, .3);
   msr.line.visible = false;
 
   // Vertical line A↔C (height visualization)
@@ -172,7 +185,7 @@ function buildMeasureObjects() {
   lineGeoAC.setAttribute('position', new THREE.Float32BufferAttribute([0,0,0,0,0,0], 3));
   msr.lineAC = new THREE.Line(lineGeoAC,
     new THREE.LineBasicMaterial({ color:0x66ddff, depthTest:false, linewidth:2 }));
-  msr.lineAC.renderOrder = 998;
+  msr.lineAC.renderOrder = 998; msr.lineAC.frustumCulled = false; _msrDepthCue(msr.lineAC, .3);
   msr.lineAC.visible = false;
   msr.markerC.visible = false;
 

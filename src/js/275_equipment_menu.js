@@ -55,7 +55,7 @@
     selectLayer(L.id);markDirty(6);return L;
   };
   const categories=[['basic','基本','Basic'],['people','人物','People'],['vehicles','車両','Vehicles'],['equipment','機材','Equipment']];
-  let activeCategory='vehicles';
+  let activeCategory='basic';
   function selectCategory(menu,id,focus=false) {
     activeCategory=id;
     const width=Math.min(id==='basic'||id==='people'?280:460,innerWidth-16);
@@ -133,7 +133,8 @@
       menu.removeAttribute('aria-busy');
       initialize(menu);
       for(const element of menu.querySelectorAll('[data-ja]'))element.textContent=window._lang==='en'?element.dataset.en:element.dataset.ja;
-      selectCategory(menu,activeCategory);
+      // 開くたびに「基本」から（2026-09-20 本人指示。前回のタブは引き継がない）
+      selectCategory(menu,'basic');
       menu.querySelector('[role="tab"][aria-selected="true"]')?.focus();
     };
     if(assets||!getAssetSource().url){finish();return;}

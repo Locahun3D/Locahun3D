@@ -109,7 +109,7 @@ window.onSpeedSlider=function(v){
   const before = camSpeed;
   const after  = parseFloat(v);
   pushGenericUndo('move-speed', before, after, val=>{
-    camSpeed = parseFloat(val) || 5;
+    camSpeed = parseFloat(val) || 3;
     const lbl1=document.getElementById('spdLabel'); if(lbl1) lbl1.textContent = camSpeed;
     const lbl2=document.getElementById('spdVal');   if(lbl2) lbl2.textContent = camSpeed;
     const sl  =document.getElementById('spdSlider');if(sl)  sl.value = camSpeed;

@@ -25,8 +25,15 @@ function _navigationHoldReset(){
 function _navigationHoldPreview(){
   const h=_navigationHold;if(!h?.active)return;
   const result=_clickNavigateAt(h.point.x,h.point.y,true);
-  if(result?.point)_showNavigationPoint(result.point,result.valid);
-  else _hideNavigationPoint();
+  if(result?.point){_showNavigationPoint(result.point,result.valid);return;}
+  _hideNavigationPoint();
+  // 当たり判定が未準備だと玉が出ず「長押ししても無反応」に見える（2026-09-20）。
+  // 長押し1回につき1度だけ準備を走らせ、整ったら押したままの位置に玉を出す。
+  const unready=!walkSetup.core||walkSetup.importPending||walkSetup.settings.signature!==_walkSourceSignature();
+  if(!unready||h.preparing||typeof globalThis.prepareCameraCollision!=='function')return;
+  h.preparing=true;
+  if(typeof showUndoToast==='function')showUndoToast('移動先の地面を準備しています');
+  globalThis.prepareCameraCollision().then(ready=>{if(ready&&_navigationHold===h&&h.active)_navigationHoldPreview();}).catch(()=>{});
 }
 function _navigationHoldArm(kind,point){
   _navigationHoldReset();

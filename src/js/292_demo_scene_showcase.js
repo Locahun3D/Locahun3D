@@ -66,10 +66,7 @@ async function _fetchBinaryChunked(url){
     // 恐れがあるため（かつては /切断/ 以外を握り潰して落下していた）。
     const resp = await fetch(url, { cache:'no-store' });
     if(!resp.ok) throw new Error('HTTP '+resp.status);
-    const buf = await resp.arrayBuffer();
-    const cl = parseInt(resp.headers.get('content-length') || '0', 10);
-    if(cl && buf.byteLength !== cl) throw new Error('通信が途中で切断されました ('+buf.byteLength+'/'+cl+' bytes)');
-    return buf;
+    return _readBodyWithProgress(resp);
   }
   // 8MB × リトライ5回。16MB 連投だと Workers 経由で「206 なのに body 0 byte」
   // という一過性の切断が実測で出た（5 チャンク目以降）。小さめ＋間隔＋
@@ -90,10 +87,7 @@ async function _fetchBinaryChunked(url){
     // Range 非対応サーバ: 一括 fetch にフォールバック（content-length 検証付き）
     const resp = await fetch(url, { cache:'no-store' });
     if(!resp.ok) throw new Error('HTTP '+resp.status);
-    const buf = await resp.arrayBuffer();
-    const cl = parseInt(resp.headers.get('content-length') || '0', 10);
-    if(cl && buf.byteLength !== cl) throw new Error('通信が途中で切断されました ('+buf.byteLength+'/'+cl+' bytes)');
-    return buf;
+    return _readBodyWithProgress(resp);
   }
   const out = new Uint8Array(total);
   let got = 0;
@@ -119,6 +113,31 @@ async function _fetchBinaryChunked(url){
     // Workers への連投を避ける小休止（一過性の空応答対策）
     if(got < total) await new Promise(res=>setTimeout(res, 120));
   }
+  return out.buffer;
+}
+
+// 本文を少しずつ読み、受信量でバーを進める（2026-09-20）。以前は arrayBuffer() を一括で待っていたため、
+// 別オリジン（R2 の署名URL）では受信が終わるまで 5% のまま止まり、終わった瞬間に跳んでいた。
+async function _readBodyWithProgress(resp){
+  const cl = parseInt(resp.headers.get('content-length') || '0', 10);
+  if(!resp.body || !resp.body.getReader){
+    const whole = await resp.arrayBuffer();
+    if(cl && whole.byteLength !== cl) throw new Error('通信が途中で切断されました ('+whole.byteLength+'/'+cl+' bytes)');
+    return whole;
+  }
+  const reader = resp.body.getReader(), parts = [];
+  let got = 0;
+  for(;;){
+    const {done, value} = await reader.read();
+    if(done) break;
+    parts.push(value); got += value.byteLength;
+    // content-length が無い（圧縮転送など）ときは総量不明なので、受信量に応じて 40% へ漸近させる
+    const ratio = cl ? got / cl : 1 - Math.exp(-got / (64 * 1024 * 1024));
+    if(typeof setBar === 'function') setBar(5 + Math.min(1, ratio) * 35);
+  }
+  if(cl && got !== cl) throw new Error('通信が途中で切断されました ('+got+'/'+cl+' bytes)');
+  const out = new Uint8Array(got);
+  let at = 0; for(const part of parts){ out.set(part, at); at += part.byteLength; }
   return out.buffer;
 }
 

@@ -459,6 +459,10 @@ body.protected-mode #em-save-zip { display:none !important; }
 }
 #ld.hidden{display:none;}
 #ld .lt{font-size:1.05em;color:#C0C0C0;letter-spacing:.04em;font-weight:300;}
+#ld .lt.ld-guide{display:grid;gap:7px;width:min(420px,calc(100vw - 48px));font-size:.92em;margin-bottom:6px;}
+#ld .lt.ld-guide>div{display:grid;grid-template-columns:7.5em 1fr;gap:12px;align-items:baseline;text-align:left;}
+#ld .lt.ld-guide .k{color:#ffb454;font-size:.82em;letter-spacing:.08em;white-space:nowrap;}
+#ld .lt.ld-guide .v{color:#E0E0E0;line-height:1.5;}
 #ld .bw{width:300px;height:3px;background:rgba(255,255,255,.07);border-radius:2px;}
 #ld .bar{height:100%;width:0%;background:linear-gradient(90deg,#484848,#D8D8D8);border-radius:2px;transition:width .2s;}
 #ld .lm{font-size:.8em;color:#484848;letter-spacing:.04em;}
@@ -1995,10 +1999,10 @@ body.immersive #immersive-exit{ display:inline-block; }
   </div>
   <div class="qrow" style="margin:6px 0 2px">
     <label style="font-size:.78em;color:#686868"><span id="qp-lbl-spd">移動速度</span>
-      <span id="spdVal" style="color:#C0C0C0;margin-left:6px">5</span></label>
+      <span id="spdVal" style="color:#C0C0C0;margin-left:6px">3</span></label>
   </div>
   <div style="padding:0 2px;margin-bottom:6px">
-    <input type="range" id="spdSlider" min="0.5" max="20" step="0.5" value="5"
+    <input type="range" id="spdSlider" min="0.5" max="20" step="0.5" value="3"
            oninput="onSpeedSlider(this.value)" style="width:100%">
   </div>
 
@@ -2999,7 +3003,7 @@ window.KAWAII_MALE_GLB_B64="Z2xURgIAAADsaRIAoPYCAEpTT057ImFzc2V0Ijp7InZlcnNpb24i
      the HTML. -->
 
 <script>
-window.__locahunBuildRelease="e1710ccb58fcf5962b46106eb96bf01fa5d81aef7aa7116b605ecbc1f181ce28";
+window.__locahunBuildRelease="9fc4bca4c77ad2faff2343075f077c914e4bc8336b3ec6d6c597163fdd1b2fed";
 (function(root) {
   'use strict';
   const ORIGIN='https://viewer.locahun3d.com';
@@ -3549,7 +3553,7 @@ let fov = 90;
 // the sprint multiplier (×5) compounds it. Seed a gentler 3 on touch so
 // the scene is comfortable to explore out of the box; the slider (0.5–20)
 // still lets users dial it up.
-let camSpeed = isMobile ? 3 : 5;
+let camSpeed = 3; // 2026-09-20 本人指示: 既定の移動速度は PC も 3（以前は PC=5）
 
 const clock = new THREE.Clock();
 // ══════════════════════════════════════════════════
@@ -5534,6 +5538,19 @@ const msr = {
 const _ray = new THREE.Raycaster();
 const _v2  = new THREE.Vector2();
 
+// 奥行きの手がかり（2026-09-20 本人指摘「3DGSに隠れず最上位表示で、奥行きがわからない」）。
+// 常に最前面の描画を「薄い透かし」に落とし、同じ形を深度テストありの実体として重ねる。
+// 実体は不透明キューで 3DGS より先に描かれ深度を書くので、手前のスプラットには隠れ、奥のものには勝つ。
+// → 見えている部分＝手前、透けている部分＝何かの裏、と読める。子にするので表示/位置は親に追従する。
+function _msrDepthCue(obj, ghostOpacity=.22) {
+  const solid = new obj.constructor(obj.geometry, obj.material.clone());
+  Object.assign(solid.material, { depthTest:true, depthWrite:true, transparent:false, opacity:1 });
+  solid.renderOrder = 0; solid.raycast = () => {}; solid.frustumCulled = obj.frustumCulled;
+  Object.assign(obj.material, { transparent:true, opacity:ghostOpacity, depthWrite:false });
+  obj.add(solid);
+  return obj;
+}
+
 // Build a visible marker group: sphere + 3 axis cross rings
 function makeMarker(color) {
   const g = new THREE.Group();
@@ -5545,7 +5562,7 @@ function makeMarker(color) {
     new THREE.MeshBasicMaterial({ color, depthTest:false })
   );
   sphere.renderOrder = 999;
-  g.add(sphere);
+  g.add(_msrDepthCue(sphere, .3));
 
   // Cross arms (3 short lines on each axis)
   const ARM = 0.18;
@@ -5556,7 +5573,7 @@ function makeMarker(color) {
     geo.setAttribute('position', new THREE.Float32BufferAttribute(pts, 3));
     const ln = new THREE.Line(geo, lineMat);
     ln.renderOrder = 999;
-    g.add(ln);
+    g.add(_msrDepthCue(ln));
   }
 
   // Circle ring (in XZ plane)
@@ -5570,7 +5587,7 @@ function makeMarker(color) {
   ringGeo.setAttribute('position', new THREE.Float32BufferAttribute(ringPts, 3));
   const ring = new THREE.Line(ringGeo, lineMat.clone());
   ring.renderOrder = 999;
-  g.add(ring);
+  g.add(_msrDepthCue(ring));
 
   g.visible = false;
   return g;
@@ -5671,7 +5688,7 @@ function buildMeasureObjects() {
   lineGeo.setAttribute('position', new THREE.Float32BufferAttribute([0,0,0,0,0,0], 3));
   msr.line = new THREE.Line(lineGeo,
     new THREE.LineBasicMaterial({ color:0xffdd00, depthTest:false, linewidth:2 }));
-  msr.line.renderOrder = 998;
+  msr.line.renderOrder = 998; msr.line.frustumCulled = false; _msrDepthCue(msr.line, .3);
   msr.line.visible = false;
 
   // Vertical line A↔C (height visualization)
@@ -5679,7 +5696,7 @@ function buildMeasureObjects() {
   lineGeoAC.setAttribute('position', new THREE.Float32BufferAttribute([0,0,0,0,0,0], 3));
   msr.lineAC = new THREE.Line(lineGeoAC,
     new THREE.LineBasicMaterial({ color:0x66ddff, depthTest:false, linewidth:2 }));
-  msr.lineAC.renderOrder = 998;
+  msr.lineAC.renderOrder = 998; msr.lineAC.frustumCulled = false; _msrDepthCue(msr.lineAC, .3);
   msr.lineAC.visible = false;
   msr.markerC.visible = false;
 
@@ -9995,8 +10012,13 @@ function drawArrowHead(x, y, angle, size, color) {
   octx.restore();
 }
 
-function drawPointLabel(sx, sy, label, color) {
-  const R = 15;
+function drawPointLabel(px, py, label, color) {
+  // 丸ラベルを点の真上に重ねると、肝心の 3D マーカー（奥行きの手がかり）が隠れる（2026-09-20）。
+  // 点には小さな照準だけ残し、ラベルは引き出し線で斜め上へ逃がす。
+  const R = 11, sx = px + 20, sy = py - 24;
+  octx.beginPath(); octx.moveTo(px, py); octx.lineTo(sx - R*.7, sy + R*.7);
+  octx.strokeStyle = color + 'aa'; octx.lineWidth = 1.5; octx.stroke();
+  octx.beginPath(); octx.arc(px, py, 2.5, 0, Math.PI*2); octx.fillStyle = color; octx.fill();
   // Outer glow ring
   octx.beginPath();
   octx.arc(sx, sy, R + 3, 0, Math.PI*2);
@@ -10013,7 +10035,7 @@ function drawPointLabel(sx, sy, label, color) {
   octx.stroke();
   // Label text
   octx.fillStyle = color;
-  octx.font = 'bold 12px "Segoe UI",monospace';
+  octx.font = 'bold 11px "Segoe UI",monospace';
   octx.textAlign = 'center';
   octx.textBaseline = 'middle';
   octx.fillText(label, sx, sy);
@@ -10320,21 +10342,55 @@ function updateOverlay() {
 // ══════════════════════════════════════════════════
 //  LOADING HELPERS
 // ══════════════════════════════════════════════════
+// 通し進捗（2026-09-20 本人指示「5%から一気に進むのを直す」）。
+// ダウンロード→ZIP展開→3DGS構築の各段がそれぞれ showLd()/setBar(5) でやり直すため、バーが
+// 低い値に戻っては跳ぶ動きになっていた。表示値は戻さず、値が下がったら「次の段が始まった」とみなして
+// 残りの幅へ割り付ける。段の途中で止まって見えないよう、少しずつ前へにじませる。
+const _ld={shown:0,base:0,rawStart:0,lastRaw:0,realAt:0,timer:null};
+function _ldPaint(){
+  const v=Math.max(0,Math.min(100,_ld.shown));
+  document.getElementById('bar').style.width=v+'%';
+  const lp=document.getElementById('lpct');if(lp)lp.textContent=Math.floor(v)+'%';
+}
+function _ldGuide(){
+  // 読み込み中は操作方法を見せる（ファイル名は出さない）。端末ごとに内容を変える。
+  const touch=typeof isMobile!=='undefined'&&isMobile,en=typeof _en==='function'&&_en();
+  const rows=touch
+    ?(en?[['Move','Tap a spot to go there'],['Pick a spot','Press and hold, slide, release'],['Look','Drag with one finger'],['Walk','Bottom-left stick']]
+        :[['移動方法','タッチでその場所に移動'],['移動先を選ぶ','長押しして玉を動かし、離す'],['見回す','1本指でドラッグ'],['歩く','左下のスティック']])
+    :(en?[['Move','Click a spot to go there'],['Pick a spot','Hold left button, move, release'],['Look','Right-drag'],['Fly','W A S D / Q E, Shift = fast']]
+        :[['移動方法','クリックでその場所に移動'],['移動先を選ぶ','左ボタン長押しで玉を動かし、離す'],['見回す','右ドラッグ'],['キー移動','W A S D ／ Q E（Shiftで高速）']]);
+  const lt=document.getElementById('lt');lt.replaceChildren();lt.classList.add('ld-guide');
+  for(const [k,v] of rows){
+    const row=document.createElement('div'),a=document.createElement('span'),b=document.createElement('span');
+    a.className='k';a.textContent=k;b.className='v';b.textContent=v;row.append(a,b);lt.append(row);
+  }
+}
 function showLd(t) {
-  document.getElementById('lt').textContent = t||'読み込み中...';
-  document.getElementById('bar').style.width='0%';
-  const lp=document.getElementById('lpct'); if(lp){ lp.textContent='0%'; lp.style.display='block'; }
-  document.getElementById('lm').textContent='';
+  _ldGuide();
+  const fresh=document.getElementById('ld').classList.contains('hidden');
+  if(fresh){_ld.shown=0;_ld.base=0;_ld.rawStart=0;_ld.lastRaw=0;_ld.realAt=performance.now();_ldPaint();}
+  if(!_ld.timer)_ld.timer=setInterval(()=>{
+    if(document.getElementById('ld').classList.contains('hidden')){clearInterval(_ld.timer);_ld.timer=null;return;}
+    // 実進捗が来ない間も、次の節目の手前まではゆっくり進める（止まって見せない・追い越さない）
+    const ceiling=Math.min(97,_ld.shown+(100-_ld.shown)*.25);
+    if(performance.now()-_ld.realAt>300&&_ld.shown<ceiling){_ld.shown+=Math.max(.02,(ceiling-_ld.shown)*.01);_ldPaint();}
+  },120);
+  const lp=document.getElementById('lpct'); if(lp) lp.style.display='block';
+  document.getElementById('lm').textContent=(typeof t==='string'&&!/^読み込み中[:：]/.test(t))?t:'';
   const e=document.getElementById('lerr');e.style.display='none';e.textContent='';
   document.getElementById('lm').style.display='block';
   document.getElementById('ld').classList.remove('hidden');
 }
 function hideLd()  { document.getElementById('ld').classList.add('hidden'); }
 function setBar(p) {
-  const v = Math.max(0, Math.min(100, +p || 0));
-  document.getElementById('bar').style.width = v + '%';
-  const lp = document.getElementById('lpct');
-  if(lp) lp.textContent = v.toFixed(0) + '%';
+  const raw = Math.max(0, Math.min(100, +p || 0));
+  if(raw < _ld.lastRaw - .5){ _ld.base = _ld.shown; _ld.rawStart = raw; }   // 次の段が始まった
+  _ld.lastRaw = raw;
+  const span = Math.max(1, 100 - _ld.rawStart);
+  const mapped = _ld.base + (raw - _ld.rawStart) / span * (100 - _ld.base);
+  if(mapped > _ld.shown){ _ld.shown = mapped; _ld.realAt = performance.now(); }
+  _ldPaint();
 }
 function setMsg(m) { document.getElementById('lm').textContent=m; }
 function setErr(m) {
@@ -20468,7 +20524,7 @@ window.toggleQualityPanel=function(){
     selectLayer(L.id);markDirty(6);return L;
   };
   const categories=[['basic','基本','Basic'],['people','人物','People'],['vehicles','車両','Vehicles'],['equipment','機材','Equipment']];
-  let activeCategory='vehicles';
+  let activeCategory='basic';
   function selectCategory(menu,id,focus=false) {
     activeCategory=id;
     const width=Math.min(id==='basic'||id==='people'?280:460,innerWidth-16);
@@ -20546,7 +20602,8 @@ window.toggleQualityPanel=function(){
       menu.removeAttribute('aria-busy');
       initialize(menu);
       for(const element of menu.querySelectorAll('[data-ja]'))element.textContent=window._lang==='en'?element.dataset.en:element.dataset.ja;
-      selectCategory(menu,activeCategory);
+      // 開くたびに「基本」から（2026-09-20 本人指示。前回のタブは引き継がない）
+      selectCategory(menu,'basic');
       menu.querySelector('[role="tab"][aria-selected="true"]')?.focus();
     };
     if(assets||!getAssetSource().url){finish();return;}
@@ -21569,10 +21626,7 @@ async function _fetchBinaryChunked(url){
     // 恐れがあるため（かつては /切断/ 以外を握り潰して落下していた）。
     const resp = await fetch(url, { cache:'no-store' });
     if(!resp.ok) throw new Error('HTTP '+resp.status);
-    const buf = await resp.arrayBuffer();
-    const cl = parseInt(resp.headers.get('content-length') || '0', 10);
-    if(cl && buf.byteLength !== cl) throw new Error('通信が途中で切断されました ('+buf.byteLength+'/'+cl+' bytes)');
-    return buf;
+    return _readBodyWithProgress(resp);
   }
   // 8MB × リトライ5回。16MB 連投だと Workers 経由で「206 なのに body 0 byte」
   // という一過性の切断が実測で出た（5 チャンク目以降）。小さめ＋間隔＋
@@ -21593,10 +21647,7 @@ async function _fetchBinaryChunked(url){
     // Range 非対応サーバ: 一括 fetch にフォールバック（content-length 検証付き）
     const resp = await fetch(url, { cache:'no-store' });
     if(!resp.ok) throw new Error('HTTP '+resp.status);
-    const buf = await resp.arrayBuffer();
-    const cl = parseInt(resp.headers.get('content-length') || '0', 10);
-    if(cl && buf.byteLength !== cl) throw new Error('通信が途中で切断されました ('+buf.byteLength+'/'+cl+' bytes)');
-    return buf;
+    return _readBodyWithProgress(resp);
   }
   const out = new Uint8Array(total);
   let got = 0;
@@ -21622,6 +21673,31 @@ async function _fetchBinaryChunked(url){
     // Workers への連投を避ける小休止（一過性の空応答対策）
     if(got < total) await new Promise(res=>setTimeout(res, 120));
   }
+  return out.buffer;
+}
+
+// 本文を少しずつ読み、受信量でバーを進める（2026-09-20）。以前は arrayBuffer() を一括で待っていたため、
+// 別オリジン（R2 の署名URL）では受信が終わるまで 5% のまま止まり、終わった瞬間に跳んでいた。
+async function _readBodyWithProgress(resp){
+  const cl = parseInt(resp.headers.get('content-length') || '0', 10);
+  if(!resp.body || !resp.body.getReader){
+    const whole = await resp.arrayBuffer();
+    if(cl && whole.byteLength !== cl) throw new Error('通信が途中で切断されました ('+whole.byteLength+'/'+cl+' bytes)');
+    return whole;
+  }
+  const reader = resp.body.getReader(), parts = [];
+  let got = 0;
+  for(;;){
+    const {done, value} = await reader.read();
+    if(done) break;
+    parts.push(value); got += value.byteLength;
+    // content-length が無い（圧縮転送など）ときは総量不明なので、受信量に応じて 40% へ漸近させる
+    const ratio = cl ? got / cl : 1 - Math.exp(-got / (64 * 1024 * 1024));
+    if(typeof setBar === 'function') setBar(5 + Math.min(1, ratio) * 35);
+  }
+  if(cl && got !== cl) throw new Error('通信が途中で切断されました ('+got+'/'+cl+' bytes)');
+  const out = new Uint8Array(got);
+  let at = 0; for(const part of parts){ out.set(part, at); at += part.byteLength; }
   return out.buffer;
 }
 
@@ -29367,8 +29443,15 @@ function _navigationHoldReset(){
 function _navigationHoldPreview(){
   const h=_navigationHold;if(!h?.active)return;
   const result=_clickNavigateAt(h.point.x,h.point.y,true);
-  if(result?.point)_showNavigationPoint(result.point,result.valid);
-  else _hideNavigationPoint();
+  if(result?.point){_showNavigationPoint(result.point,result.valid);return;}
+  _hideNavigationPoint();
+  // 当たり判定が未準備だと玉が出ず「長押ししても無反応」に見える（2026-09-20）。
+  // 長押し1回につき1度だけ準備を走らせ、整ったら押したままの位置に玉を出す。
+  const unready=!walkSetup.core||walkSetup.importPending||walkSetup.settings.signature!==_walkSourceSignature();
+  if(!unready||h.preparing||typeof globalThis.prepareCameraCollision!=='function')return;
+  h.preparing=true;
+  if(typeof showUndoToast==='function')showUndoToast('移動先の地面を準備しています');
+  globalThis.prepareCameraCollision().then(ready=>{if(ready&&_navigationHold===h&&h.active)_navigationHoldPreview();}).catch(()=>{});
 }
 function _navigationHoldArm(kind,point){
   _navigationHoldReset();
@@ -29800,7 +29883,7 @@ window.onSpeedSlider=function(v){
   const before = camSpeed;
   const after  = parseFloat(v);
   pushGenericUndo('move-speed', before, after, val=>{
-    camSpeed = parseFloat(val) || 5;
+    camSpeed = parseFloat(val) || 3;
     const lbl1=document.getElementById('spdLabel'); if(lbl1) lbl1.textContent = camSpeed;
     const lbl2=document.getElementById('spdVal');   if(lbl2) lbl2.textContent = camSpeed;
     const sl  =document.getElementById('spdSlider');if(sl)  sl.value = camSpeed;
