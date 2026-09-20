@@ -1,7 +1,7 @@
 // ══════════════════════════════════════════════════
 //  ONLINE: 名前の固定 ＋ 共有URL（2026-09-20 本人指示）
 //  ・オンライン版（?protected=1）では左上のスタジオ名を編集させない（物件名は運営が決めるもの）。
-//  ・その右に「共有」ボタンを出し、ログイン不要・7日間の共有URLを発行する。発行できるのは最上位プラン（Team）。
+//  ・その右に「共有」ボタンを出し、ログイン不要・2週間の共有URLを発行する。発行できるのは最上位プラン（Team）。
 //    判定と発行はサーバー（POST /api/viewer-share）が行う。ここは結果を見せるだけ。
 //  ・共有リンクから入った閲覧者（?shared=1）にはボタンを出さない（再共有させない）。
 //  単体配布版（protected でない）では何もしない。
@@ -36,7 +36,7 @@
   const btn = document.createElement('button');
   btn.id = 'tb-share-btn'; btn.type = 'button';
   btn.style.cssText = 'margin-left:8px;background:rgba(255,180,84,.08);border:1px solid rgba(255,180,84,.35);color:rgba(255,200,130,.95);border-radius:5px;padding:2px 10px;font-size:.72em;cursor:pointer;white-space:nowrap;min-height:24px';
-  const label = () => { btn.textContent = en() ? 'Share link' : '共有URL'; btn.title = en() ? 'Create a 7-day link anyone can open (Team plan)' : '誰でも開ける7日間のURLを発行（Team プランの機能）'; };
+  const label = () => { btn.textContent = en() ? 'Share link' : '共有URL'; btn.title = en() ? 'Create a 14-day link anyone can open (Team plan)' : '誰でも開ける2週間のURLを発行（Team プランの機能）'; };
   label();
   nameEl.after(btn);
 
