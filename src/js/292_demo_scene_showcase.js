@@ -563,4 +563,15 @@ window.__diagState = {
   get lastTraverseResumed(){
     try{ return (typeof sparkRenderer!=='undefined' && sparkRenderer) ? !!sparkRenderer.lastTraverseResumed : null; }catch(_){ return null; }
   },
+  // ── 移動中LOD予算の計測ハーネス用 (2026-09-21) ──
+  // scripts/perf-rad-motion.mjs が updateLodInstances をラップして
+  // 「どのポーズのトラバースがいつ返ったか」を採るために実体が要る。
+  // ?diag=1 のときだけ生える読み取り専用ゲッター（通常利用には一切影響しない）。
+  get sparkRenderer(){
+    try{ return (typeof sparkRenderer!=='undefined') ? sparkRenderer : null; }catch(_){ return null; }
+  },
+  get cam(){
+    try{ return { yaw:yaw, pitch:pitch, x:camPos.x, y:camPos.y, z:camPos.z }; }catch(_){ return null; }
+  },
+  get radMotion(){ return window.__radMotion || null; },
 };

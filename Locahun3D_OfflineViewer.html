@@ -2995,7 +2995,7 @@ window.KAWAII_MALE_GLB_B64="Z2xURgIAAADsaRIAoPYCAEpTT057ImFzc2V0Ijp7InZlcnNpb24i
      the HTML. -->
 
 <script>
-window.__locahunBuildRelease="381c80807868d08fad4de3e427ea06397c5ffc4370993e329b47b1ba0cb32a1f";
+window.__locahunBuildRelease="1b84adebc5c67348cb767e10a07d111ee2066e4e04e29e3f8730358f4f165d91";
 (function(root) {
   'use strict';
   const ORIGIN='https://viewer.locahun3d.com';
@@ -22174,6 +22174,17 @@ window.__diagState = {
   get lastTraverseResumed(){
     try{ return (typeof sparkRenderer!=='undefined' && sparkRenderer) ? !!sparkRenderer.lastTraverseResumed : null; }catch(_){ return null; }
   },
+  // ── 移動中LOD予算の計測ハーネス用 (2026-09-21) ──
+  // scripts/perf-rad-motion.mjs が updateLodInstances をラップして
+  // 「どのポーズのトラバースがいつ返ったか」を採るために実体が要る。
+  // ?diag=1 のときだけ生える読み取り専用ゲッター（通常利用には一切影響しない）。
+  get sparkRenderer(){
+    try{ return (typeof sparkRenderer!=='undefined') ? sparkRenderer : null; }catch(_){ return null; }
+  },
+  get cam(){
+    try{ return { yaw:yaw, pitch:pitch, x:camPos.x, y:camPos.y, z:camPos.z }; }catch(_){ return null; }
+  },
+  get radMotion(){ return window.__radMotion || null; },
 };
 // ── Self-installing sampler ───────────────────────────────────────────────
 // Writes a 1Hz timeline + every setPixelRatio call + every quality change.
@@ -29866,6 +29877,18 @@ const _QUALITY_SCALES = [0.75, 1.0, 1.5];
 // Only manual picks are immediate (the user expects instant feedback and no
 // mid-motion flash is acceptable for a deliberate click); everything else is
 // queued so the buffer reallocation lands between interactions.
+// 画質プリセット→LOD総予算(sparkRenderer.lodSplatCount)の唯一の定義元。
+// undefined を返す＝Spark の端末別既定(defaultSplatTarget: desktop 250万)に委ねる、の意。
+// 295_rad_motion_budget.js が「移動中に下げた予算を戻す」ときもここを読む
+// （ティアが移動中に変わっても、戻し先が必ず最新になるように）。2026-09-21
+function _radTierLodSplatCount(idx){
+  const i = (typeof idx === 'number') ? Math.max(0, Math.min(2, idx|0))
+                                      : ((typeof qualIdx === 'number') ? qualIdx : 1);
+  const _tier = (typeof _splatPerfTier !== 'undefined') ? _splatPerfTier : 'laptop_ok';
+  if(i === 2 && _tier === 'desktop')   return 5000000;
+  if(i === 2 && _tier === 'laptop_ok') return 3000000;
+  return undefined;
+}
 function applyQualityTier(idx, opts){
   opts = opts || {};
   const source = opts.source || 'watchdog';
@@ -29904,10 +29927,7 @@ function applyQualityTier(idx, opts){
   // VRAM上限 maxPagedSplats(desktop 1677万) は別枠なので触らない。
   try {
     if(typeof sparkRenderer !== 'undefined' && sparkRenderer){
-      const _tier = (typeof _splatPerfTier !== 'undefined') ? _splatPerfTier : 'laptop_ok';
-      if(i === 2 && _tier === 'desktop')        sparkRenderer.lodSplatCount = 5000000;
-      else if(i === 2 && _tier === 'laptop_ok') sparkRenderer.lodSplatCount = 3000000;
-      else sparkRenderer.lodSplatCount = undefined;
+      sparkRenderer.lodSplatCount = _radTierLodSplatCount(i);
     }
   } catch(_){}
   _updateQiBadgeLabel(i);
