@@ -14,7 +14,7 @@ const root=path.resolve(import.meta.dirname,'..');
 const label=arg('--label','baseline'),htmlName=arg('--html','Locahun3D_OfflineViewer.html'),latency=+arg('--latency','60'),extraQuery=arg('--query','');
 const rad=arg('--rad','C:/Users/askgg/Dropbox/KWI/Products/Locahun3D/01_3DData/StudioPleaseGreen/260907/2_3DGSData/2FStudio/Rad/2FStudio.rad');
 const types={'.html':'text/html','.js':'text/javascript','.json':'application/json','.wasm':'application/wasm'};
-let requests=0;
+let requests=0,srvMs=0,srvN=0,inflight=0,maxInflight=0;const seenRanges=new Map();let repeats=0;
 const server=http.createServer((req,res)=>{
   const url=new URL(req.url,'http://x');
   const file=url.pathname==='/scene.rad'?rad:path.join(root,decodeURIComponent(url.pathname));
@@ -30,20 +30,30 @@ const server=http.createServer((req,res)=>{
         fs.createReadStream(file,{start:a,end:b}).pipe(res);
       }else{res.writeHead(200,{...head,'content-length':st.size});fs.createReadStream(file).pipe(res);}
     };
-    if(url.pathname==='/scene.rad'){requests++;setTimeout(send,latency);}else send();
+    if(url.pathname==='/scene.rad'){requests++;{const t=Date.now();inflight++;maxInflight=Math.max(maxInflight,inflight);res.on('close',()=>{inflight--;srvMs+=Date.now()-t;srvN++;});}{const k=req.headers.range||'';const c=(seenRanges.get(k)||0)+1;seenRanges.set(k,c);if(c>1)repeats++;}setTimeout(send,latency);}else send();
   });
 });
 await new Promise(r=>server.listen(0,'127.0.0.1',r));
 const port=server.address().port;
 const browser=await chromium.launch({channel:'chrome',headless:false,args:['--window-size=1600,900','--disable-background-timer-throttling','--disable-renderer-backgrounding','--disable-backgrounding-occluded-windows']});
 const page=await browser.newPage({viewport:{width:1600,height:900}});
+// ワーカー呼び出しの所要時間を名前別に集計（どこで詰まっているかの切り分け用）
+await page.addInitScript(()=>{
+  const W=window.Worker,stats=window.__wstats={};
+  window.Worker=class extends W{constructor(...a){super(...a);const pend=new Map();
+    const post=this.postMessage.bind(this);
+    this.postMessage=(m,t)=>{try{if(m&&m.id!==undefined)pend.set(m.id,{name:m.name||m.method||'?',t:performance.now()});}catch(_){}
+      return post(m,t);};
+    this.addEventListener('message',e=>{const d=e.data;if(d&&d.id!==undefined&&pend.has(d.id)){const p=pend.get(d.id);pend.delete(d.id);
+      const s=stats[p.name]||(stats[p.name]={n:0,ms:0,max:0});const dt=performance.now()-p.t;s.n++;s.ms+=dt;s.max=Math.max(s.max,dt);}});}};
+});
 const errors=[];page.on('pageerror',e=>errors.push(String(e).slice(0,200)));
 await page.goto(`http://127.0.0.1:${port}/${htmlName}?autoload=${encodeURIComponent('/scene.rad')}&autoname=scene.rad${extraQuery?'&'+extraQuery:''}`);
 const sample=()=>page.evaluate(()=>{const d=window.__diagState||{};window.__keepAlive&&window.__keepAlive(3000);
   return {n:window.__nSplat?window.__nSplat():-1,q:d.pagerQ,a:d.pagerActive,trav:d.lastTraverseMs,fps:d.fps,tier:d.splatPerfTier,budget:d.lodSplatCount,pre:d.lodPrefetch&&d.lodPrefetch.phase};});
 // 収束まで待つ。戻り値: 収束に要した ms（最後に「動き」があった時刻）、その間のリクエスト数、最終スプラット数
 async function settle(maxMs=30000,quietMs=5000){
-  const t0=Date.now(),r0=requests;let last=t0,prev=null,prevReq=requests,s=null,minFps=Infinity;
+  const t0=Date.now(),r0=requests,p0=repeats;let last=t0,prev=null,prevReq=requests,s=null,minFps=Infinity;
   while(Date.now()-t0<maxMs){
     s=await sample();
     // 取得リクエストが出ている間も「まだ精細化中」とみなす（n は予算上限に張り付くと変わらないため）
@@ -53,7 +63,7 @@ async function settle(maxMs=30000,quietMs=5000){
     if(Date.now()-last>=quietMs)break;
     await new Promise(r=>setTimeout(r,100));
   }
-  return {ms:last-t0,timedOut:Date.now()-last<quietMs,requests:requests-r0,n:s.n,minFps:minFps===Infinity?null:minFps,trav:s.trav,pre:s.pre,budget:s.budget,tier:s.tier};
+  return {ms:last-t0,timedOut:Date.now()-last<quietMs,requests:requests-r0,repeated:repeats-p0,n:s.n,minFps:minFps===Infinity?null:minFps,trav:s.trav,pre:s.pre,budget:s.budget,tier:s.tier};
 }
 const results={label,htmlName,latency,extraQuery,rad:path.basename(rad),steps:[]};
 const step=async(name,fn,maxMs)=>{if(fn)await page.evaluate(fn);const r=await settle(maxMs);results.steps.push({name,...r});console.log(name,JSON.stringify(r));};
@@ -63,11 +73,16 @@ if(tier!=='')await page.evaluate(t=>{window._gpuWatchdog=window._gpuWatchdog||{}
 console.log('diag keys',await page.evaluate(()=>window.__diagState?Object.keys(Object.getOwnPropertyDescriptors(window.__diagState)).length:'none'));
 await step('load',null,90000);
 
+if(process.argv.includes('--dwell')){ // 静止したまま、取得が続くか・止まるかを見る
+  for(let i=0;i<12;i++){const r0=requests;await new Promise(r=>setTimeout(r,5000));const s=await sample();console.log('dwell',(i+1)*5,'s  +req',requests-r0,'n',s.n,'q',s.q,'a',s.a,'trav',Math.round(s.trav));}
+}
 await step('turn+180',()=>window.__setCam(Math.PI,0));
 await step('turn+90',()=>window.__setCam(Math.PI/2,0));
 await step('turn-90',()=>window.__setCam(-Math.PI/2,0));
 await step('back-to-0 (seen before)',()=>window.__setCam(0,0));
 await step('turn+180 again (seen before)',()=>window.__setCam(Math.PI,0));
+results.workerStats=await page.evaluate(()=>window.__wstats);console.log('workers',JSON.stringify(results.workerStats));
+console.log('server avg ms/request',Math.round(srvMs/srvN),'max inflight',maxInflight);
 results.errors=errors;results.totalRequests=requests;
 fs.mkdirSync(path.join(root,'perf-results'),{recursive:true});
 fs.writeFileSync(path.join(root,'perf-results',`rad-turn-${label}.json`),JSON.stringify(results,null,1));

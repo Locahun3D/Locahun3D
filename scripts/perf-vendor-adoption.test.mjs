@@ -24,7 +24,9 @@ test('adopted immutable asset is exactly the visually reviewed candidate; old by
 test('standalone keeps the original renderer; online selects heap319 (re-adopted 2026-09-20)',()=>{
  const pick=f=>JSON.parse(fs.readFileSync(new URL(f,root))).imports['@sparkjsdev/spark'];
  assert(pick('src/assets/importmap.json').endsWith('/spark-2.0.0-workers16-incrtraverse.module.js'));
- assert(pick('src/assets/importmap.online.json').endsWith('/'+name));
+ // 2026-09-20: さらに Range 取得を cache:"no-store" にした版（同一URLの並列取得が Chrome のキャッシュロックで直列化される問題の回避。
+ // 思い出横丁 584MB・遅延150ms で 読込 20s→3.9s、振り向き 4〜6s→2.0〜2.4s、2回再現）。heap319 本体との差はその1か所だけ。
+ assert(pick('src/assets/importmap.online.json').endsWith('/'+name.replace('.module.js','-nostore.module.js')));
 });
 test('checked-in provenance and Rust source reproduce review identity',()=>{
  const p=JSON.parse(fs.readFileSync(new URL('vendor/spark-heap319-v1/provenance.json',root)));
