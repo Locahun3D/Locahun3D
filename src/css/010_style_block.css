@@ -202,6 +202,11 @@ body{position:fixed;top:0;left:0;}
 body.protected-mode #tb-save-btn,
 body.protected-mode #em-export-splat,
 body.protected-mode #em-save-zip { display:none !important; }
+/* 2026-09-20: デモシーン(交差点)を読み込んでいる間もオンライン版と同じ扱い
+   (保存/エクスポート不可)。body.demo-mode は 430 が layers を見て付け外しする。 */
+body.demo-mode #tb-save-btn,
+body.demo-mode #em-export-splat,
+body.demo-mode #em-save-zip { display:none !important; }
 
 /* ── Drop zone (REEL — ASPECT FRAMES) ── */
 #dz{

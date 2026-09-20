@@ -226,6 +226,9 @@ async function loadFromURL(url, displayName){
       // strictly on the demo URL/label so user-supplied .rad URLs keep their
       // identity transform.
       if(typeof DEMO_SCENE_URL !== 'undefined' && (url === DEMO_SCENE_URL || displayName === DEMO_SCENE_LABEL)){
+        // 2026-09-20: ホーム画面のデモボタン経由でも保存系を即座に隠す(判定本体は 430)
+        if(typeof window._syncDemoMode === 'function') window._syncDemoMode();
+        else if(!(typeof _protected !== 'undefined' && _protected)) document.body.classList.add('demo-mode');
         mainL.pos   = { x:0, y:1.5,   z:0 };
         mainL.rot   = { x:0, y:-168,  z:0 };
         mainL.scale = { x:1, y:1,     z:1 };
@@ -313,6 +316,9 @@ setTimeout(async ()=>{
     const an = location.search.match(/[?&]autoname=([^&]+)/);
     await loadFromURL(autoUrl, an ? decodeURIComponent(an[1]) : undefined);
   } else if(dm && DEMO_SCENE_URL){
+    // 2026-09-20: デモはオンライン版と同じ扱い(保存/エクスポート不可)。この await が終わるまで
+    // 後続スクリプト(430 のガード本体)は走らないので、表示側のクラスだけ先に付けておく。
+    if(!(typeof _protected !== 'undefined' && _protected)) document.body.classList.add('demo-mode');
     await loadFromURL(DEMO_SCENE_URL, (typeof T==='function'?T('demo-btn-lbl'):DEMO_SCENE_LABEL));
   }
 }, 0);

@@ -222,6 +222,11 @@ body{position:fixed;top:0;left:0;}
 body.protected-mode #tb-save-btn,
 body.protected-mode #em-export-splat,
 body.protected-mode #em-save-zip { display:none !important; }
+/* 2026-09-20: デモシーン(交差点)を読み込んでいる間もオンライン版と同じ扱い
+   (保存/エクスポート不可)。body.demo-mode は 430 が layers を見て付け外しする。 */
+body.demo-mode #tb-save-btn,
+body.demo-mode #em-export-splat,
+body.demo-mode #em-save-zip { display:none !important; }
 
 /* ── Drop zone (REEL — ASPECT FRAMES) ── */
 #dz{
@@ -2990,7 +2995,7 @@ window.KAWAII_MALE_GLB_B64="Z2xURgIAAADsaRIAoPYCAEpTT057ImFzc2V0Ijp7InZlcnNpb24i
      the HTML. -->
 
 <script>
-window.__locahunBuildRelease="e12080c05a1f8131c1e6f7079b5b640a84936ab9aaa04a98eb08ee1419c87fa4";
+window.__locahunBuildRelease="381c80807868d08fad4de3e427ea06397c5ffc4370993e329b47b1ba0cb32a1f";
 (function(root) {
   'use strict';
   const ORIGIN='https://viewer.locahun3d.com';
@@ -9599,6 +9604,15 @@ function _drawLocahunLogo(ctx, x, y, s){
   ctx.restore();
 }
 
+// 2026-09-20 本人指示「ビューアーのロゴ統一」: バーンイン帯のロゴも商標登録版
+// （括弧マーク＋中央アンバーのリングと点 / 欧文 Locahun 3D）にする。画像は描き直さず、
+// ホーム画面に埋め込み済みの商標PNG（src/assets/trademark-logo.json 由来の data URI）を
+// そのまま使う。data URI なので同期で描け、toBlob も汚染しない。未デコード時は null。
+function _locahunTrademarkImg(kind){
+  const el = document.querySelector(kind==='mark' ? '#dz .dz-logo img.tm-mark' : '#dz h1.tm-word img');
+  return (el && el.complete && el.naturalWidth > 0) ? el : null;
+}
+
 function composeBurnInFrame(imgCanvas){
   const W = imgCanvas.width, H = imgCanvas.height;
   const pad     = Math.round(Math.min(W, H) * 0.018);
@@ -9638,27 +9652,44 @@ function composeBurnInFrame(imgCanvas){
     ctx.fillStyle = '#f0f0f0';
     ctx.fillText(cam.shot, sideW + pad, topH / 2);
   }
-  // Brand lockup: app-icon mark + LOCAHUN 3D wordmark, centered in the strip.
-  ctx.font = `700 ${Math.round(topFont * 0.92)}px ui-sans-serif,system-ui,sans-serif`;
-  const _brand  = 'LOCAHUN 3D';
-  const _logoS  = Math.round(topH * 0.82);
-  const _logoGp = Math.round(_logoS * 0.30);
-  const _brandW = ctx.measureText(_brand).width;
-  const _lockW  = _logoS + _logoGp + _brandW;
-  const _lockX  = Math.round((finalW - _lockW) / 2);
-  _drawLocahunLogo(ctx, _lockX, Math.round((topH - _logoS) / 2), _logoS);
-  // Optically center the wordmark on the logo's vertical center. Canvas
-  // textBaseline='middle' centers the full em box (incl. the empty descender
-  // band), so an ALL-CAPS string like "LOCAHUN 3D" renders visibly high and
-  // looks unaligned next to the logo. Center the real glyph bounds instead.
-  ctx.textAlign = 'left';
-  ctx.textBaseline = 'alphabetic';
-  ctx.fillStyle = 'rgba(255,255,255,.95)';   // brand wordmark in white (user request v0.0.44)
-  const _bm    = ctx.measureText(_brand);
-  const _asc   = _bm.actualBoundingBoxAscent  || topFont * 0.70;
-  const _dsc   = _bm.actualBoundingBoxDescent || 0;
-  const _baseY = topH / 2 + (_asc - _dsc) / 2;
-  ctx.fillText(_brand, _lockX + _logoS + _logoGp, _baseY);
+  // Brand lockup（2026-09-20）: 商標マーク＋欧文ワードマーク。位置・大きさは従来のまま
+  // （マーク=帯高の82%、ワードマークは従来の大文字テキストと同じ字高）。
+  const _tmMark = _locahunTrademarkImg('mark'), _tmWord = _locahunTrademarkImg('word');
+  if(_tmMark && _tmWord){
+    const _logoS  = Math.round(topH * 0.82);
+    const _logoGp = Math.round(_logoS * 0.30);
+    const _wordH  = Math.max(6, Math.round(topFont * 0.92 * 0.72)); // 従来フォントのキャップハイト相当
+    const _wordW  = Math.round(_wordH * _tmWord.naturalWidth / _tmWord.naturalHeight);
+    const _lockX  = Math.round((finalW - (_logoS + _logoGp + _wordW)) / 2);
+    const _smooth = ctx.imageSmoothingQuality;
+    ctx.imageSmoothingEnabled = true; ctx.imageSmoothingQuality = 'high';
+    ctx.drawImage(_tmMark, _lockX, Math.round((topH - _logoS) / 2), _logoS, _logoS);
+    ctx.drawImage(_tmWord, _lockX + _logoS + _logoGp, Math.round((topH - _wordH) / 2), _wordW, _wordH);
+    ctx.imageSmoothingQuality = _smooth;
+  } else {
+    // 商標画像が取れない場合のみ従来描画（表記は商標どおり Locahun 3D）。
+    // Brand lockup: app-icon mark + LOCAHUN 3D wordmark, centered in the strip.
+    ctx.font = `700 ${Math.round(topFont * 0.92)}px ui-sans-serif,system-ui,sans-serif`;
+    const _brand  = 'Locahun 3D';
+    const _logoS  = Math.round(topH * 0.82);
+    const _logoGp = Math.round(_logoS * 0.30);
+    const _brandW = ctx.measureText(_brand).width;
+    const _lockW  = _logoS + _logoGp + _brandW;
+    const _lockX  = Math.round((finalW - _lockW) / 2);
+    _drawLocahunLogo(ctx, _lockX, Math.round((topH - _logoS) / 2), _logoS);
+    // Optically center the wordmark on the logo's vertical center. Canvas
+    // textBaseline='middle' centers the full em box (incl. the empty descender
+    // band), so an ALL-CAPS string like "LOCAHUN 3D" renders visibly high and
+    // looks unaligned next to the logo. Center the real glyph bounds instead.
+    ctx.textAlign = 'left';
+    ctx.textBaseline = 'alphabetic';
+    ctx.fillStyle = 'rgba(255,255,255,.95)';   // brand wordmark in white (user request v0.0.44)
+    const _bm    = ctx.measureText(_brand);
+    const _asc   = _bm.actualBoundingBoxAscent  || topFont * 0.70;
+    const _dsc   = _bm.actualBoundingBoxDescent || 0;
+    const _baseY = topH / 2 + (_asc - _dsc) / 2;
+    ctx.fillText(_brand, _lockX + _logoS + _logoGp, _baseY);
+  }
 
   // ── Data ──
   const eq       = _camEquiv35().toFixed(0);
@@ -21806,6 +21837,9 @@ async function loadFromURL(url, displayName){
       // strictly on the demo URL/label so user-supplied .rad URLs keep their
       // identity transform.
       if(typeof DEMO_SCENE_URL !== 'undefined' && (url === DEMO_SCENE_URL || displayName === DEMO_SCENE_LABEL)){
+        // 2026-09-20: ホーム画面のデモボタン経由でも保存系を即座に隠す(判定本体は 430)
+        if(typeof window._syncDemoMode === 'function') window._syncDemoMode();
+        else if(!(typeof _protected !== 'undefined' && _protected)) document.body.classList.add('demo-mode');
         mainL.pos   = { x:0, y:1.5,   z:0 };
         mainL.rot   = { x:0, y:-168,  z:0 };
         mainL.scale = { x:1, y:1,     z:1 };
@@ -21893,6 +21927,9 @@ setTimeout(async ()=>{
     const an = location.search.match(/[?&]autoname=([^&]+)/);
     await loadFromURL(autoUrl, an ? decodeURIComponent(an[1]) : undefined);
   } else if(dm && DEMO_SCENE_URL){
+    // 2026-09-20: デモはオンライン版と同じ扱い(保存/エクスポート不可)。この await が終わるまで
+    // 後続スクリプト(430 のガード本体)は走らないので、表示側のクラスだけ先に付けておく。
+    if(!(typeof _protected !== 'undefined' && _protected)) document.body.classList.add('demo-mode');
     await loadFromURL(DEMO_SCENE_URL, (typeof T==='function'?T('demo-btn-lbl'):DEMO_SCENE_LABEL));
   }
 }, 0);
@@ -29528,6 +29565,28 @@ var t=require("three");class e{static roundNumber(t,e){const r=Math.pow(10,e);re
   return _navigationPathfindingClass=exports.Pathfinding;
 }
 let _navigationPoint=null,_navigationHold=null;
+// 玉の見かけサイズ（2026-09-20 本人指摘「スマホだと大きい。スケールではなく画面サイズ？」）。
+// 調査結果: サイズは元から「画面上およそ半径6px固定」で、キャンバスも CSS zoom 無しの
+// innerWidth×innerHeight なので端末差は無い。大きく見えた実原因は次の3つ。
+//  ①距離に視線軸の奥行きではなく直線距離を使っていた → 画面端では (d/z)² 倍に膨らむ。
+//    縦FOV90°の縦持ちスマホは足元の地面が画面下端(軸から約40°)に来るので半径が約2倍(≈12px)。
+//  ②下限 0.04m が近距離(約3m以内)で効き、1.5m先では半径≈11px になっていた。
+//  ③同じ6pxでも幅390pxの画面では相対的に大きい（幅1440の約3.7倍の比率）。
+// 対策: 奥行き z と軸外れの伸び(1/cosθ)を織り込んで「最大径」を狙いpxに合わせ、
+// 下限を 0.02m に下げ、狭い画面は狙いpxを少し小さくする(390幅で約4.7px、480幅以上は6px)。
+let _navigationFwd=null,_navigationRel=null;
+function _navigationPointRadius(position){
+  const w=Math.max(1,canvas.clientWidth),h=Math.max(1,canvas.clientHeight);
+  const px=Math.max(4,Math.min(6,Math.min(w,h)*.012));
+  const focal=(h/2)/Math.tan(camera.fov*Math.PI/360); // 焦点距離(CSS px)
+  if(!_navigationFwd){_navigationFwd=new THREE.Vector3();_navigationRel=new THREE.Vector3();}
+  camera.getWorldDirection(_navigationFwd);
+  _navigationRel.copy(position).sub(camera.position);
+  const d=_navigationRel.length(),z=Math.max(.05,_navigationRel.dot(_navigationFwd));
+  // 球の投影の長径 ≈ r·focal·d/z² （軸上は d=z で従来式と一致）
+  const radius=Math.max(.02,px*z*z/(focal*Math.max(d,.05)));
+  return {radius,px:+(radius*focal*Math.max(d,.05)/(z*z)).toFixed(2)};
+}
 function _showNavigationPoint(point,valid){
   if(!_navigationPoint){
     _navigationPoint=new THREE.Mesh(new THREE.SphereGeometry(.075,12,8),
@@ -29538,9 +29597,9 @@ function _showNavigationPoint(point,valid){
     scene.add(_navigationPoint);
   }
   _navigationPoint.position.set(point.x,point.y+.08,point.z);
-  const distance=camera.position.distanceTo(_navigationPoint.position);
-  const radius=Math.max(.04,distance*2*Math.tan(camera.fov*Math.PI/360)*6/Math.max(1,canvas.clientHeight));
-  _navigationPoint.scale.setScalar(radius/.075);
+  const size=_navigationPointRadius(_navigationPoint.position);
+  _navigationPoint.userData.size=size;
+  _navigationPoint.scale.setScalar(size.radius/.075);
   _navigationPoint.material.color.setHex(valid?0x63edbd:0xff5353);
   _navigationPoint.visible=true;markDirty(2);
 }
@@ -29601,7 +29660,7 @@ function _navigationHoldTake(kind,e,consumed){
 window.addEventListener('blur',_navigationHoldReset);
 canvas.addEventListener('touchcancel',_navigationHoldReset,{passive:true});
 // 診断用（自動テストから玉の状態を読む）。UI からは使わない。
-window.__navPoint=()=>_navigationPoint?{visible:_navigationPoint.visible,x:+_navigationPoint.position.x.toFixed(3),y:+_navigationPoint.position.y.toFixed(3),z:+_navigationPoint.position.z.toFixed(3),ok:_navigationPoint.material.color.getHex()===0x63edbd,hold:!!_navigationHold,active:!!(_navigationHold&&_navigationHold.active)}:{visible:false,hold:!!_navigationHold};
+window.__navPoint=()=>_navigationPoint?{visible:_navigationPoint.visible,x:+_navigationPoint.position.x.toFixed(3),y:+_navigationPoint.position.y.toFixed(3),z:+_navigationPoint.position.z.toFixed(3),ok:_navigationPoint.material.color.getHex()===0x63edbd,radius:+(_navigationPoint.userData.size?.radius||0).toFixed(4),px:_navigationPoint.userData.size?.px||0,hold:!!_navigationHold,active:!!(_navigationHold&&_navigationHold.active)}:{visible:false,hold:!!_navigationHold};
 function _syncWalkJumpButton(){
   const button=document.getElementById('walk-jump-button');
   if(!button)return;
@@ -30266,6 +30325,37 @@ if(_protected){
   window.saveProject    = ()=>{ showUndoToast((window._lang==='en'?'Saving is not available in online view mode':'オンライン閲覧モードではデータ保存できません')); };
 }
 
+// ── 2026-09-20: デモシーンもオンライン版(?protected=1)と同じ扱い ──
+// デモシーン(交差点)がシーンに居る間は ZIP保存・3DGSエクスポート・JSON保存を塞ぐ。
+// 判定は URL ではなくレイヤー(_streamUrl===DEMO_SCENE_URL)で行うので、ホーム画面の
+// デモボタンから入っても効き、デモを外して別ファイルを読めば通常動作に戻る。
+// Ctrl+S・エクスポートモーダル・トップバーは全て window.saveProjectZip 等を
+// 経由するため、ここ1箇所のガードで全経路を塞げる。
+(function(){
+  if(_protected) return; // オンライン版は上で既に塞いである
+  const urlDemo = /[?&]demo=1/.test(location.search);
+  const isDemo = ()=>{
+    if(typeof DEMO_SCENE_URL==='undefined' || !DEMO_SCENE_URL || typeof layers==='undefined') return false;
+    if(layers.some(l=>l && l._streamUrl===DEMO_SCENE_URL)) return true;
+    // ?demo=1 で起動してまだ何も載っていない間(読込中)も塞いでおく
+    return urlDemo && layers.length===0;
+  };
+  const sync = ()=>{ const on=isDemo(); document.body.classList.toggle('demo-mode', on); return on; };
+  window._isDemoSceneActive = isDemo;
+  window._syncDemoMode = sync;
+  const msg = ()=>showUndoToast(window._lang==='en'?'Saving is not available for the demo scene':'デモシーンではデータ保存できません');
+  ['saveProjectZip','exportSplat','saveProject'].forEach(k=>{
+    const orig = window[k];
+    if(typeof orig!=='function') return;
+    window[k] = function(...a){ if(sync()){ msg(); return; } return orig.apply(this,a); };
+  });
+  // レイヤーの増減は必ず renderLayerList を通るので、そこで body クラスを同期する
+  if(typeof renderLayerList==='function'){
+    const _rll = renderLayerList;
+    renderLayerList = function(...a){ const r=_rll.apply(this,a); try{ sync(); }catch(_){ } return r; };
+  }
+  sync();
+})();
 // The local server owns disk writes; the normal downloadable viewer stays unchanged.
 if(new URLSearchParams(location.search).get('localProject')==='1') {
   window.localProject = {ready:false,busy:false,revision:null,status:'loading',dirty:false,changeVersion:0};

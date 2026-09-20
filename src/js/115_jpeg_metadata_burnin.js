@@ -216,6 +216,15 @@ function _drawLocahunLogo(ctx, x, y, s){
   ctx.restore();
 }
 
+// 2026-09-20 本人指示「ビューアーのロゴ統一」: バーンイン帯のロゴも商標登録版
+// （括弧マーク＋中央アンバーのリングと点 / 欧文 Locahun 3D）にする。画像は描き直さず、
+// ホーム画面に埋め込み済みの商標PNG（src/assets/trademark-logo.json 由来の data URI）を
+// そのまま使う。data URI なので同期で描け、toBlob も汚染しない。未デコード時は null。
+function _locahunTrademarkImg(kind){
+  const el = document.querySelector(kind==='mark' ? '#dz .dz-logo img.tm-mark' : '#dz h1.tm-word img');
+  return (el && el.complete && el.naturalWidth > 0) ? el : null;
+}
+
 function composeBurnInFrame(imgCanvas){
   const W = imgCanvas.width, H = imgCanvas.height;
   const pad     = Math.round(Math.min(W, H) * 0.018);
@@ -255,27 +264,44 @@ function composeBurnInFrame(imgCanvas){
     ctx.fillStyle = '#f0f0f0';
     ctx.fillText(cam.shot, sideW + pad, topH / 2);
   }
-  // Brand lockup: app-icon mark + LOCAHUN 3D wordmark, centered in the strip.
-  ctx.font = `700 ${Math.round(topFont * 0.92)}px ui-sans-serif,system-ui,sans-serif`;
-  const _brand  = 'LOCAHUN 3D';
-  const _logoS  = Math.round(topH * 0.82);
-  const _logoGp = Math.round(_logoS * 0.30);
-  const _brandW = ctx.measureText(_brand).width;
-  const _lockW  = _logoS + _logoGp + _brandW;
-  const _lockX  = Math.round((finalW - _lockW) / 2);
-  _drawLocahunLogo(ctx, _lockX, Math.round((topH - _logoS) / 2), _logoS);
-  // Optically center the wordmark on the logo's vertical center. Canvas
-  // textBaseline='middle' centers the full em box (incl. the empty descender
-  // band), so an ALL-CAPS string like "LOCAHUN 3D" renders visibly high and
-  // looks unaligned next to the logo. Center the real glyph bounds instead.
-  ctx.textAlign = 'left';
-  ctx.textBaseline = 'alphabetic';
-  ctx.fillStyle = 'rgba(255,255,255,.95)';   // brand wordmark in white (user request v0.0.44)
-  const _bm    = ctx.measureText(_brand);
-  const _asc   = _bm.actualBoundingBoxAscent  || topFont * 0.70;
-  const _dsc   = _bm.actualBoundingBoxDescent || 0;
-  const _baseY = topH / 2 + (_asc - _dsc) / 2;
-  ctx.fillText(_brand, _lockX + _logoS + _logoGp, _baseY);
+  // Brand lockup（2026-09-20）: 商標マーク＋欧文ワードマーク。位置・大きさは従来のまま
+  // （マーク=帯高の82%、ワードマークは従来の大文字テキストと同じ字高）。
+  const _tmMark = _locahunTrademarkImg('mark'), _tmWord = _locahunTrademarkImg('word');
+  if(_tmMark && _tmWord){
+    const _logoS  = Math.round(topH * 0.82);
+    const _logoGp = Math.round(_logoS * 0.30);
+    const _wordH  = Math.max(6, Math.round(topFont * 0.92 * 0.72)); // 従来フォントのキャップハイト相当
+    const _wordW  = Math.round(_wordH * _tmWord.naturalWidth / _tmWord.naturalHeight);
+    const _lockX  = Math.round((finalW - (_logoS + _logoGp + _wordW)) / 2);
+    const _smooth = ctx.imageSmoothingQuality;
+    ctx.imageSmoothingEnabled = true; ctx.imageSmoothingQuality = 'high';
+    ctx.drawImage(_tmMark, _lockX, Math.round((topH - _logoS) / 2), _logoS, _logoS);
+    ctx.drawImage(_tmWord, _lockX + _logoS + _logoGp, Math.round((topH - _wordH) / 2), _wordW, _wordH);
+    ctx.imageSmoothingQuality = _smooth;
+  } else {
+    // 商標画像が取れない場合のみ従来描画（表記は商標どおり Locahun 3D）。
+    // Brand lockup: app-icon mark + LOCAHUN 3D wordmark, centered in the strip.
+    ctx.font = `700 ${Math.round(topFont * 0.92)}px ui-sans-serif,system-ui,sans-serif`;
+    const _brand  = 'Locahun 3D';
+    const _logoS  = Math.round(topH * 0.82);
+    const _logoGp = Math.round(_logoS * 0.30);
+    const _brandW = ctx.measureText(_brand).width;
+    const _lockW  = _logoS + _logoGp + _brandW;
+    const _lockX  = Math.round((finalW - _lockW) / 2);
+    _drawLocahunLogo(ctx, _lockX, Math.round((topH - _logoS) / 2), _logoS);
+    // Optically center the wordmark on the logo's vertical center. Canvas
+    // textBaseline='middle' centers the full em box (incl. the empty descender
+    // band), so an ALL-CAPS string like "LOCAHUN 3D" renders visibly high and
+    // looks unaligned next to the logo. Center the real glyph bounds instead.
+    ctx.textAlign = 'left';
+    ctx.textBaseline = 'alphabetic';
+    ctx.fillStyle = 'rgba(255,255,255,.95)';   // brand wordmark in white (user request v0.0.44)
+    const _bm    = ctx.measureText(_brand);
+    const _asc   = _bm.actualBoundingBoxAscent  || topFont * 0.70;
+    const _dsc   = _bm.actualBoundingBoxDescent || 0;
+    const _baseY = topH / 2 + (_asc - _dsc) / 2;
+    ctx.fillText(_brand, _lockX + _logoS + _logoGp, _baseY);
+  }
 
   // ── Data ──
   const eq       = _camEquiv35().toFixed(0);
