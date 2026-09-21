@@ -48,18 +48,6 @@ const _QUALITY_SCALES = [0.75, 1.0, 1.5];
 // Only manual picks are immediate (the user expects instant feedback and no
 // mid-motion flash is acceptable for a deliberate click); everything else is
 // queued so the buffer reallocation lands between interactions.
-// 画質プリセット→LOD総予算(sparkRenderer.lodSplatCount)の唯一の定義元。
-// undefined を返す＝Spark の端末別既定(defaultSplatTarget: desktop 250万)に委ねる、の意。
-// 295_rad_motion_budget.js が「移動中に下げた予算を戻す」ときもここを読む
-// （ティアが移動中に変わっても、戻し先が必ず最新になるように）。2026-09-21
-function _radTierLodSplatCount(idx){
-  const i = (typeof idx === 'number') ? Math.max(0, Math.min(2, idx|0))
-                                      : ((typeof qualIdx === 'number') ? qualIdx : 1);
-  const _tier = (typeof _splatPerfTier !== 'undefined') ? _splatPerfTier : 'laptop_ok';
-  if(i === 2 && _tier === 'desktop')   return 5000000;
-  if(i === 2 && _tier === 'laptop_ok') return 3000000;
-  return undefined;
-}
 function applyQualityTier(idx, opts){
   opts = opts || {};
   const source = opts.source || 'watchdog';
@@ -98,7 +86,10 @@ function applyQualityTier(idx, opts){
   // VRAM上限 maxPagedSplats(desktop 1677万) は別枠なので触らない。
   try {
     if(typeof sparkRenderer !== 'undefined' && sparkRenderer){
-      sparkRenderer.lodSplatCount = _radTierLodSplatCount(i);
+      const _tier = (typeof _splatPerfTier !== 'undefined') ? _splatPerfTier : 'laptop_ok';
+      if(i === 2 && _tier === 'desktop')        sparkRenderer.lodSplatCount = 5000000;
+      else if(i === 2 && _tier === 'laptop_ok') sparkRenderer.lodSplatCount = 3000000;
+      else sparkRenderer.lodSplatCount = undefined;
     }
   } catch(_){}
   _updateQiBadgeLabel(i);
