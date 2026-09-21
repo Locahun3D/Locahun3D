@@ -61,7 +61,7 @@ test('strict ZIP loader rejects interrupted restore even when all entries exist'
 const bridgePath=new URL('../src/js/432_online_scene_edit.js',import.meta.url);
 function bridgeSetup(overrides={}){
   const sent=[],handlers={},docHandlers={},parent={location:{origin:'https://app.example'},postMessage:(data,origin)=>sent.push({data,origin})};
-  const ctx=vm.createContext({URL,URLSearchParams,Blob,Uint8Array,Response,AbortController,setTimeout,clearTimeout,
+  const ctx=vm.createContext({URL,URLSearchParams,Blob,Uint8Array,Response,AbortController,AbortSignal,performance,Promise,setTimeout,clearTimeout,
     location:{origin:'https://app.example',href:'https://app.example/viewer/scene-editor.html?onlineSceneEdit=1',search:'?onlineSceneEdit=1'},parent,
     document:{addEventListener:(name,fn)=>docHandlers[name]=fn,body:{classList:{add(){},remove(){}}}},
     addEventListener:(name,fn)=>handlers[name]=fn,isMobile:false,innerWidth:1440,innerHeight:900,MAX_EMBED_BYTES:1024**3,
@@ -116,4 +116,24 @@ test('strict streaming export embeds all bytes without retaining authenticated s
   const s=setup({fetch:async()=>new Response(new Uint8Array([9,8,7]))});delete s.ctx.layers[0]._rawBuffer;s.ctx.layers[0]._streamUrl='https://app.example/api/scene-edit/source?sessionKey=private';
   const files=codec.unzipSync(new Uint8Array(await (await s.save()).arrayBuffer()));const text=codec.strFromU8(files['project.json']);
   const project=JSON.parse(text);assert.deepEqual([...files[project.layers[0].file]],[9,8,7]);assert.equal(project.layers[0].streamUrl,undefined);assert.equal(text.includes('private'),false);
+});
+test('source is fetched as parallel no-store Range chunks, reassembled in order, with progress sent to the parent',async()=>{
+  const total=40*1024**2+123,source=new Uint8Array(total);for(let i=0;i<total;i+=4099)source[i]=(i/4099)%251;
+  const calls=[];let inFlight=0,peak=0,failedOnce=false,received;
+  const s=bridgeSetup({
+    fetch:async(_url,init)=>{
+      const m=/^bytes=(\d+)-(\d+)$/.exec(init.headers?.Range||'');assert.ok(m,'every request is a Range request');assert.equal(init.cache,'no-store');
+      const from=+m[1],to=+m[2];calls.push([from,to]);
+      if(from===16*1024**2&&!failedOnce){failedOnce=true;throw Error('transient');}
+      inFlight++;peak=Math.max(peak,inFlight);await new Promise(r=>setTimeout(r,5));inFlight--;
+      return new Response(source.slice(from,to+1),{status:206,headers:{'content-range':`bytes ${from}-${to}/${total}`}});
+    },
+    _loadOnlineSceneFile:async blob=>{received=new Uint8Array(await blob.arrayBuffer());return {};},
+  });
+  await s.send(loadMessage);
+  assert.equal(s.sent.at(-1).data.type,'locahun:scene-ready');
+  assert.equal(received.length,total);assert.ok(received.every((v,i)=>v===source[i]),'bytes are reassembled in order');
+  assert.ok(peak>1,'chunks are fetched in parallel');assert.ok(failedOnce&&calls.filter(c=>c[0]===16*1024**2).length===2,'a failed chunk is retried');
+  const progress=s.sent.filter(m=>m.data.type==='locahun:scene-load-progress');
+  assert.ok(progress.length&&progress.at(-1).data.loaded===total&&progress.at(-1).data.total===total);
 });

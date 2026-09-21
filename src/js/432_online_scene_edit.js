@@ -73,22 +73,68 @@ if(new URLSearchParams(location.search).get('onlineSceneEdit')==='1'){
             !/^\?sessionKey=[a-f0-9]{64}$/.test(source.search) || typeof data.fileName!=='string' || !data.fileName || data.fileName.length>256)throw Error('Invalid source');
         }catch(_){fail('invalid_source');return;}
         lock(true);state.ready=false;
-        const controller=new AbortController(),timer=setTimeout(()=>controller.abort(),120000);
+        // 2026-09-21: 1本の通信で全体を取りに行くと、Worker 経由では数百MBで数分かかり、120秒の打ち切りにも当たっていた。
+        // Range で 16MB ずつ・6並列で取り、進捗を読み込み画面と外側のページの両方に出す。
+        // cache:'no-store' は必須（同じURLの並列取得は Chrome のキャッシュロックで直列化される）。
+        const controller=new AbortController(),timer=0;
         try{
-          const response=await fetch(source.href,{credentials:'same-origin',cache:'no-store',redirect:'error',signal:controller.signal});
-          if(!response.ok)throw Error('Source download failed');
           const shortEdge=Math.min(window.innerWidth||0,window.innerHeight||0);
           const limit=isMobile && shortEdge>0 && shortEdge<700 ? 200*1024**2 : MAX_EMBED_BYTES;
-          if(Number(response.headers.get('content-length'))>limit)throw Error('Device capacity exceeded');
-          const reader=response.body?.getReader();if(!reader)throw Error('Source stream unavailable');
-          const chunks=[];let size=0;
-          try{
-            for(;;){const {done,value}=await reader.read();if(done)break;size+=value.byteLength;if(size>limit)throw Error('Device capacity exceeded');chunks.push(value);}
-          }catch(error){await reader.cancel().catch(()=>{});throw error;}finally{reader.releaseLock();}
+          const en=typeof _en==='function'&&_en();
+          const uiFns={showLd:typeof showLd==='function'?showLd:null,setBar:typeof setBar==='function'?setBar:null,setMsg:typeof setMsg==='function'?setMsg:null};
+          const ui=(fn,...args)=>{try{uiFns[fn]?.(...args);}catch(_){}};
+          const get=(headers,ms)=>fetch(source.href,{credentials:'same-origin',cache:'no-store',redirect:'error',headers,signal:AbortSignal.any([controller.signal,AbortSignal.timeout(ms)])});
+          ui('showLd',en?'Downloading the scene':'3DGSをダウンロードしています');ui('setBar',1);
+          let total=0;
+          const probe=await get({Range:'bytes=0-0'},60000);
+          if(probe.status===206){const m=/\/(\d+)\s*$/.exec(probe.headers.get('content-range')||'');if(m)total=Number(m[1]);}
+          await probe.arrayBuffer().catch(()=>{});
+          if(!probe.ok)throw Error('Source download failed');
+          let chunks=[],loadedBytes=0,lastSent=0;
+          const progress=()=>{
+            const mb=n=>Math.round(n/1048576);
+            if(total){ui('setBar',1+loadedBytes/total*89);ui('setMsg',(en?'Downloading the scene ':'3DGSをダウンロードしています ')+mb(loadedBytes)+' / '+mb(total)+' MB');}
+            const now=performance.now();
+            if(now-lastSent>400||loadedBytes===total){lastSent=now;send({type:'locahun:scene-load-progress',requestId:data.requestId,loaded:loadedBytes,total});}
+          };
+          if(total){
+            if(total>limit)throw Error('Device capacity exceeded');
+            const CHUNK=16*1024**2,count=Math.ceil(total/CHUNK);let next=0;
+            chunks=new Array(count);
+            const worker=async()=>{
+              for(;;){
+                const i=next++;if(i>=count)return;
+                const from=i*CHUNK,to=Math.min(total,from+CHUNK)-1;let lastError;
+                for(let attempt=0;attempt<4;attempt++){
+                  if(controller.signal.aborted)throw Error('aborted');
+                  let got=0;
+                  try{
+                    const part=await get({Range:'bytes='+from+'-'+to},120000);
+                    if(part.status!==206)throw Error('Range not honoured');
+                    const reader=part.body.getReader(),pieces=[];
+                    for(;;){const {done,value}=await reader.read();if(done)break;got+=value.byteLength;loadedBytes+=value.byteLength;pieces.push(value);progress();}
+                    if(got!==to-from+1)throw Error('Chunk truncated');
+                    chunks[i]=new Blob(pieces);lastError=null;break;
+                  }catch(error){loadedBytes-=got;lastError=error;await new Promise(r=>setTimeout(r,800*(attempt+1)));}
+                }
+                if(lastError){controller.abort();throw lastError;}
+              }
+            };
+            await Promise.all(Array.from({length:Math.min(6,count)},worker));
+          }else{
+            // Range が使えない配信（ローカル開発など）は従来どおり1本で取る。
+            const response=await get({},600000);
+            if(!response.ok)throw Error('Source download failed');
+            total=Number(response.headers.get('content-length'))||0;
+            if(total>limit)throw Error('Device capacity exceeded');
+            const reader=response.body?.getReader();if(!reader)throw Error('Source stream unavailable');
+            for(;;){const {done,value}=await reader.read();if(done)break;loadedBytes+=value.byteLength;if(loadedBytes>limit)throw Error('Device capacity exceeded');chunks.push(value);progress();}
+          }
+          ui('setMsg',en?'Opening the scene':'3DGSを開いています');
           await _loadOnlineSceneFile(new Blob(chunks),data.fileName);
           loaded=true;state.ready=true;state.dirty=false;
           send({type:'locahun:scene-ready',requestId:data.requestId});
-        }catch(error){state.ready=false;fail(/capacity/i.test(error.message)?'capacity':'incomplete');}
+        }catch(error){state.ready=false;try{if(typeof hideLd==='function')hideLd();}catch(_){}fail(/capacity/i.test(error.message)?'capacity':'incomplete');}
         finally{clearTimeout(timer);lock(false);}
       }else{
         if(!state.ready){fail('not_ready');return;}
