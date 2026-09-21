@@ -84,9 +84,12 @@ if(new URLSearchParams(location.search).get('onlineSceneEdit')==='1'){
           const uiFns={showLd:typeof showLd==='function'?showLd:null,setBar:typeof setBar==='function'?setBar:null,setMsg:typeof setMsg==='function'?setMsg:null};
           const ui=(fn,...args)=>{try{uiFns[fn]?.(...args);}catch(_){}};
           const get=(headers,ms)=>fetch(source.href,{credentials:'same-origin',cache:'no-store',redirect:'error',headers,signal:AbortSignal.any([controller.signal,AbortSignal.timeout(ms)])});
-          if(/\.rad$/i.test(data.fileName) && typeof _loadOnlineSceneStream==='function'){
-            // RAD はダウンロードしない。公開ビューアーと同じ段階読み込みで、すぐ編集に入れる（2026-09-21）。
-            await _loadOnlineSceneStream(source.href,data.fileName);
+          // 段階読み込みできるなら、ダウンロードしない（2026-09-21）。
+          // 元が .rad のときも、ビューアー用 ZIP に無圧縮で入っている .rad のときも、
+          // サーバーが ?ref=stream で .rad として配ってくれる。ファイル名はサーバーが決めたものを使う。
+          const streamName=typeof data.streamFileName==='string' && /^[A-Za-z0-9_.-]+\.rad$/i.test(data.streamFileName) ? data.streamFileName : '';
+          if(streamName && typeof _loadOnlineSceneStream==='function'){
+            await _loadOnlineSceneStream(source.href+'&ref=stream',streamName);
             loaded=true;state.ready=true;state.dirty=false;
             send({type:'locahun:scene-ready',requestId:data.requestId});
             return;

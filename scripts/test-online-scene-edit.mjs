@@ -152,10 +152,18 @@ test('a referenced RAD is saved as a reference: no bytes, no URL, and loads back
   const evil=new Blob([codec.zipSync({'project.json':codec.strToU8(JSON.stringify({version:4,layers:[{id:1,type:'splat',streamRef:'source',streamUrl:'https://evil.example/x'}]}))})]);
   await s.ctx._loadOnlineSceneFile(evil,'scene.zip','/safe');assert.equal(restored.layers[0].streamUrl,'/safe','a URL inside the archive never wins');
 });
-test('a RAD source is streamed, not downloaded, by the editor bridge',async()=>{
-  let streamed,fetched=false;
-  const s=bridgeSetup({fetch:async()=>{fetched=true;return new Response(new Uint8Array([1]));},_loadOnlineSceneStream:async(url,name)=>{streamed=[url,name];return {};}});
-  await s.send({...loadMessage,requestId:'rad-1',fileName:'scene.rad'});
-  assert.equal(s.sent.at(-1).data.type,'locahun:scene-ready');assert.equal(fetched,false);
-  assert.deepEqual(streamed,['https://app.example/api/scene-edit/source?sessionKey='+'a'.repeat(64),'scene.rad']);
+test('the editor streams the RAD the server names (a .rad source, or the one stored inside the scene ZIP) instead of downloading it',async()=>{
+  const url='https://app.example/api/scene-edit/source?sessionKey='+'a'.repeat(64);
+  for(const [fileName,streamFileName] of [['scene.rad','scene.rad'],['ShinjukuKabukiGate.zip','0_ShinjukuKabukiGate.rad']]){
+    let streamed,fetched=false;
+    const s=bridgeSetup({fetch:async()=>{fetched=true;return new Response(new Uint8Array([1]));},_loadOnlineSceneStream:async(u,n)=>{streamed=[u,n];return {};}});
+    await s.send({...loadMessage,requestId:'stream-'+fileName,fileName,streamFileName});
+    assert.equal(s.sent.at(-1).data.type,'locahun:scene-ready');assert.equal(fetched,false,'nothing is downloaded');
+    assert.deepEqual(streamed,[url+'&ref=stream',streamFileName]);
+  }
+  // サーバーが段階読み込みできないと言ったら、従来どおり全体を取る。
+  let downloaded=false;
+  const s=bridgeSetup({fetch:async()=>{downloaded=true;return new Response(new Uint8Array([1,2,3]));},_loadOnlineSceneFile:async()=>({}),_loadOnlineSceneStream:async()=>{throw Error('must not stream');}});
+  await s.send({...loadMessage,requestId:'plain',fileName:'scene.zip',streamFileName:''});
+  assert.equal(s.sent.at(-1).data.type,'locahun:scene-ready');assert.equal(downloaded,true);
 });
