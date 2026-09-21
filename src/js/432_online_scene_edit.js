@@ -84,6 +84,13 @@ if(new URLSearchParams(location.search).get('onlineSceneEdit')==='1'){
           const uiFns={showLd:typeof showLd==='function'?showLd:null,setBar:typeof setBar==='function'?setBar:null,setMsg:typeof setMsg==='function'?setMsg:null};
           const ui=(fn,...args)=>{try{uiFns[fn]?.(...args);}catch(_){}};
           const get=(headers,ms)=>fetch(source.href,{credentials:'same-origin',cache:'no-store',redirect:'error',headers,signal:AbortSignal.any([controller.signal,AbortSignal.timeout(ms)])});
+          if(/\.rad$/i.test(data.fileName) && typeof _loadOnlineSceneStream==='function'){
+            // RAD はダウンロードしない。公開ビューアーと同じ段階読み込みで、すぐ編集に入れる（2026-09-21）。
+            await _loadOnlineSceneStream(source.href,data.fileName);
+            loaded=true;state.ready=true;state.dirty=false;
+            send({type:'locahun:scene-ready',requestId:data.requestId});
+            return;
+          }
           ui('showLd',en?'Downloading the scene':'3DGSをダウンロードしています');ui('setBar',1);
           let total=0;
           const probe=await get({Range:'bytes=0-0'},60000);
@@ -131,7 +138,7 @@ if(new URLSearchParams(location.search).get('onlineSceneEdit')==='1'){
             for(;;){const {done,value}=await reader.read();if(done)break;loadedBytes+=value.byteLength;if(loadedBytes>limit)throw Error('Device capacity exceeded');chunks.push(value);progress();}
           }
           ui('setMsg',en?'Opening the scene':'3DGSを開いています');
-          await _loadOnlineSceneFile(new Blob(chunks),data.fileName);
+          await _loadOnlineSceneFile(new Blob(chunks),data.fileName,source.href+'&ref=stream');
           loaded=true;state.ready=true;state.dirty=false;
           send({type:'locahun:scene-ready',requestId:data.requestId});
         }catch(error){state.ready=false;try{if(typeof hideLd==='function')hideLd();}catch(_){}fail(/capacity/i.test(error.message)?'capacity':'incomplete');}

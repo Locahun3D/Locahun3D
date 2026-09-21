@@ -255,6 +255,13 @@ async function loadFromURL(url, displayName){
     const name = (displayName || url.split('/').pop().split('?')[0]) || 'autoload.ply';
     const file = new File([buf], name, {type:'application/octet-stream'});
     if(ext === 'zip'){
+      // 参照保存のアーカイブ用（streamRef）: 元のRADの場所。署名付きURLで開いたときは ?streamref= で渡され、
+      // 同一オリジンの配信で開いたときは同じURLに ref=stream を付けるとサーバーが元のRADを返す。
+      try{
+        const given=new URLSearchParams(location.search).get('streamref');
+        if(given && (/^https:\/\//.test(given) || given.startsWith('/api/viewer-stream/'))) window.__l3dStreamRefUrl=given;
+        else if(url.startsWith('/api/viewer-stream/')) window.__l3dStreamRefUrl=url+(url.includes('?')?'&':'?')+'ref=stream';
+      }catch(_){}
       // Zipped splat/mesh (e.g. a large .rad zipped for upload-size limits, or
       // an online-SaaS stored property scene). _loadProjectZipFromFile already
       // knows how to unzip + auto-detect a raw splat/mesh when there's no

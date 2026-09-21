@@ -137,3 +137,25 @@ test('source is fetched as parallel no-store Range chunks, reassembled in order,
   const progress=s.sent.filter(m=>m.data.type==='locahun:scene-load-progress');
   assert.ok(progress.length&&progress.at(-1).data.loaded===total&&progress.at(-1).data.total===total);
 });
+test('a referenced RAD is saved as a reference: no bytes, no URL, and loads back only with a caller-supplied stream URL',async()=>{
+  const s=loaderSetup();
+  s.ctx.layers=[{id:1,name:'scan',type:'splat',_streamUrl:'https://app.example/api/scene-edit/source?sessionKey=private',_streamRef:'source',_rawExt:'rad',_isMain:true,pos:{x:0,y:0,z:0},rot:{x:0,y:0,z:0},scale:{x:1,y:1,z:1}}];
+  let fetched=false;s.ctx.fetch=async()=>{fetched=true;throw Error('must not download');};
+  const archive=await s.save();assert.equal(fetched,false,'the RAD is never downloaded for saving');
+  assert.ok(archive.size<20000,'archive holds only the project');
+  const files=codec.unzipSync(new Uint8Array(await archive.arrayBuffer())),text=codec.strFromU8(files['project.json']),entry=JSON.parse(text).layers[0];
+  assert.equal(entry.streamRef,'source');assert.ok(!entry.file);assert.ok(!entry.streamUrl);assert.ok(!text.includes('sessionKey'));
+  await assert.rejects(()=>s.ctx._loadOnlineSceneFile(archive,'scene.zip'),/incomplete/i);
+  let restored;s.ctx.restoreProject=async p=>{restored=p;s.ctx.layers=p.layers;return {epoch:1,layers:p.layers};};
+  await s.ctx._loadOnlineSceneFile(archive,'scene.zip','/api/scene-edit/source?sessionKey=x&ref=stream');
+  assert.equal(restored.layers[0].streamUrl,'/api/scene-edit/source?sessionKey=x&ref=stream');
+  const evil=new Blob([codec.zipSync({'project.json':codec.strToU8(JSON.stringify({version:4,layers:[{id:1,type:'splat',streamRef:'source',streamUrl:'https://evil.example/x'}]}))})]);
+  await s.ctx._loadOnlineSceneFile(evil,'scene.zip','/safe');assert.equal(restored.layers[0].streamUrl,'/safe','a URL inside the archive never wins');
+});
+test('a RAD source is streamed, not downloaded, by the editor bridge',async()=>{
+  let streamed,fetched=false;
+  const s=bridgeSetup({fetch:async()=>{fetched=true;return new Response(new Uint8Array([1]));},_loadOnlineSceneStream:async(url,name)=>{streamed=[url,name];return {};}});
+  await s.send({...loadMessage,requestId:'rad-1',fileName:'scene.rad'});
+  assert.equal(s.sent.at(-1).data.type,'locahun:scene-ready');assert.equal(fetched,false);
+  assert.deepEqual(streamed,['https://app.example/api/scene-edit/source?sessionKey='+'a'.repeat(64),'scene.rad']);
+});

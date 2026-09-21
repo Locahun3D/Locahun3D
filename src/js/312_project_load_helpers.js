@@ -200,14 +200,18 @@ async function restoreProject(project, opts = {}) {
           console.error(`[restore] splat fail: ${entry.name}`, e);
           mesh=new THREE.Group();
         }
-      } else if(entry.streamUrl){
+      } else if(entry.streamUrl || (entry.streamRef==='source' && window.__l3dStreamRefUrl)){
+        // streamRef（2026-09-21）: オンライン編集の保存は 3DGS 本体を埋め込まず「元のファイルを参照」とだけ書く。
+        // 実際のURLはアーカイブに残さず、読み込む側（公開ビューアー／編集画面）がその場で渡す。
+        // これで保存後も RAD の段階読み込みが効く。
+        if(entry.streamRef==='source' && window.__l3dStreamRefUrl) entry.streamUrl=window.__l3dStreamRefUrl; // 参照はアーカイブ内のURLより優先
         // No embedded bytes, but the project recorded a streaming source URL
         // (URL-streamed RAD saved via Option-A). Re-stream from that URL,
         // mirroring loadFromURL's RAD path. Requires the URL to be reachable
         // (i.e. online) — if it 404s/CORS-fails Spark just renders nothing.
         try{
           const surl=entry.streamUrl;
-          const sext=(surl.split('?')[0].split('#')[0].split('.').pop()||'rad').toLowerCase();
+          const sext=(entry.streamRef ? (entry.rawExt||'rad') : (surl.split('?')[0].split('#')[0].split('.').pop()||'rad')).toLowerCase();
           const sft=_splatFileTypeFor(sext);
           if(sext==='rad'){
             const opts={url:surl, fileType:sft, ...SPARK_QUALITY_OPTS};
@@ -302,6 +306,7 @@ async function restoreProject(project, opts = {}) {
     // Carry the streaming source URL (URL-streamed RAD) onto the restored
     // layer so a subsequent re-save persists it again instead of dropping it.
     if(entry.streamUrl){ L._streamUrl=entry.streamUrl; L._rawExt=entry.rawExt||L._rawExt||'rad'; }
+    if(entry.streamRef==='source' && !rb) L._streamRef='source';
     if(entry.type==='splat'){
       L._isMain=entry.isMain||false;
       if(L._isMain) splatMesh=mesh; // update global splatMesh ref

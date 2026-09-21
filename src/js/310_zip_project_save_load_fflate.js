@@ -223,7 +223,7 @@ window.saveProjectZip = async function(forceLite, opts){
       }
     }
     const _skipSplatData = !!forceLite || (_isPhoneClass && _totalSplatBytes > PHONE_SPLAT_BUDGET);
-    if(opts.strictOnline && (_skipSplatData || (_isPhoneClass && layers.some(L=>L.type==='splat' && !L._rawBuffer))))throw new Error('Device capacity insufficient for complete archive');
+    if(opts.strictOnline && (_skipSplatData || (_isPhoneClass && layers.some(L=>L.type==='splat' && !L._rawBuffer && L._streamRef!=='source'))))throw new Error('Device capacity insufficient for complete archive');
     if(_skipSplatData){
       const mb = Math.round(_totalSplatBytes / 1024 / 1024);
       console.warn(`[saveZIP] lite save (${forceLite?'user-requested':'phone-class device'}) — ${mb} MB splat data excluded`);
@@ -300,6 +300,12 @@ window.saveProjectZip = async function(forceLite, opts){
             entry.rawExt=ext;
             entry.isMain=L._isMain||false;
           }
+        } else if(L._streamUrl && L._streamRef==='source' && opts.strictOnline){
+          // オンライン編集の保存: 本体は元のRADを参照するだけにする（URLは書かない）。
+          // 数百MBを取り直して埋め込むのをやめたので、保存は数秒で終わり、保存後も段階読み込みのまま。
+          entry.streamRef='source';
+          entry.rawExt=L._rawExt||'rad';
+          entry.isMain=L._isMain||false;
         } else if(L._streamUrl){
           // Streaming RAD (?demo=1 / ?autoload=URL): the bytes were never
           // pulled into memory — Spark fetches chunks lazily over HTTP Range.
@@ -415,6 +421,7 @@ window.saveProjectZip = async function(forceLite, opts){
     }
     if(opts.strictOnline){
       for(const entry of serialized){
+        if(entry.type==='splat' && entry.streamRef==='source' && !entry.missing && !entry.streamUrl)continue; // 元のRADを参照する保存（本体は埋め込まない）
         if(entry.missing || (['splat','obj'].includes(entry.type) && (!entry.file || !files[entry.file]?.byteLength)))throw new Error('Incomplete asset: '+entry.name);
         if(entry.type==='obj')_validateOnlineModelBytes(files[entry.file],entry.rawExt);
       }

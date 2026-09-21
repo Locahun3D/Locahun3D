@@ -1,6 +1,17 @@
 // Online editing never uses the tolerant offline reattach/placeholder path.
 // Validate all archive references before mutating the currently displayed scene.
-async function _loadOnlineSceneFile(file, fileName){
+// RAD をダウンロードせず、そのまま段階読み込みで開く（編集画面用・2026-09-21）。
+async function _loadOnlineSceneStream(streamUrl, fileName){
+  const project={version:4,projectName:fileName,layerNextId:2,layers:[{
+    id:1,name:fileName,type:'splat',streamRef:'source',streamUrl,rawExt:'rad',isMain:true,
+    pos:{x:0,y:0,z:0},rot:{x:0,y:0,z:0},scale:{x:1,y:1,z:1},size:{x:1,y:1,z:1},visible:true,
+  }]};
+  const restored=await restoreProject(project,{strict:true});
+  if(!restored || restored.epoch!==walkSetup.epoch || layers.length!==1 || restored.layers[0]!==layers[0])throw new Error('Project load was interrupted');
+  _regionalNavigationFiles=null;
+  return restored;
+}
+async function _loadOnlineSceneFile(file, fileName, streamRefUrl){
   const shortEdge=Math.min(window.innerWidth||0,window.innerHeight||0);
   const limit=isMobile && shortEdge>0 && shortEdge<700 ? 200*1024**2 : MAX_EMBED_BYTES;
   if(!file.size || file.size>limit)throw new Error('Device capacity insufficient for complete archive');
@@ -24,7 +35,12 @@ async function _loadOnlineSceneFile(file, fileName){
       if(!entry || ids.has(entry.id) || !['folder','cube','sphere','obj','splat','light','figure','event','path'].includes(entry.type))throw new Error('Unsupported project layer');
       ids.add(entry.id);
       if(entry.type==='event' && entry.eventImage && !/^data:image\/(png|jpeg|webp|gif);base64,/i.test(entry.eventImage))throw new Error('Incomplete event image');
-      if(['splat','obj'].includes(entry.type)){
+      if(entry.type==='splat' && entry.streamRef==='source' && !entry.file){
+        // 本体は埋め込まれていない（元のRADを参照）。URLは呼び出し側が渡したものだけを使う。
+        if(!streamRefUrl)throw new Error('Incomplete asset: '+entry.name);
+        entry.streamUrl=streamRefUrl;entry.rawExt='rad';
+        delete entry.rawData;
+      }else if(['splat','obj'].includes(entry.type)){
         const name=entry.file;
         if(typeof name!=='string' || name.includes('..') || name.startsWith('/') || name.includes('\\') || !files[prefix+name]?.byteLength)throw new Error('Incomplete asset: '+entry.name);
         entry._buf=files[prefix+name].slice().buffer;
