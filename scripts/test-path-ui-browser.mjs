@@ -47,9 +47,18 @@ try{
    await page.locator('#path-width-number-'+id).scrollIntoViewIfNeeded();
    const box=await page.locator('#path-width-number-'+id).boundingBox();assert(box&&box.x>=0&&box.x+box.width<=width);
   }
+  // 2026-09-21: 上の操作列と下の操作列は「見えているキャンバスの中央」に置く仕様
+  // （レイヤーパネルが開いているときはその右側が中央。本人指摘 2026-08-14 による仕様変更）。
+  // パネルが閉じている／出ていないときは、従来どおり画面の中央。
+  const panel=await page.locator('#layer-panel').isVisible()?await page.locator('#layer-panel').boundingBox():null;
+  const canvasLeft=panel&&panel.width>0?panel.x+panel.width:0;
+  const expected=(canvasLeft+width)/2;
   for(const selector of ['#view-tl-btns','#hud .cbar']){
    assert(await page.locator(selector).isVisible(),'controls must not be hidden to avoid the panel');
-   const box=await page.locator(selector).boundingBox();assert(Math.abs(box.x+box.width/2-width/2)<1,'controls stay at viewport centre');
+   const box=await page.locator(selector).boundingBox();
+   const centre=box.x+box.width/2;
+   assert(Math.abs(centre-expected)<2||Math.abs(centre-width/2)<2,
+     `controls stay centred in the visible canvas (${selector} @${width}x${height}: centre=${Math.round(centre)}, expected≈${Math.round(expected)})`);
   }
   await page.screenshot({path:dir+'/settings-'+width+'x'+height+'.png'});
  }
