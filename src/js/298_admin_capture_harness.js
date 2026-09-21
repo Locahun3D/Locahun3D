@@ -47,9 +47,34 @@ if(/[?&]capture=1/.test(location.search)){
     // レンダーループ自体も headless では setTimeout 駆動なので、この待ちの間に
     // Spark の sort/LoD/RAD ストリーミングは進む。
     const _capHeadless = /[?&]headless=1/.test(location.search);
+    // 2026-09-21: setTimeout では足りなかった。背面（隠れた）ウィンドウでは Chrome が
+    // タイマーを**1秒以上に間引く**ため、1フレームあたり3回の待ちが3秒かかり、
+    // 240フレームで12分。画面上は「録画中 0%(0/240)」のまま止まって見えていた
+    // （本番で実測）。MessageChannel のメッセージはこの間引きの対象外なので、
+    // 隠れていても素の速度で回る。描画は下で renderer.render() を直接呼んでいるので
+    // 画面の合成（compositor）にも依存しない＝ウィンドウを前面に置く必要が無くなる。
+    const _yieldTick = (()=>{
+      try{
+        const ch = new MessageChannel();
+        const waiting = [];
+        ch.port1.onmessage = ()=>{ const r = waiting.shift(); if(r) r(); };
+        ch.port1.start && ch.port1.start();
+        return ()=> new Promise(r=>{ waiting.push(r); ch.port2.postMessage(0); });
+      }catch(_){
+        return ()=> new Promise(r=>setTimeout(r, 16));
+      }
+    })();
     const nextFrame = ()=> _capHeadless
-      ? new Promise(r=>setTimeout(r, 16))
+      ? _yieldTick()
       : new Promise(r=>requestAnimationFrame(r));
+    // 実時間で待つ（隠れていても効く）。MessageChannel を回しながら経過を見るので、
+    // タイマーの間引きに左右されない。Spark のソート/ストリーミング（worker）には
+    // この間に順番が回る。表示中は従来どおり rAF に任せる。
+    const settle = async (ms)=>{
+      if(!_capHeadless){ for(let i=0;i<3;i++) await nextFrame(); return; }
+      const until = performance.now() + ms;
+      while(performance.now() < until) await _yieldTick();
+    };
 
     async function run(){
      let encoder = null;
@@ -266,8 +291,8 @@ if(/[?&]capture=1/.test(location.search)){
         if(typeof markDirty==='function') markDirty(30);
 
         // Spark needs multiple frames to process sort/LOD after yaw change.
-        // hidden タブでも進むよう nextFrame()（headless では setTimeout）を使う。
-        for(let w=0; w<3; w++) await nextFrame();
+        // 隠れたウィンドウでも実時間で 48ms 待つ（表示中は従来どおり3フレーム分）。
+        await settle(48);
         if(typeof renderer!=='undefined' && typeof scene!=='undefined' && typeof camera!=='undefined'){
           renderer.render(scene, camera);
           const gl = renderer.getContext();
@@ -278,7 +303,7 @@ if(/[?&]capture=1/.test(location.search)){
         encoder.encode(vf, { keyFrame: f % (FPS * 2) === 0 });
         vf.close();
 
-        if(f % 24 === 0){
+        if(f % 8 === 0){
           const pct = Math.round(f / TOTAL_FRAMES * 100);
           msg('capture-progress',{phase:'recording', text:'録画中… '+pct+'%  ('+f+'/'+TOTAL_FRAMES+')', pct:30+Math.round(pct*0.7)});
         }
