@@ -16,6 +16,21 @@
 //  Flow: load scene → warmup (5s, GPU settles + splats stream in)
 //        → wait for orbit to be running → record for captureSec → post blob
 // ══════════════════════════════════════════════════
+// 録画に入ってよいかの判定（2026-09-21）。?capture=1 の外に置いてあるのは検査のため。
+//
+//   count … 読み込めたスプラット数。-1 = 数えられない形式、0 = 1粒も入っていない
+//   hasScene … レイヤーに描画対象があるか
+//
+// ⚠ 「レイヤーはあるが 0 粒」で録ってはいけない。本番で実際に起きた:
+//    編集後の参照保存シーンは本体を別のURLから段階読み込みするが、その配信が
+//    壊れていた間、レイヤーだけできて中身が0粒のまま収束待ちが時間切れになり、
+//    空（青空とかすみだけ）の動画をそのまま撮って、掲載スタジオへ渡す埋め込みの
+//    サムネイルに出てしまった。空なら撮らずに失敗させる。
+window._captureVerdict = function(count, hasScene){
+  if(count === 0) return 'no-splats';
+  if(count < 0 && !hasScene) return 'no-scene';
+  return 'ok';
+};
 if(/[?&]capture=1/.test(location.search)){
   (function(){
     const params = new URLSearchParams(location.search);
@@ -138,7 +153,9 @@ if(/[?&]capture=1/.test(location.search)){
             text:'読み込み中… '+(c>0 ? c.toLocaleString()+' splats' : (hasScene() ? '安定化中' : '待機中')),
             pct: 18 + Math.min(12, Math.round(elapsed / MAX_MS * 12))});
         }
-        if(anySplatCount() <= 0 && !hasScene()){ msg('capture-error',{error:'no-scene'}); return; }
+        // 空のまま録らない（window._captureVerdict の注意書きを参照）。
+        const verdict = window._captureVerdict(anySplatCount(), hasScene());
+        if(verdict !== 'ok'){ msg('capture-error',{error:verdict}); return; }
       }
 
       // Phase 3: Lock resize handler and force 1280×720 (HD) capture resolution.
