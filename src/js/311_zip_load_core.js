@@ -11,6 +11,10 @@ async function _loadOnlineSceneStream(streamUrl, fileName){
   _regionalNavigationFiles=null;
   return restored;
 }
+// 検証用（scripts/test-scene-edit-zip-stream.mjs）から呼べるようにしておく。
+// 本体はモジュール内の関数なので、window に出さないとブラウザのテストから触れない。
+try{window._loadOnlineSceneStream=_loadOnlineSceneStream;}catch(_){}
+
 async function _loadOnlineSceneFile(file, fileName, streamRefUrl){
   const shortEdge=Math.min(window.innerWidth||0,window.innerHeight||0);
   const limit=isMobile && shortEdge>0 && shortEdge<700 ? 200*1024**2 : MAX_EMBED_BYTES;

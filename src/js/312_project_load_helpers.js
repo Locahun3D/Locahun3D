@@ -215,7 +215,13 @@ async function restoreProject(project, opts = {}) {
           const sft=_splatFileTypeFor(sext);
           if(sext==='rad'){
             const opts={url:surl, fileType:sft, ...SPARK_QUALITY_OPTS};
-            opts.lod=true; opts.enableLod=true; opts.paged=true;
+            opts.lod=true; opts.enableLod=true;
+            // paged:true だと Spark が内部で PagedSplats を作り直し、形式を URL の拡張子から
+            // 推測する（vendor 12191行あたり）。オンライン編集の配信URLは拡張子を持たない
+            // （/api/scene-edit/source?...）ので、ここで形式を明示した PagedSplats を渡す。
+            opts.paged=new PagedSplats({rootUrl:surl, fileType:sft});
+            // 明示した PagedSplats に任せるので、url と fileType は外す（残すと本体を丸ごと取りに行く）。
+            delete opts.url; delete opts.fileType;
             opts.lodScale=_radEffectiveLodScale();
             // Same foveation strip as loadFromURL — otherwise the LoD walker
             // never splits and only the root chunk ever loads.

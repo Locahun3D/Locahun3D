@@ -48,7 +48,16 @@ const server = http.createServer((req, res) => {
     res.writeHead(200, { "content-type": "text/html; charset=utf-8", "content-length": html.length });
     return res.end(html);
   }
-  if (url.pathname !== "/source") { res.writeHead(404); return res.end(); }
+  if (url.pathname !== "/source") {
+    // オンライン版は vendor/ のモジュールを相対URLで読む。リポジトリから素直に返す。
+    const file = path.join(here, "..", url.pathname.replace(/^\/+/, ""));
+    if (fs.existsSync(file) && fs.statSync(file).isFile()) {
+      const body = fs.readFileSync(file);
+      res.writeHead(200, { "content-type": /\.(mjs|js|module\.js)$/.test(file) ? "text/javascript" : "application/octet-stream", "content-length": body.length });
+      return res.end(body);
+    }
+    res.writeHead(404); return res.end();
+  }
   requests++;
   const m = /bytes=(\d*)-(\d*)/.exec(req.headers.range || "");
   const headers = { "content-type": "application/octet-stream", "accept-ranges": "bytes", "cache-control": "no-store" };
@@ -73,9 +82,14 @@ const browser = await chromium.launch({ channel: "chrome", headless: false, args
 const page = await browser.newPage({ viewport: { width: 1280, height: 800 } });
 const errors = [];
 page.on("pageerror", (e) => errors.push(String(e)));
-const url = `http://127.0.0.1:${port}/viewer.html?autoload=${encodeURIComponent(`http://127.0.0.1:${port}/source`)}&autoname=${encodeURIComponent(innerName)}&diag=1`;
+page.on("console", (m) => { if (/restore|rad|type|stream/i.test(m.text())) console.log("  [browser]", m.text().slice(0, 220)); });
+// 編集画面と同じ入口（_loadOnlineSceneStream）を、同じ形のURLで呼ぶ。
+const source = `http://127.0.0.1:${port}/source?sessionKey=${"a".repeat(64)}&ref=stream`;
+await page.goto(`http://127.0.0.1:${port}/viewer.html?onlineSceneEdit=0&diag=1`, { waitUntil: "domcontentloaded" });
+await page.waitForFunction(() => typeof window._loadOnlineSceneStream === "function", null, { timeout: 60000 })
+  .catch(async () => { console.error("ビューアーが初期化されなかった。ページエラー:", errors.slice(0, 3)); await browser.close(); server.close(); process.exit(1); });
 const t0 = Date.now();
-await page.goto(url, { waitUntil: "domcontentloaded" });
+await page.evaluate(([u, n]) => { window.__streamDone = window._loadOnlineSceneStream(u, n).then(() => "ok", (e) => "ERR:" + String(e && e.stack ? e.stack : e).replace(/\s+/g, " ").slice(0, 300)); }, [source, innerName]);
 
 const firstPaint = await page.waitForFunction(() => {
   const n = window.__diagState?.splatCount ?? window.splatMesh?.numSplats ?? 0;
@@ -95,6 +109,9 @@ while (stable < 5) {
 }
 const tSettle = Date.now() - t0;
 const hidden = await page.evaluate(() => document.getElementById("ld")?.classList.contains("hidden") ?? null);
+const outcome = await page.evaluate(() => window.__streamDone);
+console.log("診断:", await page.evaluate(() => ({ ft: typeof _splatFileTypeFor === "function" ? String(_splatFileTypeFor("rad")) : "no fn", keys: typeof SplatFileType !== "undefined" ? Object.keys(SplatFileType).join(",") : "none" })).catch((e) => String(e)));
+console.log("読み込みの結果:", outcome);
 
 console.log(`最初のスプラット: ${tFirst / 1000}s（${firstPaint.toLocaleString()} 個 / 取得 ${(servedAtFirst / 1048576).toFixed(0)}MB＝全体の ${(servedAtFirst / size * 100).toFixed(1)}%）`);
 console.log(`落ち着くまで: ${tSettle / 1000}s（${total.toLocaleString()} 個 / 取得 ${(served / 1048576).toFixed(0)}MB / 要求 ${requests}回）`);
@@ -102,7 +119,7 @@ console.log(`読み込み画面は閉じた: ${hidden} / ページエラー: ${e
 await browser.close();
 server.close();
 
-const ok = firstPaint > 0 && hidden === true && errors.length === 0 && servedAtFirst < size * 0.5;
+const ok = firstPaint > 0 && outcome === "ok" && errors.length === 0 && servedAtFirst < size * 0.5;
 console.log(ok ? "PASS 全体を落とさずに開けた" : "FAIL");
 if (errors.length) console.log(errors.slice(0, 3).join("\n"));
 process.exit(ok ? 0 : 1);
