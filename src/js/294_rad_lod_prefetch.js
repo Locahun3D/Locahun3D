@@ -33,16 +33,27 @@
     if(sr.lodQuatOverride) sr.lodQuatOverride = null;
     if(sr.lodPosOverride)  sr.lodPosOverride  = null;
   };
-  // 撮影/録画/walk = override禁止（実カメラ優先）
+  // 撮影/録画/walk = override禁止（実カメラ優先）。
+  // タブが裏に回っているときも止める（2026-09-21）。描画されない間に方位を消費すると、
+  // 戻ってきたときに先読みが一巡し終わっていて、実際に見る向きが粗いままになる。
   const _mustReleaseOverride = () =>
+    (typeof document !== 'undefined' && !!document.hidden) ||
     !!window._captureBusy ||
     (typeof camAnim !== 'undefined' && camAnim && !!camAnim._recCopyFn) ||
     (typeof walkMode !== 'undefined' && walkMode && walkMode.active);
   // ユーザーが今シーンを操作しているか（プリウォームは邪魔しない）
+  // 2026-09-21: WASD・ドラッグだけでなく、実際にカメラが動く入力はすべて数える。
+  // 抜けていた分（矢印キー・R/F の上下・クリック移動・カメラアニメ再生・画面の▲▼）は、
+  // 動いている最中もプリウォームが LOD の視点を遠くへ固定したままになり、見ている画が粗いままだった。
   const _userActive = () =>
     (typeof dragOn !== 'undefined' && dragOn) ||
     (typeof joyDX !== 'undefined' && (joyDX !== 0 || joyDY !== 0)) ||
-    (typeof keys !== 'undefined' && !!(keys.KeyW||keys.KeyS||keys.KeyA||keys.KeyD||keys.KeyQ||keys.KeyE)) ||
+    (typeof keys !== 'undefined' && !!(keys.KeyW||keys.KeyS||keys.KeyA||keys.KeyD||keys.KeyQ||keys.KeyE||
+      keys.KeyR||keys.KeyF||keys.ArrowUp||keys.ArrowDown||keys.ArrowLeft||keys.ArrowRight)) ||
+    (typeof touchUpHeld !== 'undefined' && !!touchUpHeld) ||
+    (typeof touchDnHeld !== 'undefined' && !!touchDnHeld) ||
+    (typeof _clickNavigationController !== 'undefined' && !!_clickNavigationController?.active) ||
+    (typeof camAnim !== 'undefined' && camAnim && !!camAnim.playing) ||
     (typeof yaw !== 'undefined' && (Math.abs(_yawTarget - yaw) > 1e-3 || Math.abs(_pitchTarget - pitch) > 1e-3));
   // 現在ビューを world-Y 軸で dy 回した LOD 選択用クォータニオン（カメラ規約非依存）
   const _qY = new THREE.Quaternion();
