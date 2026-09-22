@@ -163,6 +163,14 @@ if(new URLSearchParams(location.search).get('onlineSceneEdit')==='1'){
         if(state.pendingAssets){fail('asset_pending');return;}
         lock(true);const version=state.version;
         try{
+          // 当たり判定を作っている途中なら、仕上がりを待ってから保存する（2026-09-22 本人指摘
+          // 「保存した段階で作ればいいのでは」）。保存データに当たり判定が入っていれば、公開ページ・
+          // 埋め込み・次の編集はそれを使うので、開くたびに本体を丸ごと読み直して作り直さずに済む。
+          // 待ちすぎないよう上限を置き、間に合わなければ今までどおり判定なしで保存する。
+          if(typeof walkSetup!=='undefined' && walkSetup && walkSetup.pending){
+            await Promise.race([Promise.resolve(walkSetup.pending).catch(()=>{}),new Promise(r=>setTimeout(r,150000))]);
+          }
+          if(version!==state.version || !state.ready)throw Error('Incomplete snapshot');
           const archive=await window.saveProjectZip(false,{returnBlob:true,strictOnline:true});
           if(!(archive instanceof Blob) || !archive.size || version!==state.version || !state.ready)throw Error('Incomplete snapshot');
           lastExport={requestId:data.requestId,version};
