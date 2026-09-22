@@ -476,14 +476,38 @@ window.importEventImage = function(id){
 
 window.showEventImage = function(id){
   const L=findLayer(id); if(!L||L.type!=='event'||!L.eventImage) return;
+  document.getElementById('event-image-viewer')?.remove();
   const ov=document.createElement('div');
-  ov.style.cssText='position:fixed;inset:0;background:rgba(0,0,0,.85);z-index:9999;display:flex;align-items:center;justify-content:center;cursor:pointer';
+  ov.id='event-image-viewer';
+  ov.setAttribute('role','dialog');
+  // 2026-09-22: 写真は必ず最前面に出す。以前の z-index 9999 では、日照・天気などのパネル
+  // （それより上に重ねてある）が写真の上にかぶっていた（本人の画面で確認）。
+  ov.style.cssText='position:fixed;inset:0;background:rgba(0,0,0,.85);z-index:2147483000;display:flex;align-items:center;justify-content:center;cursor:pointer';
   const img=document.createElement('img');
   img.src=L.eventImage;
+  img.alt=L.eventImageName||L.name||'';
   img.style.cssText='max-width:90vw;max-height:90vh;border-radius:8px;box-shadow:0 4px 32px rgba(0,0,0,.6)';
   ov.appendChild(img);
-  ov.onclick=function(){ document.body.removeChild(ov); };
+  const close=()=>{ ov.remove(); document.removeEventListener('keydown',onKey,true); };
+  const onKey=e=>{ if(e.key==='Escape'){ e.preventDefault(); close(); } };
+  ov.onclick=close;
+  document.addEventListener('keydown',onKey,true);
   document.body.appendChild(ov);
+};
+
+// 検証用: レイヤーが画面のどこに見えているか（CSS px）。ブラウザのテストが「そこを触る」ために使う。読むだけ。
+window.__layerScreenPoint = function(id){
+  const L=findLayer(id); if(!L||!L.mesh||!canvas) return null;
+  const v=new THREE.Vector3(); L.mesh.getWorldPosition(v); v.project(_useOrtho ? _orthoCamera : camera);
+  if(v.z<-1||v.z>1) return null;
+  const r=canvas.getBoundingClientRect();
+  return {x:r.left+(v.x+1)/2*r.width, y:r.top+(1-v.y)/2*r.height};
+};
+
+// 検証用: 今の視点（位置と向き）。読むだけ。
+window.__cameraPose = function(){
+  const f=new THREE.Vector3(); camera.getWorldDirection(f);
+  return {pos:{x:camPos.x,y:camPos.y,z:camPos.z},fwd:{x:f.x,y:f.y,z:f.z}};
 };
 
 window.clearEventImage = function(id){

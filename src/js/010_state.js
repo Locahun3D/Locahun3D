@@ -127,7 +127,16 @@ function _trySelectByClick(clientX, clientY){
   if(hits.length > 0){
     const hitLayerId = meshToLayer.get(hits[0].object);
     if(hitLayerId != null){
+      // 2026-09-22 本人指示「イベント機能、触ったら写真が前面に表示されるように」:
+      // 写真つきのイベントは、触った（押して離した）時点で写真を最前面に出す。選択もそのまま行うので、
+      // 閉じれば位置の調整に移れる。ドラッグで動かす操作はクリックにならないので写真は出ない。
+      // ⚠ 「選択中をもう一度触ったら出す」は不可: 選択すると同じ場所に移動用の矢印が重なり、
+      //    2回目のクリックは矢印に取られて届かない（ブラウザで確認）。
+      const hitLayer = findLayer(hitLayerId);
       window.selectLayer(hitLayerId);
+      if(hitLayer && hitLayer.type==='event' && hitLayer.eventImage && typeof window.showEventImage==='function'){
+        window.showEventImage(hitLayerId);
+      }
       return true;
     }
   } else {
