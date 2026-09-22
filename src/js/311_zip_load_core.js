@@ -1,16 +1,42 @@
 // Online editing never uses the tolerant offline reattach/placeholder path.
 // Validate all archive references before mutating the currently displayed scene.
 // RAD をダウンロードせず、そのまま段階読み込みで開く（編集画面用・2026-09-21）。
-async function _loadOnlineSceneStream(streamUrl, fileName){
-  const project={version:4,projectName:fileName,layerNextId:2,layers:[{
+async function _loadOnlineSceneStream(streamUrl, fileName, base){
+  // 2026-09-21: 本体だけで開くと、パイプラインの project.json にある方角合わせ（本体の回転）・
+  // 初期視点・シーン名が消え、保存でそのまま上書きされていた（歌舞伎町ゲートの 53.6° が 0° に戻った）。
+  // 本体の直後にあった project.json を受け取り、本体以外の設定はそこから引き継ぐ。
+  const baseProject=_onlineStreamBaseProject(base&&base.project);
+  const main=baseProject?.layers?.find(L=>L&&L.type==='splat'&&L.isMain)||baseProject?.layers?.find(L=>L&&L.type==='splat');
+  const vec=(v,d)=>v&&[v.x,v.y,v.z].every(Number.isFinite)?{x:v.x,y:v.y,z:v.z}:d;
+  const label=typeof base?.label==='string'?base.label.trim().slice(0,120):'';
+  const project={version:4,projectName:_onlineSceneDisplayName(baseProject?.projectName,fileName,label),layerNextId:2,layers:[{
     id:1,name:fileName,type:'splat',streamRef:'source',streamUrl,rawExt:'rad',isMain:true,
-    pos:{x:0,y:0,z:0},rot:{x:0,y:0,z:0},scale:{x:1,y:1,z:1},size:{x:1,y:1,z:1},visible:true,
+    pos:vec(main?.pos,{x:0,y:0,z:0}),rot:vec(main?.rot,{x:0,y:0,z:0}),scale:vec(main?.scale,{x:1,y:1,z:1}),size:{x:1,y:1,z:1},visible:true,
   }]};
+  for(const key of ['camera','cameraInit','sun'])if(baseProject&&baseProject[key]&&typeof baseProject[key]==='object')project[key]=baseProject[key];
   const restored=await restoreProject(project,{strict:true});
   if(!restored || restored.epoch!==walkSetup.epoch || layers.length!==1 || restored.layers[0]!==layers[0])throw new Error('Project load was interrupted');
   _regionalNavigationFiles=null;
   return restored;
 }
+// パイプラインの project.json を、形を確かめてから使う（壊れていれば使わない＝従来どおり）。
+function _onlineStreamBaseProject(text){
+  if(typeof text!=='string'||!text||text.length>256*1024)return null;
+  try{
+    const p=JSON.parse(text);
+    if(!p||typeof p!=='object'||![1,2,3,4].includes(p.version)||!Array.isArray(p.layers))return null;
+    return p;
+  }catch(_){return null;}
+}
+// シーン名: ファイル名のままの名前（例: 0_ShinjukuKabukiGate.rad）は、物件側のシーン名に置き換える。
+// パイプラインが自動で付けた英数字だけの名前（例: ShinjukuKabukiGate）も同じ扱い。人が付けた名前はそのまま残す。
+function _onlineSceneDisplayName(current,fileName,label){
+  const name=typeof current==='string'?current.trim():'';
+  const fileBase=String(fileName||'').replace(/\.[^.]+$/,'');
+  const looksLikeFile=!name||name==='Untitled Project'||/^[A-Za-z0-9_.-]+$/.test(name)||/\.(rad|zip|ply|splat|ksplat|spz|sog)$/i.test(name)||name===fileName||name===fileBase;
+  return looksLikeFile&&label?label:(name||label||fileName);
+}
+try{window._onlineSceneDisplayName=_onlineSceneDisplayName;window._onlineStreamBaseProject=_onlineStreamBaseProject;}catch(_){}
 // 検証用（scripts/test-scene-edit-zip-stream.mjs）から呼べるようにしておく。
 // 本体はモジュール内の関数なので、window に出さないとブラウザのテストから触れない。
 try{window._loadOnlineSceneStream=_loadOnlineSceneStream;}catch(_){}

@@ -87,11 +87,24 @@ if(new URLSearchParams(location.search).get('onlineSceneEdit')==='1'){
           // 段階読み込みできるなら、ダウンロードしない（2026-09-21）。
           // 元が .rad のときも、ビューアー用 ZIP に無圧縮で入っている .rad のときも、
           // サーバーが ?ref=stream で .rad として配ってくれる。ファイル名はサーバーが決めたものを使う。
+          const sceneLabel=typeof data.sceneLabel==='string'?data.sceneLabel.trim().slice(0,120):'';
+          // 開けた時点で読み込み画面を閉じる（2026-09-21）。本体は段階読み込みで裏で流れ続けるので、
+          // 全部そろうまで画面を塞ぐ必要はない。塞いだままだと「編集できます」なのに 95% で止まって見え、
+          // 重いと感じる原因になっていた（本人指摘）。
+          // シーン名がファイル名のまま（例: 0_ShinjukuKabukiGate.rad）なら、物件側のシーン名を出す。名前は編集できる。
+          const opened=()=>{
+            loaded=true;state.ready=true;state.dirty=false;
+            try{
+              const name=typeof _onlineSceneDisplayName==='function'?_onlineSceneDisplayName(_projectName,data.fileName,sceneLabel):'';
+              if(name&&name!==_projectName){_projectName=name;const el=document.getElementById('tb-project-name');if(el)el.textContent=name;}
+            }catch(_){}
+            try{if(typeof hideLd==='function')hideLd();}catch(_){}
+            send({type:'locahun:scene-ready',requestId:data.requestId});
+          };
           const streamName=typeof data.streamFileName==='string' && /^[A-Za-z0-9_.-]+\.rad$/i.test(data.streamFileName) ? data.streamFileName : '';
           if(streamName && typeof _loadOnlineSceneStream==='function'){
-            await _loadOnlineSceneStream(source.href+'&ref=stream',streamName);
-            loaded=true;state.ready=true;state.dirty=false;
-            send({type:'locahun:scene-ready',requestId:data.requestId});
+            await _loadOnlineSceneStream(source.href+'&ref=stream',streamName,{project:typeof data.streamProject==='string'?data.streamProject:'',label:sceneLabel});
+            opened();
             return;
           }
           ui('showLd',en?'Downloading the scene':'3DGSをダウンロードしています');ui('setBar',1);
@@ -142,8 +155,7 @@ if(new URLSearchParams(location.search).get('onlineSceneEdit')==='1'){
           }
           ui('setMsg',en?'Opening the scene':'3DGSを開いています');
           await _loadOnlineSceneFile(new Blob(chunks),data.fileName,source.href+'&ref=stream');
-          loaded=true;state.ready=true;state.dirty=false;
-          send({type:'locahun:scene-ready',requestId:data.requestId});
+          opened();
         }catch(error){state.ready=false;try{if(typeof hideLd==='function')hideLd();}catch(_){}fail(/capacity/i.test(error.message)?'capacity':'incomplete');}
         finally{clearTimeout(timer);lock(false);}
       }else{
