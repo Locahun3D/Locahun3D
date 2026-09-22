@@ -10,7 +10,7 @@ if(new URLSearchParams(location.search).get('onlineSceneEdit')==='1'){
     const saveButton=document.getElementById?.('tb-save-btn'),saveLabel=document.getElementById?.('tb-save-lbl');
     if(saveButton)saveButton.title=window._lang==='en'?'Save to scene':'シーンに保存';
     if(saveLabel){saveLabel.id='online-scene-save-label';saveLabel.textContent=window._lang==='en'?'Save to scene':'シーンに保存';}
-    let loaded=false,lastExport=null,restoreTicket=0;
+    let loaded=false,lastExport=null,restoreTicket=0,loadingIds=null;
     const send=data=>parent.postMessage(data,origin);
     const lock=busy=>{
       state.busy=busy;
@@ -63,15 +63,19 @@ if(new URLSearchParams(location.search).get('onlineSceneEdit')==='1'){
       seen.add(data.requestId);
       const loading=data.type==='locahun:scene-load';
       const fail=code=>send({type:loading?'locahun:scene-load-error':'locahun:scene-export-error',requestId:data.requestId,code});
+      // 読み込み指示は、返事が来るまで外側のページが出し直す（2026-09-22）。同じ指示が重なっても
+      // 読み込みは1回だけ行い、受け取った指示すべてに同じ結果を返す。
+      if(loading && loaded){send({type:'locahun:scene-ready',requestId:data.requestId});return;}
+      if(loading && loadingIds){loadingIds.push(data.requestId);send({type:'locahun:scene-load-progress',requestId:data.requestId,loaded:0,total:0});return;}
       if(state.busy){fail('busy');return;}
       if(loading){
-        if(loaded){fail('already_loaded');return;}
         let source;
         try{
           source=new URL(data.sourceUrl,location.href);
           if(source.origin!==origin || source.pathname!=='/api/scene-edit/source' || source.hash || source.username || source.password ||
             !/^\?sessionKey=[a-f0-9]{64}$/.test(source.search) || typeof data.fileName!=='string' || !data.fileName || data.fileName.length>256)throw Error('Invalid source');
         }catch(_){fail('invalid_source');return;}
+        loadingIds=[data.requestId]; // ここから先で届いた同じ指示は、この読み込みの結果を待つ
         lock(true);state.ready=false;
         // 2026-09-21: 1本の通信で全体を取りに行くと、Worker 経由では数百MBで数分かかり、120秒の打ち切りにも当たっていた。
         // Range で 16MB ずつ・6並列で取り、進捗を読み込み画面と外側のページの両方に出す。
@@ -99,7 +103,8 @@ if(new URLSearchParams(location.search).get('onlineSceneEdit')==='1'){
               if(name&&name!==_projectName){_projectName=name;const el=document.getElementById('tb-project-name');if(el)el.textContent=name;}
             }catch(_){}
             try{if(typeof hideLd==='function')hideLd();}catch(_){}
-            send({type:'locahun:scene-ready',requestId:data.requestId});
+            for(const id of loadingIds||[data.requestId])send({type:'locahun:scene-ready',requestId:id});
+            loadingIds=null;
           };
           const streamName=typeof data.streamFileName==='string' && /^[A-Za-z0-9_.-]+\.rad$/i.test(data.streamFileName) ? data.streamFileName : '';
           if(streamName && typeof _loadOnlineSceneStream==='function'){
@@ -156,7 +161,12 @@ if(new URLSearchParams(location.search).get('onlineSceneEdit')==='1'){
           ui('setMsg',en?'Opening the scene':'3DGSを開いています');
           await _loadOnlineSceneFile(new Blob(chunks),data.fileName,source.href+'&ref=stream');
           opened();
-        }catch(error){state.ready=false;try{if(typeof hideLd==='function')hideLd();}catch(_){}fail(/capacity/i.test(error.message)?'capacity':'incomplete');}
+        }catch(error){
+          state.ready=false;try{if(typeof hideLd==='function')hideLd();}catch(_){}
+          const code=/capacity/i.test(error.message)?'capacity':'incomplete';
+          for(const id of loadingIds||[data.requestId])send({type:'locahun:scene-load-error',requestId:id,code});
+          loadingIds=null;
+        }
         finally{clearTimeout(timer);lock(false);}
       }else{
         if(!state.ready){fail('not_ready');return;}

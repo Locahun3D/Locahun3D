@@ -167,3 +167,13 @@ test('the editor streams the RAD the server names (a .rad source, or the one sto
   await s.send({...loadMessage,requestId:'plain',fileName:'scene.zip',streamFileName:''});
   assert.equal(s.sent.at(-1).data.type,'locahun:scene-ready');assert.equal(downloaded,true);
 });
+test('repeated load requests load once and every request gets the result (2026-09-22 resend-until-ack)',async()=>{
+  let calls=0,finish;const s=bridgeSetup({_loadOnlineSceneFile:()=>{calls++;return new Promise(resolve=>finish=resolve);}});
+  const first=s.send(loadMessage);await new Promise(r=>setImmediate(r));
+  await s.send({...loadMessage,requestId:'resend-1'});await s.send({...loadMessage,requestId:'resend-2'});
+  finish({});await first;
+  assert.equal(calls,1);
+  for(const id of [loadMessage.requestId,'resend-1','resend-2'])assert(s.sent.some(x=>x.data.type==='locahun:scene-ready'&&x.data.requestId===id),id);
+  await s.send({...loadMessage,requestId:'after-ready'});
+  assert.equal(s.sent.at(-1).data.type,'locahun:scene-ready');assert.equal(s.sent.at(-1).data.requestId,'after-ready');assert.equal(calls,1);
+});
