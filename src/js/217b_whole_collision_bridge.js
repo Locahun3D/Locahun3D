@@ -37,6 +37,19 @@ function _wholeLocalDigestIdentity(url,etag){
     return 'sha256:'+digest[1];
   }catch(_){return null;}
 }
+// 2026-09-21: locahun3d.com は同じRADを、埋め込み・共有・限定プレビューのトークン付きURLや
+// 編集画面のセッションURLなど、いくつもの別URLで配る。さらに参照保存のアーカイブ（ZIP）のキーは
+// 保存のたびに変わる。URL込みの識別子だと経路が変わるたびに当たり判定を作り直していた
+// （「当たり判定準備中」のちらつき）。サイトは ?ref=stream の応答に、R2 の ETag と ZIP内の位置だけで
+// 決まる "l3d-content-…" を付けるので、同一オリジンからのそれに限りURL・クエリを無視して中身で識別する。
+function _wholeContentIdentity(url,etag,length,pageHref){
+  try{
+    const page=new URL(pageHref),asset=new URL(url,page);
+    const match=/^"l3d-content-([A-Za-z0-9_-]{8,200})"$/.exec(etag||'');
+    if(!match||asset.origin!==page.origin||!/^\d+$/.test(length||''))return null;
+    return 'content:'+match[1]+':'+length;
+  }catch(_){return null;}
+}
 function _wholeCanonicalSourceUrl(url){
   try{
     const parsed=new URL(url,globalThis.location?.href);
@@ -97,7 +110,7 @@ async function _wholeSourceIdentity(layer,job){
     _walkCheckJob(job);
     if(response?.status===401||response?.status===403)throw new Error(_walkL('判定用データの閲覧権限を確認できません。','Could not verify access to the collision source data.'));
     const etag=response?.headers.get('etag'),length=response?.headers.get('content-length');
-    if(response?.ok&&etag&&!etag.startsWith('W/')&&/^\d+$/.test(length||''))identity=_wholeLocalDigestIdentity(url,etag)||'etag:'+await _wholeHash(new TextEncoder().encode(_wholeCanonicalSourceUrl(url)))+':'+etag+':'+length;
+    if(response?.ok&&etag&&!etag.startsWith('W/')&&/^\d+$/.test(length||''))identity=_wholeContentIdentity(url,etag,length,globalThis.location?.href)||_wholeLocalDigestIdentity(url,etag)||'etag:'+await _wholeHash(new TextEncoder().encode(_wholeCanonicalSourceUrl(url)))+':'+etag+':'+length;
     else{
       if(_wholeCacheOnly(job))throw _wholeDeferred();
       const fetched=await _wholeSourceFetch(url,'GET',mesh,job);if(!fetched.ok)throw new Error(_walkL('判定用の元データを確認できません。','Could not find the collision source data.'));
