@@ -160,7 +160,12 @@ async function _walkRunWholeGeneration(job,splats){
     const matrix=[...layer.mesh.matrixWorld.elements],identity=await _wholeSourceIdentity(layer,job);
     identities.push({identity,matrix});sources.push({paged:layer.mesh.paged,packed:layer.mesh.packedSplats,raw:layer._rawBuffer,matrix});
   }
-  const key=await _wholeHash(new TextEncoder().encode(JSON.stringify(['whole-tiles-v1',cellSize,identities])));
+  // v2（2026-09-22）: 判定の作り方を変えた（ほぼ透明な点を数えない・孤立した升を消す）ので、
+  // 旧方式で作った保存データや手元の記録は使わず作り直す（廊下が塞がる旧データを使い続けないため）。
+  // ただし事前に作って配布しているデモの判定（旧方式・LocahunCollisionManifest）はそのまま使う。
+  let key=await _wholeHash(new TextEncoder().encode(JSON.stringify(['whole-tiles-v2',cellSize,identities])));
+  const legacyKey=await _wholeHash(new TextEncoder().encode(JSON.stringify(['whole-tiles-v1',cellSize,identities])));
+  if(!globalThis.LocahunCollisionManifest?.[key]&&globalThis.LocahunCollisionManifest?.[legacyKey])key=legacyKey;
   _walkCheckJob(job);let bytes,index,persistentHit=false;
   const saved=walkSetup.settings.whole;
   if(saved?.key===key){try{bytes=_wholeUnbase64(saved.data);index=await LocahunWholeCollision.decodeTiles(bytes,key);}catch(_){bytes=null;}}
@@ -204,7 +209,9 @@ async function _walkRunWholeGeneration(job,splats){
           requestHeader:original.requestHeader,withCredentials:original.withCredentials,pager:{extSplats:false,maxSh:0}});
         decoders.push(paged);return {...source,paged};
       });
-      result=await LocahunCollisionBake.generate(bakeSources,{cellSize,check:()=>_walkCheckJob(job),awaitJob:p=>_walkAwait(p,job),progress:p=>_walkStatus(_walkL('全体の当たり判定を準備中 ','Preparing scene collision ')+Math.round(p.chunk/p.chunks*100)+'%')});
+      // ほぼ透明な点（0〜255で19未満。RAD は lodOpacity で実値の半分なので 不透明度0.15 未満）は数えず、
+      // 周りに何もない孤立した升は捨てる（2026-09-22 廊下が塞がる件）。どちらも RAD（実測した形式）のときだけ。キーは v2。
+      result=await LocahunCollisionBake.generate(bakeSources,{opacityMin:19,dropIsolated:bakeSources.some(source=>source.paged),cellSize,check:()=>_walkCheckJob(job),awaitJob:p=>_walkAwait(p,job),progress:p=>_walkStatus(_walkL('全体の当たり判定を準備中 ','Preparing scene collision ')+Math.round(p.chunk/p.chunks*100)+'%')});
     }finally{for(const decoder of decoders)decoder.dispose();}
     bytes=await LocahunWholeCollision.encodeTiles(result.tiles,key,result.cellSize);_walkCheckJob(job);
     index=await LocahunWholeCollision.decodeTiles(bytes,key);

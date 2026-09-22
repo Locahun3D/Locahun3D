@@ -26,10 +26,22 @@
       if(!n&&this.cells.size>=this.maxCells)throw new Error('Whole-scene collision cell limit exceeded');
       this.cells.set(key,Math.min(this.minPoints,n+1));this.points++;
     }
-    tiles(){
+    tiles({dropIsolated=false}={}){
+      // 周り26升に固い升が1つもない升は、宙に浮いたノイズとして捨てる（2026-09-22）。
+      // 壁・床・天井は必ず隣り合う升があるので残る。通路の中に1升だけ浮いたもやが、
+      // 体の幅ぎりぎりの廊下を塞いでいた。
+      const solid=new Set();
+      for(const [key,count] of this.cells)if(count>=this.minPoints)solid.add(key);
+      const lonely=key=>{
+        const [x,y,z]=key.split(',').map(Number);
+        for(let dx=-1;dx<=1;dx++)for(let dy=-1;dy<=1;dy++)for(let dz=-1;dz<=1;dz++){
+          if((dx||dy||dz)&&solid.has((x+dx)+','+(y+dy)+','+(z+dz)))return false;
+        }
+        return true;
+      };
       const groups=new Map();
       for(const [key,count] of this.cells){
-        if(count<this.minPoints)continue;
+        if(count<this.minPoints||(dropIsolated&&lonely(key)))continue;
         const coord=key.split(',').map(n=>Math.floor(Number(n)/32)),id=coord.join(',');
         if(!groups.has(id))groups.set(id,{coord,acc:new Accumulator({cellSize:this.cellSize,minPoints:this.minPoints})});
         groups.get(id).acc.cells.set(key,count);

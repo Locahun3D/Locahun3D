@@ -122,6 +122,18 @@ const hidden = await page.evaluate(() => document.getElementById("ld")?.classLis
 const outcome = await page.evaluate(() => window.__streamDone);
 console.log("診断:", await page.evaluate(() => ({ ft: typeof _splatFileTypeFor === "function" ? String(_splatFileTypeFor("rad")) : "no fn", keys: typeof SplatFileType !== "undefined" ? Object.keys(SplatFileType).join(",") : "none" })).catch((e) => String(e)));
 console.log("読み込みの結果:", outcome);
+if (process.argv.includes("--opacity-histogram")) {
+  // 当たり判定の元（RAD の末端の点）の透明度の分布。word0 の上位8bit。
+  console.log("透明度:", JSON.stringify(await page.evaluate(async () => {
+    const paged = window.__diagState.splatMesh.paged; const { meta } = await paged.getRadMeta();
+    const bins = new Array(11).fill(0); let leaves = 0, scaleBig = 0;
+    for (const i of [0, Math.floor(meta.chunks.length / 2), meta.chunks.length - 1]) {
+      const c = await paged.fetchDecodeChunk(i); const p = c.packedArray, t = c.extra?.lodTree;
+      for (let k = 0; k < c.numSplats; k++) { if (t && t[k * 4 + 2] !== 0) continue; leaves++; bins[Math.min(10, Math.floor((p[k * 4] >>> 24) / 25.5))]++; }
+    }
+    return { leaves, bins: bins.map((b) => Math.round(b / leaves * 1000) / 10) };
+  })));
+}
 const kept = await page.evaluate(() => {
   const m = window.__diagState?.splatMesh; const deg = (r) => Math.round((r * 180 / Math.PI) * 10) / 10;
   return { name: document.getElementById("tb-project-name")?.textContent || "", rotY: m ? deg(m.rotation.y) : null };

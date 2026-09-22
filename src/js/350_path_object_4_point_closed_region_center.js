@@ -112,6 +112,7 @@ function _pathPopulateGroup(g, local, color, opacity, labelText, width){
 const _pathLabelWorld=new THREE.Vector3(), _pathLabelCamera=new THREE.Vector3();
 function _pathUpdateLabelVisibility(viewCamera){
   viewCamera.getWorldPosition(_pathLabelCamera);
+  let farthestNearLabel=0;
   for(const L of layers){
     if(L.type!=='path'||!L.mesh)continue;
     const sp=L.mesh.userData.pathLabelSprite;
@@ -122,6 +123,24 @@ function _pathUpdateLabelVisibility(viewCamera){
     sp.renderOrder=near?10000:-9;
     // Separate group order also places nearby text above the editing gizmo.
     if(sp.parent.userData.pathLabelContainer)sp.parent.renderOrder=near?10000:0;
+    if(near)farthestNearLabel=Math.max(farthestNearLabel,_pathLabelCamera.distanceTo(_pathLabelWorld));
+  }
+  // 2026-09-22 本人指摘「イベント表示がパス表示より前になってても隠れちゃう」:
+  // 近くのパスの文字は上のとおり「常に最前面」で描くので、それより手前にあるイベントまで上書きしていた。
+  // 最前面で描いている文字より近いイベントは、そのさらに前に描く。遠いイベントは今までどおり（奥行きで隠れる）。
+  for(const L of layers){
+    if(L.type!=='event'||!L.mesh)continue;
+    L.mesh.getWorldPosition(_pathLabelWorld);
+    const front=farthestNearLabel>0 && _pathLabelCamera.distanceTo(_pathLabelWorld)<farthestNearLabel;
+    if(L.mesh.userData.eventInFront===front)continue;
+    L.mesh.userData.eventInFront=front;
+    L.mesh.renderOrder=front?10001:0;
+    L.mesh.traverse(o=>{
+      if(!o.material)return;
+      if(o.userData.eventDepthTest===undefined)o.userData.eventDepthTest=o.material.depthTest;
+      o.material.depthTest=front?false:o.userData.eventDepthTest;
+      o.renderOrder=front?10001:0;
+    });
   }
 }
 function _buildPathMesh(local, color, opacity, labelText, width){
