@@ -20,7 +20,8 @@
     }
     add(x,y,z){
       if(![x,y,z].every(valid))throw new Error('Invalid collision coordinate');
-      const s=this.cellSize,key=[x,y,z].map(n=>Math.floor(n/s)).join(',');
+      // 文字列の作り方だけ軽くする（配列を作って join していた。250万点で毎回確保が走る）。キーの形は同じ。
+      const s=this.cellSize,key=Math.floor(x/s)+','+Math.floor(y/s)+','+Math.floor(z/s);
       const n=this.cells.get(key)||0;
       if(!n&&this.cells.size>=this.maxCells)throw new Error('Whole-scene collision cell limit exceeded');
       this.cells.set(key,Math.min(this.minPoints,n+1));this.points++;

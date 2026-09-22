@@ -30,7 +30,7 @@ const MBPS = +arg("--mbps", 0); let lineFreeAt = 0;
 const throttle = (bytes, go) => { if (!MBPS) return go(); const now = Date.now(); const start = Math.max(now, lineFreeAt); lineFreeAt = start + bytes / (MBPS * 1048576) * 1000; setTimeout(go, lineFreeAt - now); };
 const sendRange = (req, res, total, open, count) => {
   const m = /bytes=(\d*)-(\d*)/.exec(req.headers.range || "");
-  const h = { "content-type": "application/octet-stream", "accept-ranges": "bytes", "cache-control": "no-store", etag };
+  const h = { "content-type": "application/octet-stream", "accept-ranges": "bytes", "cache-control": process.argv.includes("--cacheable") ? "private, max-age=3600" : "no-store", etag };
   if (req.method === "HEAD") { res.writeHead(200, { ...h, "content-length": total }); return res.end(); }
   if (!m) { count(total); res.writeHead(200, { ...h, "content-length": total }); return open(0, total - 1).pipe(res); }
   const a = m[1] ? +m[1] : Math.max(0, total - +m[2]), b = m[1] ? (m[2] ? Math.min(+m[2], total - 1) : total - 1) : total - 1;
@@ -65,7 +65,7 @@ await page.goto(`http://127.0.0.1:${port}/parent.html`);
 await page.waitForFunction(() => window.__events.some((e) => e.type === "locahun:scene-editor-ready"), null, { timeout: 60000 });
 const t0 = Date.now();
 await page.evaluate(() => { window.__t0 = performance.now(); document.getElementById("f").contentWindow.postMessage({ type: "locahun:scene-load", requestId: "r1", sourceUrl: "/api/scene-edit/source?sessionKey=" + "a".repeat(64), fileName: "scene-project.zip", streamFileName: "", sceneLabel: "歌舞伎町ゲート｜劇場通り一番街" }, location.origin); });
-let readyAt = 0, hiddenAt = 0, window2M = 0;
+let readyAt = 0, hiddenAt = 0, window2M = 0, bakeDoneAt = 0, sawBake = false;
 const MAXS = +arg("--seconds", 40);
 if (process.argv.includes("--no-prewarm")) await page.evaluate(() => { const w = document.getElementById("f").contentWindow; setInterval(() => { if (w.__lodPrefetch && w.__lodPrefetch.phase !== "done") { w.__lodPrefetch.phase = "done"; w.__lodPrefetch.camQueue = []; } }, 50); });
 for (let i = 0; i < MAXS; i++) {
@@ -74,17 +74,18 @@ for (let i = 0; i < MAXS; i++) {
     const w = document.getElementById("f").contentWindow, ld = w.document.getElementById("ld");
     const m = w.__lodPrefetch && w.__lodPrefetch.mesh;
     const txt = w.document.body.innerText.replace(/\s+/g, " ");
-    return { ready: window.__events.some((e) => e.type === "locahun:scene-ready"), err: window.__events.find((e) => e.type === "locahun:scene-load-error")?.type || "", hidden: ld ? ld.classList.contains("hidden") : null, num: m && m.paged ? m.paged.numSplats : 0, phase: w.__lodPrefetch?.phase, col: (txt.match(/判定[^ ]{0,8}/) || [""])[0], fps: w.__diagState ? w.__diagState.fps : null, name: w.document.getElementById("tb-project-name")?.textContent || "" };
+    return { ready: window.__events.some((e) => e.type === "locahun:scene-ready"), err: window.__events.find((e) => e.type === "locahun:scene-load-error")?.type || "", hidden: ld ? ld.classList.contains("hidden") : null, num: m && m.paged ? m.paged.numSplats : 0, phase: w.__lodPrefetch?.phase, col: (txt.match(/判定[^ ]{0,8}/) || [""])[0], walk: w.__walkState ? w.__walkState() : null, name: w.document.getElementById("tb-project-name")?.textContent || "" };
   });
   const s = (Date.now() - t0) / 1000;
   if (st.ready && !readyAt) readyAt = s;
   if (st.hidden && !hiddenAt) hiddenAt = s;
   if (st.num > 2000000 && !window2M) window2M = s;
+  if (/生成中|準備中/.test(st.col)) sawBake = true; else if (sawBake && !bakeDoneAt) bakeDoneAt = s;
   console.log(s.toFixed(0) + "s", JSON.stringify(st), "stream", (streamBytes / 1048576).toFixed(0) + "MB");
   if (st.err) break;
   if (st.ready && !/生成中|準備中/.test(st.col) && i > 5 && !process.argv.includes("--full")) break;
 }
-console.log(`200万粒: ${window2M}s / 準備完了(編集できます): ${readyAt}s / 読み込み画面が閉じた: ${hiddenAt}s / 本体の要求量 ${(streamBytes / 1048576).toFixed(0)}MB / アーカイブ ${(sourceBytes / 1024).toFixed(0)}KB`);
+console.log(`当たり判定: ${sawBake ? (bakeDoneAt ? bakeDoneAt + "s で完成" : "未完成") : "生成なし"} / 200万粒: ${window2M}s / 準備完了(編集できます): ${readyAt}s / 読み込み画面が閉じた: ${hiddenAt}s / 本体の要求量 ${(streamBytes / 1048576).toFixed(0)}MB / アーカイブ ${(sourceBytes / 1024).toFixed(0)}KB`);
 const SAVE = arg("--save-to", "");
 if (SAVE) {
   // 保存（編集画面の「このシーンに保存」と同じ要求）。当たり判定の仕上がりを待ってから書き出す。

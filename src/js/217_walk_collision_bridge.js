@@ -371,6 +371,29 @@ function _walkAutoImport(epoch=walkSetup.epoch,mesh=null) {
   }
   walkSetup.autoEnabled=true;walkSetup.failedKey='';walkSetup.deferredSignature='';
   if(!walkSetup.autoTimer && typeof setInterval==='function')walkSetup.autoTimer=setInterval(()=>{_walkAutoTick().catch(e=>{_walkStatus(e.message);showUndoToast(e.message);});},750);
+  return _walkAutoImportPrepared(epoch);
+}
+// 2026-09-22（本人指摘「当たり判定の生成が悪い」）: 開いた直後に全体の当たり判定を作り始めると、
+// 本体を丸ごと読み直す通信が画面表示の読み込みと回線を取り合い、見え始めが遅れていた
+// （手元の再現・15MB/s: 200万粒まで 判定なし5.0秒 → 判定あり7.1秒）。
+// まず保存済み・手元の記録だけで判定を探し（通信は小さい確認だけ）、見つかればすぐ使う。
+// 無いときだけ、表示の読み込みが落ち着くのを待ってから作る（最長8秒。先読みの巡回が続いて「落ち着いた」にならなくても、見えている範囲は数秒でそろうため）。
+const _WALK_WAIT_VIEW_MS=8000;
+// 検証用: 当たり判定の状態をブラウザのテストから読めるようにする（値を読むだけ）。
+try{window.__walkState=()=>({status:walkSetup.status,busy:!!walkSetup.busy,deferred:!!walkSetup.deferredSignature,
+  deferredIsCurrent:walkSetup.deferredSignature===_walkSourceSignature(),whole:!!walkSetup.wholeIndex,boxes:walkSetup.wholeIndex?.total||0});}catch(_){}
+async function _walkAutoImportPrepared(epoch){
+  const quick=await _walkGenerateCollision({automatic:true,findSpawn:false,preserveSpawn:true,reuse:true});
+  if(quick || epoch!==walkSetup.epoch)return quick;
+  // 「手元に無かった」ときだけ作る。確認の途中でシーンが変わって取りやめになった場合は作らない
+  // （その場合は変わった後のシーンで改めて確認が走る）。
+  const signature=walkSetup.deferredSignature;
+  if(!signature || signature!==_walkSourceSignature())return false;
+  const until=performance.now()+_WALK_WAIT_VIEW_MS;
+  while(performance.now()<until && epoch===walkSetup.epoch && typeof _sceneSettledForCalibration==='function' && !_sceneSettledForCalibration()){
+    await new Promise(resolve=>setTimeout(resolve,500));
+  }
+  if(epoch!==walkSetup.epoch || walkSetup.deferredSignature!==signature || _walkSourceSignature()!==signature)return false;
   return _walkGenerateCollision({automatic:true,allowBake:true,findSpawn:false,preserveSpawn:true,reuse:true});
 }
 async function _walkAutoTick() {
