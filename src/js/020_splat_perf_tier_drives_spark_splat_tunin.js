@@ -43,6 +43,6 @@ let fov = 90;
 // the sprint multiplier (×5) compounds it. Seed a gentler 3 on touch so
 // the scene is comfortable to explore out of the box; the slider (0.5–20)
 // still lets users dial it up.
-let camSpeed = 1; // 2026-09-23 本人指示: 既定の移動速度は 1（2026-09-20 は 3、それ以前は PC=5）
+let camSpeed = 2; // 2026-09-26 本人指示: 既定の移動速度は 2（09-23 は 1、2026-09-20 は 3、それ以前は PC=5）
 
 const clock = new THREE.Clock();
