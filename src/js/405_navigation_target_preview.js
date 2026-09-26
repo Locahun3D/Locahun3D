@@ -34,6 +34,12 @@ function _showNavigationPoint(point,valid){
       new THREE.MeshBasicMaterial({color:0x63edbd,transparent:true,opacity:.85,side:THREE.DoubleSide,depthTest:false,depthWrite:false}));
     ring.name='NavigationTargetRing';ring.rotation.x=-Math.PI/2;ring.renderOrder=9999;ring.raycast=()=>{};
     _navigationPoint.userData.ring=ring;scene.add(ring);
+    // 足元のグリッド（2026-09-26 本人FB「スケール一定だとどこにスナップしているか分かりづらい」）。
+    // 実寸 1.2m 四方・30cm 目盛りで地面に寝かせる。遠いほど小さく、近いほど大きく見えるので位置と奥行きが読める。
+    const grid=new THREE.GridHelper(1.2,4,0x63edbd,0x63edbd);
+    grid.name='NavigationTargetGrid';grid.renderOrder=9998;grid.raycast=()=>{};
+    for(const m of [].concat(grid.material)){m.transparent=true;m.opacity=.7;m.depthTest=false;m.depthWrite=false;}
+    _navigationPoint.userData.grid=grid;scene.add(grid);
   }
   _navigationPoint.position.set(point.x,point.y+.08,point.z);
   const size=_navigationPointRadius(_navigationPoint.position);
@@ -41,12 +47,17 @@ function _showNavigationPoint(point,valid){
   _navigationPoint.scale.setScalar(size.radius/.075);
   _navigationPoint.material.color.setHex(valid?0x63edbd:0xff5353);
   const ring=_navigationPoint.userData.ring;
-  ring.position.set(point.x,point.y+.01,point.z);ring.scale.setScalar(Math.max(.12,size.radius*4));
+  // 輪も実寸（半径30cm）。玉だけは画面上の大きさを一定にして、遠くでも見失わないようにする。
+  ring.position.set(point.x,point.y+.01,point.z);ring.scale.setScalar(.3);
   ring.material.color.setHex(valid?0x63edbd:0xff5353);ring.visible=true;
+  const grid=_navigationPoint.userData.grid;
+  grid.position.set(point.x,point.y+.005,point.z);
+  for(const m of [].concat(grid.material))m.color.setHex(valid?0x63edbd:0xff5353);
+  grid.visible=true;
   _navigationPoint.visible=true;markDirty(2);
 }
 function _hideNavigationPoint(){
-  if(_navigationPoint){_navigationPoint.visible=false;if(_navigationPoint.userData.ring)_navigationPoint.userData.ring.visible=false;markDirty(2);}
+  if(_navigationPoint){_navigationPoint.visible=false;if(_navigationPoint.userData.ring)_navigationPoint.userData.ring.visible=false;if(_navigationPoint.userData.grid)_navigationPoint.userData.grid.visible=false;markDirty(2);}
 }
 function _navigationHoldReset(){
   if(_navigationHold){clearTimeout(_navigationHold.timer);_navigationHold=null;}
