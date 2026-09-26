@@ -76,9 +76,9 @@
         <div style="border-top:1px solid rgba(255,255,255,.07);margin:2px 0"></div>
         <button onclick="_beginPlace('event');window.closeObjTypeMenuTop()" style="background:rgba(255,170,68,.06);border:1px solid rgba(255,170,68,.15);color:#C0C0C0;border-radius:5px;padding:7px 14px;cursor:pointer;font-size:.8em;text-align:left;width:100%;white-space:nowrap;transition:background .15s;" onmouseover="this.style.background='rgba(255,170,68,.18)'" onmouseout="this.style.background='rgba(255,170,68,.06)'">🟠 <span id="obj-add-event">Event (イベント)</span></button>
         <div style="border-top:1px solid rgba(255,255,255,.07);margin:2px 0"></div>
-        <button onclick="_beginPlace('figure');window.closeObjTypeMenuTop()" style="background:rgba(255,140,200,.06);border:1px solid rgba(255,140,200,.18);color:#C0C0C0;border-radius:5px;padding:7px 14px;cursor:pointer;font-size:.8em;text-align:left;width:100%;white-space:nowrap;transition:background .15s;" onmouseover="this.style.background='rgba(255,140,200,.20)'" onmouseout="this.style.background='rgba(255,140,200,.06)'" title="フィギュア追加（リグ付き人型モデル・配置場所を左クリック）" data-i18n-title="tt-add-figure">👤 <span id="lbl-addfig-top">フィギュア (人型リグ)</span></button>
+        <button onclick="_beginPlace('figure');window.closeObjTypeMenuTop()" style="background:rgba(255,140,200,.06);border:1px solid rgba(255,140,200,.18);color:#C0C0C0;border-radius:5px;padding:7px 14px;cursor:pointer;font-size:.8em;text-align:left;width:100%;white-space:nowrap;transition:background .15s;" onmouseover="this.style.background='rgba(255,140,200,.20)'" onmouseout="this.style.background='rgba(255,140,200,.06)'" title="フィギュア追加（リグ付き人型モデル・配置場所を右クリック）" data-i18n-title="tt-add-figure">👤 <span id="lbl-addfig-top">フィギュア (人型リグ)</span></button>
         <div style="border-top:1px solid rgba(255,255,255,.07);margin:2px 0"></div>
-        <button onclick="addPathLayer();window.closeObjTypeMenuTop()" style="background:rgba(100,200,255,.06);border:1px solid rgba(100,200,255,.16);color:#C0C0C0;border-radius:5px;padding:7px 14px;cursor:pointer;font-size:.8em;text-align:left;width:100%;white-space:nowrap;transition:background .15s;" onmouseover="this.style.background='rgba(100,200,255,.18)'" onmouseout="this.style.background='rgba(100,200,255,.06)'" title="4点を左クリックで囲んで区画を作成（駐車スペース等）。中央にテキストを表示できます" data-i18n-title="tt-add-path">🛣 <span id="obj-add-path">パス (区画＋ラベル)</span></button>
+        <button onclick="addPathLayer();window.closeObjTypeMenuTop()" style="background:rgba(100,200,255,.06);border:1px solid rgba(100,200,255,.16);color:#C0C0C0;border-radius:5px;padding:7px 14px;cursor:pointer;font-size:.8em;text-align:left;width:100%;white-space:nowrap;transition:background .15s;" onmouseover="this.style.background='rgba(100,200,255,.18)'" onmouseout="this.style.background='rgba(100,200,255,.06)'" title="4点を右クリックで囲んで区画を作成（駐車スペース等）。中央にテキストを表示できます" data-i18n-title="tt-add-path">🛣 <span id="obj-add-path">パス (区画＋ラベル)</span></button>
         <!-- Sphere (球体) and Light (ライト) entries removed per user request.
              addSphereLayer / addLightLayer remain as window.* functions for
              programmatic use (e.g. ZIP project restore) but are no longer
@@ -758,7 +758,7 @@
 </div>
 
 <!-- Measurement step hint (below gizmo) -->
-<div id="msr-hint" class="guide-banner" data-i18n="msr-h0">左クリックで点 A を配置</div>
+<div id="msr-hint" class="guide-banner" data-i18n="msr-h0">右クリックで点 A を配置</div>
 
 <!-- ══ Export / Save Modal ══ -->
 <div id="export-modal">
