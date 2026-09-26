@@ -21,7 +21,8 @@
   const zoomIn = (keys.PageUp?1:0)+(keys.Equal?1:0)+(keys.NumpadAdd?1:0)
                - (keys.PageDown?1:0)-(keys.Minus?1:0)-(keys.NumpadSubtract?1:0);
   if(fwKb!==0)   camPos.addScaledVector(_fwdHoriz, fwKb*kbSpd*dt);
-  if(rtKb!==0)   camPos.addScaledVector(_rgtVec,  rtKb*kbSpd*dt);
+  // 横移動は前後より少し速く（2026-09-26 本人指示「横移動に係数 1.1〜1.2倍」→ 1.15）。
+  if(rtKb!==0)   camPos.addScaledVector(_rgtVec,  rtKb*kbSpd*1.15*dt);
   if(up!==0)     camPos.y += Math.sign(up)*kbSpd*dt;
   if(zoomIn!==0) camPos.addScaledVector(_fwdVec, Math.sign(zoomIn)*kbSpd*dt);
 
