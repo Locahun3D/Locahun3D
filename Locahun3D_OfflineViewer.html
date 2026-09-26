@@ -2007,10 +2007,10 @@ body.immersive #immersive-exit{ display:inline-block; }
   </div>
   <div class="qrow" style="margin:6px 0 2px">
     <label style="font-size:.78em;color:#686868"><span id="qp-lbl-spd">移動速度</span>
-      <span id="spdVal" style="color:#C0C0C0;margin-left:6px">3</span></label>
+      <span id="spdVal" style="color:#C0C0C0;margin-left:6px">1</span></label>
   </div>
   <div style="padding:0 2px;margin-bottom:6px">
-    <input type="range" id="spdSlider" min="0.5" max="20" step="0.5" value="3"
+    <input type="range" id="spdSlider" min="0.5" max="20" step="0.5" value="1"
            oninput="onSpeedSlider(this.value)" style="width:100%">
   </div>
 
@@ -2917,7 +2917,10 @@ body.local-project-saving::after,body.local-project-restoring::after {content:''
 }
 @media (pointer:coarse) and (any-hover:none) and (max-width:699px),
        (pointer:coarse) and (any-hover:none) and (max-height:699px){
-  body:not(.v1-ipad) #cam-panel{top:var(--v1-camera-top,64px)!important;bottom:auto!important;max-height:var(--v1-camera-height,calc(100dvh - 280px))!important;overflow-y:auto!important;box-sizing:border-box;}
+  /* 既定値（JS が測る前の一瞬と、スクリプトを外した検証時に効く）は、下のツールバー
+   （測定・日照・カメラの行。bottom:212px・ボタン高 ≈44px）を覆わない高さにする。
+   2026-09-21: 280px だと 390×844 で下端 628px となり、ボタン（上端 ≈588px）に被っていた。 */
+  body:not(.v1-ipad) #cam-panel{top:var(--v1-camera-top,64px)!important;bottom:auto!important;max-height:var(--v1-camera-height,calc(100dvh - 330px))!important;overflow-y:auto!important;box-sizing:border-box;}
   body:not(.v1-ipad) #sun-panel{left:auto!important;right:calc(14px + env(safe-area-inset-right,0px))!important;top:auto!important;bottom:var(--v1-sun-bottom,264px)!important;max-height:var(--v1-sun-height,calc(100dvh - 330px))!important;overflow-y:auto!important;box-sizing:border-box;}
 }
 /* Visible-viewport shell (touch devices; class set by 409_visible_viewport.js).
@@ -2995,7 +2998,7 @@ window.KAWAII_MALE_GLB_B64="Z2xURgIAAADsaRIAoPYCAEpTT057ImFzc2V0Ijp7InZlcnNpb24i
      the HTML. -->
 
 <script>
-window.__locahunBuildRelease="1b84adebc5c67348cb767e10a07d111ee2066e4e04e29e3f8730358f4f165d91";
+window.__locahunBuildRelease="4254067c10f5933d0a64b961c119d50113389fb9cc8aa698d912fd20b8c3e014";
 (function(root) {
   'use strict';
   const ORIGIN='https://viewer.locahun3d.com';
@@ -3253,7 +3256,16 @@ function _trySelectByClick(clientX, clientY){
   if(hits.length > 0){
     const hitLayerId = meshToLayer.get(hits[0].object);
     if(hitLayerId != null){
+      // 2026-09-22 本人指示「イベント機能、触ったら写真が前面に表示されるように」:
+      // 写真つきのイベントは、触った（押して離した）時点で写真を最前面に出す。選択もそのまま行うので、
+      // 閉じれば位置の調整に移れる。ドラッグで動かす操作はクリックにならないので写真は出ない。
+      // ⚠ 「選択中をもう一度触ったら出す」は不可: 選択すると同じ場所に移動用の矢印が重なり、
+      //    2回目のクリックは矢印に取られて届かない（ブラウザで確認）。
+      const hitLayer = findLayer(hitLayerId);
       window.selectLayer(hitLayerId);
+      if(hitLayer && hitLayer.type==='event' && hitLayer.eventImage && typeof window.showEventImage==='function'){
+        window.showEventImage(hitLayerId);
+      }
       return true;
     }
   } else {
@@ -3545,7 +3557,7 @@ let fov = 90;
 // the sprint multiplier (×5) compounds it. Seed a gentler 3 on touch so
 // the scene is comfortable to explore out of the box; the slider (0.5–20)
 // still lets users dial it up.
-let camSpeed = 3; // 2026-09-20 本人指示: 既定の移動速度は PC も 3（以前は PC=5）
+let camSpeed = 1; // 2026-09-23 本人指示: 既定の移動速度は 1（2026-09-20 は 3、それ以前は PC=5）
 
 const clock = new THREE.Clock();
 // ══════════════════════════════════════════════════
@@ -11247,6 +11259,9 @@ window.__loadRad = (url)=>{ try{ return loadFromURL(url,'RADtest'); }catch(e){ r
 window.__nSplat = ()=> (typeof splatMesh!=='undefined'&&splatMesh&&splatMesh.paged)?splatMesh.paged.numSplats:-1;
 window.__keepAlive = (ms)=>{ _splatActiveUntil=performance.now()+(ms||6000); markDirty(240); };
 window.__setCam = (y,p)=>{ if(typeof yaw!=='undefined'){yaw=_yawTarget=y;} if(typeof pitch!=='undefined'){pitch=_pitchTarget=(p||0);} _splatActiveUntil=performance.now()+8000; markDirty(240); };
+// 計測用（scripts/perf-edge-lod.mjs）: 画角と LoD 予算をその場で変え、いまの値を返す。描画には影響しない。
+window.__setFov = (deg)=>{ camera.fov=deg; camera.updateProjectionMatrix(); _splatActiveUntil=performance.now()+8000; markDirty(240); };
+window.__camInfo = ()=>({ fov:camera.fov, aspect:camera.aspect, near:camera.near, budget:(typeof sparkRenderer!=='undefined')?sparkRenderer.lodSplatCount:null });
 window.__setCamPos = (x,y,z)=>{ if(typeof camPos!=='undefined'){ camPos.set(x,y,z); } _splatActiveUntil=performance.now()+8000; markDirty(240); };
 // sparkRenderer のLOD関連プロパティをライブ設定（lodSplatCount/lodSplatScale/coneFov等）
 window.__setRenderer = (p)=>{ if(typeof sparkRenderer==='undefined') return 'no sr'; const out={}; for(const k in p){ sparkRenderer[k]=p[k]; out[k]=sparkRenderer[k]; } if(typeof markDirty==='function') markDirty(240); return out; };
@@ -14755,15 +14770,28 @@ globalThis.LocahunWalkSettings = {
     }
     add(x,y,z){
       if(![x,y,z].every(valid))throw new Error('Invalid collision coordinate');
-      const s=this.cellSize,key=[x,y,z].map(n=>Math.floor(n/s)).join(',');
+      // 文字列の作り方だけ軽くする（配列を作って join していた。250万点で毎回確保が走る）。キーの形は同じ。
+      const s=this.cellSize,key=Math.floor(x/s)+','+Math.floor(y/s)+','+Math.floor(z/s);
       const n=this.cells.get(key)||0;
       if(!n&&this.cells.size>=this.maxCells)throw new Error('Whole-scene collision cell limit exceeded');
       this.cells.set(key,Math.min(this.minPoints,n+1));this.points++;
     }
-    tiles(){
+    tiles({dropIsolated=false}={}){
+      // 周り26升に固い升が1つもない升は、宙に浮いたノイズとして捨てる（2026-09-22）。
+      // 壁・床・天井は必ず隣り合う升があるので残る。通路の中に1升だけ浮いたもやが、
+      // 体の幅ぎりぎりの廊下を塞いでいた。
+      const solid=new Set();
+      for(const [key,count] of this.cells)if(count>=this.minPoints)solid.add(key);
+      const lonely=key=>{
+        const [x,y,z]=key.split(',').map(Number);
+        for(let dx=-1;dx<=1;dx++)for(let dy=-1;dy<=1;dy++)for(let dz=-1;dz<=1;dz++){
+          if((dx||dy||dz)&&solid.has((x+dx)+','+(y+dy)+','+(z+dz)))return false;
+        }
+        return true;
+      };
       const groups=new Map();
       for(const [key,count] of this.cells){
-        if(count<this.minPoints)continue;
+        if(count<this.minPoints||(dropIsolated&&lonely(key)))continue;
         const coord=key.split(',').map(n=>Math.floor(Number(n)/32)),id=coord.join(',');
         if(!groups.has(id))groups.set(id,{coord,acc:new Accumulator({cellSize:this.cellSize,minPoints:this.minPoints})});
         groups.get(id).acc.cells.set(key,count);
@@ -14903,8 +14931,9 @@ globalThis.LocahunCollisionManifest=Object.freeze({
   }
 });
 (() => {
+  const CONCURRENCY=6;
   const half=h=>{const e=(h>>10)&31,m=h&1023,s=h&32768?-1:1;return s*(e===0?m*2**-24:e===31?Infinity:(1+m/1024)*2**(e-15));};
-  async function generate(sources,{check=()=>{},progress=()=>{},cellSize=.15,awaitJob=p=>p}={}){
+  async function generate(sources,{check=()=>{},progress=()=>{},cellSize=.15,awaitJob=p=>p,opacityMin=0,dropIsolated=false}={}){
     const accumulator=new LocahunWholeCollision.Accumulator({cellSize});let entries=0,leaves=0;
     function consume(chunk,matrix,hierarchy){
       const packed=chunk.packedArray,count=chunk.numSplats,tree=chunk.extra?.lodTree;
@@ -14912,6 +14941,10 @@ globalThis.LocahunCollisionManifest=Object.freeze({
       entries+=count;
       for(let i=0;i<count;i++){
         if(hierarchy&&tree[i*4+2]!==0)continue;
+        // ほぼ透明な点は壁として数えない（2026-09-22 本人指摘「廊下を通り抜けられないときがある」）。
+        // 実データ（歌舞伎町）では末端の点の約3割が不透明度0.2未満で、宙に浮いた薄いもやが
+        // 通路の升を埋めていた。不透明度は word0 の上位8bit（RAD は lodOpacity のため実値の半分で入る）。
+        if(hierarchy&&opacityMin&&(packed[i*4]>>>24)<opacityMin)continue;
         const w1=packed[i*4+1],w2=packed[i*4+2],x=half(w1&65535),y=half(w1>>>16),z=half(w2&65535);
         const m=matrix;
         accumulator.add(m[0]*x+m[4]*y+m[8]*z+m[12],m[1]*x+m[5]*y+m[9]*z+m[13],m[2]*x+m[6]*y+m[10]*z+m[14]);leaves++;
@@ -14923,16 +14956,25 @@ globalThis.LocahunCollisionManifest=Object.freeze({
         const {meta}=await awaitJob(s.paged.getRadMeta());check();
         if(!Array.isArray(meta.chunks)||meta.chunks.length>100000||!Number.isSafeInteger(meta.count)||meta.count<1)throw new Error('Invalid RAD collision metadata');
         const before=entries;
-        for(let i=0;i<meta.chunks.length;i++){
-          check();const chunk=await awaitJob(s.paged.fetchDecodeChunk(i));check();consume(chunk,s.matrix,true);
-          progress({source,chunk:i+1,chunks:meta.chunks.length,entries,leaves,cells:accumulator.cells.size});
-          await new Promise(resolve=>setTimeout(resolve,0));
-        }
+        // 2026-09-22: 塊を1つずつ順番に取りに行っていたため、塊の数（歌舞伎町で約180）だけ通信の
+        // 待ち時間が積み重なり、Worker 経由では生成に約60秒かかっていた（本人指摘「当たり判定の生成が悪い」）。
+        // 同時に CONCURRENCY 個まで取りに行き、届いた順に積む。セルの数え方は順番に依らない
+        // （Accumulator は各セルの点数を上限つきで数えるだけ）ので、結果は順番に取った場合と同じ。
+        const total=meta.chunks.length;let next=0,done=0;
+        const worker=async()=>{
+          for(;;){
+            const i=next++;if(i>=total)return;
+            check();const chunk=await awaitJob(s.paged.fetchDecodeChunk(i));check();consume(chunk,s.matrix,true);
+            progress({source,chunk:++done,chunks:total,entries,leaves,cells:accumulator.cells.size});
+            await new Promise(resolve=>setTimeout(resolve,0));
+          }
+        };
+        await Promise.all(Array.from({length:Math.min(CONCURRENCY,total)},worker));
         if(entries-before!==meta.count)throw new Error('Incomplete RAD collision coverage');
       }else if(s.packed){consume(s.packed,s.matrix,false);await new Promise(resolve=>setTimeout(resolve,0));}
       else throw new Error('No complete collision source');
     }
-    check();const tiles=accumulator.tiles();check();
+    check();const tiles=accumulator.tiles({dropIsolated});check();
     return {tiles,entries,leaves,cellSize,cells:accumulator.cells.size};
   }
   globalThis.LocahunCollisionBake={generate};
@@ -15424,6 +15466,29 @@ function _walkAutoImport(epoch=walkSetup.epoch,mesh=null) {
   }
   walkSetup.autoEnabled=true;walkSetup.failedKey='';walkSetup.deferredSignature='';
   if(!walkSetup.autoTimer && typeof setInterval==='function')walkSetup.autoTimer=setInterval(()=>{_walkAutoTick().catch(e=>{_walkStatus(e.message);showUndoToast(e.message);});},750);
+  return _walkAutoImportPrepared(epoch);
+}
+// 2026-09-22（本人指摘「当たり判定の生成が悪い」）: 開いた直後に全体の当たり判定を作り始めると、
+// 本体を丸ごと読み直す通信が画面表示の読み込みと回線を取り合い、見え始めが遅れていた
+// （手元の再現・15MB/s: 200万粒まで 判定なし5.0秒 → 判定あり7.1秒）。
+// まず保存済み・手元の記録だけで判定を探し（通信は小さい確認だけ）、見つかればすぐ使う。
+// 無いときだけ、表示の読み込みが落ち着くのを待ってから作る（最長8秒。先読みの巡回が続いて「落ち着いた」にならなくても、見えている範囲は数秒でそろうため）。
+const _WALK_WAIT_VIEW_MS=8000;
+// 検証用: 当たり判定の状態をブラウザのテストから読めるようにする（値を読むだけ）。
+try{window.__walkState=()=>({status:walkSetup.status,busy:!!walkSetup.busy,deferred:!!walkSetup.deferredSignature,
+  deferredIsCurrent:walkSetup.deferredSignature===_walkSourceSignature(),whole:!!walkSetup.wholeIndex,boxes:walkSetup.wholeIndex?.total||0});}catch(_){}
+async function _walkAutoImportPrepared(epoch){
+  const quick=await _walkGenerateCollision({automatic:true,findSpawn:false,preserveSpawn:true,reuse:true});
+  if(quick || epoch!==walkSetup.epoch)return quick;
+  // 「手元に無かった」ときだけ作る。確認の途中でシーンが変わって取りやめになった場合は作らない
+  // （その場合は変わった後のシーンで改めて確認が走る）。
+  const signature=walkSetup.deferredSignature;
+  if(!signature || signature!==_walkSourceSignature())return false;
+  const until=performance.now()+_WALK_WAIT_VIEW_MS;
+  while(performance.now()<until && epoch===walkSetup.epoch && typeof _sceneSettledForCalibration==='function' && !_sceneSettledForCalibration()){
+    await new Promise(resolve=>setTimeout(resolve,500));
+  }
+  if(epoch!==walkSetup.epoch || walkSetup.deferredSignature!==signature || _walkSourceSignature()!==signature)return false;
   return _walkGenerateCollision({automatic:true,allowBake:true,findSpawn:false,preserveSpawn:true,reuse:true});
 }
 async function _walkAutoTick() {
@@ -15755,6 +15820,19 @@ function _wholeLocalDigestIdentity(url,etag){
     return 'sha256:'+digest[1];
   }catch(_){return null;}
 }
+// 2026-09-21: locahun3d.com は同じRADを、埋め込み・共有・限定プレビューのトークン付きURLや
+// 編集画面のセッションURLなど、いくつもの別URLで配る。さらに参照保存のアーカイブ（ZIP）のキーは
+// 保存のたびに変わる。URL込みの識別子だと経路が変わるたびに当たり判定を作り直していた
+// （「当たり判定準備中」のちらつき）。サイトは ?ref=stream の応答に、R2 の ETag と ZIP内の位置だけで
+// 決まる "l3d-content-…" を付けるので、同一オリジンからのそれに限りURL・クエリを無視して中身で識別する。
+function _wholeContentIdentity(url,etag,length,pageHref){
+  try{
+    const page=new URL(pageHref),asset=new URL(url,page);
+    const match=/^"l3d-content-([A-Za-z0-9_-]{8,200})"$/.exec(etag||'');
+    if(!match||asset.origin!==page.origin||!/^\d+$/.test(length||''))return null;
+    return 'content:'+match[1]+':'+length;
+  }catch(_){return null;}
+}
 function _wholeCanonicalSourceUrl(url){
   try{
     const parsed=new URL(url,globalThis.location?.href);
@@ -15815,7 +15893,7 @@ async function _wholeSourceIdentity(layer,job){
     _walkCheckJob(job);
     if(response?.status===401||response?.status===403)throw new Error(_walkL('判定用データの閲覧権限を確認できません。','Could not verify access to the collision source data.'));
     const etag=response?.headers.get('etag'),length=response?.headers.get('content-length');
-    if(response?.ok&&etag&&!etag.startsWith('W/')&&/^\d+$/.test(length||''))identity=_wholeLocalDigestIdentity(url,etag)||'etag:'+await _wholeHash(new TextEncoder().encode(_wholeCanonicalSourceUrl(url)))+':'+etag+':'+length;
+    if(response?.ok&&etag&&!etag.startsWith('W/')&&/^\d+$/.test(length||''))identity=_wholeContentIdentity(url,etag,length,globalThis.location?.href)||_wholeLocalDigestIdentity(url,etag)||'etag:'+await _wholeHash(new TextEncoder().encode(_wholeCanonicalSourceUrl(url)))+':'+etag+':'+length;
     else{
       if(_wholeCacheOnly(job))throw _wholeDeferred();
       const fetched=await _wholeSourceFetch(url,'GET',mesh,job);if(!fetched.ok)throw new Error(_walkL('判定用の元データを確認できません。','Could not find the collision source data.'));
@@ -15865,7 +15943,12 @@ async function _walkRunWholeGeneration(job,splats){
     const matrix=[...layer.mesh.matrixWorld.elements],identity=await _wholeSourceIdentity(layer,job);
     identities.push({identity,matrix});sources.push({paged:layer.mesh.paged,packed:layer.mesh.packedSplats,raw:layer._rawBuffer,matrix});
   }
-  const key=await _wholeHash(new TextEncoder().encode(JSON.stringify(['whole-tiles-v1',cellSize,identities])));
+  // v2（2026-09-22）: 判定の作り方を変えた（ほぼ透明な点を数えない・孤立した升を消す）ので、
+  // 旧方式で作った保存データや手元の記録は使わず作り直す（廊下が塞がる旧データを使い続けないため）。
+  // ただし事前に作って配布しているデモの判定（旧方式・LocahunCollisionManifest）はそのまま使う。
+  let key=await _wholeHash(new TextEncoder().encode(JSON.stringify(['whole-tiles-v2',cellSize,identities])));
+  const legacyKey=await _wholeHash(new TextEncoder().encode(JSON.stringify(['whole-tiles-v1',cellSize,identities])));
+  if(!globalThis.LocahunCollisionManifest?.[key]&&globalThis.LocahunCollisionManifest?.[legacyKey])key=legacyKey;
   _walkCheckJob(job);let bytes,index,persistentHit=false;
   const saved=walkSetup.settings.whole;
   if(saved?.key===key){try{bytes=_wholeUnbase64(saved.data);index=await LocahunWholeCollision.decodeTiles(bytes,key);}catch(_){bytes=null;}}
@@ -15909,7 +15992,9 @@ async function _walkRunWholeGeneration(job,splats){
           requestHeader:original.requestHeader,withCredentials:original.withCredentials,pager:{extSplats:false,maxSh:0}});
         decoders.push(paged);return {...source,paged};
       });
-      result=await LocahunCollisionBake.generate(bakeSources,{cellSize,check:()=>_walkCheckJob(job),awaitJob:p=>_walkAwait(p,job),progress:p=>_walkStatus(_walkL('全体の当たり判定を準備中 ','Preparing scene collision ')+Math.round(p.chunk/p.chunks*100)+'%')});
+      // ほぼ透明な点（0〜255で19未満。RAD は lodOpacity で実値の半分なので 不透明度0.15 未満）は数えず、
+      // 周りに何もない孤立した升は捨てる（2026-09-22 廊下が塞がる件）。どちらも RAD（実測した形式）のときだけ。キーは v2。
+      result=await LocahunCollisionBake.generate(bakeSources,{opacityMin:19,dropIsolated:bakeSources.some(source=>source.paged),cellSize,check:()=>_walkCheckJob(job),awaitJob:p=>_walkAwait(p,job),progress:p=>_walkStatus(_walkL('全体の当たり判定を準備中 ','Preparing scene collision ')+Math.round(p.chunk/p.chunks*100)+'%')});
     }finally{for(const decoder of decoders)decoder.dispose();}
     bytes=await LocahunWholeCollision.encodeTiles(result.tiles,key,result.cellSize);_walkCheckJob(job);
     index=await LocahunWholeCollision.decodeTiles(bytes,key);
@@ -21866,6 +21951,13 @@ async function loadFromURL(url, displayName){
     const name = (displayName || url.split('/').pop().split('?')[0]) || 'autoload.ply';
     const file = new File([buf], name, {type:'application/octet-stream'});
     if(ext === 'zip'){
+      // 参照保存のアーカイブ用（streamRef）: 元のRADの場所。署名付きURLで開いたときは ?streamref= で渡され、
+      // 同一オリジンの配信で開いたときは同じURLに ref=stream を付けるとサーバーが元のRADを返す。
+      try{
+        const given=new URLSearchParams(location.search).get('streamref');
+        if(given && (/^https:\/\//.test(given) || given.startsWith('/api/viewer-stream/'))) window.__l3dStreamRefUrl=given;
+        else if(url.startsWith('/api/viewer-stream/')) window.__l3dStreamRefUrl=url+(url.includes('?')?'&':'?')+'ref=stream';
+      }catch(_){}
       // Zipped splat/mesh (e.g. a large .rad zipped for upload-size limits, or
       // an online-SaaS stored property scene). _loadProjectZipFromFile already
       // knows how to unzip + auto-detect a raw splat/mesh when there's no
@@ -22767,16 +22859,27 @@ function updateLightHalos(){
     if(sr.lodQuatOverride) sr.lodQuatOverride = null;
     if(sr.lodPosOverride)  sr.lodPosOverride  = null;
   };
-  // 撮影/録画/walk = override禁止（実カメラ優先）
+  // 撮影/録画/walk = override禁止（実カメラ優先）。
+  // タブが裏に回っているときも止める（2026-09-21）。描画されない間に方位を消費すると、
+  // 戻ってきたときに先読みが一巡し終わっていて、実際に見る向きが粗いままになる。
   const _mustReleaseOverride = () =>
+    (typeof document !== 'undefined' && !!document.hidden) ||
     !!window._captureBusy ||
     (typeof camAnim !== 'undefined' && camAnim && !!camAnim._recCopyFn) ||
     (typeof walkMode !== 'undefined' && walkMode && walkMode.active);
   // ユーザーが今シーンを操作しているか（プリウォームは邪魔しない）
+  // 2026-09-21: WASD・ドラッグだけでなく、実際にカメラが動く入力はすべて数える。
+  // 抜けていた分（矢印キー・R/F の上下・クリック移動・カメラアニメ再生・画面の▲▼）は、
+  // 動いている最中もプリウォームが LOD の視点を遠くへ固定したままになり、見ている画が粗いままだった。
   const _userActive = () =>
     (typeof dragOn !== 'undefined' && dragOn) ||
     (typeof joyDX !== 'undefined' && (joyDX !== 0 || joyDY !== 0)) ||
-    (typeof keys !== 'undefined' && !!(keys.KeyW||keys.KeyS||keys.KeyA||keys.KeyD||keys.KeyQ||keys.KeyE)) ||
+    (typeof keys !== 'undefined' && !!(keys.KeyW||keys.KeyS||keys.KeyA||keys.KeyD||keys.KeyQ||keys.KeyE||
+      keys.KeyR||keys.KeyF||keys.ArrowUp||keys.ArrowDown||keys.ArrowLeft||keys.ArrowRight)) ||
+    (typeof touchUpHeld !== 'undefined' && !!touchUpHeld) ||
+    (typeof touchDnHeld !== 'undefined' && !!touchDnHeld) ||
+    (typeof _clickNavigationController !== 'undefined' && !!_clickNavigationController?.active) ||
+    (typeof camAnim !== 'undefined' && camAnim && !!camAnim.playing) ||
     (typeof yaw !== 'undefined' && (Math.abs(_yawTarget - yaw) > 1e-3 || Math.abs(_pitchTarget - pitch) > 1e-3));
   // 現在ビューを world-Y 軸で dy 回した LOD 選択用クォータニオン（カメラ規約非依存）
   const _qY = new THREE.Quaternion();
@@ -24140,6 +24243,21 @@ if(/[?&]orbit=1/.test(location.search)){
 //  Flow: load scene → warmup (5s, GPU settles + splats stream in)
 //        → wait for orbit to be running → record for captureSec → post blob
 // ══════════════════════════════════════════════════
+// 録画に入ってよいかの判定（2026-09-21）。?capture=1 の外に置いてあるのは検査のため。
+//
+//   count … 読み込めたスプラット数。-1 = 数えられない形式、0 = 1粒も入っていない
+//   hasScene … レイヤーに描画対象があるか
+//
+// ⚠ 「レイヤーはあるが 0 粒」で録ってはいけない。本番で実際に起きた:
+//    編集後の参照保存シーンは本体を別のURLから段階読み込みするが、その配信が
+//    壊れていた間、レイヤーだけできて中身が0粒のまま収束待ちが時間切れになり、
+//    空（青空とかすみだけ）の動画をそのまま撮って、掲載スタジオへ渡す埋め込みの
+//    サムネイルに出てしまった。空なら撮らずに失敗させる。
+window._captureVerdict = function(count, hasScene){
+  if(count === 0) return 'no-splats';
+  if(count < 0 && !hasScene) return 'no-scene';
+  return 'ok';
+};
 if(/[?&]capture=1/.test(location.search)){
   (function(){
     const params = new URLSearchParams(location.search);
@@ -24171,9 +24289,34 @@ if(/[?&]capture=1/.test(location.search)){
     // レンダーループ自体も headless では setTimeout 駆動なので、この待ちの間に
     // Spark の sort/LoD/RAD ストリーミングは進む。
     const _capHeadless = /[?&]headless=1/.test(location.search);
+    // 2026-09-21: setTimeout では足りなかった。背面（隠れた）ウィンドウでは Chrome が
+    // タイマーを**1秒以上に間引く**ため、1フレームあたり3回の待ちが3秒かかり、
+    // 240フレームで12分。画面上は「録画中 0%(0/240)」のまま止まって見えていた
+    // （本番で実測）。MessageChannel のメッセージはこの間引きの対象外なので、
+    // 隠れていても素の速度で回る。描画は下で renderer.render() を直接呼んでいるので
+    // 画面の合成（compositor）にも依存しない＝ウィンドウを前面に置く必要が無くなる。
+    const _yieldTick = (()=>{
+      try{
+        const ch = new MessageChannel();
+        const waiting = [];
+        ch.port1.onmessage = ()=>{ const r = waiting.shift(); if(r) r(); };
+        ch.port1.start && ch.port1.start();
+        return ()=> new Promise(r=>{ waiting.push(r); ch.port2.postMessage(0); });
+      }catch(_){
+        return ()=> new Promise(r=>setTimeout(r, 16));
+      }
+    })();
     const nextFrame = ()=> _capHeadless
-      ? new Promise(r=>setTimeout(r, 16))
+      ? _yieldTick()
       : new Promise(r=>requestAnimationFrame(r));
+    // 実時間で待つ（隠れていても効く）。MessageChannel を回しながら経過を見るので、
+    // タイマーの間引きに左右されない。Spark のソート/ストリーミング（worker）には
+    // この間に順番が回る。表示中は従来どおり rAF に任せる。
+    const settle = async (ms)=>{
+      if(!_capHeadless){ for(let i=0;i<3;i++) await nextFrame(); return; }
+      const until = performance.now() + ms;
+      while(performance.now() < until) await _yieldTick();
+    };
 
     async function run(){
      let encoder = null;
@@ -24237,7 +24380,9 @@ if(/[?&]capture=1/.test(location.search)){
             text:'読み込み中… '+(c>0 ? c.toLocaleString()+' splats' : (hasScene() ? '安定化中' : '待機中')),
             pct: 18 + Math.min(12, Math.round(elapsed / MAX_MS * 12))});
         }
-        if(anySplatCount() <= 0 && !hasScene()){ msg('capture-error',{error:'no-scene'}); return; }
+        // 空のまま録らない（window._captureVerdict の注意書きを参照）。
+        const verdict = window._captureVerdict(anySplatCount(), hasScene());
+        if(verdict !== 'ok'){ msg('capture-error',{error:verdict}); return; }
       }
 
       // Phase 3: Lock resize handler and force 1280×720 (HD) capture resolution.
@@ -24390,8 +24535,8 @@ if(/[?&]capture=1/.test(location.search)){
         if(typeof markDirty==='function') markDirty(30);
 
         // Spark needs multiple frames to process sort/LOD after yaw change.
-        // hidden タブでも進むよう nextFrame()（headless では setTimeout）を使う。
-        for(let w=0; w<3; w++) await nextFrame();
+        // 隠れたウィンドウでも実時間で 48ms 待つ（表示中は従来どおり3フレーム分）。
+        await settle(48);
         if(typeof renderer!=='undefined' && typeof scene!=='undefined' && typeof camera!=='undefined'){
           renderer.render(scene, camera);
           const gl = renderer.getContext();
@@ -24402,7 +24547,7 @@ if(/[?&]capture=1/.test(location.search)){
         encoder.encode(vf, { keyFrame: f % (FPS * 2) === 0 });
         vf.close();
 
-        if(f % 24 === 0){
+        if(f % 8 === 0){
           const pct = Math.round(f / TOTAL_FRAMES * 100);
           msg('capture-progress',{phase:'recording', text:'録画中… '+pct+'%  ('+f+'/'+TOTAL_FRAMES+')', pct:30+Math.round(pct*0.7)});
         }
@@ -24896,7 +25041,7 @@ window.saveProjectZip = async function(forceLite, opts){
       }
     }
     const _skipSplatData = !!forceLite || (_isPhoneClass && _totalSplatBytes > PHONE_SPLAT_BUDGET);
-    if(opts.strictOnline && (_skipSplatData || (_isPhoneClass && layers.some(L=>L.type==='splat' && !L._rawBuffer))))throw new Error('Device capacity insufficient for complete archive');
+    if(opts.strictOnline && (_skipSplatData || (_isPhoneClass && layers.some(L=>L.type==='splat' && !L._rawBuffer && L._streamRef!=='source'))))throw new Error('Device capacity insufficient for complete archive');
     if(_skipSplatData){
       const mb = Math.round(_totalSplatBytes / 1024 / 1024);
       console.warn(`[saveZIP] lite save (${forceLite?'user-requested':'phone-class device'}) — ${mb} MB splat data excluded`);
@@ -24973,6 +25118,12 @@ window.saveProjectZip = async function(forceLite, opts){
             entry.rawExt=ext;
             entry.isMain=L._isMain||false;
           }
+        } else if(L._streamUrl && L._streamRef==='source' && opts.strictOnline){
+          // オンライン編集の保存: 本体は元のRADを参照するだけにする（URLは書かない）。
+          // 数百MBを取り直して埋め込むのをやめたので、保存は数秒で終わり、保存後も段階読み込みのまま。
+          entry.streamRef='source';
+          entry.rawExt=L._rawExt||'rad';
+          entry.isMain=L._isMain||false;
         } else if(L._streamUrl){
           // Streaming RAD (?demo=1 / ?autoload=URL): the bytes were never
           // pulled into memory — Spark fetches chunks lazily over HTTP Range.
@@ -25088,6 +25239,7 @@ window.saveProjectZip = async function(forceLite, opts){
     }
     if(opts.strictOnline){
       for(const entry of serialized){
+        if(entry.type==='splat' && entry.streamRef==='source' && !entry.missing && !entry.streamUrl)continue; // 元のRADを参照する保存（本体は埋め込まない）
         if(entry.missing || (['splat','obj'].includes(entry.type) && (!entry.file || !files[entry.file]?.byteLength)))throw new Error('Incomplete asset: '+entry.name);
         if(entry.type==='obj')_validateOnlineModelBytes(files[entry.file],entry.rawExt);
       }
@@ -25184,7 +25336,48 @@ window.saveProjectZip = async function(forceLite, opts){
 };
 // Online editing never uses the tolerant offline reattach/placeholder path.
 // Validate all archive references before mutating the currently displayed scene.
-async function _loadOnlineSceneFile(file, fileName){
+// RAD をダウンロードせず、そのまま段階読み込みで開く（編集画面用・2026-09-21）。
+async function _loadOnlineSceneStream(streamUrl, fileName, base){
+  // 2026-09-21: 本体だけで開くと、パイプラインの project.json にある方角合わせ（本体の回転）・
+  // 初期視点・シーン名が消え、保存でそのまま上書きされていた（歌舞伎町ゲートの 53.6° が 0° に戻った）。
+  // 本体の直後にあった project.json を受け取り、本体以外の設定はそこから引き継ぐ。
+  const baseProject=_onlineStreamBaseProject(base&&base.project);
+  const main=baseProject?.layers?.find(L=>L&&L.type==='splat'&&L.isMain)||baseProject?.layers?.find(L=>L&&L.type==='splat');
+  const vec=(v,d)=>v&&[v.x,v.y,v.z].every(Number.isFinite)?{x:v.x,y:v.y,z:v.z}:d;
+  const label=typeof base?.label==='string'?base.label.trim().slice(0,120):'';
+  const project={version:4,projectName:_onlineSceneDisplayName(baseProject?.projectName,fileName,label),layerNextId:2,layers:[{
+    id:1,name:fileName,type:'splat',streamRef:'source',streamUrl,rawExt:'rad',isMain:true,
+    pos:vec(main?.pos,{x:0,y:0,z:0}),rot:vec(main?.rot,{x:0,y:0,z:0}),scale:vec(main?.scale,{x:1,y:1,z:1}),size:{x:1,y:1,z:1},visible:true,
+  }]};
+  for(const key of ['camera','cameraInit','sun'])if(baseProject&&baseProject[key]&&typeof baseProject[key]==='object')project[key]=baseProject[key];
+  const restored=await restoreProject(project,{strict:true});
+  if(!restored || restored.epoch!==walkSetup.epoch || layers.length!==1 || restored.layers[0]!==layers[0])throw new Error('Project load was interrupted');
+  _regionalNavigationFiles=null;
+  return restored;
+}
+// パイプラインの project.json を、形を確かめてから使う（壊れていれば使わない＝従来どおり）。
+function _onlineStreamBaseProject(text){
+  if(typeof text!=='string'||!text||text.length>256*1024)return null;
+  try{
+    const p=JSON.parse(text);
+    if(!p||typeof p!=='object'||![1,2,3,4].includes(p.version)||!Array.isArray(p.layers))return null;
+    return p;
+  }catch(_){return null;}
+}
+// シーン名: ファイル名のままの名前（例: 0_ShinjukuKabukiGate.rad）は、物件側のシーン名に置き換える。
+// パイプラインが自動で付けた英数字だけの名前（例: ShinjukuKabukiGate）も同じ扱い。人が付けた名前はそのまま残す。
+function _onlineSceneDisplayName(current,fileName,label){
+  const name=typeof current==='string'?current.trim():'';
+  const fileBase=String(fileName||'').replace(/\.[^.]+$/,'');
+  const looksLikeFile=!name||name==='Untitled Project'||/^[A-Za-z0-9_.-]+$/.test(name)||/\.(rad|zip|ply|splat|ksplat|spz|sog)$/i.test(name)||name===fileName||name===fileBase;
+  return looksLikeFile&&label?label:(name||label||fileName);
+}
+try{window._onlineSceneDisplayName=_onlineSceneDisplayName;window._onlineStreamBaseProject=_onlineStreamBaseProject;}catch(_){}
+// 検証用（scripts/test-scene-edit-zip-stream.mjs）から呼べるようにしておく。
+// 本体はモジュール内の関数なので、window に出さないとブラウザのテストから触れない。
+try{window._loadOnlineSceneStream=_loadOnlineSceneStream;}catch(_){}
+
+async function _loadOnlineSceneFile(file, fileName, streamRefUrl){
   const shortEdge=Math.min(window.innerWidth||0,window.innerHeight||0);
   const limit=isMobile && shortEdge>0 && shortEdge<700 ? 200*1024**2 : MAX_EMBED_BYTES;
   if(!file.size || file.size>limit)throw new Error('Device capacity insufficient for complete archive');
@@ -25208,7 +25401,12 @@ async function _loadOnlineSceneFile(file, fileName){
       if(!entry || ids.has(entry.id) || !['folder','cube','sphere','obj','splat','light','figure','event','path'].includes(entry.type))throw new Error('Unsupported project layer');
       ids.add(entry.id);
       if(entry.type==='event' && entry.eventImage && !/^data:image\/(png|jpeg|webp|gif);base64,/i.test(entry.eventImage))throw new Error('Incomplete event image');
-      if(['splat','obj'].includes(entry.type)){
+      if(entry.type==='splat' && entry.streamRef==='source' && !entry.file){
+        // 本体は埋め込まれていない（元のRADを参照）。URLは呼び出し側が渡したものだけを使う。
+        if(!streamRefUrl)throw new Error('Incomplete asset: '+entry.name);
+        entry.streamUrl=streamRefUrl;entry.rawExt='rad';
+        delete entry.rawData;
+      }else if(['splat','obj'].includes(entry.type)){
         const name=entry.file;
         if(typeof name!=='string' || name.includes('..') || name.startsWith('/') || name.includes('\\') || !files[prefix+name]?.byteLength)throw new Error('Incomplete asset: '+entry.name);
         entry._buf=files[prefix+name].slice().buffer;
@@ -25823,18 +26021,28 @@ async function restoreProject(project, opts = {}) {
           console.error(`[restore] splat fail: ${entry.name}`, e);
           mesh=new THREE.Group();
         }
-      } else if(entry.streamUrl){
+      } else if(entry.streamUrl || (entry.streamRef==='source' && window.__l3dStreamRefUrl)){
+        // streamRef（2026-09-21）: オンライン編集の保存は 3DGS 本体を埋め込まず「元のファイルを参照」とだけ書く。
+        // 実際のURLはアーカイブに残さず、読み込む側（公開ビューアー／編集画面）がその場で渡す。
+        // これで保存後も RAD の段階読み込みが効く。
+        if(entry.streamRef==='source' && window.__l3dStreamRefUrl) entry.streamUrl=window.__l3dStreamRefUrl; // 参照はアーカイブ内のURLより優先
         // No embedded bytes, but the project recorded a streaming source URL
         // (URL-streamed RAD saved via Option-A). Re-stream from that URL,
         // mirroring loadFromURL's RAD path. Requires the URL to be reachable
         // (i.e. online) — if it 404s/CORS-fails Spark just renders nothing.
         try{
           const surl=entry.streamUrl;
-          const sext=(surl.split('?')[0].split('#')[0].split('.').pop()||'rad').toLowerCase();
+          const sext=(entry.streamRef ? (entry.rawExt||'rad') : (surl.split('?')[0].split('#')[0].split('.').pop()||'rad')).toLowerCase();
           const sft=_splatFileTypeFor(sext);
           if(sext==='rad'){
             const opts={url:surl, fileType:sft, ...SPARK_QUALITY_OPTS};
-            opts.lod=true; opts.enableLod=true; opts.paged=true;
+            opts.lod=true; opts.enableLod=true;
+            // paged:true だと Spark が内部で PagedSplats を作り直し、形式を URL の拡張子から
+            // 推測する（vendor 12191行あたり）。オンライン編集の配信URLは拡張子を持たない
+            // （/api/scene-edit/source?...）ので、ここで形式を明示した PagedSplats を渡す。
+            opts.paged=new PagedSplats({rootUrl:surl, fileType:sft});
+            // 明示した PagedSplats に任せるので、url と fileType は外す（残すと本体を丸ごと取りに行く）。
+            delete opts.url; delete opts.fileType;
             opts.lodScale=_radEffectiveLodScale();
             // Same foveation strip as loadFromURL — otherwise the LoD walker
             // never splits and only the root chunk ever loads.
@@ -25925,6 +26133,7 @@ async function restoreProject(project, opts = {}) {
     // Carry the streaming source URL (URL-streamed RAD) onto the restored
     // layer so a subsequent re-save persists it again instead of dropping it.
     if(entry.streamUrl){ L._streamUrl=entry.streamUrl; L._rawExt=entry.rawExt||L._rawExt||'rad'; }
+    if(entry.streamRef==='source' && !rb) L._streamRef='source';
     if(entry.type==='splat'){
       L._isMain=entry.isMain||false;
       if(L._isMain) splatMesh=mesh; // update global splatMesh ref
@@ -26314,6 +26523,7 @@ function _pathPopulateGroup(g, local, color, opacity, labelText, width){
 const _pathLabelWorld=new THREE.Vector3(), _pathLabelCamera=new THREE.Vector3();
 function _pathUpdateLabelVisibility(viewCamera){
   viewCamera.getWorldPosition(_pathLabelCamera);
+  let farthestNearLabel=0;
   for(const L of layers){
     if(L.type!=='path'||!L.mesh)continue;
     const sp=L.mesh.userData.pathLabelSprite;
@@ -26324,6 +26534,24 @@ function _pathUpdateLabelVisibility(viewCamera){
     sp.renderOrder=near?10000:-9;
     // Separate group order also places nearby text above the editing gizmo.
     if(sp.parent.userData.pathLabelContainer)sp.parent.renderOrder=near?10000:0;
+    if(near)farthestNearLabel=Math.max(farthestNearLabel,_pathLabelCamera.distanceTo(_pathLabelWorld));
+  }
+  // 2026-09-22 本人指摘「イベント表示がパス表示より前になってても隠れちゃう」:
+  // 近くのパスの文字は上のとおり「常に最前面」で描くので、それより手前にあるイベントまで上書きしていた。
+  // 最前面で描いている文字より近いイベントは、そのさらに前に描く。遠いイベントは今までどおり（奥行きで隠れる）。
+  for(const L of layers){
+    if(L.type!=='event'||!L.mesh)continue;
+    L.mesh.getWorldPosition(_pathLabelWorld);
+    const front=farthestNearLabel>0 && _pathLabelCamera.distanceTo(_pathLabelWorld)<farthestNearLabel;
+    if(L.mesh.userData.eventInFront===front)continue;
+    L.mesh.userData.eventInFront=front;
+    L.mesh.renderOrder=front?10001:0;
+    L.mesh.traverse(o=>{
+      if(!o.material)return;
+      if(o.userData.eventDepthTest===undefined)o.userData.eventDepthTest=o.material.depthTest;
+      o.material.depthTest=front?false:o.userData.eventDepthTest;
+      o.renderOrder=front?10001:0;
+    });
   }
 }
 function _buildPathMesh(local, color, opacity, labelText, width){
@@ -26678,14 +26906,38 @@ window.importEventImage = function(id){
 
 window.showEventImage = function(id){
   const L=findLayer(id); if(!L||L.type!=='event'||!L.eventImage) return;
+  document.getElementById('event-image-viewer')?.remove();
   const ov=document.createElement('div');
-  ov.style.cssText='position:fixed;inset:0;background:rgba(0,0,0,.85);z-index:9999;display:flex;align-items:center;justify-content:center;cursor:pointer';
+  ov.id='event-image-viewer';
+  ov.setAttribute('role','dialog');
+  // 2026-09-22: 写真は必ず最前面に出す。以前の z-index 9999 では、日照・天気などのパネル
+  // （それより上に重ねてある）が写真の上にかぶっていた（本人の画面で確認）。
+  ov.style.cssText='position:fixed;inset:0;background:rgba(0,0,0,.85);z-index:2147483000;display:flex;align-items:center;justify-content:center;cursor:pointer';
   const img=document.createElement('img');
   img.src=L.eventImage;
+  img.alt=L.eventImageName||L.name||'';
   img.style.cssText='max-width:90vw;max-height:90vh;border-radius:8px;box-shadow:0 4px 32px rgba(0,0,0,.6)';
   ov.appendChild(img);
-  ov.onclick=function(){ document.body.removeChild(ov); };
+  const close=()=>{ ov.remove(); document.removeEventListener('keydown',onKey,true); };
+  const onKey=e=>{ if(e.key==='Escape'){ e.preventDefault(); close(); } };
+  ov.onclick=close;
+  document.addEventListener('keydown',onKey,true);
   document.body.appendChild(ov);
+};
+
+// 検証用: レイヤーが画面のどこに見えているか（CSS px）。ブラウザのテストが「そこを触る」ために使う。読むだけ。
+window.__layerScreenPoint = function(id){
+  const L=findLayer(id); if(!L||!L.mesh||!canvas) return null;
+  const v=new THREE.Vector3(); L.mesh.getWorldPosition(v); v.project(_useOrtho ? _orthoCamera : camera);
+  if(v.z<-1||v.z>1) return null;
+  const r=canvas.getBoundingClientRect();
+  return {x:r.left+(v.x+1)/2*r.width, y:r.top+(1-v.y)/2*r.height};
+};
+
+// 検証用: 今の視点（位置と向き）。読むだけ。
+window.__cameraPose = function(){
+  const f=new THREE.Vector3(); camera.getWorldDirection(f);
+  return {pos:{x:camPos.x,y:camPos.y,z:camPos.z},fwd:{x:f.x,y:f.y,z:f.z}};
 };
 
 window.clearEventImage = function(id){
@@ -29877,18 +30129,6 @@ const _QUALITY_SCALES = [0.75, 1.0, 1.5];
 // Only manual picks are immediate (the user expects instant feedback and no
 // mid-motion flash is acceptable for a deliberate click); everything else is
 // queued so the buffer reallocation lands between interactions.
-// 画質プリセット→LOD総予算(sparkRenderer.lodSplatCount)の唯一の定義元。
-// undefined を返す＝Spark の端末別既定(defaultSplatTarget: desktop 250万)に委ねる、の意。
-// 295_rad_motion_budget.js が「移動中に下げた予算を戻す」ときもここを読む
-// （ティアが移動中に変わっても、戻し先が必ず最新になるように）。2026-09-21
-function _radTierLodSplatCount(idx){
-  const i = (typeof idx === 'number') ? Math.max(0, Math.min(2, idx|0))
-                                      : ((typeof qualIdx === 'number') ? qualIdx : 1);
-  const _tier = (typeof _splatPerfTier !== 'undefined') ? _splatPerfTier : 'laptop_ok';
-  if(i === 2 && _tier === 'desktop')   return 5000000;
-  if(i === 2 && _tier === 'laptop_ok') return 3000000;
-  return undefined;
-}
 function applyQualityTier(idx, opts){
   opts = opts || {};
   const source = opts.source || 'watchdog';
@@ -29927,7 +30167,10 @@ function applyQualityTier(idx, opts){
   // VRAM上限 maxPagedSplats(desktop 1677万) は別枠なので触らない。
   try {
     if(typeof sparkRenderer !== 'undefined' && sparkRenderer){
-      sparkRenderer.lodSplatCount = _radTierLodSplatCount(i);
+      const _tier = (typeof _splatPerfTier !== 'undefined') ? _splatPerfTier : 'laptop_ok';
+      if(i === 2 && _tier === 'desktop')        sparkRenderer.lodSplatCount = 5000000;
+      else if(i === 2 && _tier === 'laptop_ok') sparkRenderer.lodSplatCount = 3000000;
+      else sparkRenderer.lodSplatCount = undefined;
     }
   } catch(_){}
   _updateQiBadgeLabel(i);
@@ -30081,7 +30324,7 @@ window.onSpeedSlider=function(v){
   const before = camSpeed;
   const after  = parseFloat(v);
   pushGenericUndo('move-speed', before, after, val=>{
-    camSpeed = parseFloat(val) || 3;
+    camSpeed = parseFloat(val) || 1;
     const lbl1=document.getElementById('spdLabel'); if(lbl1) lbl1.textContent = camSpeed;
     const lbl2=document.getElementById('spdVal');   if(lbl2) lbl2.textContent = camSpeed;
     const sl  =document.getElementById('spdSlider');if(sl)  sl.value = camSpeed;
@@ -30541,7 +30784,7 @@ if(new URLSearchParams(location.search).get('onlineSceneEdit')==='1'){
     const saveButton=document.getElementById?.('tb-save-btn'),saveLabel=document.getElementById?.('tb-save-lbl');
     if(saveButton)saveButton.title=window._lang==='en'?'Save to scene':'シーンに保存';
     if(saveLabel){saveLabel.id='online-scene-save-label';saveLabel.textContent=window._lang==='en'?'Save to scene':'シーンに保存';}
-    let loaded=false,lastExport=null,restoreTicket=0;
+    let loaded=false,lastExport=null,restoreTicket=0,loadingIds=null;
     const send=data=>parent.postMessage(data,origin);
     const lock=busy=>{
       state.busy=busy;
@@ -30594,38 +30837,124 @@ if(new URLSearchParams(location.search).get('onlineSceneEdit')==='1'){
       seen.add(data.requestId);
       const loading=data.type==='locahun:scene-load';
       const fail=code=>send({type:loading?'locahun:scene-load-error':'locahun:scene-export-error',requestId:data.requestId,code});
+      // 読み込み指示は、返事が来るまで外側のページが出し直す（2026-09-22）。同じ指示が重なっても
+      // 読み込みは1回だけ行い、受け取った指示すべてに同じ結果を返す。
+      if(loading && loaded){send({type:'locahun:scene-ready',requestId:data.requestId});return;}
+      if(loading && loadingIds){loadingIds.push(data.requestId);send({type:'locahun:scene-load-progress',requestId:data.requestId,loaded:0,total:0});return;}
       if(state.busy){fail('busy');return;}
       if(loading){
-        if(loaded){fail('already_loaded');return;}
         let source;
         try{
           source=new URL(data.sourceUrl,location.href);
           if(source.origin!==origin || source.pathname!=='/api/scene-edit/source' || source.hash || source.username || source.password ||
             !/^\?sessionKey=[a-f0-9]{64}$/.test(source.search) || typeof data.fileName!=='string' || !data.fileName || data.fileName.length>256)throw Error('Invalid source');
         }catch(_){fail('invalid_source');return;}
+        loadingIds=[data.requestId]; // ここから先で届いた同じ指示は、この読み込みの結果を待つ
         lock(true);state.ready=false;
-        const controller=new AbortController(),timer=setTimeout(()=>controller.abort(),120000);
+        // 2026-09-21: 1本の通信で全体を取りに行くと、Worker 経由では数百MBで数分かかり、120秒の打ち切りにも当たっていた。
+        // Range で 16MB ずつ・6並列で取り、進捗を読み込み画面と外側のページの両方に出す。
+        // cache:'no-store' は必須（同じURLの並列取得は Chrome のキャッシュロックで直列化される）。
+        const controller=new AbortController(),timer=0;
         try{
-          const response=await fetch(source.href,{credentials:'same-origin',cache:'no-store',redirect:'error',signal:controller.signal});
-          if(!response.ok)throw Error('Source download failed');
           const shortEdge=Math.min(window.innerWidth||0,window.innerHeight||0);
           const limit=isMobile && shortEdge>0 && shortEdge<700 ? 200*1024**2 : MAX_EMBED_BYTES;
-          if(Number(response.headers.get('content-length'))>limit)throw Error('Device capacity exceeded');
-          const reader=response.body?.getReader();if(!reader)throw Error('Source stream unavailable');
-          const chunks=[];let size=0;
-          try{
-            for(;;){const {done,value}=await reader.read();if(done)break;size+=value.byteLength;if(size>limit)throw Error('Device capacity exceeded');chunks.push(value);}
-          }catch(error){await reader.cancel().catch(()=>{});throw error;}finally{reader.releaseLock();}
-          await _loadOnlineSceneFile(new Blob(chunks),data.fileName);
-          loaded=true;state.ready=true;state.dirty=false;
-          send({type:'locahun:scene-ready',requestId:data.requestId});
-        }catch(error){state.ready=false;fail(/capacity/i.test(error.message)?'capacity':'incomplete');}
+          const en=typeof _en==='function'&&_en();
+          const uiFns={showLd:typeof showLd==='function'?showLd:null,setBar:typeof setBar==='function'?setBar:null,setMsg:typeof setMsg==='function'?setMsg:null};
+          const ui=(fn,...args)=>{try{uiFns[fn]?.(...args);}catch(_){}};
+          const get=(headers,ms)=>fetch(source.href,{credentials:'same-origin',cache:'no-store',redirect:'error',headers,signal:AbortSignal.any([controller.signal,AbortSignal.timeout(ms)])});
+          // 段階読み込みできるなら、ダウンロードしない（2026-09-21）。
+          // 元が .rad のときも、ビューアー用 ZIP に無圧縮で入っている .rad のときも、
+          // サーバーが ?ref=stream で .rad として配ってくれる。ファイル名はサーバーが決めたものを使う。
+          const sceneLabel=typeof data.sceneLabel==='string'?data.sceneLabel.trim().slice(0,120):'';
+          // 開けた時点で読み込み画面を閉じる（2026-09-21）。本体は段階読み込みで裏で流れ続けるので、
+          // 全部そろうまで画面を塞ぐ必要はない。塞いだままだと「編集できます」なのに 95% で止まって見え、
+          // 重いと感じる原因になっていた（本人指摘）。
+          // シーン名がファイル名のまま（例: 0_ShinjukuKabukiGate.rad）なら、物件側のシーン名を出す。名前は編集できる。
+          const opened=()=>{
+            loaded=true;state.ready=true;state.dirty=false;
+            try{
+              const name=typeof _onlineSceneDisplayName==='function'?_onlineSceneDisplayName(_projectName,data.fileName,sceneLabel):'';
+              if(name&&name!==_projectName){_projectName=name;const el=document.getElementById('tb-project-name');if(el)el.textContent=name;}
+            }catch(_){}
+            try{if(typeof hideLd==='function')hideLd();}catch(_){}
+            for(const id of loadingIds||[data.requestId])send({type:'locahun:scene-ready',requestId:id});
+            loadingIds=null;
+          };
+          const streamName=typeof data.streamFileName==='string' && /^[A-Za-z0-9_.-]+\.rad$/i.test(data.streamFileName) ? data.streamFileName : '';
+          if(streamName && typeof _loadOnlineSceneStream==='function'){
+            await _loadOnlineSceneStream(source.href+'&ref=stream',streamName,{project:typeof data.streamProject==='string'?data.streamProject:'',label:sceneLabel});
+            opened();
+            return;
+          }
+          ui('showLd',en?'Downloading the scene':'3DGSをダウンロードしています');ui('setBar',1);
+          let total=0;
+          const probe=await get({Range:'bytes=0-0'},60000);
+          if(probe.status===206){const m=/\/(\d+)\s*$/.exec(probe.headers.get('content-range')||'');if(m)total=Number(m[1]);}
+          await probe.arrayBuffer().catch(()=>{});
+          if(!probe.ok)throw Error('Source download failed');
+          let chunks=[],loadedBytes=0,lastSent=0;
+          const progress=()=>{
+            const mb=n=>Math.round(n/1048576);
+            if(total){ui('setBar',1+loadedBytes/total*89);ui('setMsg',(en?'Downloading the scene ':'3DGSをダウンロードしています ')+mb(loadedBytes)+' / '+mb(total)+' MB');}
+            const now=performance.now();
+            if(now-lastSent>400||loadedBytes===total){lastSent=now;send({type:'locahun:scene-load-progress',requestId:data.requestId,loaded:loadedBytes,total});}
+          };
+          if(total){
+            if(total>limit)throw Error('Device capacity exceeded');
+            const CHUNK=16*1024**2,count=Math.ceil(total/CHUNK);let next=0;
+            chunks=new Array(count);
+            const worker=async()=>{
+              for(;;){
+                const i=next++;if(i>=count)return;
+                const from=i*CHUNK,to=Math.min(total,from+CHUNK)-1;let lastError;
+                for(let attempt=0;attempt<4;attempt++){
+                  if(controller.signal.aborted)throw Error('aborted');
+                  let got=0;
+                  try{
+                    const part=await get({Range:'bytes='+from+'-'+to},120000);
+                    if(part.status!==206)throw Error('Range not honoured');
+                    const reader=part.body.getReader(),pieces=[];
+                    for(;;){const {done,value}=await reader.read();if(done)break;got+=value.byteLength;loadedBytes+=value.byteLength;pieces.push(value);progress();}
+                    if(got!==to-from+1)throw Error('Chunk truncated');
+                    chunks[i]=new Blob(pieces);lastError=null;break;
+                  }catch(error){loadedBytes-=got;lastError=error;await new Promise(r=>setTimeout(r,800*(attempt+1)));}
+                }
+                if(lastError){controller.abort();throw lastError;}
+              }
+            };
+            await Promise.all(Array.from({length:Math.min(6,count)},worker));
+          }else{
+            // Range が使えない配信（ローカル開発など）は従来どおり1本で取る。
+            const response=await get({},600000);
+            if(!response.ok)throw Error('Source download failed');
+            total=Number(response.headers.get('content-length'))||0;
+            if(total>limit)throw Error('Device capacity exceeded');
+            const reader=response.body?.getReader();if(!reader)throw Error('Source stream unavailable');
+            for(;;){const {done,value}=await reader.read();if(done)break;loadedBytes+=value.byteLength;if(loadedBytes>limit)throw Error('Device capacity exceeded');chunks.push(value);progress();}
+          }
+          ui('setMsg',en?'Opening the scene':'3DGSを開いています');
+          await _loadOnlineSceneFile(new Blob(chunks),data.fileName,source.href+'&ref=stream');
+          opened();
+        }catch(error){
+          state.ready=false;try{if(typeof hideLd==='function')hideLd();}catch(_){}
+          const code=/capacity/i.test(error.message)?'capacity':'incomplete';
+          for(const id of loadingIds||[data.requestId])send({type:'locahun:scene-load-error',requestId:id,code});
+          loadingIds=null;
+        }
         finally{clearTimeout(timer);lock(false);}
       }else{
         if(!state.ready){fail('not_ready');return;}
         if(state.pendingAssets){fail('asset_pending');return;}
         lock(true);const version=state.version;
         try{
+          // 当たり判定を作っている途中なら、仕上がりを待ってから保存する（2026-09-22 本人指摘
+          // 「保存した段階で作ればいいのでは」）。保存データに当たり判定が入っていれば、公開ページ・
+          // 埋め込み・次の編集はそれを使うので、開くたびに本体を丸ごと読み直して作り直さずに済む。
+          // 待ちすぎないよう上限を置き、間に合わなければ今までどおり判定なしで保存する。
+          if(typeof walkSetup!=='undefined' && walkSetup && walkSetup.pending){
+            await Promise.race([Promise.resolve(walkSetup.pending).catch(()=>{}),new Promise(r=>setTimeout(r,150000))]);
+          }
+          if(version!==state.version || !state.ready)throw Error('Incomplete snapshot');
           const archive=await window.saveProjectZip(false,{returnBlob:true,strictOnline:true});
           if(!(archive instanceof Blob) || !archive.size || version!==state.version || !state.ready)throw Error('Incomplete snapshot');
           lastExport={requestId:data.requestId,version};

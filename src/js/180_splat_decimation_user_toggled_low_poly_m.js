@@ -77,6 +77,9 @@ window.__loadRad = (url)=>{ try{ return loadFromURL(url,'RADtest'); }catch(e){ r
 window.__nSplat = ()=> (typeof splatMesh!=='undefined'&&splatMesh&&splatMesh.paged)?splatMesh.paged.numSplats:-1;
 window.__keepAlive = (ms)=>{ _splatActiveUntil=performance.now()+(ms||6000); markDirty(240); };
 window.__setCam = (y,p)=>{ if(typeof yaw!=='undefined'){yaw=_yawTarget=y;} if(typeof pitch!=='undefined'){pitch=_pitchTarget=(p||0);} _splatActiveUntil=performance.now()+8000; markDirty(240); };
+// 計測用（scripts/perf-edge-lod.mjs）: 画角と LoD 予算をその場で変え、いまの値を返す。描画には影響しない。
+window.__setFov = (deg)=>{ camera.fov=deg; camera.updateProjectionMatrix(); _splatActiveUntil=performance.now()+8000; markDirty(240); };
+window.__camInfo = ()=>({ fov:camera.fov, aspect:camera.aspect, near:camera.near, budget:(typeof sparkRenderer!=='undefined')?sparkRenderer.lodSplatCount:null });
 window.__setCamPos = (x,y,z)=>{ if(typeof camPos!=='undefined'){ camPos.set(x,y,z); } _splatActiveUntil=performance.now()+8000; markDirty(240); };
 // sparkRenderer のLOD関連プロパティをライブ設定（lodSplatCount/lodSplatScale/coneFov等）
 window.__setRenderer = (p)=>{ if(typeof sparkRenderer==='undefined') return 'no sr'; const out={}; for(const k in p){ sparkRenderer[k]=p[k]; out[k]=sparkRenderer[k]; } if(typeof markDirty==='function') markDirty(240); return out; };
