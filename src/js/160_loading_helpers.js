@@ -17,8 +17,8 @@ function _ldGuide(){
   const rows=touch
     ?(en?[['Move','Tap a spot to go there'],['Look','Drag with one finger'],['Walk','Bottom-left stick']]
         :[['移動方法','タッチでその場所に移動'],['見回す','1本指でドラッグ'],['歩く','左下のスティック']])
-    :(en?[['Move','Right-click a spot to go there'],['Look','Left-drag'],['Keys','W A S D move / E up, Q down (Shift = fast)']]
-        :[['移動方法','右クリックでその場所に移動'],['見回す','左ドラッグ'],['キー移動','W A S D 前後左右 ／ E 上昇・Q 下降（Shiftで高速）']]);
+    :(en?[['Move','Right-click a spot to go there'],['Look','Left-drag'],['Keys','W A S D move / E up, Q down'],['Dash','Shift']]
+        :[['移動方法','右クリックでその場所に移動'],['見回す','左ドラッグ'],['キー移動','W A S D 前後左右 ／ E 上昇・Q 下降'],['ダッシュ','Shift']]);
   const lt=document.getElementById('lt');lt.replaceChildren();lt.classList.add('ld-guide');
   for(const [k,v] of rows){
     const row=document.createElement('div'),a=document.createElement('span'),b=document.createElement('span');

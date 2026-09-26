@@ -329,7 +329,8 @@ window.addEventListener('mouseup',e=>{
       if(!lpv.dragging && (navigationTap?.held||Math.hypot(dx,dy)<5)){
         if(typeof _clickPointerTake!=='function'||navigationTap){
           const consumed=_trySelectByClick(e.clientX,e.clientY);
-          if(!consumed&&navigationTap)_clickNavigateAt(navigationTap.x,navigationTap.y);
+          // 右クリック長押し（探ってから離す）での移動は目線 100cm（2026-09-26 本人指示）。普通のクリックは従来の 1.8m。
+          if(!consumed&&navigationTap)_clickNavigateAt(navigationTap.x,navigationTap.y,false,null,navigationTap.held?1.0:1.8);
         }
       }
     }

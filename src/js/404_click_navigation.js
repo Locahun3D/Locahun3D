@@ -15,7 +15,8 @@
         if(!Number.isFinite(now)||!valid(hit?.point)||!valid(hit?.normal))return false;
         const n=Math.hypot(hit.normal.x,hit.normal.y,hit.normal.z);
         if(n<1e-8||hit.normal.y/n<Math.SQRT1_2)return false;
-        const from={...io.position()},to={...hit.point,y:hit.point.y+1.8};
+        const eye=Number.isFinite(io.eyeHeight)?io.eyeHeight:1.8;
+        const from={...io.position()},to={...hit.point,y:hit.point.y+eye};
         if(!valid(from)||!valid(to)||!io.ready()||io.blocked())return false;
         if(io.collision!==false&&(!io.coverage(from,to)||!io.clear(from,0)||!io.clear(to,1)))return false;
         if(route!==undefined&&(!Array.isArray(route)||!route.length||route.length>1024||!route.every(valid)||distance(route.at(-1),to)>.001))return false;
@@ -161,7 +162,7 @@ function _clickNavigationCoverage(a,b){
   return !walkSetup.wholeIndex||(typeof _walkWholeCoverage==='function'&&_walkWholeCoverage(a,b,{drop:2,margin:.3})===true);
 }
 // Tap travel uses collision geometry only to identify a destination floor.
-function _clickNavigateAt(clientX,clientY,preview=false,preparedHit=null){
+function _clickNavigateAt(clientX,clientY,preview=false,preparedHit=null,eyeHeight=1.8){
   if(!preview)_cancelClickNavigation();
   if(_clickNavigationBusy())return false;
   const now=performance.now();
@@ -172,7 +173,7 @@ function _clickNavigateAt(clientX,clientY,preview=false,preparedHit=null){
       const intent=_clickNavigationIntent,epoch=walkSetup.epoch;
       globalThis.prepareCameraCollision().then(ready=>{
         if(ready&&intent===_clickNavigationIntent&&epoch===walkSetup.epoch&&!_clickNavigationBusy())
-          _clickNavigateAt(clientX,clientY);
+          _clickNavigateAt(clientX,clientY,false,null,eyeHeight);
       }).catch(()=>{});
     }
     if(!preview&&now-_clickNavigationToastAt>1000&&typeof showUndoToast==='function'){
@@ -212,7 +213,7 @@ function _clickNavigateAt(clientX,clientY,preview=false,preparedHit=null){
     const hit=LocahunClickNavigation.resolveSurface(picked,camPos,(a,b,d)=>core.raycastSurface(a,b,d));
     if(!hit)return preview?{point:picked.point,valid:false}:false;
     const controller=LocahunClickNavigation.create({
-      collision:false,
+      collision:false,eyeHeight,
       position:()=>camPos,setPosition:p=>{camPos.set(p.x,p.y,p.z);markDirty(3);if(typeof bumpSplatActive==='function')bumpSplatActive(500);},
       ready:()=>true,epoch:()=>walkSetup.epoch,blocked:_clickNavigationBusy
     });
