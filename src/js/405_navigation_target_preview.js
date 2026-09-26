@@ -114,3 +114,6 @@ window.addEventListener('blur',_navigationHoldReset);
 canvas.addEventListener('touchcancel',_navigationHoldReset,{passive:true});
 // 診断用（自動テストから玉の状態を読む）。UI からは使わない。
 window.__navPoint=()=>_navigationPoint?{visible:_navigationPoint.visible,x:+_navigationPoint.position.x.toFixed(3),y:+_navigationPoint.position.y.toFixed(3),z:+_navigationPoint.position.z.toFixed(3),ok:_navigationPoint.material.color.getHex()===0x63edbd,radius:+(_navigationPoint.userData.size?.radius||0).toFixed(4),px:_navigationPoint.userData.size?.px||0,hold:!!_navigationHold,active:!!(_navigationHold&&_navigationHold.active)}:{visible:false,hold:!!_navigationHold};
+
+// 診断用（自動テストから読むだけ）
+window.__navDebug=(x,y)=>({busy:_clickNavigationBusy(),preview:_clickNavigateAt(x,y,true)});

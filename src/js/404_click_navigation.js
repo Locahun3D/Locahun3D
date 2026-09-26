@@ -130,13 +130,14 @@ function _clickNavigationTourOwnsCamera(){
   try{const state=tour.cam();return !state.aborted&&!state.yield;}catch(_){return true;}
 }
 function _clickNavigationBusy(){
-  return (typeof msr!=='undefined'&&msr.active)||
-    (typeof cam!=='undefined'&&cam.active)||(typeof arMode!=='undefined'&&arMode.active)||
+  // 2026-09-27 本人指示: 測定中・カメラツール中・カメラアニメーション編集中もクリック移動を使う。
+  // 測定中は「右クリック長押し＝点を置く」のまま（mouseup/touch 側で測定を優先）。再生中だけは止める。
+  return (typeof arMode!=='undefined'&&arMode.active)||
     (typeof _useOrtho!=='undefined'&&_useOrtho)||(typeof _viewRec!=='undefined'&&_viewRec.active)||
     !!globalThis._captureBusy||_clickNavigationTourOwnsCamera()||
     (typeof location!=='undefined'&&/[?&](orbit|capture)=1(?:&|$)/.test(location.search))||
     (typeof walkMode!=='undefined'&&walkMode.active)||
-    (typeof camAnim!=='undefined'&&(camAnim.playing||camAnim.open))||
+    (typeof camAnim!=='undefined'&&camAnim.playing)||
     (typeof _pathMode!=='undefined'&&!!_pathMode)||
     (typeof _placeMode!=='undefined'&&!!_placeMode)||
     (typeof _pathDragH!=='undefined'&&_pathDragH>=0)||

@@ -371,7 +371,7 @@ canvas.addEventListener('touchend',e=>{
     }
   }
   for(const t of e.changedTouches)if(t.identifier===tlId){ tlId=-1; markDirty(6); }
-  if(navigationTap){
+  if(navigationTap&&!(typeof msr!=='undefined'&&msr.active)){
     if(e.cancelable)e.preventDefault();
     if(!_trySelectByClick(navigationTap.x,navigationTap.y))_clickNavigateAt(navigationTap.x,navigationTap.y);
   }

@@ -328,7 +328,9 @@ window.addEventListener('mouseup',e=>{
       const dx=e.clientX-_clickStartX, dy=e.clientY-_clickStartY;
       if(!lpv.dragging && (navigationTap?.held||Math.hypot(dx,dy)<5)){
         if(typeof _clickPointerTake!=='function'||navigationTap){
-          const consumed=_trySelectByClick(e.clientX,e.clientY);
+          // 長押しで行き先を探ったとき・カメラツール中は移動が目的なので選択を挟まない（2026-09-27。カメラツール中は
+          // 選択が先にクリックを取ってしまい移動しなかった）。
+          const consumed=(navigationTap?.held||(typeof cam!=='undefined'&&cam.active))?false:_trySelectByClick(e.clientX,e.clientY);
           // 右クリック長押し（探ってから離す）での移動は目線 100cm（2026-09-26 本人指示）。普通のクリックは従来の 1.8m。
           if(!consumed&&navigationTap)_clickNavigateAt(navigationTap.x,navigationTap.y,false,null,navigationTap.held?1.0:1.8);
         }

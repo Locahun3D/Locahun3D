@@ -10,12 +10,28 @@
   try{ on=new URLSearchParams(location.search).get('swapMouse')!=='0'; }catch(_){}
   window.__mouseButtonSwap=on;
   if(!on)return;
+  const _gizmoUnder=(x,y)=>{
+    try{
+      const measuring=typeof msr!=='undefined'&&msr.active;
+      if(!measuring&&typeof _checkBoneRotateRingHit==='function'&&_checkBoneRotateRingHit(x,y))return true;
+      if(!measuring&&typeof _checkIKHandleHit==='function'&&_checkIKHandleHit(x,y))return true;
+      if(!measuring&&typeof selectedLayerId!=='undefined'&&selectedLayerId!=null&&typeof checkLpvHandle==='function'&&checkLpvHandle(x,y))return true;
+      if(measuring&&typeof checkAxisHandle==='function'&&checkAxisHandle(x,y))return true;
+      if(measuring&&typeof nearMarker==='function'&&nearMarker(x,y))return true;
+      if(typeof _pathEditId!=='undefined'&&_pathEditId!=null&&typeof _pathHandleAt==='function'&&_pathHandleAt(x,y)>=0)return true;
+    }catch(_){}
+    return false;
+  };
   const swap=e=>{
     if(e.__l3dSynthetic)return;
     if(e.pointerType&&e.pointerType!=='mouse')return;
     if(e.button!==0&&e.button!==2)return;
     // mouseup は window で拾う処理があるので、押下がキャンバス起点なら常に入れ替える
     if(e.type.endsWith('down')&&e.target!==canvas)return;
+    // ギズモの持ち手（ピボット・軸・測定点・パスの角・ボーン）の上で押したときは入れ替えない
+    // （2026-09-27 本人指摘: 左ドラッグの見回しが優先されてギズモが動かせなかった）。
+    if(e.type.endsWith('down')&&e.button===0&&_gizmoUnder(e.clientX,e.clientY)){ swap.fromCanvas=false; swap.skip=true; return; }
+    if(e.type.endsWith('up')&&swap.skip){ if(e.type==='mouseup')swap.skip=false; return; }
     if(e.type.endsWith('up')&&e.target!==canvas&&!swap.fromCanvas)return;
     if(e.type.endsWith('down'))swap.fromCanvas=true;
     try{ Object.defineProperty(e,'button',{value:e.button===0?2:0,configurable:true}); }catch(_){}
@@ -34,6 +50,8 @@
     const t=tap;tap=null;
     if(t.m>=5||performance.now()-t.t>500)return;
     setTimeout(()=>{
+      // 測定中は右クリック（旧左）が点置きなので、合成せずに移動だけ呼ぶ。
+      if(typeof msr!=='undefined'&&msr.active){ if(typeof _clickNavigateAt==='function')_clickNavigateAt(t.x,t.y); return; }
       const opt={button:0,buttons:1,bubbles:true,cancelable:true,clientX:t.x,clientY:t.y};
       const down=new MouseEvent('mousedown',opt);down.__l3dSynthetic=true;canvas.dispatchEvent(down);
       const up=new MouseEvent('mouseup',{...opt,buttons:0});up.__l3dSynthetic=true;canvas.dispatchEvent(up);
