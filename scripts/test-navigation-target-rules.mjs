@@ -40,8 +40,9 @@ test('on-axis the ball keeps the old constant-pixel size exactly', () => {
   // 3m 未満は旧式の下限 0.04m に当たる領域なので、素の式が出る 3m 以上で比べる。
   for (const distance of [3, 5, 10, 30]) {
     const { radius, px } = f.size(distance);
-    assert.ok(Math.abs(radius - legacyRadius(distance, 90, 900)) < 1e-9, distance + 'm: ' + radius);
-    assert.ok(Math.abs(px - 6) < .01, distance + 'm: ' + px);
+    // 2026-09-26: 狙い px を 6→11 に拡大（本人FB「どこに点があるかわかりづらい」）。軸上は旧式×11/6。
+    assert.ok(Math.abs(radius - legacyRadius(distance, 90, 900) * 11 / 6) < 1e-9, distance + 'm: ' + radius);
+    assert.ok(Math.abs(px - 11) < .01, distance + 'm: ' + px);
   }
 });
 
@@ -50,7 +51,7 @@ test('off-axis the ball no longer grows: same screen pixels at any angle', () =>
   let previous = onAxis;
   for (const angle of [20, 40, 60]) {
     const { radius, px } = f.size(distance, angle);
-    assert.ok(Math.abs(px - 6) < .01, angle + '°: ' + px);
+    assert.ok(Math.abs(px - 11) < .01, angle + '°: ' + px);
     assert.ok(radius < previous, angle + '° must shrink, not grow');
     previous = radius;
     // 旧式は同じ半径のまま画面端へ行くので 1/cos²θ 倍に見えていた（60° で 4 倍 = 24px）。
@@ -71,8 +72,8 @@ test('the radius floor is 0.02 m, half of the old 0.04 m', () => {
   assert.equal(legacyRadius(.3, 90, 900), .04, '旧式の下限は 0.04m だった');
 });
 
-test('the pixel target is clamp(min(w,h)*0.012, 4, 6)', () => {
-  for (const [width, height, expected] of [[1440, 900, 6], [1024, 768, 6], [390, 844, 390 * .012], [200, 200, 4]]) {
+test('the pixel target is clamp(min(w,h)*0.02, 7, 11)', () => {
+  for (const [width, height, expected] of [[1440, 900, 11], [1024, 768, 11], [390, 844, 390 * .02], [200, 200, 7]]) {
     const { px } = sizer({ width, height }).size(6);
     assert.ok(Math.abs(px - expected) < .01, width + 'x' + height + ': ' + px);
   }

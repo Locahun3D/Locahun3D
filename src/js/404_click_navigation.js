@@ -171,7 +171,7 @@ function _clickNavigateAt(clientX,clientY,preview=false,preparedHit=null,eyeHeig
   if(!walkSetup.core||walkSetup.importPending||walkSetup.settings.signature!==_walkSourceSignature()){
     if(!preview&&typeof globalThis.prepareCameraCollision==='function'){
       const intent=_clickNavigationIntent,epoch=walkSetup.epoch;
-      globalThis.prepareCameraCollision().then(ready=>{
+      globalThis.prepareCameraCollision({force:true}).then(ready=>{
         if(ready&&intent===_clickNavigationIntent&&epoch===walkSetup.epoch&&!_clickNavigationBusy())
           _clickNavigateAt(clientX,clientY,false,null,eyeHeight);
       }).catch(()=>{});

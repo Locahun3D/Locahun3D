@@ -11,7 +11,8 @@ let _navigationPoint=null,_navigationHold=null;
 let _navigationFwd=null,_navigationRel=null;
 function _navigationPointRadius(position){
   const w=Math.max(1,canvas.clientWidth),h=Math.max(1,canvas.clientHeight);
-  const px=Math.max(4,Math.min(6,Math.min(w,h)*.012));
+  // 2026-09-26 本人FB「右クリック長押し、どこに点があるかわかりづらい」→ 玉を約2倍に、足元に輪を足す。
+  const px=Math.max(7,Math.min(11,Math.min(w,h)*.02));
   const focal=(h/2)/Math.tan(camera.fov*Math.PI/360); // 焦点距離(CSS px)
   if(!_navigationFwd){_navigationFwd=new THREE.Vector3();_navigationRel=new THREE.Vector3();}
   camera.getWorldDirection(_navigationFwd);
@@ -29,16 +30,23 @@ function _showNavigationPoint(point,valid){
     _navigationPoint.renderOrder=10000;
     _navigationPoint.raycast=()=>{};
     scene.add(_navigationPoint);
+    const ring=new THREE.Mesh(new THREE.RingGeometry(.7,1,40),
+      new THREE.MeshBasicMaterial({color:0x63edbd,transparent:true,opacity:.85,side:THREE.DoubleSide,depthTest:false,depthWrite:false}));
+    ring.name='NavigationTargetRing';ring.rotation.x=-Math.PI/2;ring.renderOrder=9999;ring.raycast=()=>{};
+    _navigationPoint.userData.ring=ring;scene.add(ring);
   }
   _navigationPoint.position.set(point.x,point.y+.08,point.z);
   const size=_navigationPointRadius(_navigationPoint.position);
   _navigationPoint.userData.size=size;
   _navigationPoint.scale.setScalar(size.radius/.075);
   _navigationPoint.material.color.setHex(valid?0x63edbd:0xff5353);
+  const ring=_navigationPoint.userData.ring;
+  ring.position.set(point.x,point.y+.01,point.z);ring.scale.setScalar(Math.max(.12,size.radius*4));
+  ring.material.color.setHex(valid?0x63edbd:0xff5353);ring.visible=true;
   _navigationPoint.visible=true;markDirty(2);
 }
 function _hideNavigationPoint(){
-  if(_navigationPoint){_navigationPoint.visible=false;markDirty(2);}
+  if(_navigationPoint){_navigationPoint.visible=false;if(_navigationPoint.userData.ring)_navigationPoint.userData.ring.visible=false;markDirty(2);}
 }
 function _navigationHoldReset(){
   if(_navigationHold){clearTimeout(_navigationHold.timer);_navigationHold=null;}
@@ -55,7 +63,7 @@ function _navigationHoldPreview(){
   if(!unready||h.preparing||typeof globalThis.prepareCameraCollision!=='function')return;
   h.preparing=true;
   if(typeof showUndoToast==='function')showUndoToast((window._lang==='en'?'Preparing the ground at the destination':'移動先の地面を準備しています'));
-  globalThis.prepareCameraCollision().then(ready=>{if(ready&&_navigationHold===h&&h.active)_navigationHoldPreview();}).catch(()=>{});
+  globalThis.prepareCameraCollision({force:true}).then(ready=>{if(ready&&_navigationHold===h&&h.active)_navigationHoldPreview();}).catch(()=>{});
 }
 function _navigationHoldArm(kind,point){
   _navigationHoldReset();

@@ -126,6 +126,9 @@ try{
  await page.evaluate(()=>window.cameraTest.setup());
  await page.locator('#qi-badge').click();
  const toggle=page.locator('#camera-collision-toggle');
+ // 2026-09-26: 既定は OFF。一度押して ON にしてから従来の確認をする。
+ assert.equal(await toggle.getAttribute('aria-checked'),'false');
+ await toggle.click();
  assert.equal(await toggle.getAttribute('aria-checked'),'true');
  for(const kind of ['keyboard','touch','gamepad']){
   const on=await page.evaluate(k=>window.cameraTest.move(k),kind);assert(on.x>.7&&on.x<.86,JSON.stringify(on));

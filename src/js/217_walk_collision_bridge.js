@@ -514,7 +514,8 @@ function _walkCollisionAdvance(av,dt,dx,dz,jump) {
   walkMode.actualSpeed=Math.hypot(av.position.x-oldX,av.position.z-oldZ)/Math.max(dt,.0001);
   return walkMode.actualSpeed>.03;
 }
-let cameraCollisionEnabled=true;
+// 2026-09-26 本人指示「あたり判定 デフォルトはOFF」。クリック移動の地面判定は OFF でも作る（prepare の force）。
+let cameraCollisionEnabled=false;
 function _walkCameraReadiness(){
   const ready=!!walkSetup.core&&!walkSetup.importPending&&walkSetup.settings.signature===_walkSourceSignature();
   return !cameraCollisionEnabled?'off':ready?'ready':walkSetup.busy||walkSetup.importPending?'preparing':'unavailable';
@@ -542,11 +543,12 @@ globalThis.setCameraCollision=function(enabled){
   });
 };
 globalThis.toggleCameraCollision=()=>globalThis.setCameraCollision(!cameraCollisionEnabled);
-globalThis.prepareCameraCollision=async()=>{
-  if(!cameraCollisionEnabled)return false;
+globalThis.prepareCameraCollision=async(opts={})=>{
+  const force=!!opts.force;
+  if(!cameraCollisionEnabled&&!force)return false;
   if(_walkCameraReadiness()==='ready')return true;
   if(walkSetup.importPending)await walkSetup.importPending;
-  if(!cameraCollisionEnabled)return false;
+  if(!cameraCollisionEnabled&&!force)return false;
   // An explicit retry may reload a saved proxy, but never decode/bake the source.
   return _walkGenerateCollision({automatic:true,retryCache:true,center:camPos,preserveSpawn:true});
 };
