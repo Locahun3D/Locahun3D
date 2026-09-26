@@ -69,6 +69,28 @@
   // 診断用（自動テストから読むだけ／位置を置くだけ）
   window.__columnSurfaces=columnSurfaces;
   window.__setCamPos=(x,y,z)=>{camPos.set(x,y,z);if(typeof markDirty==='function')markDirty(3);};
+  // 目立つ案内（2026-09-27 本人「あんまり変わってない」: ボタンの点滅だけでは気づきにくい）。
+  // 画面上部中央に「地面の裏側に出ています」と［戻す］ボタン。押すとカメラリセットと同じ。
+  let bannerEl=null;
+  const _banner=on=>{
+    if(!on){ if(bannerEl){bannerEl.remove();bannerEl=null;} return; }
+    if(bannerEl)return;
+    const en=window._lang==='en';
+    bannerEl=document.createElement('div');
+    bannerEl.id='under-scan-banner';
+    bannerEl.setAttribute('role','status');
+    bannerEl.style.cssText='position:fixed;left:50%;top:100px;transform:translateX(-50%);z-index:70;display:flex;gap:10px;align-items:center;'+
+      'background:rgba(20,20,22,.92);border:1px solid rgba(130,255,180,.6);color:#f2fff6;border-radius:8px;padding:10px 14px;'+
+      'font:13px/1.5 ui-sans-serif,system-ui,sans-serif;box-shadow:0 6px 24px rgba(0,0,0,.5);max-width:calc(100vw - 32px);pointer-events:auto';
+    const msg=document.createElement('span');
+    msg.textContent=en?'The camera is under the scanned ground.':'地面の裏側に出ています。';
+    const b=document.createElement('button');
+    b.type='button';b.textContent=en?'Return':'元の位置に戻す';
+    b.style.cssText='min-height:36px;padding:0 14px;background:rgba(40,190,100,.75);border:1px solid rgba(130,255,180,.95);color:#fff;border-radius:6px;cursor:pointer;font-size:13px;white-space:nowrap';
+    b.onclick=()=>{ try{ if(typeof resetCameraToInitial==='function')resetCameraToInitial(); }catch(_){} };
+    bannerEl.append(msg,b);
+    document.body.appendChild(bannerEl);
+  };
   let streak=0,lastKey='',lastUnder=false;
   const check=()=>{
     const btn=document.getElementById('btn-cam-reset');if(!btn)return;
@@ -82,7 +104,9 @@
       }
     }catch(_){under=false;}
     streak=under?streak+1:0;
-    btn.classList.toggle('cam-reset-alert',streak>=2);
+    const on=streak>=2;
+    btn.classList.toggle('cam-reset-alert',on);
+    _banner(on);
   };
   setInterval(check,500);
   window.__underScan=_underScan; // 診断用（自動テストから判定だけ呼ぶ）
