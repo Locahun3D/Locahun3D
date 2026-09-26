@@ -330,7 +330,7 @@
         <input type="number" id="cm-focal" step="1" class="cm-input" oninput="onCamFieldChange()">
         <span style="font-size:.82em;color:#666">mm</span>
       </div>
-      <div class="cm-row">
+      <div class="cm-row cm-pro">
         <input type="range" id="cm-focal-slider" min="8" max="200" step="1"
           oninput="document.getElementById('cm-focal').value=this.value;onCamFieldChange()"
           style="flex:1;accent-color:#ffb454">
@@ -352,7 +352,7 @@
   </div>
 
   <!-- ── ⬛ センサー ── -->
-  <div class="cm-group">
+  <div class="cm-group cm-pro">
     <div class="cm-group-head">⬛ <span id="ct-sensor">センサー</span>
     </div>
     <div class="cm-group-body">
@@ -410,7 +410,7 @@
         <button class="cm-aspect" onclick="setCamAspect(0.5625)" data-ar="0.5625">9:16</button>
         <button class="cm-aspect" onclick="setCamAspect(0.8)"   data-ar="0.8">4:5</button>
       </div>
-      <div class="cm-row" style="gap:4px;align-items:center">
+      <div class="cm-row cm-pro" style="gap:4px;align-items:center">
         <span class="cm-lbl" style="min-width:48px" id="ct-aspect-cust">カスタム</span>
         <input type="number" id="cm-ar-w" min="0.1" step="0.1" value="16" placeholder="W"
           class="cm-input" style="max-width:54px" oninput="onCamCustomAspect()">
@@ -419,13 +419,13 @@
           class="cm-input" style="max-width:54px" oninput="onCamCustomAspect()">
         <button onclick="applyCamCustomAspect()" class="cm-aspect" style="flex:0 0 auto;padding:4px 10px" id="ct-aspect-apply">適用</button>
       </div>
-      <div class="cm-row" style="margin-top:6px">
+      <div class="cm-row cm-pro" style="margin-top:6px">
         <label class="cm-lbl" style="min-width:54px" id="ct-margin">外側余白</label>
         <input type="range" id="cm-margin" min="0" max="20" step="1" value="10"
           oninput="onCamFieldChange()" style="flex:1;accent-color:#ffb454">
         <span id="cm-margin-val" style="min-width:34px;text-align:right;color:#888;font-size:.82em">10%</span>
       </div>
-      <div class="cm-row" style="margin-top:6px;align-items:center;gap:5px">
+      <div class="cm-row cm-pro" style="margin-top:6px;align-items:center;gap:5px">
         <label class="cm-lbl" style="min-width:54px" id="ct-roll">ロール</label>
         <input type="range" id="cm-roll-slider" min="-180" max="180" step="0.5" value="0"
           oninput="document.getElementById('cm-roll').value=this.value;onCamRollChange(parseFloat(this.value))"
@@ -440,8 +440,17 @@
     </div>
   </div>
 
+  <!-- ── シンプル表示（2026-09-26 本人FB: 初回はレンズ・アスペクト・書き出しの3つだけ） ── -->
+  <div class="cm-simple-only" style="margin:4px 0 10px">
+    <button onclick="captureCamShot()" style="width:100%;padding:9px;background:rgba(255,180,84,.2);
+      border:1px solid rgba(255,180,84,.5);color:#ffe4b3;border-radius:4px;font-size:1.05em;cursor:pointer;letter-spacing:.04em">📸 <span data-i18n="cm-simple-capture">書き出し（JPEG）</span></button>
+  </div>
+  <button id="cm-mode-toggle" onclick="toggleCamToolMode()" style="width:100%;margin:0 0 12px;padding:6px;background:none;
+    border:1px solid rgba(255,255,255,.14);color:#aaa;border-radius:4px;font-size:.92em;cursor:pointer">
+    <span class="cm-simple-only" data-i18n="cm-mode-pro">⚙ 詳細設定（プロツール）を開く</span><span class="cm-pro" data-i18n="cm-mode-simple">▴ シンプル表示に戻す</span></button>
+
   <!-- ── # グリッド ── -->
-  <div class="cm-group">
+  <div class="cm-group cm-pro">
     <div class="cm-group-head"># <span id="ct-grid">グリッド</span> <span style="opacity:.45;font-size:.85em;font-weight:400" id="ct-grid-multi">(複数選択可)</span>
     </div>
     <div class="cm-group-body">
@@ -475,7 +484,7 @@
   </div>
 
   <!-- ══ ショット情報 (placed BELOW the グリッド group per user request) ══ -->
-  <div class="cm-group">
+  <div class="cm-group cm-pro">
     <div class="cm-group-head">📷 <span id="csp-shot-info">ショット情報</span></div>
     <div class="cm-group-body">
       <!-- ── Read-only camera info (collapsible, default collapsed) ── -->
@@ -961,6 +970,7 @@ await window.__locahunStartupGate;
 {{include:src/js/390_i18n_extensions_home_screen_settings.js}}
 {{include:src/js/391_i18n_gaps.js}}
 {{include:src/js/399_mouse_button_swap.js}}
+{{include:src/js/399b_cam_tool_simple.js}}
 {{include:src/js/400_input.js}}
 {{include:src/js/401_input_mouse.js}}
 {{include:src/js/402_input_shared_drag_touch.js}}
