@@ -276,9 +276,7 @@ async function restoreProject(project, opts = {}) {
       const c3 = new THREE.Color(evColor); c3.lerp(new THREE.Color(1,1,1), 0.3);
       const circMat = new THREE.MeshBasicMaterial({color:c3, side:THREE.DoubleSide, transparent:true, opacity:0.35});
       evGroup.add(new THREE.Mesh(circGeo, circMat));
-      const dotGeo = new THREE.CircleGeometry(0.08, 16);
-      const dotMat = new THREE.MeshBasicMaterial({color:0xffffff, side:THREE.DoubleSide});
-      evGroup.add(new THREE.Mesh(dotGeo, dotMat));
+      evGroup.add(_eventIconMesh());
       const hitGeo = new THREE.SphereGeometry(1.2, 8, 8);
       const hitMat = new THREE.MeshBasicMaterial({visible:false});
       evGroup.add(new THREE.Mesh(hitGeo, hitMat));

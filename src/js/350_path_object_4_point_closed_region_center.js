@@ -369,16 +369,24 @@ function _placeUpdateProbe(clientX, clientY){
   const p=pickWorldPos(clientX, clientY,equipment?{groundFallback:true}:undefined);
   if(!p){ if(equipment&&_placeProbeMarker){ _placeProbeMarker.visible=false; if(typeof markDirty==='function')markDirty(6); } return; }
   if(!_placeProbeMarker){
-    _placeProbeMarker=new THREE.Mesh(new THREE.SphereGeometry(0.12,16,16),
-      new THREE.MeshBasicMaterial({color:0xffd400, transparent:true, opacity:.9, depthTest:false}));
-    _placeProbeMarker.renderOrder=9009; scene.add(_placeProbeMarker);
+    // 測定の点置きと同じ見た目（2026-09-27 本人指示）: 半透明の小さな玉＋地面に寝かせた白い輪（半径32cm）。
+    const g=new THREE.Group();
+    const sph=new THREE.Mesh(new THREE.SphereGeometry(0.055,10,10),
+      new THREE.MeshBasicMaterial({color:0xffff44, transparent:true, opacity:.45, depthTest:false}));
+    sph.renderOrder=9009;
+    const pts=[];for(let i=0;i<=40;i++){const a=i/40*Math.PI*2;pts.push(Math.cos(a)*.32,0,Math.sin(a)*.32);}
+    const rg=new THREE.BufferGeometry();rg.setAttribute('position',new THREE.Float32BufferAttribute(pts,3));
+    const ring=new THREE.Line(rg,new THREE.LineBasicMaterial({color:0xffffff, transparent:true, opacity:.6, depthTest:false}));
+    ring.renderOrder=9009;
+    g.add(sph,ring);g.renderOrder=9009;
+    _placeProbeMarker=g; scene.add(_placeProbeMarker);
   }
   _placeProbeMarker.position.copy(p);
   _placeProbeMarker.visible=true;
   if(typeof markDirty==='function') markDirty(6);
 }
 function _placeHideProbe(){
-  if(_placeProbeMarker){ scene.remove(_placeProbeMarker); _placeProbeMarker.geometry.dispose(); _placeProbeMarker.material.dispose(); _placeProbeMarker=null; }
+  if(_placeProbeMarker){ scene.remove(_placeProbeMarker); _placeProbeMarker.traverse(o=>{o.geometry?.dispose();o.material?.dispose();}); _placeProbeMarker=null; }
   _placeProbing=false;
 }
 function _placeHint(on){
@@ -496,19 +504,51 @@ window.importEventImage = function(id){
 window.showEventImage = function(id){
   const L=findLayer(id); if(!L||L.type!=='event'||!L.eventImage) return;
   document.getElementById('event-image-viewer')?.remove();
+  const en=window._lang==='en';
   const ov=document.createElement('div');
   ov.id='event-image-viewer';
   ov.setAttribute('role','dialog');
-  // 2026-09-22: 写真は必ず最前面に出す。以前の z-index 9999 では、日照・天気などのパネル
-  // （それより上に重ねてある）が写真の上にかぶっていた（本人の画面で確認）。
-  ov.style.cssText='position:fixed;inset:0;background:rgba(0,0,0,.85);z-index:2147483000;display:flex;align-items:center;justify-content:center;cursor:pointer';
+  // 2026-09-22: 写真は必ず最前面に出す（日照・天気のパネルが上にかぶっていた）。
+  // 2026-09-27 本人FB「写真表示がでかすぎ、拡大縮小や閉じるのUIが欲しい」: 最初は画面の約6割に収め、
+  // 右上に −／＋／等倍に戻す／✕。ホイールで拡大縮小、拡大中はドラッグで動かせる。背景クリック・Esc でも閉じる。
+  ov.style.cssText='position:fixed;inset:0;background:rgba(0,0,0,.78);z-index:2147483000;display:flex;align-items:center;justify-content:center;overflow:hidden';
   const img=document.createElement('img');
   img.src=L.eventImage;
   img.alt=L.eventImageName||L.name||'';
-  img.style.cssText='max-width:90vw;max-height:90vh;border-radius:8px;box-shadow:0 4px 32px rgba(0,0,0,.6)';
+  img.draggable=false;
+  img.style.cssText='max-width:62vw;max-height:62vh;border-radius:8px;box-shadow:0 4px 32px rgba(0,0,0,.6);transform-origin:center center;transition:transform .12s ease-out;cursor:zoom-in;user-select:none';
   ov.appendChild(img);
-  const close=()=>{ ov.remove(); document.removeEventListener('keydown',onKey,true); };
-  const onKey=e=>{ if(e.key==='Escape'){ e.preventDefault(); close(); } };
+  let zoom=1,tx=0,ty=0;
+  const apply=()=>{img.style.transform=`translate(${tx}px,${ty}px) scale(${zoom})`;img.style.cursor=zoom>1?'grab':'zoom-in';pct.textContent=Math.round(zoom*100)+'%';};
+  const setZoom=z=>{zoom=Math.max(.5,Math.min(5,z));if(zoom<=1){tx=0;ty=0;}apply();};
+  const bar=document.createElement('div');
+  bar.style.cssText='position:absolute;top:14px;right:14px;display:flex;gap:6px;align-items:center;background:rgba(20,20,22,.9);border:1px solid rgba(255,255,255,.18);border-radius:8px;padding:5px 6px';
+  const mk=(label,title,fn)=>{const b=document.createElement('button');b.type='button';b.textContent=label;b.title=title;b.setAttribute('aria-label',title);
+    b.style.cssText='min-width:34px;min-height:32px;padding:0 8px;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.16);color:#eee;border-radius:5px;cursor:pointer;font-size:15px;line-height:1';
+    b.onclick=e=>{e.stopPropagation();fn();};bar.appendChild(b);return b;};
+  mk('−',en?'Zoom out':'縮小',()=>setZoom(zoom/1.25));
+  const pct=document.createElement('span');pct.style.cssText='min-width:46px;text-align:center;color:#bbb;font:12px ui-monospace,Consolas,monospace';bar.appendChild(pct);
+  mk('＋',en?'Zoom in':'拡大',()=>setZoom(zoom*1.25));
+  mk(en?'Fit':'全体',en?'Fit to screen':'全体を表示',()=>{tx=0;ty=0;setZoom(1);});
+  mk('✕',en?'Close':'閉じる',()=>close());
+  bar.onclick=e=>e.stopPropagation();
+  ov.appendChild(bar);
+  apply();
+  // 拡大中のドラッグ移動。動かしたときは「背景クリックで閉じる」を働かせない。
+  let drag=null,moved=false;
+  img.addEventListener('mousedown',e=>{if(zoom<=1)return;e.preventDefault();drag={x:e.clientX-tx,y:e.clientY-ty};moved=false;img.style.transition='none';img.style.cursor='grabbing';});
+  const onMove=e=>{if(!drag)return;tx=e.clientX-drag.x;ty=e.clientY-drag.y;moved=true;apply();};
+  const onUp=()=>{if(!drag)return;drag=null;img.style.transition='transform .12s ease-out';apply();};
+  window.addEventListener('mousemove',onMove);window.addEventListener('mouseup',onUp);
+  img.addEventListener('click',e=>{e.stopPropagation();if(moved){moved=false;return;}if(zoom<=1)setZoom(2);});
+  ov.addEventListener('wheel',e=>{e.preventDefault();setZoom(zoom*(e.deltaY<0?1.15:1/1.15));},{passive:false});
+  const close=()=>{ ov.remove(); document.removeEventListener('keydown',onKey,true); window.removeEventListener('mousemove',onMove); window.removeEventListener('mouseup',onUp); };
+  const onKey=e=>{
+    if(e.key==='Escape'){ e.preventDefault(); close(); }
+    else if(e.key==='+'||e.key==='='){ e.preventDefault(); setZoom(zoom*1.25); }
+    else if(e.key==='-'){ e.preventDefault(); setZoom(zoom/1.25); }
+    else if(e.key==='0'){ e.preventDefault(); tx=0;ty=0;setZoom(1); }
+  };
   ov.onclick=close;
   document.addEventListener('keydown',onKey,true);
   document.body.appendChild(ov);
