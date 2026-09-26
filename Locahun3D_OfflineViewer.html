@@ -2998,7 +2998,7 @@ window.KAWAII_MALE_GLB_B64="Z2xURgIAAADsaRIAoPYCAEpTT057ImFzc2V0Ijp7InZlcnNpb24i
      the HTML. -->
 
 <script>
-window.__locahunBuildRelease="4254067c10f5933d0a64b961c119d50113389fb9cc8aa698d912fd20b8c3e014";
+window.__locahunBuildRelease="a4832c2088065d8e85aef7bced5f62ef84ca1f911947e51bd1e8eb082b9fb415";
 (function(root) {
   'use strict';
   const ORIGIN='https://viewer.locahun3d.com';
@@ -3765,7 +3765,13 @@ Object.defineProperty(window.__dbg, 'captureHideUI', { get: () => (typeof _captu
 // near=0.3: prevents very-close giant splats from swallowing the entire screen
 // (rainbow streak artifact during fast pans in big PortalCam scans).
 // 0.3m ≈ arm's length; below that, splats are clipped before they smear.
-camera = new THREE.PerspectiveCamera(fov, innerWidth / innerHeight, 0.3, 2000);
+// 手前の切り落とし距離（near）。2026-09-26: 0.3 → 0.05。
+// カメラは歩行で壁から 0.22m、自由移動で 0.06m まで近づける（215/217 の当たり判定）。
+// near がそれより遠い 0.3m だと、壁に寄ったとき目の前の壁が切り落とされて向こう側が透けた
+// （本人「カメラ端で3DGSが貫通して見える場合がある」）。当たり判定の半径より短くして、
+// 近づける範囲では必ず壁が描かれるようにする。?near=0.3 で元に戻る（前後比較・切り戻し用）。
+const _CAM_NEAR = (() => { const v = parseFloat(new URLSearchParams(location.search).get('near')); return v > 0 ? v : 0.05; })();
+camera = new THREE.PerspectiveCamera(fov, innerWidth / innerHeight, _CAM_NEAR, 2000);
 // ══════════════════════════════════════════════════
 //  ENVIRONMENT  (procedural sky dome / pseudo-HDRI)
 // ══════════════════════════════════════════════════
