@@ -85,7 +85,11 @@ scene = new THREE.Scene();
 // 4固定→hardwareConcurrency-2(上限16)へ拡大済み。デスクトップはプールを
 // フルに使えるよう16に合わせる。
 const _numLodFetchers = isMobile ? 6 : 16;
-const sparkRenderer = new SparkRenderer({ renderer, numLodFetchers: _numLodFetchers });
+// 2026-09-27 Spark 2.2: LoD 走査は新しい "dynamic"（実験的）を既定にする。perf-rad-turn.mjs の A/B で、振り向き後の収束が
+// 2.0改（heap319）の 1.9〜4.5s → 0.2〜1.7s、読込は同等、perf-edge-lod の端の精細さは同一だった（docs/perf-20260927-spark22.md）。
+// ?lodTraverse=standard で従来の走査に戻せる。2.0 系のバンドル（単体配布版）では未知の指定として無視される。
+const _lodTraverseMode = (()=>{ try{ const m=/[?&]lodTraverse=(standard|dynamic)/.exec(location.search); return m?m[1]:'dynamic'; }catch(_){ return 'dynamic'; } })();
+const sparkRenderer = new SparkRenderer({ renderer, numLodFetchers: _numLodFetchers, lodTraverseMode: _lodTraverseMode });
 scene.add(sparkRenderer);
 
 // ── Spark file-type lookup (extension → SplatFileType enum) ──
