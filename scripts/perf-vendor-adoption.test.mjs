@@ -21,12 +21,13 @@ test('adopted immutable asset is exactly the visually reviewed candidate; old by
 // 2026-09-13 に本人指示で元のレンダラーへ戻した。2026-09-20、perf-rad-turn.mjs の A/B（2回とも再現・出力スプラット数同一・fps同等、
 // 振り向き後の収束 3.2s→1.9s）を根拠に「オンライン版だけ」heap319 を再採用。単体配布版はリリース手順（perf-release-assets）が
 // 元のレンダラーを前提にしているので変えない。戻すときは importmap.online.json を元の名前にし、この期待値も戻す。
-test('standalone keeps the original renderer; online selects heap319 (re-adopted 2026-09-20)',()=>{
+test('standalone keeps the original renderer; online selects Spark 2.2.0 workers16+nostore (2026-09-27; heap319 was 2026-09-20 to 2026-09-27)',()=>{
  const pick=f=>JSON.parse(fs.readFileSync(new URL(f,root))).imports['@sparkjsdev/spark'];
  assert(pick('src/assets/importmap.json').endsWith('/spark-2.0.0-workers16-incrtraverse.module.js'));
  // 2026-09-20: さらに Range 取得を cache:"no-store" にした版（同一URLの並列取得が Chrome のキャッシュロックで直列化される問題の回避。
  // 思い出横丁 584MB・遅延150ms で 読込 20s→3.9s、振り向き 4〜6s→2.0〜2.4s、2回再現）。heap319 本体との差はその1か所だけ。
- assert(pick('src/assets/importmap.online.json').endsWith('/'+name.replace('.module.js','-nostore.module.js')));
+ // 2026-09-27: オンライン版は Spark 2.2.0（ワーカープール拡大＋no-store の2パッチ）へ。根拠は docs/perf-20260927-spark22.md。
+ assert(pick('src/assets/importmap.online.json').endsWith('/spark-2.2.0-workers16-nostore.module.js'));
 });
 test('checked-in provenance and Rust source reproduce review identity',()=>{
  const p=JSON.parse(fs.readFileSync(new URL('vendor/spark-heap319-v1/provenance.json',root)));
