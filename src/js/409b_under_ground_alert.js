@@ -52,45 +52,28 @@
     return out;
   };
   const OFFSETS=[[0,0],[1.2,0],[-1.2,0],[0,1.2],[0,-1.2]];
+  // 判定（2026-09-27 本人指示「判定を厳しく／床下以外でも建物の内部に入ったときも点灯」）:
+  //  ① カメラの位置そのものが箱の中（壁や床にめり込んでいる）→ 即・裏。
+  //  ② 5本の柱のうち3本以上に何かの箱がある（＝スキャンの範囲内）のに、
+  //     3本以上でそろう高さの床がカメラより下に無い → 裏。
+  //     上に面があるかは問わない。屋根が無い建物の内側や、外壁の裏に抜けたときも鳴る。
+  //  床は「カメラより下で、3本以上の柱が ±0.35m にそろう面の上端」。地下室の床も床。
+  //  散らばったノイズの面はそろわないので床にならない。
   const _underScan=(core,p)=>{
     const cols=OFFSETS.map(([dx,dz])=>columnSurfaces(p.x+dx,p.z+dz));
-    // カメラより上に面がある柱の数
-    const above=cols.filter(c=>c.some(([lo])=>lo>p.y+.02)).length;
-    if(above<3)return false;
-    // カメラより下の面の上端を集め、3本以上の柱でそろう高さがあれば床
+    if(cols[0].some(([lo,hi])=>lo<=p.y&&p.y<=hi))return true;          // ①
+    if(cols.filter(c=>c.length).length<3)return false;                  // スキャンの外
     const belowTops=cols.map(c=>c.filter(([,hi])=>hi<=p.y+.02).map(([,hi])=>hi));
-    for(let i=0;i<belowTops.length;i++)for(const h of belowTops[i]){
+    for(const tops of belowTops)for(const h of tops){
       let agree=0;
-      for(const tops of belowTops)if(tops.some(t=>Math.abs(t-h)<=.35))agree++;
-      if(agree>=3)return false;
+      for(const t2 of belowTops)if(t2.some(t=>Math.abs(t-h)<=.35))agree++;
+      if(agree>=3)return false;                                         // 床がある
     }
-    return true;
+    return true;                                                        // ②
   };
   // 診断用（自動テストから読むだけ／位置を置くだけ）
   window.__columnSurfaces=columnSurfaces;
   window.__setCamPos=(x,y,z)=>{camPos.set(x,y,z);if(typeof markDirty==='function')markDirty(3);};
-  // 目立つ案内（2026-09-27 本人「あんまり変わってない」: ボタンの点滅だけでは気づきにくい）。
-  // 画面上部中央に「地面の裏側に出ています」と［戻す］ボタン。押すとカメラリセットと同じ。
-  let bannerEl=null;
-  const _banner=on=>{
-    if(!on){ if(bannerEl){bannerEl.remove();bannerEl=null;} return; }
-    if(bannerEl)return;
-    const en=window._lang==='en';
-    bannerEl=document.createElement('div');
-    bannerEl.id='under-scan-banner';
-    bannerEl.setAttribute('role','status');
-    bannerEl.style.cssText='position:fixed;left:50%;top:100px;transform:translateX(-50%);z-index:70;display:flex;gap:10px;align-items:center;'+
-      'background:rgba(20,20,22,.92);border:1px solid rgba(130,255,180,.6);color:#f2fff6;border-radius:8px;padding:10px 14px;'+
-      'font:13px/1.5 ui-sans-serif,system-ui,sans-serif;box-shadow:0 6px 24px rgba(0,0,0,.5);max-width:calc(100vw - 32px);pointer-events:auto';
-    const msg=document.createElement('span');
-    msg.textContent=en?'The camera is under the scanned ground.':'地面の裏側に出ています。';
-    const b=document.createElement('button');
-    b.type='button';b.textContent=en?'Return':'元の位置に戻す';
-    b.style.cssText='min-height:36px;padding:0 14px;background:rgba(40,190,100,.75);border:1px solid rgba(130,255,180,.95);color:#fff;border-radius:6px;cursor:pointer;font-size:13px;white-space:nowrap';
-    b.onclick=()=>{ try{ if(typeof resetCameraToInitial==='function')resetCameraToInitial(); }catch(_){} };
-    bannerEl.append(msg,b);
-    document.body.appendChild(bannerEl);
-  };
   let streak=0,lastKey='',lastUnder=false;
   const check=()=>{
     const btn=document.getElementById('btn-cam-reset');if(!btn)return;
@@ -106,7 +89,6 @@
     streak=under?streak+1:0;
     const on=streak>=2;
     btn.classList.toggle('cam-reset-alert',on);
-    _banner(on);
   };
   setInterval(check,500);
   window.__underScan=_underScan; // 診断用（自動テストから判定だけ呼ぶ）
