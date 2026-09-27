@@ -597,6 +597,8 @@
   <div class="zone" id="dropzone">
     <div class="ico">📂</div>
     <div id="dz-drop-text">3DGS、Zipファイルをドロップ、またはクリックして選択</div>
+    <!-- 操作説明（2026-09-27 本人指示「ここに操作説明を」）。中身は 160_loading_helpers.js の _dzGuide() が端末と言語に合わせて入れる。 -->
+    <div id="dz-guide" class="dz-guide" aria-label="操作方法"></div>
     <div class="fmt">.splat&nbsp;&nbsp; .ply&nbsp;&nbsp; .spz&nbsp;&nbsp; .ksplat&nbsp;&nbsp; .rad&nbsp;&nbsp; .sog&nbsp;&nbsp; .obj&nbsp;&nbsp; .glb&nbsp;&nbsp; .fbx&nbsp;&nbsp; .zip&nbsp;&nbsp; .json</div>
     <!-- File input: kept in layout but visually hidden via clip-path so iPad
          Safari reliably opens the native picker on programmatic .click().

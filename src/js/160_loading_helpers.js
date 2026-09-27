@@ -11,20 +11,31 @@ function _ldPaint(){
   document.getElementById('bar').style.width=v+'%';
   const lp=document.getElementById('lpct');if(lp)lp.textContent=Math.floor(v)+'%';
 }
-function _ldGuide(){
-  // 読み込み中は操作方法を見せる（ファイル名は出さない）。端末ごとに内容を変える。
+function _guideRows(){
+  // 操作方法の行。端末（タッチ／PC）と言語で内容を変える。読み込み画面とホームのドロップ枠で共用。
   const touch=typeof isMobile!=='undefined'&&isMobile,en=typeof _en==='function'&&_en();
-  const rows=touch
+  return touch
     ?(en?[['Move','Tap a spot to go there'],['Look','Drag with one finger'],['Walk','Bottom-left stick']]
         :[['移動方法','タッチでその場所に移動'],['見回す','1本指でドラッグ'],['歩く','左下のスティック']])
     :(en?[['Move','Click a spot to go there'],['Look','Left-drag'],['Keys','W A S D move / E up, Q down'],['Dash','Shift']]
         :[['移動方法','クリックでその場所に移動'],['見回す','左ドラッグ'],['キー移動','W A S D 前後左右 ／ E 上昇・Q 下降'],['ダッシュ','Shift']]);
-  const lt=document.getElementById('lt');lt.replaceChildren();lt.classList.add('ld-guide');
-  for(const [k,v] of rows){
+}
+function _renderGuide(el){
+  el.replaceChildren();
+  for(const [k,v] of _guideRows()){
     const row=document.createElement('div'),a=document.createElement('span'),b=document.createElement('span');
-    a.className='k';a.textContent=k;b.className='v';b.textContent=v;row.append(a,b);lt.append(row);
+    a.className='k';a.textContent=k;b.className='v';b.textContent=v;row.append(a,b);el.append(row);
   }
 }
+function _ldGuide(){
+  // 読み込み中は操作方法を見せる（ファイル名は出さない）。
+  const lt=document.getElementById('lt');lt.classList.add('ld-guide');_renderGuide(lt);
+}
+// ホーム画面のドロップ枠にも同じ操作説明を出す（2026-09-27 本人指示）。言語切替のたびに描き直す。
+function _dzGuide(){
+  const el=document.getElementById('dz-guide');if(el)_renderGuide(el);
+}
+document.addEventListener('DOMContentLoaded',_dzGuide,{once:true});
 function showLd(t) {
   _ldGuide();
   const fresh=document.getElementById('ld').classList.contains('hidden');

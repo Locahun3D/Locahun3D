@@ -335,8 +335,10 @@ setTimeout(async ()=>{
 // Inject "Load demo scene" button into the dropzone. Inherits the existing
 // `.demo-btn` style and accent-colour treatment used by the other dropzone
 // buttons (空プロジェクト, ユーザーマニュアル, プロジェクトを開く).
+// 2026-09-27 本人指示「これ消す」: ホーム画面のデモボタンは出さない（?showcase=1 と ?demo=1 の自動読込は残す）。
 document.addEventListener('DOMContentLoaded', () => {
   if(!DEMO_SCENE_URL) return;
+  if(!/[?&]demoBtn=1/.test(location.search)) return;   // 検証用にだけ ?demoBtn=1 で出せる
   const anchor = document.getElementById('emptyBtn'); // first existing dz button
   if(!anchor) return;
   const btn = document.createElement('button');

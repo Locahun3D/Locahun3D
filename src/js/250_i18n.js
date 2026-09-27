@@ -265,6 +265,7 @@ function _en(){ return window._lang==='en'; }
 window.toggleLang = function(){
   window._lang = window._lang==='ja'?'en':'ja';
   applyI18n();
+  if(typeof _dzGuide==='function')_dzGuide();
 };
 function applyI18n(){
   const L=window._lang;

@@ -3,8 +3,7 @@
 // 「詳細設定」で従来の全項目（センサー・グリッド・余白・ロール・メタ情報・サルベージ等）を出す。
 // 選んだ表示は localStorage に覚える。
 (function(){
-  Object.assign(I18N.ja,{'cm-simple-capture':'書き出し（JPEG）','cm-mode-pro':'⚙ 詳細設定（プロツール）を開く','cm-mode-simple':'▴ シンプル表示に戻す'});
-  Object.assign(I18N.en,{'cm-simple-capture':'Export (JPEG)','cm-mode-pro':'⚙ Open advanced (pro tools)','cm-mode-simple':'▴ Back to simple view'});
+  // 文言は 390_i18n_extensions の辞書にある（cm-simple-capture / cm-mode-pro / cm-mode-simple）。
   const st=document.createElement('style');
   st.textContent='#cam-panel.cm-simple .cm-pro{display:none!important}#cam-panel:not(.cm-simple) .cm-simple-only{display:none!important}';
   document.head.appendChild(st);
