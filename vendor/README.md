@@ -1,5 +1,22 @@
 # vendor/ — patched Spark 3DGS library
 
+## Spark 2.2.0 adoption for the online viewer (2026-09-27)
+
+| File | SHA-256 | What |
+|---|---|---|
+| `spark-2.2.0.module.js` | `d5c3b3722e4e121836b7d26f1260c2a2750973130adfce0aed97bc312b54ead7` | Pristine upstream dist `@sparkjsdev/spark@2.2.0/dist/spark.module.js` from jsDelivr (2026-09-27). Kept for diffing / rollback. |
+| `spark-2.2.0-workers16.module.js` | `577c42d90fa82f78b8a806c5a82c9d2595c90714bda442f98c8d8a54c77ceafb` | + Patch 1 (worker pool `Math.min(16, Math.max(4, hardwareConcurrency-2))`). Exactly one line differs from the pristine file (`SplatWorkerPool` constructor default). |
+| `spark-2.2.0-workers16-nostore.module.js` | `13f85eeff89ee927fa9ff62434a1ae90a506c6f0a817b9d1af3fca48c72b180a` | + `cache:"no-store"` on the Range fetch (`fetchRange`), same reason as the 2.0 `-nostore` file. **Current `importmap.online.json` target.** |
+
+Patch 2 (incremental traversal, Rust) and the heap319 body are **not** carried over: Spark 2.2 ships its own
+faster traversal (`lodTraverseMode: "dynamic"`, experimental), which the viewer now enables by default
+(`src/js/030_renderer_scene.js`, `?lodTraverse=standard` reverts). Measured with `scripts/perf-rad-turn.mjs`
+and `perf-edge-lod.mjs` against the 2.0 heap319 bundle — see `docs/perf-20260927-spark22.md`.
+Three.js peer dependency is `>=0.180.0`; the importmaps already pin `three@0.180.0`.
+The standalone (offline-distributed) viewer keeps the original 2.0 renderer per the 2026-09-13 decision;
+`scripts/perf-release-assets.mjs` still asserts that name.
+
+
 ## Heap319 v1 Adoption (2026-09-11)
 
 The new immutable asset has SHA-256 `ff799ee9a31cec478ebf173759c0f4061da662164dd72fd9da2efbabadd332f5`. The old URL is never overwritten or deleted. `spark-heap319-v1/provenance.json` records original/candidate bundle and WASM hashes, Rust source hash and compiler flags; `spark-heap319-v1/heap-pop.rs` is the exact source of the replacement body.
