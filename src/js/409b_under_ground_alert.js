@@ -28,8 +28,9 @@
   //  B. 無ければ 3DGS の点そのものから（2026-09-27 本人指示「歩行とかも出来なくても点滅したほうがいい」:
   //     当たり判定が未生成・未対応のシーンでも鳴らす）。表示中の点を5本の柱（0.6m角）で拾い、
   //     高さ 0.25m 刻みで数え、まとまりのある段だけを「面」とみなす。
-  const OFFSETS=[[0,0],[1.2,0],[-1.2,0],[0,1.2],[0,-1.2]];
-  const BIN=.25,HALF=.3,MIN_PTS=6;
+  // 柱は歩行の開始判定と同じ足元の範囲（中心＋前後左右30cm）。
+  const OFFSETS=[[0,0],[.3,0],[-.3,0],[0,.3],[0,-.3]];
+  const BIN=.25,HALF=.5,MIN_PTS=3; // 点から作るときは升より広め（1m角）に拾う。表示中の点は疎らなことがある
   const half=h=>{const e=(h>>10)&31,m=h&1023,sg=h&32768?-1:1;return sg*(e===0?m*2**-24:e===31?Infinity:(1+m/1024)*2**(e-15));};
   const columnFromIndex=(index,x,z)=>{
     const out=[],cs=index.cellSize;
@@ -47,10 +48,10 @@
     return out;
   };
   // 表示中の 3DGS の点から、5本の柱それぞれの面（[下端,上端]）を1回の走査で集める。
-  let _splatCache={key:'',cols:null,ms:0,points:0};
+  let _splatCache={key:'',cols:null,ms:0,points:0,total:0,at:0};
   const columnsFromSplats=(p)=>{
     const key=[p.x,p.z].map(v=>Math.round(v*4)).join(',');
-    if(_splatCache.key===key&&_splatCache.cols)return _splatCache.cols;
+    if(_splatCache.key===key&&_splatCache.cols&&_splatCache.total>0&&performance.now()-_splatCache.at<1500)return _splatCache.cols;
     const t0=performance.now();
     const bins=OFFSETS.map(()=>new Map());let points=0;
     const boxes=OFFSETS.map(([dx,dz])=>[p.x+dx-HALF,p.x+dx+HALF,p.z+dz-HALF,p.z+dz+HALF]);
@@ -87,7 +88,7 @@
       }
     }
     const cols=bins.map(map=>{const out=[];for(const [k,cnt] of map)if(cnt>=minPts)out.push([k*BIN,(k+1)*BIN]);return out;});
-    _splatCache={key,cols,ms:performance.now()-t0,points,total,stride};
+    _splatCache={key,cols,ms:performance.now()-t0,points,total,stride,at:performance.now()};
     return cols;
   };
   let _source='';
@@ -96,23 +97,28 @@
     if(index&&window.__underSource!=='splats'){_source='index';return OFFSETS.map(([dx,dz])=>columnFromIndex(index,p.x+dx,p.z+dz));}
     _source='splats';return columnsFromSplats(p);
   };
-  // 判定（2026-09-27 本人指示「判定を厳しく／床下以外でも建物の内部に入ったときも点灯」）:
-  //  ① カメラの位置そのものが箱の中（壁や床にめり込んでいる）→ 即・裏。
-  //  ② 5本の柱のうち3本以上に何かの面がある（＝スキャンの範囲内）のに、
-  //     3本以上でそろう高さの床がカメラより下に無い → 裏。
-  //     上に面があるかは問わない。屋根が無い建物の内側や、外壁の裏に抜けたときも鳴る。
-  //  床は「カメラより下で、3本以上の柱が ±0.35m にそろう面の上端」。地下室の床も床。
-  //  散らばったノイズの面はそろわないので床にならない。
+  // 判定（2026-09-27 本人指示「歩行が起動できない所＝外れている所を点滅にする」）:
+  //  歩行モードの開始判定（_walkCameraSpawnPosition / _walkFeetClear）と同じ考え方で、
+  //  カメラの位置に人を立たせられるかを見る。立たせられなければ「外れている」。
+  //   ① カメラが箱の中（壁や床にめり込んでいる）→ 外れ。
+  //   ② 真下 20m 以内に床が無い → 外れ。床＝カメラより下でいちばん近い面の上端。
+  //   ③ 足元5点のうち、その床とほぼ同じ高さ（±0.3m＝升1段）の面が
+  //      3点未満 → 床が細切れ・ノイズ → 外れ。
+  //   ④ 真上の柱で、床の上 0.1〜1.0m（人の下半身）に何かある → めり込み → 外れ。
+  //  路面の下・家の内側（床が無い）・壁の中・スキャンの外はすべて「外れ」。上空からの俯瞰は
+  //  20m 以内に床があれば歩けるので鳴らない。
   const _underScanCols=(cols,p)=>{
-    if(cols[0].some(([lo,hi])=>lo<=p.y&&p.y<=hi))return true;          // ①
-    if(cols.filter(c=>c.length).length<3)return false;                  // スキャンの外
-    const belowTops=cols.map(c=>c.filter(([,hi])=>hi<=p.y+.02).map(([,hi])=>hi));
-    for(const tops of belowTops)for(const h of tops){
-      let agree=0;
-      for(const t2 of belowTops)if(t2.some(t=>Math.abs(t-h)<=.35))agree++;
-      if(agree>=3)return false;                                         // 床がある
-    }
-    return true;                                                        // ②
+    const tol=.3; // 面は 25cm 刻みの箱なので、隣の升が1段ずれても同じ床とみなす
+    if(cols[0].some(([lo,hi])=>lo<=p.y&&p.y<=hi))return true;                       // ①
+    let ground=null;
+    for(const [,hi] of cols[0])if(hi<=p.y+.02&&hi>=p.y-20&&(ground===null||hi>ground))ground=hi;
+    if(ground===null)return true;                                                     // ②
+    let supports=0;
+    for(const c of cols)if(c.some(([,hi])=>Math.abs(hi-ground)<=tol))supports++;
+    if(supports<3)return true;                                                        // ③
+    const lo=ground+.1,hi=ground+1;
+    if(cols[0].some(([a,b])=>a<hi&&b>lo))return true;                                   // ④（身体の幅の外は問わない）
+    return false;
   };
   const _underScan=(core,p)=>_underScanCols(columnsAt(p),p);
   // 診断用（自動テストから読むだけ／位置を置くだけ）
