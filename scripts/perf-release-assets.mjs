@@ -25,8 +25,9 @@ export async function readReleaseAssets(root){
  assert.equal(demo.sources?.length,1);assert.equal(demo.sources[0].url,'https://viewer.locahun3d.com/api/demo-asset/Kousaten_ForDemo_point_cloud.rad','Only approved public demo may be distributed');
  assert.deepEqual(Object.keys(manifest),[demo.whole.key],'Unexpected collision manifest entries');
  assert.equal(manifest[demo.whole.key].sha256,demo.sha256);assert.equal(manifest[demo.whole.key].bytes,demo.bytes);
- assert.equal(name,'spark-2.0.0-workers16-incrtraverse.module.js','Rollback must select the original renderer');
- const entries=[['vendor/'+name,{sha256:provenance.originalBundleSha256}],['vendor/spark-2.0.0-workers16-incrtraverse-heap319-v1.module.js',{sha256:provenance.candidateBundleSha256}],...Object.entries(manifest).map(([key,v])=>['collision/'+key+'.lct',v])];
+ // 2026-09-27 本人指示「単体もOK」: 単体配布版も Spark 2.2.0（workers16+no-store）へ。旧2つの不変URLは配り続ける（古い配布HTMLが参照する）。
+ assert.equal(name,'spark-2.2.0-workers16-nostore.module.js','Standalone must select the reviewed Spark 2.2.0 bundle (docs/perf-20260927-spark22.md)');
+ const entries=[['vendor/'+name,{sha256:'13f85eeff89ee927fa9ff62434a1ae90a506c6f0a817b9d1af3fca48c72b180a'}],['vendor/spark-2.0.0-workers16-incrtraverse.module.js',{sha256:provenance.originalBundleSha256}],['vendor/spark-2.0.0-workers16-incrtraverse-heap319-v1.module.js',{sha256:provenance.candidateBundleSha256}],...Object.entries(manifest).map(([key,v])=>['collision/'+key+'.lct',v])];
  for(const [relative,expected] of entries){assert(allowed(relative));assert(/^[a-f0-9]{64}$/.test(expected.sha256));const body=await fs.readFile(await safe(root,relative));assert.equal(sha(body),expected.sha256,'Release asset digest mismatch: '+relative);if(relative.startsWith('collision/'))assert.equal(body.length,expected.bytes,'Collision size mismatch');plan.push({relative,body,sha256:sha(body),bytes:body.length});}
  return plan;
 }

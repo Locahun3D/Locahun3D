@@ -13,8 +13,8 @@ faster traversal (`lodTraverseMode: "dynamic"`, experimental), which the viewer 
 (`src/js/030_renderer_scene.js`, `?lodTraverse=standard` reverts). Measured with `scripts/perf-rad-turn.mjs`
 and `perf-edge-lod.mjs` against the 2.0 heap319 bundle — see `docs/perf-20260927-spark22.md`.
 Three.js peer dependency is `>=0.180.0`; the importmaps already pin `three@0.180.0`.
-The standalone (offline-distributed) viewer keeps the original 2.0 renderer per the 2026-09-13 decision;
-`scripts/perf-release-assets.mjs` still asserts that name.
+The standalone (offline-distributed) viewer also moved to this bundle on 2026-09-27 (owner: 「単体もOK」);
+`scripts/perf-release-assets.mjs` asserts the name and keeps distributing the two old immutable 2.0 URLs.
 
 
 ## Heap319 v1 Adoption (2026-09-11)
