@@ -39,8 +39,8 @@ function _splatStride(){
 //   低い lodScale ほど粗い（解像数が減る＝軽量）。
 //   実測カーブ(単一ビュー): 0.5→0.65M / 0.7→1.04M / 1.0→1.64M / 1.4→2.39M /
 //   2.0以上→~2.5M(Spark の per-view 上限に飽和)。
-//   ※ foveation(coneFov/coneFoveate) は Spark デフォルトが最も多く解像する。
-//     上書きすると減る／coneFoveate:0 は degenerate(1 splat) なので触らない。
+//   ※ coneFov/coneFov0 は度。πを入れると約3°になり、coneFoveate:0も無効化ではない。
+//     RADはmesh側の上書きを外し、031で画面の四隅を含むrenderer側のconeへ追従する。
 
 // 間引き要求（「ポリゴン1/4」等）は RAD ではチャンクを間引けないので、
 // lodScale を下げて軽量化する。stride1→1.0 / 2→0.71 / 4→0.5。

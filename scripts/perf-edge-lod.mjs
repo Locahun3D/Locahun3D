@@ -38,7 +38,7 @@ const server=http.createServer((req,res)=>{
 });
 await new Promise(r=>server.listen(0,'127.0.0.1',r));
 const port=server.address().port;
-const browser=await chromium.launch({channel:'chrome',headless:false,args:['--window-size=1920,860','--disable-background-timer-throttling','--disable-renderer-backgrounding','--disable-backgrounding-occluded-windows']});
+const browser=await chromium.launch({channel:'chrome',headless:process.argv.includes('--headless'),args:['--window-size=1920,860','--disable-background-timer-throttling','--disable-renderer-backgrounding','--disable-backgrounding-occluded-windows']});
 const page=await browser.newPage({viewport:{width:1920,height:820}});
 // ワーカー呼び出しの所要時間を名前別に集計（どこで詰まっているかの切り分け用）
 await page.addInitScript(()=>{
@@ -73,15 +73,20 @@ await page.waitForFunction(()=>window.__nSplat&&window.__nSplat()>0,null,{timeou
 await settle(120000);
 // 切り分け用: --fov <縦の度数> で画角を、--budget <数> で LoD の粒の上限を変えてから測る。
 const fovArg=arg('--fov',''),budgetArg=arg('--budget','');
+const rendererArg=arg('--renderer','');
+if(rendererArg)await page.evaluate(settings=>window.__setRenderer(settings),JSON.parse(rendererArg));
+const positionArg=arg('--position','');
+if(positionArg)await page.evaluate(p=>window.__setCamPos(...p),JSON.parse(positionArg));
 results.camera=await page.evaluate(([f,b])=>{
   if(f)window.__setFov(+f);
   if(b&&window.__probeBudget)window.__probeBudget(+b,0);
   return window.__camInfo();
 },[fovArg,budgetArg]);
 console.log('camera',JSON.stringify(results.camera));
-if(fovArg||budgetArg)await settle(60000);
+if(fovArg||budgetArg||rendererArg)await settle(60000);
+results.renderer=await page.evaluate(()=>window.__srDump());
 const out=path.join(root,'perf-results');fs.mkdirSync(out,{recursive:true});
-const yaws=[0,Math.PI/2,Math.PI,Math.PI*1.5];
+const yaws=process.argv.includes('--single')?[+arg('--yaw','0')]:[0,Math.PI/2,Math.PI,Math.PI*1.5];
 for(let i=0;i<yaws.length;i++){
   await page.evaluate(y=>window.__setCam(y,0),yaws[i]);
   const r=await settle(40000);
