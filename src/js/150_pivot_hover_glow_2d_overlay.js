@@ -2,6 +2,7 @@
 //  PIVOT HOVER GLOW (2D overlay)
 // ══════════════════════════════════════════════════
 let _hoveredLpv = null;   // current lpv hover data
+const _eventGuideWorld=new THREE.Vector3(), _eventGuideCamera=new THREE.Vector3();
 
 function drawGlowCircle(ctx, x, y, r, col, alpha=0.7){
   const g=ctx.createRadialGradient(x,y,0,x,y,r*2.5);
@@ -98,13 +99,16 @@ function updateOverlay() {
   //    sessions). The counter is maintained by _recountLayerActivity.
   if(window._activeBillboardCount) for(const L of layers){
     if(L.type==='event' && L.visible && L.mesh && L.eventGuide){
-      const sp=screenPos(L.mesh.position);
+      L.mesh.getWorldPosition(_eventGuideWorld);
+      camera.getWorldPosition(_eventGuideCamera);
+      if(_eventGuideCamera.distanceToSquared(_eventGuideWorld)>25)continue;
+      const sp=screenPos(_eventGuideWorld);
       if(sp&&!sp.behind){
-        const text=L.eventGuide;
+        const lines=String(L.eventGuide).split(/\r\n|\r|\n/);
         octx.save();
         octx.font='bold 13px "Segoe UI",sans-serif';
-        const tw=octx.measureText(text).width;
-        const px=sp.x-tw/2-6, py=sp.y-46, pw=tw+12, ph=22;
+        const tw=lines.reduce((width,line)=>Math.max(width,octx.measureText(line).width),0);
+        const ph=lines.length*18+4, pw=tw+12, px=sp.x-pw/2, py=sp.y-24-ph;
         octx.fillStyle='rgba(0,0,0,0.65)';
         octx.beginPath();
         if(octx.roundRect){octx.roundRect(px,py,pw,ph,5);}
@@ -113,7 +117,7 @@ function updateOverlay() {
         octx.fillStyle='#FFFFFF';
         octx.textAlign='center';
         octx.textBaseline='middle';
-        octx.fillText(text,sp.x,py+ph/2);
+        lines.forEach((line,i)=>octx.fillText(line,sp.x,py+2+9+i*18));
         octx.restore();
       }
     }
