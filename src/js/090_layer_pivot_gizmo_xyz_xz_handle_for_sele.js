@@ -160,9 +160,20 @@ function checkLpvHandle(clientX,clientY){
   if(lpv.rotHandles) for(const rk of Object.keys(lpv.rotHandles)) meshes.push(...lpv.rotHandles[rk]);
   const hits=_lpvRay.intersectObjects(meshes,false);
   if(hits.length) return hits[0].object.userData.lpvHandle;
-
+  // タッチでは指が太く、細い矢印・輪に当たらない（2026-10-08 本人「iPad のギズモ操作が非常にシビア・動かしづらい」）。
+  // 当たらなかったら、触った点の周りを近い順に（10→19→28px）探して最初に当たった持ち手を使う。マウスは従来どおり。
+  if(_lpvCoarse){
+    for(const r of [10,19,28])for(let k=0;k<12;k++){
+      const a=k*Math.PI/6,x=clientX+Math.cos(a)*r,y=clientY+Math.sin(a)*r;
+      _lpvV2.set(((x-rect.left)/rect.width)*2-1,-((y-rect.top)/rect.height)*2+1);
+      _lpvRay.setFromCamera(_lpvV2, _useOrtho ? _orthoCamera : camera);
+      const near=_lpvRay.intersectObjects(meshes,false);
+      if(near.length) return near[0].object.userData.lpvHandle;
+    }
+  }
   return null;
 }
+const _lpvCoarse=typeof matchMedia==='function'&&matchMedia('(pointer:coarse)').matches;
 
 function startLpvDrag(hit,clientX,clientY){
   const L=findLayer(selectedLayerId); if(!L) return;

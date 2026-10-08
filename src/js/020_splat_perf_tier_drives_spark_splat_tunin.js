@@ -36,7 +36,15 @@ const _SPLAT_TIERS = {
 // data; it is NOT something this code can tune from JS in 2.0.0.
 const _SPLAT_PARAMS = _SPLAT_TIERS[_splatPerfTier] || _SPLAT_TIERS.laptop_ok;
 console.info('[Locahun][PerfTier]', _splatPerfTier, _SPLAT_PARAMS);
-let fov = 90;
+// 標準の画角（2026-10-08 本人指示「デフォルトの画角をもっと大きめに」）。縦 90° は横長の画面では十分広いが、
+// 縦長（スマホ縦・iPad 縦）だと横が 55〜75° まで狭くなる。横の画角が 90° に満たない画面では縦を広げる（上限 110°）。
+// 利用者が FOV を変えたら（fov !== _autoFov）以後は触らない。
+function _autoFovFor(aspect){
+  const v=2*Math.atan(1/Math.max(.2,aspect||1))*180/Math.PI;
+  return Math.round(Math.min(110,Math.max(90,v)));
+}
+let fov = _autoFovFor(innerWidth/Math.max(1,innerHeight));
+let _autoFov = fov;
 // Touch devices (iPad / iPhone) felt too fast at the desktop default of 5
 // — the virtual joystick + touch-look make a given camSpeed cover more
 // ground per gesture than keyboard WASD, and at full joystick deflection

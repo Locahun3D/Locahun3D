@@ -448,6 +448,62 @@ function applyLayerTransform(id){
   markDirty(8);
 }
 
+// 北合わせ用: シーン全体を鉛直軸まわりに deltaDeg 度回す（2026-10-07）。
+// 3D本体（splat）の向きだけを変えると、人が置いたもの（区画パス・イベント・初期視点・
+// 歩行の開始位置など）がずれる。全部を同じ軸（本体の位置を通る鉛直軸）で一緒に回す。
+// 歩行の判定（whole 等）は軸に沿った箱の集まりで回転できないので捨てる（作り直しが必要）。
+function _rotateSceneCore(deltaDeg, pivot){
+  const d=Number(deltaDeg);
+  if(!Number.isFinite(d) || Math.abs(d)<1e-9) return;
+  const rad=THREE.MathUtils.degToRad(d);
+  const qD=new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0,1,0), rad);
+  const v=new THREE.Vector3();
+  const rotP=p=>{ v.set(p.x-pivot.x, p.y-pivot.y, p.z-pivot.z).applyQuaternion(qD); return {x:v.x+pivot.x, y:p.y, z:v.z+pivot.z}; };
+  const toRad=THREE.MathUtils.degToRad, toDeg=THREE.MathUtils.radToDeg;
+  for(const L of layers){
+    if(!L.pos || L.type==='folder') continue;
+    L.pos=rotP(L.pos);
+    if(L.rot && !(L.rot.x||0) && !(L.rot.z||0)){
+      // 傾きの無いもの（3D本体・パスなど大半）は rot.y に足すだけ。-180〜180 に収める（人が見ても分かる値のまま）。
+      let y=(L.rot.y||0)+d; y=((y+180)%360+360)%360-180;
+      L.rot={x:L.rot.x||0, y, z:L.rot.z||0};
+    } else if(L.rot){
+      // Euler 'XYZ' は Rx·Ry·Rz なので rot.y に足すだけでは x≠0 のとき合わない。クォータニオンで合成する。
+      const q=new THREE.Quaternion().setFromEuler(new THREE.Euler(toRad(L.rot.x||0), toRad(L.rot.y||0), toRad(L.rot.z||0), 'XYZ'));
+      const e=new THREE.Euler().setFromQuaternion(q.premultiply(qD), 'XYZ');
+      L.rot={x:toDeg(e.x), y:toDeg(e.y), z:toDeg(e.z)};
+    }
+    if(L.savedPose && L.savedPose.pos){ L.savedPose.pos=rotP(L.savedPose.pos); L.savedPose.yaw=(L.savedPose.yaw||0)+rad; }
+    if(L.mesh) applyLayerTransform(L.id);
+  }
+  // 視点（YXZ 順なので yaw に足す。前方 = (sin yaw, 0, cos yaw)）
+  const cp=rotP(camPos); camPos.set(cp.x, cp.y, cp.z);
+  setCamRotImmediate(yaw+rad, pitch);
+  const ip=rotP(_initCamPos); _initCamPos.set(ip.x, ip.y, ip.z); _initYaw+=rad;
+  for(const k of (camAnim.keys||[])){ if(k && k.pos){ const kp=rotP(k.pos); k.pos.x=kp.x; k.pos.y=kp.y; k.pos.z=kp.z; k.yaw=(k.yaw||0)+rad; } }
+  // 歩行: 人が決めた開始位置・向きは回す。自動生成の判定は捨てる。
+  const ws=walkSetup.settings;
+  if(ws.spawn) ws.spawn=rotP(ws.spawn);
+  if(Number.isFinite(ws.spawnYaw)) ws.spawnYaw+=rad;
+  ws.whole=null; ws.navigation=null; ws.navigationRegions=undefined; delete ws.navigationRegions;
+  ws.boxes=[]; ws.region=null; ws.detailRegion=null; ws.signature='';
+  walkSetup.wholeIndex=null;
+  if(walkMode.active && typeof _avatarWalkExit==='function') _avatarWalkExit();
+  if(typeof renderTransformPanel==='function') renderTransformPanel();
+  markDirty(8);
+  window.localProject?.changed?.();
+}
+window.rotateSceneAboutY=function(deltaDeg, opts={}){
+  const d=Number(deltaDeg);
+  if(!Number.isFinite(d) || Math.abs(d)<1e-9) return null;
+  const main=layers.find(L=>L.type==='splat' && L.isMain) || layers.find(L=>L.type==='splat');
+  const pivot=opts.pivot ? {x:+opts.pivot.x, y:+opts.pivot.y, z:+opts.pivot.z} : (main ? {...main.pos} : {x:0, y:0, z:0});
+  _rotateSceneCore(d, pivot);
+  pushGlobalUndo({type:'generic', key:'scene-rotate', before:{delta:-d}, after:{delta:d},
+                  apply:s=>_rotateSceneCore(s.delta, pivot), undoKey:'undo-move', redoKey:'redo-move'});
+  return {deltaDeg:d, pivot};
+};
+
 window.readTransformInputs=function(id){
   const L=findLayer(id); if(!L) return;
   // Push undo snapshot once per focus session (debounced)

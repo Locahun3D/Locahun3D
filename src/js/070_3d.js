@@ -261,6 +261,8 @@ function _doViewportResize(){
   const h = visible ? visible.height : Math.max(1, innerHeight);
   renderer.setSize(w, h);
   camera.aspect = w / h;
+  let camTool=false;try{camTool=!!(cam&&cam.active);}catch(_){}
+  if(fov===_autoFov&&!camTool){const f=_autoFovFor(w/h);if(f!==fov){fov=_autoFov=f;camera.fov=f;}}
   camera.updateProjectionMatrix();
   _syncOrthoCamera();
   markDirty(8);

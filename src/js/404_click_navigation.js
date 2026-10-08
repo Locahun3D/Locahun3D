@@ -35,7 +35,10 @@
       tick(now){
         if(!move)return false;
         const m=move,gap=now-m.previous;
-        if(!Number.isFinite(now)||gap<0||gap>250){cancel('frame-gap');return false;}
+        if(!Number.isFinite(now)||gap<0){cancel('frame-gap');return false;}
+        // 描画が止まった（重い読み込み・タブの裏）間は進めず、その分あとへずらして続ける。以前はここで打ち切っていて、
+        // 直線移動の途中（家具や壁の中のこともある）にカメラが残った（2026-10-08）。
+        if(gap>250){m.start+=gap;m.previous=now;return true;}
         if(!io.ready()||io.blocked()||io.epoch()!==m.epoch||distance(io.position(),m.last)>.0001){cancel('ownership-or-readiness');return false;}
         const t=Math.min(1,Math.max(0,(now-m.start)/m.duration));
         const travel=m.length*t*t*(3-2*t),targets=[];
@@ -163,7 +166,132 @@ function _clickNavigationCoverage(a,b){
   return !walkSetup.wholeIndex||(typeof _walkWholeCoverage==='function'&&_walkWholeCoverage(a,b,{drop:2,margin:.3})===true);
 }
 // Tap travel uses collision geometry only to identify a destination floor.
-function _clickNavigateAt(clientX,clientY,preview=false,preparedHit=null,eyeHeight=1.8){
+function _clickStandingSurface(core,hit,eyeHeight,from,hereGiven){
+  // 立てるかどうかは人の背丈（1.8m）で見る。目線を低くしても机の天面には立たせない。
+  const need=Math.max(eyeHeight,1.8)+.15,up=n=>{const l=Math.hypot(n.x,n.y,n.z);return l>1e-8&&n.y/l>=Math.SQRT1_2;};
+  const roomyTo=(h,d)=>!core.raycastSurface({x:h.point.x,y:h.point.y+.05,z:h.point.z},{x:0,y:1,z:0},d);
+  const roomy=h=>roomyTo(h,need);
+  // 今いる階の床（カメラの真下）。無ければ（宙に浮いている等）家具の判定はしない。
+  const hereHit=hereGiven!==undefined?hereGiven:core.raycastSurface({x:from.x,y:from.y,z:from.z},{x:0,y:-1,z:0},3);
+  const here=hereHit&&up(hereHit.normal)?hereHit:null;
+  // 階段らしさ: 周り（30・55cm）に 10〜35cm の段差の面が 2 つ以上ある。家具の天面は周りが同じ高さか床まで落ちる。
+  const stairish=h=>{let n=0;for(const r of [.3,.55])for(let k=0;k<8;k++){const a=k*Math.PI/4,x=h.point.x+Math.cos(a)*r,z=h.point.z+Math.sin(a)*r;
+    const s=core.raycastSurface({x,y:h.point.y+.6,z},{x:0,y:-1,z:0},1.2);if(s&&up(s.normal)){const d=Math.abs(s.point.y-h.point.y);if(d>=.1&&d<=.35&&++n>=2)return true;}}return false;};
+  // 今いる階の床へ降ろす（家具の下の床）。階段の段の下・下の階へは降ろさない。
+  const drop=()=>{
+    if(!here)return null;
+    const x=hit.point.x,z=hit.point.z;
+    // 箱の中から下向きに撃つと自分の箱に当たるので、空いている高さまで 10cm ずつ下りてから床を探す。
+    for(let y=hit.point.y-.05;y>hit.point.y-2.5;y-=.1){
+      if(!core.isCapsuleClear({x,y,z},.06,.03))continue;
+      const floor=core.raycastSurface({x,y:y+.01,z},{x:0,y:-1,z:0},2.5);
+      if(!floor)return null;
+      if(up(floor.normal)&&roomy(floor))return Math.abs(floor.point.y-here.point.y)<.35?floor:null;
+      y=floor.point.y;
+    }
+    return null;
+  };
+  const rise=here?hit.point.y-here.point.y:0,isStair=stairish(hit);
+  // 机・ソファ・台の天面（今の床より 0.3〜1.7m 上、真下に今の階の床）は、天井が高い部屋でも床へ降ろす
+  // （2026-10-08 本人「机の上をタッチしたときなど」）。
+  if(rise>.3&&rise<1.7&&!isStair){const f=drop();if(f)return f;}
+  if(roomy(hit))return hit;
+  // 階段: 当たり判定は 25cm の箱で天井や上の段の裏が実際より低く出るので、目線＋25cm 空いていれば立てる
+  // （1.95m を求めると普通の階段でも段に上がれなかった。2026-10-08 計測で階段の拒否の 4 割）。
+  if(isStair&&roomyTo(hit,eyeHeight+.25))return hit;
+  return drop();
+}
+// 壁際ぎりぎりに止めない（2026-10-08 本人提案「壁際ぎりぎりに移動できないようにしたら？」）。
+// 行き先の目線の高さで水平16方向に壁までの距離を測り、近すぎれば壁から押し戻す（腰の高さも見ると階段の上の段を壁と
+// 取り違え、非常階段で移動できない所が 4→12 か所に増えた。2026-10-08 計測）。
+// 必要な距離は 40cm。ただし狭い通路・両側が壁の階段では止まれる所が無くなるので、
+// その向きの通路幅の 45% までに緩める（＝中央に寄せる）。押し戻しても足りなければ、来た方向へ 10cm ずつ戻して探す
+// （戻る途中の床は、出発点と行き先のあいだの高さなら階段でもよい）。1.5m 戻しても無ければ移動しない。
+function _clickWallClearance(core,hit,from,eyeHeight){
+  const CLEAR=.4,N=16,dirs=[];for(let k=0;k<N;k++)dirs.push({x:Math.cos(k*2*Math.PI/N),y:0,z:Math.sin(k*2*Math.PI/N)});
+  const dist=(x,y,z)=>{const d=new Array(N).fill(2);for(const h of [eyeHeight])for(let k=0;k<N;k++){const r=core.raycastSurface({x,y:y+h,z},dirs[k],2);if(r&&r.distance<d[k])d[k]=r.distance;}return d;};
+  // 押し戻し量（0 なら十分に空いている）
+  const push=(x,y,z)=>{const d=dist(x,y,z);let px=0,pz=0,short=false;
+    for(let k=0;k<N;k++){const need=Math.min(CLEAR,.45*(d[k]+d[(k+N/2)%N]));if(d[k]<need-.02){short=true;px-=dirs[k].x*(need-d[k]);pz-=dirs[k].z*(need-d[k]);}}
+    return short?{x:px,z:pz}:null;};
+  const up=n=>{const l=Math.hypot(n.x,n.y,n.z);return l>1e-8&&n.y/l>=Math.SQRT1_2;};
+  const roomy=(x,y,z)=>!core.raycastSurface({x,y:y+.05,z},{x:0,y:1,z:0},Math.max(eyeHeight,1.8)+.15);
+  const fromFeet=from.y-eyeHeight,lo=Math.min(fromFeet,hit.point.y)-.3,hi=Math.max(fromFeet,hit.point.y)+.3;
+  const standAt=(x,z,near)=>{const fl=core.raycastSurface({x,y:near+.5,z},{x:0,y:-1,z:0},1);
+    return fl&&up(fl.normal)&&fl.point.y>=lo&&fl.point.y<=hi&&roomy(x,fl.point.y,z)?fl:null;};
+  const settle=(x,z,near)=>{let s=standAt(x,z,near);if(!s)return null;
+    for(let it=0;it<3;it++){const p=push(x,s.point.y,z);if(!p)return s;x+=p.x;z+=p.z;s=standAt(x,z,s.point.y);if(!s)return null;}
+    return push(x,s.point.y,z)?null:s;};
+  const p=hit.point;if(!push(p.x,p.y,p.z))return hit;
+  const first=settle(p.x,p.z,p.y);if(first)return first;
+  let dx=from.x-p.x,dz=from.z-p.z;const len=Math.hypot(dx,dz);if(len<1e-6)return null;dx/=len;dz/=len;
+  let y=p.y;
+  for(let s=.1;s<=Math.min(1.5,len)+1e-6;s+=.1){
+    const g=standAt(p.x+dx*s,p.z+dz*s,y);if(g)y=g.point.y;
+    const r=settle(p.x+dx*s,p.z+dz*s,y);if(r)return r;
+  }
+  return null;
+}
+// クリック・タップの行き先を決める（2026-10-08 全シーン監査で整理。scripts/camera-height-audit.mjs も同じ関数で理由を数える）。
+// 返り値: {hit} か {fail:'理由', point?}。
+// ⚠ 大きいシーンの当たり判定はタイルを場所ごとに読み込む（walkSetup.wholeIndex）。以前は「目に見えた点のまわり」しか
+//   読まず、手すりの隙間から下の床が見えると階段のタイルが無いまま判定して下の階へ素通りした・天井が無い扱いで天井すれすれに
+//   止まった（有明 非常階段・清澄SOHO）。今はカメラの真下→視線に沿って 4m ずつ→行き先のまわり、の順に読みながら判定する。
+function _clickResolveTarget(clientX,clientY,eyeHeight=1.2,preparedHit=null){
+  const rect=canvas.getBoundingClientRect(),core=walkSetup.core,whole=!!walkSetup.wholeIndex;
+  const cover=(a,b,o)=>{if(whole&&typeof _walkWholeCoverage==='function')_walkWholeCoverage(a,b,o);};
+  const pickCamera=_useOrtho?_orthoCamera:camera;
+  // Use the currently displayed camera, including its latest eased rotation.
+  pickCamera.updateWorldMatrix(true,false);
+  const ray=new THREE.Raycaster();
+  ray.setFromCamera(new THREE.Vector2((clientX-rect.left)/rect.width*2-1,1-(clientY-rect.top)/rect.height*2),pickCamera);
+  let point=null;
+  if(typeof pickWorldPos==='function'){const depth=msr.placeDepth;try{point=pickWorldPos(clientX,clientY,{strictVisible:true});}catch(_e){point=null;}finally{msr.placeDepth=depth;}}
+  if(whole&&(!point||Math.hypot(point.x-camPos.x,point.y+1.8-camPos.y,point.z-camPos.z)>30))return {fail:'no-visible-point'};
+  // 今いる階の床（カメラの真下）を先に測る。
+  cover(camPos,camPos,{drop:4,margin:1});
+  const hereHit=core.raycastSurface({x:camPos.x,y:camPos.y,z:camPos.z},{x:0,y:-1,z:0},3);
+  let picked=preparedHit;
+  if(!picked){
+    const o=ray.ray.origin,d=ray.ray.direction;
+    const maxDist=whole?Math.min(40,Math.hypot(point.x-o.x,point.y-o.y,point.z-o.z)+3):Math.min(1000,pickCamera.far);
+    for(let s=0;s<maxDist&&!picked;s+=4){
+      const len=whole?Math.min(4,maxDist-s):maxDist,a={x:o.x+d.x*s,y:o.y+d.y*s,z:o.z+d.z*s};
+      cover(a,{x:a.x+d.x*len,y:a.y+d.y*len,z:a.z+d.z*len},{drop:.5,margin:.6});
+      const h=core.raycastSurface(a,d,len);
+      if(h)picked={distance:s+h.distance,point:h.point,normal:h.normal};
+      if(!whole)break;
+    }
+  }
+  if(!picked)return {fail:'no-collision-hit'};
+  // 壁の外へ出てしまう対策（2026-09-20 本人報告）。判定形状には窓・薄い壁で穴があり、視線がそこを抜けると
+  // 外の地面が行き先になっていた。見えている 3DGS の面が、判定上の当たり位置よりはっきり手前にあるなら
+  // 「見えている壁の向こう」を指しているので行かない（長押しの玉は赤）。戸口越しの床は両者が一致するので通る。
+  if(!preparedHit&&point&&picked.point){
+    const o=ray.ray.origin;
+    const seen=Math.hypot(point.x-o.x,point.y-o.y,point.z-o.z),solid=Math.hypot(picked.point.x-o.x,picked.point.y-o.y,picked.point.z-o.z);
+    if(solid-seen>.75)return {fail:'behind-visible-surface',point:{x:point.x,y:point.y,z:point.z}};
+  }
+  // 行き先のまわり（壁・天井・下の床を調べる範囲）を読み込む。
+  cover(picked.point,picked.point,{drop:4,margin:2.5});
+  let hit=LocahunClickNavigation.resolveSurface(picked,camPos,(a,b,dd)=>core.raycastSurface(a,b,dd));
+  if(!hit)return {fail:'not-floor',point:picked.point};
+  // 立てない面に降りない（2026-10-08 スタジオバベル/バルス「目線が天井から見下ろす高さになる・天井を突き抜ける」）。
+  // 当たり判定は 25cm の箱の集まりで、ソファ・机・棚は中身の詰まった箱になる。その天面を行き先にすると目線が
+  // 天井の箱に埋まる。机などの天面は下の床へ降ろし、階段は目線が入れば立てる。立てなければ移動しない。
+  hit=_clickStandingSurface(core,hit,eyeHeight,camPos,hereHit);
+  if(!hit)return {fail:'no-standing-room',point:picked.point};
+  hit=_clickWallClearance(core,hit,camPos,eyeHeight);
+  if(!hit)return {fail:'wall-clearance',point:picked.point};
+  // 最後に、行き先に人の体（足元 30cm〜目線）が入る空間があるかを確かめる。入らなければ移動しない。
+  if(!core.isCapsuleClear({x:hit.point.x,y:hit.point.y+.3,z:hit.point.z},Math.max(.3,eyeHeight-.2),.1))return {fail:'no-body-space',point:picked.point};
+  return {hit};
+}
+function _clickNavigateAt(clientX,clientY,preview=false,preparedHit=null,eyeHeight=1.2){
+  // 移動中のクリック・タップは無視して今の移動を最後まで終える（2026-10-08 全シーン検査で、移動中に押し直すと
+  // 壁を抜けて建物の外へ出る・家具に埋まって止まる、を再現）。移動中の画面は1つ前の描画なので、行き先の見え方の
+  // 判定（壁の向こうを指していないか）が合わない。移動は直線（当たり判定なし）なので、途中で止めると物の中に残る。
+  if(!preview&&_clickNavigationController?.active)return false;
   if(!preview)_cancelClickNavigation();
   if(_clickNavigationBusy())return false;
   const now=performance.now();
@@ -182,37 +310,10 @@ function _clickNavigateAt(clientX,clientY,preview=false,preparedHit=null,eyeHeig
     }
     return false;
   }
-  const pickCamera=_useOrtho?_orthoCamera:camera;
-  // Use the currently displayed camera, including its latest eased rotation.
-  pickCamera.updateWorldMatrix(true,false);
-  const ray=new THREE.Raycaster();
-  ray.setFromCamera(new THREE.Vector2((clientX-rect.left)/rect.width*2-1,1-(clientY-rect.top)/rect.height*2),pickCamera);
   try{
-    let point=null;
-    if(walkSetup.wholeIndex){
-      if(typeof pickWorldPos!=='function')return false;
-      const depth=msr.placeDepth;
-      try{point=pickWorldPos(clientX,clientY,{strictVisible:true});}finally{msr.placeDepth=depth;}
-      if(!point||Math.hypot(point.x-camPos.x,point.y+1.8-camPos.y,point.z-camPos.z)>30)return false;
-      // Load only the target's floor data; missing corridor tiles must not block travel.
-      if(typeof _walkWholeCoverage==='function')_walkWholeCoverage(point,point,{drop:4,margin:.5});
-    }
-    const core=walkSetup.core;
-    const picked=preparedHit||core.raycastSurface(ray.ray.origin,ray.ray.direction,Math.min(1000,pickCamera.far));
-    if(!picked)return false;
-    // 壁の外へ出てしまう対策（2026-09-20 本人報告）。判定形状には窓・薄い壁で穴があり、視線がそこを抜けると
-    // 外の地面が行き先になっていた。見えている 3DGS の面が、判定上の当たり位置よりはっきり手前にあるなら
-    // 「見えている壁の向こう」を指しているので行かない（長押しの玉は赤）。戸口越しの床は両者が一致するので通る。
-    if(!preparedHit&&typeof pickWorldPos==='function'){
-      if(!point){const depth=msr.placeDepth;try{point=pickWorldPos(clientX,clientY,{strictVisible:true});}catch(_e){point=null;}finally{msr.placeDepth=depth;}}
-      const o=ray.ray.origin;
-      if(point&&picked.point){
-        const seen=Math.hypot(point.x-o.x,point.y-o.y,point.z-o.z),solid=Math.hypot(picked.point.x-o.x,picked.point.y-o.y,picked.point.z-o.z);
-        if(solid-seen>.75)return preview?{point:{x:point.x,y:point.y,z:point.z},valid:false}:false;
-      }
-    }
-    const hit=LocahunClickNavigation.resolveSurface(picked,camPos,(a,b,d)=>core.raycastSurface(a,b,d));
-    if(!hit)return preview?{point:picked.point,valid:false}:false;
+    const r=_clickResolveTarget(clientX,clientY,eyeHeight,preparedHit);
+    if(r.fail)return preview&&r.point?{point:r.point,valid:false}:false;
+    const hit=r.hit;
     const controller=LocahunClickNavigation.create({
       collision:false,eyeHeight,
       position:()=>camPos,setPosition:p=>{camPos.set(p.x,p.y,p.z);markDirty(3);if(typeof bumpSplatActive==='function')bumpSplatActive(500);},
