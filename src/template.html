@@ -559,6 +559,25 @@
         <div id="cm-capture-res" style="text-align:center;font-size:.78em;
           color:rgba(220,200,160,.7);font-family:ui-monospace,Consolas,monospace;
           letter-spacing:.04em;margin-top:3px">— × —</div>
+        <!-- 2026-10-08 利用規約第5条: サイトで閲覧中（未購入）の書き出し画像は利用範囲が限られる。
+             サイト配信のときだけ表示する（_isSiteStreamView）。オフライン（購入データ）では出さない。 -->
+        <div id="cm-capture-terms" style="display:none;font-size:.72em;line-height:1.5;
+          color:rgba(220,200,160,.75);margin-top:4px">書き出した画像の利用は、社内検討・企画書等に限ります。公開・商用利用には購入または許諾が必要です（<a href="/terms/service" target="_blank" rel="noopener" style="color:#ffb454">利用規約第5条</a>）。</div>
+        <script>
+          // サイト（locahun3d.com / 開発中の localhost:3000）から配信されている閲覧か。
+          // オフライン（購入した ZIP を手元で開く）では false。
+          function _isSiteStreamView(){
+            try{
+              if(window.__l3dStreamRefUrl) return true;
+              return /(^|\.)locahun3d\.com$/.test(location.hostname) || /\/api\/(r2|viewer-stream)\//.test(decodeURIComponent(location.search));
+            }catch(_){ return false; }
+          }
+          (function(){
+            function show(){ const n=document.getElementById('cm-capture-terms'); if(n && _isSiteStreamView()) n.style.display='block'; }
+            if(document.readyState==='loading') document.addEventListener('DOMContentLoaded', show); else show();
+            setTimeout(show, 3000);
+          })();
+        </script>
       </div>
 
       <!-- ── Salvage ── -->
