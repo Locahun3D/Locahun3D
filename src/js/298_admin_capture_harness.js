@@ -311,6 +311,11 @@ if(/[?&]capture=1/.test(location.search)){
         // 隠れたウィンドウでも実時間で 48ms 待つ（表示中は従来どおり3フレーム分）。
         await settle(48);
         if(typeof renderer!=='undefined' && typeof scene!=='undefined' && typeof camera!=='undefined'){
+          // 向き（yaw）をこのコマのカメラに必ず反映する（2026-10-09 BABEL のプレビュー動画がカクカク）。
+          // 反映は描画ループの updateCamera() 任せで、撮影ウィンドウが裏に回って描画ループが止まると
+          // 同じ向きのコマが約19枚ずつ続いていた（240コマ中の別の絵は約20枚）。
+          if(typeof updateCamera==='function') updateCamera();
+          camera.updateMatrixWorld(true);
           renderer.render(scene, camera);
           const gl = renderer.getContext();
           if(gl) gl.finish();
