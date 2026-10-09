@@ -47,6 +47,7 @@ const _headless = /[?&]headless=1/.test(location.search);
 const _protected = /[?&]protected=1/.test(location.search);
 if(_protected){
   document.body.classList.add('protected-mode');
+  if(/[?&]embed=1(&|$)/.test(location.search)) document.body.classList.add('embed-mode');
 }
 // ── Paged(RAD) ストリーム活動判定 ──
 // 旧判定「numSplats が総数(_radTargetCount)に達したらロード完了」は、ヘッダ総数

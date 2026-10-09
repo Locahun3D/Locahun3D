@@ -202,8 +202,8 @@ body{position:fixed;top:0;left:0;}
 body.protected-mode #tb-save-btn,
 body.protected-mode #em-export-splat,
 body.protected-mode #em-save-zip { display:none !important; }
-/* 2026-10-08 本人指示: オンライン版（物件ページ・埋め込み・共有）ではシーンレイヤーを出さない。 */
-body.protected-mode #layer-panel { display:none !important; }
+/* スタジオのサイトに貼る埋め込み（?embed=1）ではシーンレイヤーを出さない（2026-10-08 本人指示。2026-10-09「消すのは埋め込みだけ」で物件ページには戻した）。 */
+body.embed-mode #layer-panel { display:none !important; }
 /* タッチ操作でボタンが押しにくい（2026-10-08 本人指示「見た目より少し当たり判定を大きく」）。
    見た目は変えず、押せる範囲だけ周囲 8px 広げる（下の touch-hit の処理が、タッチ端末でだけ付ける）。 */
 body.touch-hit button.hit-pad::after{content:'';position:absolute;inset:-8px;}
