@@ -420,7 +420,18 @@ function _walkCameraSpawnPosition(){
     const feet={x:point.x,y:point.y-distance+.05,z:point.z};
     if(_walkFeetClear(core,feet))return feet;
   }
-  throw new Error(_walkL('カメラの真下に歩ける床がありません。床の上へ視点を移してください。','No walkable floor below the camera. Move the view over a floor.'));
+  // 真下が家具の上・壁際で立てないときは、近くの立てる床を探す（2026-10-12 本人指摘「歩行に入れない」。
+  // 初期視点が台車や机の真上にある物件で、歩行ボタンが効かず自由移動のまま壁を抜けていた）。
+  // 近い順に、今の目線から大きく外れない高さの床だけを候補にする（別の階へ飛ばさない）。
+  for(const r of [.3,.6,.9,1.3,1.8,2.4,3])for(let i=0;i<12;i++){
+    const a=yaw+i*Math.PI/6,q={x:point.x+Math.sin(a)*r,y:point.y,z:point.z+Math.cos(a)*r};
+    if(walkSetup.wholeIndex&&_walkWholeCoverage(q,q,{drop:22})===false)continue;
+    const d=core.raycast(q,{x:0,y:-1,z:0},3);
+    if(!Number.isFinite(d)||d<=0)continue;
+    const feet={x:q.x,y:q.y-d+.05,z:q.z};
+    if(_walkFeetClear(core,feet))return feet;
+  }
+  throw new Error(_walkL('近くに歩ける床がありません。床の上へ視点を移してください。','No walkable floor nearby. Move the view over a floor.'));
 }
 // Ground support is sampled separately; body clearance uses the lower capsule.
 function _walkFeetClear(core,feet,requireSupport=true) {
@@ -579,7 +590,8 @@ function _applyFreeCameraCollision(start){
   camPos.set(p.x,p.y,p.z);
 }
 function _walkCameraCollision(av) {
-  if(!cameraCollisionEnabled)return;
+  // 歩行の追従カメラは、設定「カメラの当たり判定」（自由移動用・既定オフ）に関係なく必ず壁・天井で止める。
+  // ここで設定を見て抜けていたため、室内で歩行に入るとカメラが天井や壁の外へ出て何も見えなかった（2026-10-12 本人指摘）。
   if(!walkSetup.core) return;
   const origin={x:av.position.x,y:av.position.y+walkMode.groundOffset+walkMode.height*.8,z:av.position.z};
   if(walkSetup.wholeIndex&&_walkWholeCoverage(origin,camPos)===false){camPos.set(origin.x,origin.y,origin.z);return;}
