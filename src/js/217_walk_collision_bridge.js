@@ -422,11 +422,11 @@ function _walkCameraSpawnPosition(){
   }
   // 真下が家具の上・壁際で立てないときは、近くの立てる床を探す（2026-10-12 本人指摘「歩行に入れない」。
   // 初期視点が台車や机の真上にある物件で、歩行ボタンが効かず自由移動のまま壁を抜けていた）。
-  // 近い順に、今の目線から大きく外れない高さの床だけを候補にする（別の階へ飛ばさない）。
+  // 近い順に探す。深さは真下の判定と同じ20m（ホールの上の席など、高い初期視点から始める物件のため）。
   for(const r of [.3,.6,.9,1.3,1.8,2.4,3])for(let i=0;i<12;i++){
     const a=yaw+i*Math.PI/6,q={x:point.x+Math.sin(a)*r,y:point.y,z:point.z+Math.cos(a)*r};
     if(walkSetup.wholeIndex&&_walkWholeCoverage(q,q,{drop:22})===false)continue;
-    const d=core.raycast(q,{x:0,y:-1,z:0},3);
+    const d=core.raycast(q,{x:0,y:-1,z:0},20);
     if(!Number.isFinite(d)||d<=0)continue;
     const feet={x:q.x,y:q.y-d+.05,z:q.z};
     if(_walkFeetClear(core,feet))return feet;

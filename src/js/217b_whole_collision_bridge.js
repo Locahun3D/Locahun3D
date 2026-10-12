@@ -154,7 +154,7 @@ async function _walkRunWholeGeneration(job,splats){
   job.wholeCacheOnly=_wholeCacheOnly(job);
   const cameraOnly=job.wholeCacheOnly&&!walkMode.active;
   const findSpawn=job.options.findSpawn&&!cameraOnly;
-  const sources=[],identities=[],cellSize=walkSetup.settings.cellSize;
+  const sources=[],identities=[];let cellSize=walkSetup.settings.cellSize;
   for(const layer of splats){
     _walkCheckJob(job);layer.mesh.updateWorldMatrix(true,false);
     const matrix=[...layer.mesh.matrixWorld.elements],identity=await _wholeSourceIdentity(layer,job);
@@ -166,6 +166,14 @@ async function _walkRunWholeGeneration(job,splats){
   let key=await _wholeHash(new TextEncoder().encode(JSON.stringify(['whole-tiles-v2',cellSize,identities])));
   const legacyKey=await _wholeHash(new TextEncoder().encode(JSON.stringify(['whole-tiles-v1',cellSize,identities])));
   if(!globalThis.LocahunCollisionManifest?.[key]&&globalThis.LocahunCollisionManifest?.[legacyKey])key=legacyKey;
+  // 事前に作って配布しているデモの判定は 25cm で作ってある。既定を 12.5cm にしたので（2026-10-12）、
+  // いまの升の大きさの配布物が無く 25cm の配布物があるときは、そちらをそのまま使う（読込のたびに作り直さない）。
+  if(!globalThis.LocahunCollisionManifest?.[key]&&cellSize!==.25&&globalThis.LocahunCollisionManifest){
+    for(const version of ['whole-tiles-v2','whole-tiles-v1']){
+      const coarse=await _wholeHash(new TextEncoder().encode(JSON.stringify([version,.25,identities])));
+      if(globalThis.LocahunCollisionManifest[coarse]){key=coarse;cellSize=.25;break;}
+    }
+  }
   _walkCheckJob(job);let bytes,index,persistentHit=false;
   const saved=walkSetup.settings.whole;
   if(saved?.key===key){try{bytes=_wholeUnbase64(saved.data);index=await LocahunWholeCollision.decodeTiles(bytes,key);}catch(_){bytes=null;}}

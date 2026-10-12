@@ -45,7 +45,9 @@ globalThis.LocahunWalkSettings = {
         typeof v.whole.data==='string' && v.whole.data.length>0 && v.whole.data.length<=22000000 && /^[A-Za-z0-9+/]*={0,2}$/.test(v.whole.data)
         ? {key:v.whole.key,data:v.whole.data} : null,
       meshOnly: v.meshOnly === true,
-      cellSize: finite(v.cellSize) && v.cellSize >= .1 && v.cellSize <= 1 ? v.cellSize : .25,
+      // 既定は 12.5cm（2026-10-12 本人指摘「通り抜けられない」）。25cm だと壁・家具が実物より最大25cm太り、
+      // 幅1m弱の戸口や通路が両側から塞がっていた（バロック: 歩ける床 6.1㎡→15.2㎡、焼き時間0.8秒・25KB）。
+      cellSize: finite(v.cellSize) && v.cellSize >= .1 && v.cellSize <= 1 ? v.cellSize : .125,
       radius: finite(v.radius) && v.radius>=2 && v.radius<=50 ? v.radius : 12,
       effectiveCellSize: finite(v.effectiveCellSize) && v.effectiveCellSize>=.1 && v.effectiveCellSize<=1 ? v.effectiveCellSize : null,
       detailRegion: v.detailRegion && v.detailRegion.center && ['x','y','z'].every(k=>finite(v.detailRegion.center[k])) && v.detailRegion.radius===2
