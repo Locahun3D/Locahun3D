@@ -6,7 +6,7 @@
 // 撮影の前に、(1) 予算と細かさを撮影用の上限まで上げ、(2) 撮影時の解像度（PRブースト後）で必要な細かさを
 // 先に要求し、(3) 読み込みが止まり表示スプラット数が落ち着くまで待つ。画面に進み具合を出す。
 // 静止画なので FPS は気にしない。上げた設定は撮影後に必ず元に戻す（戻し忘れると以後の操作が重くなる）。
-// RAD を使っていないシーン（PLY 等）は待たずに撮る。最長 30 秒で打ち切って撮る。
+// RAD を使っていないシーン（PLY 等）は待たずに撮る。最長 60 秒で打ち切って撮る。
 async function _capLodWarmup(capPR){
   const sr = (typeof sparkRenderer !== 'undefined') ? sparkRenderer : null;
   const meshes = [];
@@ -21,15 +21,20 @@ async function _capLodWarmup(capPR){
   const tier = (typeof _splatPerfTier !== 'undefined') ? _splatPerfTier : 'laptop_ok';
   const strong = (tier === 'desktop' || tier === 'laptop_ok');
   try{
-    // 細かさ: 画質プリセット「高」の値（端末ティア別）。予算: 強い端末だけ 2 倍（弱い端末はメモリを守る）。
-    const hi = _radLodScaleForStride(_splatStride()) * _radLodScaleForQuality(2);
+    // 細かさ: 画質「高」の 4 倍（A/B 計測の上限実行と同じ）。予算: 強い端末は VRAM 上限 maxPagedSplats の 9 割まで、
+    // 弱い端末は 2 倍まで。静止画なので FPS は捨てて、データが持つ細かさを全部読む（本人「最高画質で」）。
+    const hi = _radLodScaleForStride(_splatStride()) * _radLodScaleForQuality(2) * 4;
     meshes.forEach((m, i)=>{ m.lodScale = Math.max(saved.scales[i], hi); });
     const base = sr.lodSplatCount ?? (typeof sr.defaultSplatTarget === 'function' ? sr.defaultSplatTarget() : undefined);
-    if(strong && typeof base === 'number' && base > 0) sr.lodSplatCount = base * 2;
+    if(typeof base === 'number' && base > 0){
+      const vram = (typeof sr.maxPagedSplats === 'number' && sr.maxPagedSplats > 0) ? sr.maxPagedSplats * 0.9 : base * 4;
+      sr.lodSplatCount = strong ? Math.max(base, Math.floor(vram)) : base * 2;
+    }
     // 撮影は pixelRatio を capPR に上げて描く。Spark の細かさの基準は描画バッファの高さで決まるので、
     // いまの PR のまま同じ細かさを要求するには lodRenderScale を PR/capPR にする。
     const PR = renderer.getPixelRatio();
-    if(capPR > PR) sr.lodRenderScale = (saved.renderScale || 1) * PR / capPR;
+    // さらに 0.5 倍して、画面上 1px 未満のスプラットまで要求する（細かさの基準を半分にする）。
+    sr.lodRenderScale = (saved.renderScale || 1) * (capPR > PR ? PR / capPR : 1) * 0.5;
     sr.lodDirty = true;
   }catch(e){ console.warn('[capture] warmup setup failed', e); }
   const restore = ()=>{
@@ -49,7 +54,7 @@ async function _capLodWarmup(capPR){
     + 'border:1px solid rgba(255,180,84,.5);border-radius:6px;pointer-events:none;letter-spacing:.03em';
   document.body.appendChild(badge);
   const t0 = performance.now();
-  let last = -1, stableSince = performance.now(), timedOut = false;
+  let last = -1, stableSince = performance.now(), timedOut = false, fetched = false;
   // 先読み（294 の LOD プリフェッチ）は撮影中と同じく止める。動かしたままだと、見ていない方向のデータを
   // 読み続けて「読み込み中」が終わらない（2026-10-14 実測: 30 秒打ち切りまで止まらなかった）。
   const busyWas = window._captureBusy;
@@ -66,18 +71,20 @@ async function _capLodWarmup(capPR){
       // Spark は落ち着いた後も数千スプラット単位で入れ替え続けるので、完全一致は待たない。
       // 「取得中が無く、増減が 0.3% 未満」が 1.2 秒続いたら最高まで読めたとみなす。
       // 待ち行列（q）は予算を超えた分の「読みたいもの」が残り続けるので見ない。実際に取得中（a）だけを見る。
+      if(a > 0) fetched = true;
       if(a > 0 || Math.abs(n - last) > Math.max(2000, n * 0.003)){ stableSince = now; }
       last = n;
       const sec = (now - t0) / 1000;
       badge.textContent = T('cap-warmup').replace('{n}', (n / 10000).toFixed(0)).replace('{s}', sec.toFixed(1));
-      if(now - t0 > 800 && now - stableSince > 1200) break;
-      if(now - t0 > 30000){ timedOut = true; break; }
+      if((fetched || now - t0 > 3000) && now - stableSince > 1500) break;
+      if(now - t0 > 60000){ timedOut = true; break; }
     }
   } finally {
     badge.remove();
     window._captureBusy = busyWas;
   }
-  console.info('[capture] LOD warmup', { splats: last, ms: Math.round(performance.now() - t0), timedOut });
+  console.info('[capture] LOD warmup', { splats: last, ms: Math.round(performance.now() - t0), timedOut, fetched,
+    budget: sr.lodSplatCount, renderScale: sr.lodRenderScale, lodScale: meshes.map(m=>m.lodScale) });
   return restore;
 }
 window.captureCamShot = async function(){
