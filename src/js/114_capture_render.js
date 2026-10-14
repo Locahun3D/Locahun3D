@@ -1,6 +1,85 @@
 // ── Capture: render the scene into an offscreen canvas at full resolution,
 // crop to the sensor aspect, apply WB tint, optionally surround with a metadata
 // border frame (burn-in OUTSIDE the image so nothing covers the shot). ──
+// ── 撮影前の LOD ウォームアップ（2026-10-14 本人「jpegで撮影するときは、LODの解像度がMAXになるまで撮影をウォームアップ」）──
+// RAD はカメラの向きに応じて細かいデータを後から読み込む。押した瞬間に撮ると、まだ粗い部分が写る。
+// 撮影の前に、(1) 予算と細かさを撮影用の上限まで上げ、(2) 撮影時の解像度（PRブースト後）で必要な細かさを
+// 先に要求し、(3) 読み込みが止まり表示スプラット数が落ち着くまで待つ。画面に進み具合を出す。
+// 静止画なので FPS は気にしない。上げた設定は撮影後に必ず元に戻す（戻し忘れると以後の操作が重くなる）。
+// RAD を使っていないシーン（PLY 等）は待たずに撮る。最長 30 秒で打ち切って撮る。
+async function _capLodWarmup(capPR){
+  const sr = (typeof sparkRenderer !== 'undefined') ? sparkRenderer : null;
+  const meshes = [];
+  try{ scene.traverse(o=>{ if(o && o.paged && typeof o.lodScale === 'number') meshes.push(o); }); }catch(_){}
+  if(!sr || !sr.pager || !meshes.length) return ()=>{};
+  const saved = { budget: sr.lodSplatCount, renderScale: sr.lodRenderScale, scales: meshes.map(m=>m.lodScale) };
+  // 画質の自動調整（GPU ウォッチドッグ）を撮影が終わるまで止める。予算を上げると一時的に重くなるので、
+  // 動かしたままだと「重い」と判断して画質を下げ、予算を 1/4 に戻してしまう（2026-10-14 実測: 500万→125万）。
+  const wd = window._gpuWatchdog;
+  const pinWas = wd ? wd.manualOverride : undefined;
+  if(wd) wd.manualOverride = true;
+  const tier = (typeof _splatPerfTier !== 'undefined') ? _splatPerfTier : 'laptop_ok';
+  const strong = (tier === 'desktop' || tier === 'laptop_ok');
+  try{
+    // 細かさ: 画質プリセット「高」の値（端末ティア別）。予算: 強い端末だけ 2 倍（弱い端末はメモリを守る）。
+    const hi = _radLodScaleForStride(_splatStride()) * _radLodScaleForQuality(2);
+    meshes.forEach((m, i)=>{ m.lodScale = Math.max(saved.scales[i], hi); });
+    const base = sr.lodSplatCount ?? (typeof sr.defaultSplatTarget === 'function' ? sr.defaultSplatTarget() : undefined);
+    if(strong && typeof base === 'number' && base > 0) sr.lodSplatCount = base * 2;
+    // 撮影は pixelRatio を capPR に上げて描く。Spark の細かさの基準は描画バッファの高さで決まるので、
+    // いまの PR のまま同じ細かさを要求するには lodRenderScale を PR/capPR にする。
+    const PR = renderer.getPixelRatio();
+    if(capPR > PR) sr.lodRenderScale = (saved.renderScale || 1) * PR / capPR;
+    sr.lodDirty = true;
+  }catch(e){ console.warn('[capture] warmup setup failed', e); }
+  const restore = ()=>{
+    try{
+      sr.lodSplatCount = saved.budget;
+      sr.lodRenderScale = saved.renderScale;
+      meshes.forEach((m, i)=>{ m.lodScale = saved.scales[i]; });
+      sr.lodDirty = true;
+      if(wd) wd.manualOverride = pinWas;
+    }catch(_){}
+  };
+  const total = ()=>meshes.reduce((s, m)=>s + ((m.paged && m.paged.numSplats) || 0), 0);
+  const badge = document.createElement('div');
+  badge.id = 'cap-warmup-badge';
+  badge.style.cssText = 'position:fixed;left:50%;top:72px;transform:translateX(-50%);z-index:100000;'
+    + 'background:rgba(0,0,0,.78);color:#ffb454;font:600 13px/1.4 system-ui,sans-serif;padding:8px 14px;'
+    + 'border:1px solid rgba(255,180,84,.5);border-radius:6px;pointer-events:none;letter-spacing:.03em';
+  document.body.appendChild(badge);
+  const t0 = performance.now();
+  let last = -1, stableSince = performance.now(), timedOut = false;
+  // 先読み（294 の LOD プリフェッチ）は撮影中と同じく止める。動かしたままだと、見ていない方向のデータを
+  // 読み続けて「読み込み中」が終わらない（2026-10-14 実測: 30 秒打ち切りまで止まらなかった）。
+  const busyWas = window._captureBusy;
+  window._captureBusy = true;
+  try{
+    for(;;){
+      _splatActiveUntil = performance.now() + 2000;   // 描画ループを止めない（静止中でも LOD を進める）
+      markDirty(30);
+      await new Promise(r=>setTimeout(r, 200));
+      const n = total();
+      const q = (sr.pager.fetchPriority && sr.pager.fetchPriority.length) || 0;
+      const a = (sr.pager.fetchers && sr.pager.fetchers.length) || 0;
+      const now = performance.now();
+      // Spark は落ち着いた後も数千スプラット単位で入れ替え続けるので、完全一致は待たない。
+      // 「取得中が無く、増減が 0.3% 未満」が 1.2 秒続いたら最高まで読めたとみなす。
+      // 待ち行列（q）は予算を超えた分の「読みたいもの」が残り続けるので見ない。実際に取得中（a）だけを見る。
+      if(a > 0 || Math.abs(n - last) > Math.max(2000, n * 0.003)){ stableSince = now; }
+      last = n;
+      const sec = (now - t0) / 1000;
+      badge.textContent = T('cap-warmup').replace('{n}', (n / 10000).toFixed(0)).replace('{s}', sec.toFixed(1));
+      if(now - t0 > 800 && now - stableSince > 1200) break;
+      if(now - t0 > 30000){ timedOut = true; break; }
+    }
+  } finally {
+    badge.remove();
+    window._captureBusy = busyWas;
+  }
+  console.info('[capture] LOD warmup', { splats: last, ms: Math.round(performance.now() - t0), timedOut });
+  return restore;
+}
 window.captureCamShot = async function(){
   if(!cam.active){ alert(T('cam-tool-shoot-warn')); return; }
   _camPullFields();
@@ -98,6 +177,11 @@ window.captureCamShot = async function(){
   const _dimCap = _glMaxDim / Math.max(innerWidth, innerHeight);
   const _boostPR = Math.min(Math.max(_needPR, PR), _tierCap, _dimCap);
   const capPR = (_boostPR > PR + 1e-3) ? _boostPR : PR;
+  // 撮る前に LOD を撮影用の最高まで読み込ませる（_capLodWarmup の説明を参照）。画面と HUD を隠す前に呼びたいが、
+  // 必要な細かさは capPR で決まるので、capPR を出したこの位置で、隠した画面を一時的に戻して待つ。
+  canvas.style.visibility = canvasVisWas;
+  const _capLodRestore = await _capLodWarmup(capPR);
+  canvas.style.visibility = 'hidden';
   window._captureBusy = true;          // 294のLODプリフェッチを撮影中サスペンド
   // img/ictx は try 内で代入するが、finally の後（env-tint/WB/グリッド焼込）でも
   // 使うため宣言は try の外に置く（try内 const だと後続から見えず ictx is not
@@ -155,6 +239,7 @@ window.captureCamShot = async function(){
   } finally {
     // PRは既存の復元部(下)でも戻すが、例外時にも画面解像度が壊れないよう二重化
     if(capPR !== PR){ try{ renderer.setPixelRatio(PR); }catch(_){} }
+    _capLodRestore();
     window._captureBusy = false;
   }
   // 撮影の仕上げ(tint/grid/バーンイン合成)から UI/renderer 復元までを try/finally で
