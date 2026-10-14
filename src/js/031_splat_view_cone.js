@@ -21,9 +21,17 @@ function _updateSplatViewCone(viewCamera,viewRenderer){
   // The camera tool renders wide context then a narrower scissored frame.
   // Both share one LOD tree: don't shrink it on the second pass every frame.
   if(viewRenderer?.getScissorTest() && detail<=sparkRenderer.coneFov0)return;
-  if(Math.abs(sparkRenderer.coneFov0-detail)>.01 || Math.abs(sparkRenderer.coneFov-outer)>.01){
+  // 2026-10-14 望遠の続き: Spark の細かさの基準は画角に比例して細かくなる（焦点距離が長いほど1ピクセルが小さい）。
+  // 画面の外（coneFoveate 0.4・背後 behindFoveate 0.2）もその基準で解像されるため、望遠では見えない周囲まで
+  // 望遠並みに細かく読み、予算を食っていた。画面外の細かさを広角（対角90°）のときと同じに保つよう、
+  // 画角が狭いぶんだけ係数を下げる。画角内は変えない。広角（90°以上）は Spark 既定の 0.4 / 0.2 のまま。
+  const tele=_splatTeleLod?Math.min(1,Math.max(.05,Math.tan(Math.min(frameDeg,90)*Math.PI/360))):1;
+  const foveate=.4*tele, behind=.2*tele;
+  if(Math.abs(sparkRenderer.coneFov0-detail)>.01 || Math.abs(sparkRenderer.coneFov-outer)>.01 || Math.abs(sparkRenderer.coneFoveate-foveate)>.001){
     sparkRenderer.coneFov0=detail;
     sparkRenderer.coneFov=outer;
+    sparkRenderer.coneFoveate=foveate;
+    sparkRenderer.behindFoveate=behind;
     // Spark does not detect cone changes in its camera-change test.
     sparkRenderer.lodDirty=true;
   }
