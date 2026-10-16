@@ -518,6 +518,16 @@ window.showEventImage = function(id){
   img.draggable=false;
   img.style.cssText='max-width:62vw;max-height:62vh;border-radius:8px;box-shadow:0 4px 32px rgba(0,0,0,.6);transform-origin:center center;transition:transform .12s ease-out;cursor:zoom-in;user-select:none';
   ov.appendChild(img);
+  // 英語ページ: 写真の中の日本語の英訳を写真の下に添える（2026-10-16）。
+  const _imgTr=en&&window._sceneTextEn&&window._sceneTextEn.images?window._sceneTextEn.images[window._sceneImageKey(L.eventImage)]:null;
+  if(_imgTr&&_imgTr.length){
+    const esc=s=>String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+    const cap=document.createElement('div');
+    cap.style.cssText='position:absolute;left:50%;bottom:16px;transform:translateX(-50%);width:min(720px,calc(100vw - 32px));max-height:26vh;overflow:auto;background:rgba(20,20,22,.94);border:1px solid rgba(255,255,255,.18);border-radius:8px;padding:10px 14px;color:#eee;font-size:13px;line-height:1.6';
+    cap.innerHTML='<div style="font-size:11px;letter-spacing:.08em;color:#9aa3ad;margin-bottom:4px">English for the text in this photo</div>'+_imgTr.map(x=>'<div>'+esc(x.en)+' <span style="color:#8b95a1">— '+esc(x.ja)+'</span></div>').join('');
+    cap.onclick=e=>e.stopPropagation();
+    ov.appendChild(cap);
+  }
   let zoom=1,tx=0,ty=0;
   const apply=()=>{img.style.transform=`translate(${tx}px,${ty}px) scale(${zoom})`;img.style.cursor=zoom>1?'grab':'zoom-in';pct.textContent=Math.round(zoom*100)+'%';};
   const setZoom=z=>{zoom=Math.max(.5,Math.min(5,z));if(zoom<=1){tx=0;ty=0;}apply();};

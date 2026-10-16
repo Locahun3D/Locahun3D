@@ -409,3 +409,51 @@ async function restoreProject(project, opts = {}) {
     window.onlineSceneEditor?.endRestore?.(onlineRestoreTicket,localRestoreSucceeded);
   }
 }
+// ══════════════════════════════════════════════════
+//  英語ページから開いたとき（?lang=en）— 表示言語と注釈の英訳（2026-10-16）
+//  本人指示「3DGSビュー注釈、画像も翻訳するように／画像の英訳を載せるでもいい」。
+//  ?sceneTextEn=<URL> の JSON（{texts:{日本語:英語}, images:{画像キー:[{ja,en}]}}）はサイトの
+//  定期処理がシーンの project.json から作る。注釈の文字は読み込み直後に英訳へ差し替え、
+//  写真ピンの画像は写真の下に「写真内の文字の英訳」を添える。編集画面（onlineSceneEdit /
+//  localProject）では差し替えない（英語のまま保存されるのを防ぐ）。
+// ══════════════════════════════════════════════════
+window._sceneImageKey=function(d){
+  d=String(d||''); const s=d.length+':'+d.slice(0,8192)+d.slice(-8192);
+  let h=0x811c9dc5; for(let i=0;i<s.length;i++){ h^=s.charCodeAt(i); h=Math.imul(h,0x01000193)>>>0; }
+  return h.toString(16).padStart(8,'0');
+};
+window._applySceneTextEn=function(){
+  const m=window._sceneTextEn;
+  if(!m||window._lang!=='en'||window.localProject||window.onlineSceneEditor) return 0;
+  const tx=m.texts||{};
+  const tr=s=>(s&&Object.prototype.hasOwnProperty.call(tx,s))?tx[s]:null;
+  let n=0; // 差し替えた数（確認用）
+  for(const L of layers){
+    if(L.type==='event'){
+      const g=tr(L.eventGuide); if(g){ L.eventGuide=g; n++; }
+      const nm2=tr(L.eventImageName); if(nm2){ L.eventImageName=nm2; n++; }
+    }
+    if(L.type==='path'){
+      const p=tr(L.pathLabel); if(p && typeof window.setPathLabel==='function'){ window.setPathLabel(L.id,p); n++; continue; }
+    }
+    const nm=tr(L.name); if(nm){ L.name=nm; n++; }
+  }
+  if(typeof renderLayerList==='function') renderLayerList();
+  if(typeof markDirty==='function') markDirty(6);
+  return n;
+};
+(function(){
+  let q; try{ q=new URLSearchParams(location.search); }catch(_){ return; }
+  if(q.get('lang')!=='en') return;
+  // 以降に組み立てる UI が英語で作られるよう、言語だけは先に決めておく。
+  window._lang='en';
+  const start=()=>{ try{ applyI18n(); if(typeof _dzGuide==='function')_dzGuide(); }catch(_){} };
+  if(document.readyState==='loading') document.addEventListener('DOMContentLoaded',start); else start();
+  const src=q.get('sceneTextEn'); if(!src) return;
+  fetch(src,{credentials:'same-origin'}).then(r=>r.ok?r.json():null).then(j=>{
+    if(!j) return; window._sceneTextEn=j; window._applySceneTextEn();
+  }).catch(()=>{});
+})();
+{ const _restoreProjectJa=restoreProject;
+  restoreProject=async function(project,opts){ const r=await _restoreProjectJa(project,opts); try{ window._applySceneTextEn(); }catch(_){} return r; }; }
+
