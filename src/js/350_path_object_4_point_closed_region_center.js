@@ -519,7 +519,11 @@ window.showEventImage = function(id){
   img.style.cssText='max-width:62vw;max-height:62vh;border-radius:8px;box-shadow:0 4px 32px rgba(0,0,0,.6);transform-origin:center center;transition:transform .12s ease-out;cursor:zoom-in;user-select:none';
   ov.appendChild(img);
   // 英語ページ: 写真の中の日本語の英訳を写真の下に添える（2026-10-16）。
-  const _imgTr=en&&window._sceneTextEn&&window._sceneTextEn.images?window._sceneTextEn.images[window._sceneImageKey(L.eventImage)]:null;
+  // 英語版の画像（日本語を英語に描き直したもの）があればそちらを出し、英訳の帯は出さない。
+  const _imgKey=window._sceneImageKey(L.eventImage);
+  const _imgEn=en&&window._sceneTextEn&&window._sceneTextEn.imagesEn?window._sceneTextEn.imagesEn[_imgKey]:null;
+  if(_imgEn) img.src=_imgEn;
+  const _imgTr=!_imgEn&&en&&window._sceneTextEn&&window._sceneTextEn.images?window._sceneTextEn.images[_imgKey]:null;
   if(_imgTr&&_imgTr.length){
     const esc=s=>String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
     const cap=document.createElement('div');
