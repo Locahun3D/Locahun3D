@@ -215,6 +215,7 @@ window.resetCameraToInitial = function(){
   if(typeof _engagedCamId !== 'undefined') _engagedCamId = null;
   camPos.copy(_initCamPos);
   setCamRotImmediate(_initYaw, _initPitch);
+  if(typeof window._pinchZoomReset === 'function') window._pinchZoomReset();   // ピンチズームも ×1 へ（2026-10-18）
   showUndoToast(T('cam-reset-msg'));
   markDirty(10);
 };

@@ -40,8 +40,109 @@ function _plcModeActive(){
          (typeof _pathMode  !== 'undefined' && _pathMode);
 }
 
+// ── Pinch zoom (2 fingers) — 2026-10-18 本人指示「ピンチズーム x4 で実装、タッチで使えるように」 ──
+// 2本指の間隔の比でズームする。通常の視点は画角(fov)を狭める: 倍率 = tan(auto画角/2)/tan(画角/2)、
+// 自動画角(_autoFov)を ×1 として最大 ×4 まで。×1 より広角には広げない（広角は PC のホイールで）。
+// カメラツール中は焦点距離(cam.focal)、平行投影中は _orthoSize を同じ比で動かす。
+// ピンチ中は1本指の視点回転・タップ移動・長押し配置を止め、指が1本残ったら回転へ戻す。
+let _pinchIds = null;       // [id0, id1] ピンチ中の2本の指
+let _pinchD0 = 1;           // ピンチ開始時の指の間隔(px)
+let _pinchFov0 = 0, _pinchFocal0 = 0, _pinchOrtho0 = 0;
+const PINCH_MAX_ZOOM = 4;
+function _pinchDist(t0, t1){ return Math.max(1, Math.hypot(t0.clientX - t1.clientX, t0.clientY - t1.clientY)); }
+function _pinchZoomOf(f){ try{ return Math.tan(_autoFov * Math.PI / 360) / Math.tan(f * Math.PI / 360); }catch(_){ return 1; } }
+function _pinchStart(e){
+  if(e.touches.length !== 2) return;
+  _cancelMsrLongPress(); _cancelPlcLongPress();
+  if(_msrPlacingId !== -1 || _plcPlacingId !== -1 || _handleTouchId !== -1 || _lpvTouchId !== -1) return;
+  const a = e.touches[0], b = e.touches[1];
+  _pinchIds = [a.identifier, b.identifier];
+  _pinchD0 = _pinchDist(a, b);
+  _pinchFov0 = fov;
+  try{ _pinchFocal0 = (cam && cam.active) ? cam.focal : 0; }catch(_){ _pinchFocal0 = 0; }
+  _pinchOrtho0 = (typeof _orthoSize === 'number') ? _orthoSize : 0;
+  tlId = -1;   // 2本指の間は視点回転しない
+  if(typeof _clickGestures !== 'undefined' && _clickGestures.touch && _clickGestures.touch.reset) _clickGestures.touch.reset();
+}
+function _pinchMove(e){
+  if(!_pinchIds) return false;
+  let a = null, b = null;
+  for(const t of e.touches){ if(t.identifier === _pinchIds[0]) a = t; else if(t.identifier === _pinchIds[1]) b = t; }
+  if(!a || !b) return false;
+  const z = _pinchDist(a, b) / _pinchD0;      // >1 で拡大
+  if(typeof _useOrtho !== 'undefined' && _useOrtho && _pinchOrtho0 > 0){
+    _orthoSize = Math.max(0.5, Math.min(500, _pinchOrtho0 / z));
+    if(typeof _syncOrthoCamera === 'function') _syncOrthoCamera();
+  } else if(_pinchFocal0 > 0 && typeof cam !== 'undefined' && cam.active){
+    // カメラツール: 焦点距離をピンチ比で（1回のピンチで 1/4〜4倍まで）
+    const nf = Math.max(8, Math.min(400, Math.round(_pinchFocal0 * Math.max(1 / PINCH_MAX_ZOOM, Math.min(PINCH_MAX_ZOOM, z)))));
+    if(nf !== cam.focal){
+      cam.focal = nf;
+      if(typeof _camPushFields === 'function') _camPushFields();
+      if(typeof _camHighlightFocal === 'function') _camHighlightFocal();
+      if(typeof applyCamSettings === 'function') applyCamSettings();
+    }
+  } else {
+    // 通常視点: 画角を狭める。×1 = 自動画角、×4 が上限。
+    const base = (typeof _autoFov === 'number' && _autoFov > 0) ? _autoFov : 60;
+    const tanMax = Math.tan(base * Math.PI / 360);                // ×1（広角側の上限）
+    const tanMin = tanMax / PINCH_MAX_ZOOM;                        // ×4
+    let tan = Math.tan(_pinchFov0 * Math.PI / 360) / z;
+    tan = Math.max(tanMin, Math.min(tanMax, tan));
+    const f = 2 * Math.atan(tan) * 180 / Math.PI;
+    if(Math.abs(f - fov) > 1e-3){
+      fov = f; camera.fov = f; camera.updateProjectionMatrix();
+      const _fl = document.getElementById('fovLabel'); if(_fl) _fl.textContent = Math.round(fov) + '°';
+    }
+  }
+  _pinchShowBadge();
+  markDirty(4);
+  if(typeof bumpSplatActive === 'function' && typeof layers !== 'undefined' && layers.some(L => L.type === 'splat')) bumpSplatActive(1500);
+  return true;
+}
+function _pinchEnd(e){
+  if(!_pinchIds) return;
+  _pinchIds = null;
+  // 残った1本指が回転ゾーンにあれば、そのまま視点回転へ
+  if(e && e.touches && e.touches.length === 1){
+    const t = e.touches[0];
+    if(t.identifier !== _lpvTouchId && t.identifier !== _handleTouchId && t.clientX > innerWidth * 0.3){ tlId = t.identifier; tlX = t.clientX; tlY = t.clientY; }
+  }
+}
+let _pinchBadgeTimer = null;
+function _pinchShowBadge(){
+  // 画面上部に「×2.3」を短く出す（PC の fovLabel はタッチ端末では隠れていることがあるため）
+  let el = document.getElementById('pinch-zoom-badge');
+  if(!el){
+    el = document.createElement('div'); el.id = 'pinch-zoom-badge';
+    el.style.cssText = 'position:fixed;left:50%;top:calc(env(safe-area-inset-top,0px) + 64px);transform:translateX(-50%);padding:4px 12px;border-radius:999px;background:rgba(0,0,0,.6);color:#fff;font:600 14px/1.4 system-ui,sans-serif;pointer-events:none;z-index:70;opacity:0;transition:opacity .15s';
+    document.body.appendChild(el);
+  }
+  let zoom = 1;
+  try{
+    if(typeof _useOrtho !== 'undefined' && _useOrtho && _pinchOrtho0 > 0) zoom = _pinchOrtho0 / _orthoSize * _pinchZoomOf(_pinchFov0);
+    else if(_pinchFocal0 > 0 && typeof cam !== 'undefined' && cam.active) zoom = cam.focal / _pinchFocal0;
+    else zoom = _pinchZoomOf(fov);
+  }catch(_){}
+  el.textContent = '×' + (Math.round(zoom * 10) / 10).toFixed(1);
+  el.style.opacity = '1';
+  clearTimeout(_pinchBadgeTimer);
+  _pinchBadgeTimer = setTimeout(() => { el.style.opacity = '0'; }, 900);
+}
+// 検証用（Playwright から module スコープの値を読む）
+window.__pinchDebug = function(){ try{ return { fov: fov, auto: _autoFov, zoom: _pinchZoomOf(fov), tl: tlId, pinch: !!_pinchIds, layers: (typeof layers !== 'undefined' ? layers.length : -1), yaw: _yawTarget, camActive: !!(typeof cam !== 'undefined' && cam && cam.active), focal: (typeof cam !== 'undefined' && cam ? cam.focal : null) }; }catch(e){ return { err: String(e) }; } };
+window._pinchZoomReset = function(){
+  // カメラリセット等から呼ぶ: 通常視点のズームを ×1（自動画角）へ戻す
+  if(typeof _autoFov === 'number' && _autoFov > 0 && fov !== _autoFov && !(typeof cam !== 'undefined' && cam && cam.active)){
+    fov = _autoFov; camera.fov = fov; camera.updateProjectionMatrix();
+    const _fl = document.getElementById('fovLabel'); if(_fl) _fl.textContent = Math.round(fov) + '°';
+    markDirty(4);
+  }
+};
+
 canvas.addEventListener('touchstart',e=>{
   if(typeof _clickPointerStart==='function')_clickPointerStart('touch',e);
+  if(e.touches.length===2)_pinchStart(e);
   // ── Figure bone-rotation ring / IK handle touch-drag (highest priority) ──
   // Mirrors the desktop mousedown order (bone ring → IK → lpv). Only outside
   // measure mode and only when a figure widget is actually pickable. Previously
@@ -187,10 +288,12 @@ canvas.addEventListener('touchstart',e=>{
   // sees them, so the only thing the wider zone claims is empty canvas left-of-centre.
   for(const t of e.changedTouches)
     if(t.identifier!==_lpvTouchId && t.identifier!==_handleTouchId && t.clientX>innerWidth*0.3){tlId=t.identifier;tlX=t.clientX;tlY=t.clientY;}
+  if(_pinchIds)return;
   if(typeof _clickPointerArm==='function'&&_handleTouchId===-1&&_lpvTouchId===-1&&_msrPlacingId===-1&&_plcPlacingId===-1)_clickPointerArm('touch',e);
 },{passive:true});
 canvas.addEventListener('touchmove',e=>{
   if(e.cancelable)e.preventDefault();
+  if(_pinchIds&&_pinchMove(e))return;
   if(typeof _clickPointerMove==='function'&&_clickPointerMove('touch',e)){if(e.cancelable)e.preventDefault();return;}
   // ── Pivot gizmo touch-drag update (highest priority) ──
   if(_lpvTouchId !== -1){
@@ -370,6 +473,7 @@ canvas.addEventListener('touchend',e=>{
       if(t.identifier === _plcLongPressId){ _cancelPlcLongPress(); break; }
     }
   }
+  if(_pinchIds&&[...e.changedTouches].some(t=>t.identifier===_pinchIds[0]||t.identifier===_pinchIds[1])){ _pinchEnd(e); if(e.cancelable)e.preventDefault(); markDirty(6); return; }
   for(const t of e.changedTouches)if(t.identifier===tlId){ tlId=-1; markDirty(6); }
   if(navigationTap&&!(typeof msr!=='undefined'&&msr.active)){
     if(e.cancelable)e.preventDefault();
@@ -377,6 +481,7 @@ canvas.addEventListener('touchend',e=>{
   }
 });
 canvas.addEventListener('touchcancel',e=>{
+  _pinchEnd(null);
   tlId=-1;
   if(typeof _clickPointerStart==='function')_clickPointerStart('touch',e);
   // Abort a pivot gizmo touch-drag on cancel (e.g. iOS palm rejection).
