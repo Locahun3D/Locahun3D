@@ -52,7 +52,9 @@
   if(joyMag > 1e-3){
     const dirFw = -joyDY / joyMag;
     const dirRt =  joyDX / joyMag;
-    const speed = (joyMag <= 0.5) ? (joyMag / 0.5) * camSpeed : (camSpeed * 5);
+    // 2026-10-17 本人指示「ジョイスティックの移動速度を半分に」: 両ゾーンとも 0.5 倍（キーボード・ゲームパッドは据え置き）。
+    const JOY_SPEED_MUL = 0.5;
+    const speed = ((joyMag <= 0.5) ? (joyMag / 0.5) * camSpeed : (camSpeed * 5)) * JOY_SPEED_MUL;
     // Joystick pans on the HORIZONTAL ground plane only (Google-Earth style):
     // use _fwdHoriz (pitch dropped + normalized), NOT _fwdVec, so tilting the
     // view down/up no longer makes the stick climb or descend. Altitude is
