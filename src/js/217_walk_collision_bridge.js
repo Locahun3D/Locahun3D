@@ -525,8 +525,10 @@ function _walkCollisionAdvance(av,dt,dx,dz,jump) {
   walkMode.actualSpeed=Math.hypot(av.position.x-oldX,av.position.z-oldZ)/Math.max(dt,.0001);
   return walkMode.actualSpeed>.03;
 }
-// 2026-09-26 本人指示「あたり判定 デフォルトはOFF」。クリック移動の地面判定は OFF でも作る（prepare の force）。
-let cameraCollisionEnabled=false;
+// 2026-09-26 本人指示「あたり判定 デフォルトはOFF」→ 2026-10-20 本人指示「カメラのあたり判定、デフォルトON」で既定オン。
+// 準備ができていない間は自由に動け、最初に動いたときに自動で当たり判定を用意する（_applyFreeCameraCollision）。
+// クリック移動の地面判定は OFF でも作る（prepare の force）。
+let cameraCollisionEnabled=true;
 function _walkCameraReadiness(){
   const ready=!!walkSetup.core&&!walkSetup.importPending&&walkSetup.settings.signature===_walkSourceSignature();
   return !cameraCollisionEnabled?'off':ready?'ready':walkSetup.busy||walkSetup.importPending?'preparing':'unavailable';
