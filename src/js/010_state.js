@@ -259,8 +259,10 @@ const _qualTouchLike = (function(){
   try { if(window.matchMedia('(pointer:coarse)').matches) return true; } catch(_){}
   return /Android|iPhone|iPad|iPod|Mobile|Silk|Kindle/i.test(navigator.userAgent || '');
 })();
-let qualScale = _qualTouchLike ? 0.75 : 1.0;
-let qualIdx   = _qualTouchLike ? 0    : 1;
+// iPad など画面の短辺が 700px 以上のタッチ端末は「中」で始める（2026-10-20。戻すときは _qualStartLow を _qualTouchLike に）
+const _qualStartLow = _qualTouchLike && !(Math.min(screen.width||0, screen.height||0) >= 700);
+let qualScale = _qualStartLow ? 0.75 : 1.0;
+let qualIdx   = _qualStartLow ? 0    : 1;
 // "Preferred" quality — the CEILING the continuous-watchdog up-steps toward
 // after a downgrade. setQuality() (via applyQualityTier, source:'manual')
 // overwrites it when the user manually picks a level, so the watchdog won't
