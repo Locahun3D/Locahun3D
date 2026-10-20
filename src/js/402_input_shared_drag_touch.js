@@ -52,10 +52,12 @@ const PINCH_MAX_ZOOM = 4;
 function _pinchDist(t0, t1){ return Math.max(1, Math.hypot(t0.clientX - t1.clientX, t0.clientY - t1.clientY)); }
 function _pinchZoomOf(f){ try{ return Math.tan(_autoFov * Math.PI / 360) / Math.tan(f * Math.PI / 360); }catch(_){ return 1; } }
 function _pinchStart(e){
-  if(e.touches.length !== 2) return;
+  // 画面全体の指（e.touches）ではなく、この3D画面の上に置いた指（targetTouches）だけで数える。
+  // ジョイスティック・▲▼などを押している指は数えない（2026-10-20 本人「ジョイスティック触ってるときは起動しないで」）。
+  if(!e.targetTouches || e.targetTouches.length !== 2 || e.touches.length !== 2) return;
   _cancelMsrLongPress(); _cancelPlcLongPress();
   if(_msrPlacingId !== -1 || _plcPlacingId !== -1 || _handleTouchId !== -1 || _lpvTouchId !== -1) return;
-  const a = e.touches[0], b = e.touches[1];
+  const a = e.targetTouches[0], b = e.targetTouches[1];
   _pinchIds = [a.identifier, b.identifier];
   _pinchD0 = _pinchDist(a, b);
   _pinchFov0 = fov;
@@ -142,7 +144,7 @@ window._pinchZoomReset = function(){
 
 canvas.addEventListener('touchstart',e=>{
   if(typeof _clickPointerStart==='function')_clickPointerStart('touch',e);
-  if(e.touches.length===2)_pinchStart(e);
+  if(e.targetTouches&&e.targetTouches.length===2&&e.touches.length===2)_pinchStart(e);
   // ── Figure bone-rotation ring / IK handle touch-drag (highest priority) ──
   // Mirrors the desktop mousedown order (bone ring → IK → lpv). Only outside
   // measure mode and only when a figure widget is actually pickable. Previously
