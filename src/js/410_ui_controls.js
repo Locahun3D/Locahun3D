@@ -44,6 +44,8 @@ function _qualBudget(i){
   const base = (sparkRenderer && typeof sparkRenderer.defaultSplatTarget === 'function') ? sparkRenderer.defaultSplatTarget() : 2500000;
   const tier = (typeof _splatPerfTier !== 'undefined') ? _splatPerfTier : 'desktop';
   if(i === 0) return { count: Math.round(base * 0.5), renderScale: 1.25 };
+  // 中も端末別既定の1.3倍まで描く（2026-10-20 中画質を引き上げ。戻すときはこの行と mid 値を戻す）
+  if(i === 1) return { count: Math.round(base * 1.3), renderScale: 1 };
   if(i === 2){
     if(tier === 'desktop') return _qualTop ? { count: 10000000, renderScale: 0.5 } : { count: 5000000, renderScale: 1 };
     return { count: Math.round(base * 1.6), renderScale: 1 };

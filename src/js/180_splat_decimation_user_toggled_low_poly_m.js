@@ -61,11 +61,11 @@ function _radLodScaleForStride(stride){
 function _radLodScaleForQuality(idx){
   const tier = (typeof _splatPerfTier !== 'undefined') ? _splatPerfTier : 'laptop_ok';
   let lo, mid, hi;
-  if(tier === 'desktop')          { lo=0.8;  mid=1.5; hi=3.0; }
-  else if(tier === 'laptop_ok')   { lo=0.7;  mid=1.1; hi=2.0; }
-  else if(tier === 'laptop_weak') { lo=0.6;  mid=0.9; hi=1.3; }
-  else if(tier === 'tablet')      { lo=0.5;  mid=0.8; hi=1.2; }
-  else /* phone */                { lo=0.45; mid=0.7; hi=1.0; }
+  if(tier === 'desktop')          { lo=0.8;  mid=2.0; hi=3.0; }
+  else if(tier === 'laptop_ok')   { lo=0.7;  mid=1.4; hi=2.0; }
+  else if(tier === 'laptop_weak') { lo=0.6;  mid=1.05; hi=1.3; }
+  else if(tier === 'tablet')      { lo=0.5;  mid=1.0; hi=1.2; }
+  else /* phone */                { lo=0.45; mid=0.85; hi=1.0; }
   return (idx === 0) ? lo : (idx === 2) ? hi : mid;
 }
 function _radEffectiveLodScale(){
