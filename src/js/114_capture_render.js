@@ -23,7 +23,8 @@ async function _capLodWarmup(capPR){
   try{
     // 細かさ: 画質「高」の 4 倍（A/B 計測の上限実行と同じ）。予算: 強い端末は VRAM 上限 maxPagedSplats の 9 割まで、
     // 弱い端末は 2 倍まで。静止画なので FPS は捨てて、データが持つ細かさを全部読む（本人「最高画質で」）。
-    const hi = _radLodScaleForStride(_splatStride()) * _radLodScaleForQuality(2) * 4;
+    // iPad など弱い端末は ×4 だと読み込みが落ち着かず 60 秒待たされる（2026-10-23 本人報告）。×1.5 に抑える。
+    const hi = _radLodScaleForStride(_splatStride()) * _radLodScaleForQuality(2) * (strong ? 4 : 1.5);
     meshes.forEach((m, i)=>{ m.lodScale = Math.max(saved.scales[i], hi); });
     const base = sr.lodSplatCount ?? (typeof sr.defaultSplatTarget === 'function' ? sr.defaultSplatTarget() : undefined);
     if(typeof base === 'number' && base > 0){
@@ -77,7 +78,7 @@ async function _capLodWarmup(capPR){
       const sec = (now - t0) / 1000;
       badge.textContent = T('cap-warmup').replace('{n}', (n / 10000).toFixed(0)).replace('{s}', sec.toFixed(1));
       if((fetched || now - t0 > 3000) && now - stableSince > 1500) break;
-      if(now - t0 > 60000){ timedOut = true; break; }
+      if(now - t0 > (strong ? 60000 : 20000)){ timedOut = true; break; }
     }
   } finally {
     badge.remove();
