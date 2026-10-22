@@ -108,7 +108,7 @@ function _pinchEnd(e){
   // 残った1本指が回転ゾーンにあれば、そのまま視点回転へ
   if(e && e.touches && e.touches.length === 1){
     const t = e.touches[0];
-    if(t.identifier !== _lpvTouchId && t.identifier !== _handleTouchId && t.clientX > innerWidth * 0.3){ tlId = t.identifier; tlX = t.clientX; tlY = t.clientY; }
+    if(t.identifier !== _lpvTouchId && t.identifier !== _handleTouchId){ tlId = t.identifier; tlX = t.clientX; tlY = t.clientY; }
   }
 }
 let _pinchBadgeTimer = null;
@@ -289,7 +289,7 @@ canvas.addEventListener('touchstart',e=>{
   // (z-index 60, pointer-events) that capture their own touches before the canvas
   // sees them, so the only thing the wider zone claims is empty canvas left-of-centre.
   for(const t of e.changedTouches)
-    if(t.identifier!==_lpvTouchId && t.identifier!==_handleTouchId && t.clientX>innerWidth*0.3){tlId=t.identifier;tlX=t.clientX;tlY=t.clientY;}
+    if(t.identifier!==_lpvTouchId && t.identifier!==_handleTouchId){tlId=t.identifier;tlX=t.clientX;tlY=t.clientY;}
   if(_pinchIds)return;
   if(typeof _clickPointerArm==='function'&&_handleTouchId===-1&&_lpvTouchId===-1&&_msrPlacingId===-1&&_plcPlacingId===-1)_clickPointerArm('touch',e);
 },{passive:true});
