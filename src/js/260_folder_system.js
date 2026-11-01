@@ -4,6 +4,11 @@
 function _layerText(value){
   return String(value??'').replace(/[&<>"']/g,ch=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[ch]));
 }
+// 2026-11-01 セキュリティ監査: プロジェクト（ZIP）由来の画像URLを属性へそのまま入れていた（XSS）。画像として読める形だけ通す。
+function _layerSafeImgSrc(src){
+  const s=String(src??'');
+  return /^(data:image\/|blob:|https:\/\/|\/(?!\/))/i.test(s) ? _layerText(s) : '';
+}
 window.addFolder = function() {
   const id = _layerNextId++;
   const L = {
@@ -574,8 +579,8 @@ function renderTransformPanel(){
     let evH = '<div style="margin-top:8px;padding:6px 5px;background:rgba(255,255,255,.03);border-radius:5px;border:1px solid rgba(255,255,255,.07)">';
     evH += '<div style="font-size:.7em;color:#606060;margin-bottom:4px">'+T('lt-event')+'</div>';
     if(L.eventImage){
-      evH += '<div style="font-size:.68em;color:#909090;margin-bottom:4px">'+(L.eventImageName||'')+'</div>';
-      evH += '<img src="'+L.eventImage+'" onclick="showEventImage('+L.id+')" style="width:100%;max-height:160px;object-fit:contain;border-radius:4px;border:1px solid rgba(255,255,255,.1);cursor:pointer;margin-bottom:4px;display:block" title="'+T('tt-ev-zoom')+'">';
+      evH += '<div style="font-size:.68em;color:#909090;margin-bottom:4px">'+_layerText(L.eventImageName||'')+'</div>';
+      evH += '<img src="'+_layerSafeImgSrc(L.eventImage)+'" onclick="showEventImage('+L.id+')" style="width:100%;max-height:160px;object-fit:contain;border-radius:4px;border:1px solid rgba(255,255,255,.1);cursor:pointer;margin-bottom:4px;display:block" title="'+T('tt-ev-zoom')+'">';
       evH += '<div style="display:flex;gap:4px">';
       evH += '<button onclick="showEventImage('+L.id+')" style="flex:1;background:#2A2A2C;border:1px solid rgba(255,255,255,.1);color:#ffd49a;border-radius:4px;padding:3px 6px;font-size:.7em;cursor:pointer">'+T('lt-ev-show')+'</button>';
       evH += '<button onclick="clearEventImage('+L.id+')" style="flex:1;background:#2A2A2C;border:1px solid rgba(255,255,255,.1);color:#ff8888;border-radius:4px;padding:3px 6px;font-size:.7em;cursor:pointer">'+T('lt-ev-clr')+'</button>';
@@ -586,7 +591,7 @@ function renderTransformPanel(){
     // Event guide text field
     evH += '<div style="margin-top:6px">';
     evH += '<div style="font-size:.7em;color:#606060;margin-bottom:3px">'+T('lt-ev-guide')+'</div>';
-    evH += '<textarea rows="2" style="width:100%;background:#2A2A2C;border:1px solid rgba(255,255,255,.1);color:#C0C0C0;border-radius:4px;padding:4px 6px;font-size:.72em;resize:vertical;box-sizing:border-box;outline:none;font-family:inherit" oninput="window.setEventGuide('+L.id+',this.value)" placeholder="'+T('ph-ev-guide')+'">'+(L.eventGuide||'')+'</textarea>';
+    evH += '<textarea rows="2" style="width:100%;background:#2A2A2C;border:1px solid rgba(255,255,255,.1);color:#C0C0C0;border-radius:4px;padding:4px 6px;font-size:.72em;resize:vertical;box-sizing:border-box;outline:none;font-family:inherit" oninput="window.setEventGuide('+L.id+',this.value)" placeholder="'+T('ph-ev-guide')+'">'+_layerText(L.eventGuide||'')+'</textarea>';
     evH += '</div>';
     evH += '</div>';
     el.innerHTML += evH;
@@ -598,7 +603,7 @@ function renderTransformPanel(){
     ph+='<div style="font-size:.66em;color:#7a8aa0;margin-bottom:6px">'+T('lt-path-hint')+'</div>';
     ph+='<div style="display:flex;align-items:center;gap:6px;margin-bottom:6px">';
     ph+='<label for="path-color-'+L.id+'" style="font-size:.68em;color:#c0c0c0">'+T('lt-path-color')+'</label>';
-    ph+='<input id="path-color-'+L.id+'" type="color" title="'+T('tt-path-color')+'" value="'+(L.pathColor||'#00d0ff')+'" oninput="setPathColor('+L.id+',this.value)" style="width:36px;height:22px;padding:1px;border:1px solid rgba(255,255,255,.2);background:#1a1a00;border-radius:3px;cursor:pointer">';
+    ph+='<input id="path-color-'+L.id+'" type="color" title="'+T('tt-path-color')+'" value="'+_layerText(L.pathColor||'#00d0ff')+'" oninput="setPathColor('+L.id+',this.value)" style="width:36px;height:22px;padding:1px;border:1px solid rgba(255,255,255,.2);background:#1a1a00;border-radius:3px;cursor:pointer">';
     ph+='<span style="font-size:.68em;color:#909090;width:auto">'+T('lt-path-opacity')+'</span>';
     ph+='<input type="range" min="0" max="1" step="0.05" value="'+(L.pathOpacity!=null?L.pathOpacity:0.28)+'" oninput="setPathOpacity('+L.id+',this.value)" style="flex:1;height:4px;accent-color:#D8D8D8">';
     ph+='</div>';
