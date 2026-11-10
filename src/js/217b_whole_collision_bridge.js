@@ -219,7 +219,10 @@ async function _walkRunWholeGeneration(job,splats){
       });
       // ほぼ透明な点（0〜255で19未満。RAD は lodOpacity で実値の半分なので 不透明度0.15 未満）は数えず、
       // 周りに何もない孤立した升は捨てる（2026-09-22 廊下が塞がる件）。どちらも RAD（実測した形式）のときだけ。キーは v2。
-      result=await LocahunCollisionBake.generate(bakeSources,{opacityMin:19,dropIsolated:bakeSources.some(source=>source.paged),cellSize,check:()=>_walkCheckJob(job),awaitJob:p=>_walkAwait(p,job),progress:p=>_walkStatus(_walkL('全体の当たり判定を準備中 ','Preparing scene collision ')+Math.round(p.chunk/p.chunks*100)+'%')});
+      // 広い屋外（渋谷スクランブル・WATERS竹芝）は 12.5cm 升が 200万を超えて作れない（2026-11-11 計測: 17%／93% で停止）。
+      // 閲覧者のブラウザでは上限を変えず、PC で事前に作る collision-check だけが __l3dBakeMaxCells で引き上げる。
+      const bakeMaxCells=Number.isSafeInteger(globalThis.__l3dBakeMaxCells)&&globalThis.__l3dBakeMaxCells>2000000?Math.min(20000000,globalThis.__l3dBakeMaxCells):2000000;
+      result=await LocahunCollisionBake.generate(bakeSources,{maxCells:bakeMaxCells,opacityMin:19,dropIsolated:bakeSources.some(source=>source.paged),cellSize,check:()=>_walkCheckJob(job),awaitJob:p=>_walkAwait(p,job),progress:p=>_walkStatus(_walkL('全体の当たり判定を準備中 ','Preparing scene collision ')+Math.round(p.chunk/p.chunks*100)+'%')});
     }finally{for(const decoder of decoders)decoder.dispose();}
     bytes=await LocahunWholeCollision.encodeTiles(result.tiles,key,result.cellSize);_walkCheckJob(job);
     index=await LocahunWholeCollision.decodeTiles(bytes,key);

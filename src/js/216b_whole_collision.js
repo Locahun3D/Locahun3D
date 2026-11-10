@@ -15,7 +15,8 @@
   }
   class Accumulator {
     constructor({cellSize=.15,maxCells=2000000,minPoints=2}={}){
-      if(!Number.isFinite(cellSize)||cellSize<.05||cellSize>1||!Number.isSafeInteger(maxCells)||maxCells<1||maxCells>2000000||!Number.isSafeInteger(minPoints)||minPoints<1)throw new Error('Invalid collision bake options');
+      // 上限の既定は 200万升のまま。PC で事前に作るとき（collision-check）だけ generate の maxCells で 2,000万升まで上げる（2026-11-11）。
+      if(!Number.isFinite(cellSize)||cellSize<.05||cellSize>1||!Number.isSafeInteger(maxCells)||maxCells<1||maxCells>20000000||!Number.isSafeInteger(minPoints)||minPoints<1)throw new Error('Invalid collision bake options');
       this.cellSize=cellSize;this.maxCells=maxCells;this.minPoints=minPoints;this.cells=new Map();this.points=0;
     }
     add(x,y,z){

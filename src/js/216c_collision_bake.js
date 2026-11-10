@@ -1,8 +1,8 @@
 (() => {
   const CONCURRENCY=6;
   const half=h=>{const e=(h>>10)&31,m=h&1023,s=h&32768?-1:1;return s*(e===0?m*2**-24:e===31?Infinity:(1+m/1024)*2**(e-15));};
-  async function generate(sources,{check=()=>{},progress=()=>{},cellSize=.15,awaitJob=p=>p,opacityMin=0,dropIsolated=false}={}){
-    const accumulator=new LocahunWholeCollision.Accumulator({cellSize});let entries=0,leaves=0;
+  async function generate(sources,{check=()=>{},progress=()=>{},cellSize=.15,awaitJob=p=>p,opacityMin=0,dropIsolated=false,maxCells=2000000}={}){
+    const accumulator=new LocahunWholeCollision.Accumulator({cellSize,maxCells});let entries=0,leaves=0;
     function consume(chunk,matrix,hierarchy){
       const packed=chunk.packedArray,count=chunk.numSplats,tree=chunk.extra?.lodTree;
       if(!(packed instanceof Uint32Array)||!Number.isSafeInteger(count)||count<0||packed.length<count*4||(hierarchy&&(!(tree instanceof Uint32Array)||tree.length<count*4)))throw new Error('Incomplete collision source payload');
