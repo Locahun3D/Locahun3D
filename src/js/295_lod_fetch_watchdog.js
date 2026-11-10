@@ -25,7 +25,13 @@
   const HARD_MS = 12000;    // 後発の完了が無くても、これを超えたら止まりとみなす
   const TICK_MS = 250;
   const MAX_BOOST = 8;      // 並列数の上乗せ上限
-  const st = { stalls: 0, late: 0, dropped: 0, boost: 0, base: 0, lastSet: 0, medianMs: 0 };
+  const MAX_STALE = 4;      // 同時に見限っておける数（これを超えたら HARD 以外では見限らない）
+  // 見限った取得が後から届いた（＝止まっていたのではなく遅かっただけ）ら、判定を2倍ずつ慎重にする。
+  // 揺れる遅い回線（ホテル Wi-Fi・弱い4G）で正常な取得まで重複取得し、帯域を食うのを防ぐ
+  // （内見版の試験: 0.4MB/s 時に見限り16回・遅れ着12で、見張りなしの半分以下の点数）。
+  // iPhone の本当に止まる取得は届かない（遅れ着0）ので、速い判定はそのまま効く。20秒遅れ着がなければ半分に戻す。
+  let penalty = 1, lastLateAt = 0;
+  const st = { stalls: 0, late: 0, dropped: 0, boost: 0, base: 0, lastSet: 0, medianMs: 0, penalty: 1 };
   window.__lodFetchWatchdog = st;   // diag 用
   const seen = new WeakMap();       // fetcher → 最初に見た時刻
   const stale = new Set();          // 止まったとみなした fetcher
@@ -59,7 +65,9 @@
     if(pg.numFetchers !== st.lastSet){ st.base = pg.numFetchers; st.boost = 0; }
 
     // 遅れて終わった（配列から消えた）止まり fetcher を片付ける
-    for(const f of stale){ if(!pg.fetchers.includes(f)){ stale.delete(f); st.late++; } }
+    for(const f of stale){ if(!pg.fetchers.includes(f)){ stale.delete(f); st.late++; penalty = Math.min(penalty * 2, 16); lastLateAt = now; } }
+    if(penalty > 1 && now - lastLateAt > 20000){ penalty /= 2; lastLateAt = now; }
+    st.penalty = penalty;
 
     // 普通に終わった取得の所要時間を記録
     const cur = new Set(pg.fetchers);
@@ -81,9 +89,9 @@
       const t = seen.get(f);
       if(t === undefined){ seen.set(f, now); continue; }
       const age = now - t;
-      const overtaken = lastDoneStart >= t &&   // 同時に始まった取得が先に終わった場合も含む
-        age > MIN_MS && age > SLOW_X * (st.medianMs || 0);
-      if(overtaken || age > Math.max(HARD_MS, 3 * (st.medianMs || 0))){
+      const overtaken = lastDoneStart >= t && stale.size < MAX_STALE &&   // 同時に始まった取得が先に終わった場合も含む
+        age > MIN_MS * penalty && age > SLOW_X * penalty * (st.medianMs || 0);
+      if(overtaken || age > Math.max(HARD_MS, 3 * (st.medianMs || 0)) * penalty){
         active.delete(f);
         console.warn('[lod-watchdog] fetch stalled', Math.round((now - t) / 1000) + 's', 'chunk', f.chunk, '→ retry');
         f.chunk = -1;           // driveFetchers がこの chunk を取得中と数えないようにする
