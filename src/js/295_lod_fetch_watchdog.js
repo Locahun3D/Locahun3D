@@ -20,7 +20,7 @@
 //  見限った取得は abort しないので、元の取得が先に届けばそれが使われ、取り直しは捨てられる（実質「保険の重複取得」）。
 (function(){
   if(/[?&]nowatchdog=1/.test(location.search)) return;   // 比較試験用
-  const MIN_MS  = 2500;     // これより短い取得は止まり扱いしない
+  const MIN_MS  = +(new URLSearchParams(location.search).get('wdmin')) || 1000;     // これより短い取得は止まり扱いしない（2026-11-10: 2.5秒→1秒。通常の取得は0.2秒前後、iPhone 実機で収束5秒→短縮狙い）
   const SLOW_X  = 4;        // 最近の所要時間（中央値）の何倍で止まりとみなすか
   const HARD_MS = 12000;    // 後発の完了が無くても、これを超えたら止まりとみなす
   const TICK_MS = 250;
