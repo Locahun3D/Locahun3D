@@ -30,7 +30,7 @@ if(_protected){
   const urlDemo = /[?&]demo=1/.test(location.search);
   const isDemo = ()=>{
     if(typeof DEMO_SCENE_URL==='undefined' || !DEMO_SCENE_URL || typeof layers==='undefined') return false;
-    if(layers.some(l=>l && l._streamUrl===DEMO_SCENE_URL)) return true;
+    if(layers.some(l=>l && (l._streamUrl===DEMO_SCENE_URL || (typeof DEMO_STREAM_URL!=='undefined' && l._streamUrl===DEMO_STREAM_URL)))) return true;
     // ?demo=1 で起動してまだ何も載っていない間(読込中)も塞いでおく
     return urlDemo && layers.length===0;
   };

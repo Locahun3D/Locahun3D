@@ -306,9 +306,8 @@ async function _loadProjectZipFromFile(file){
     if(walkImportEpoch!==walkSetup.epoch)return;
     _regionalNavigationFiles=regionalFiles;
     hideLd();
-    showUndoToast(missing>0
-      ?(_en()?`⚠ Restored (${attached} ok / ${missing} not found)`:`⚠ 復元完了 (${attached}成功/${missing}未発見)`)
-      :(_en()?`✅ Restored from ZIP (${attached} file${attached===1?'':'s'})`:`✅ ZIPから完全復元 (${attached}ファイル)`));
+    // 2026-11-11 本人指示「ビューアーで表示が出るのがじゃま 消して」: 成功時の「ZIPから完全復元」は出さない（欠けがあるときの警告だけ残す）。
+    if(missing>0) showUndoToast(_en()?`⚠ Restored (${attached} ok / ${missing} not found)`:`⚠ 復元完了 (${attached}成功/${missing}未発見)`);
   } catch(err){
     if(walkImportEpoch!==walkSetup.epoch)return;
     console.error('[loadProjectZip]',err);

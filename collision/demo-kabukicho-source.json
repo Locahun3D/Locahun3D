@@ -1,0 +1,25 @@
+{
+  "whole": {
+    "key": "bb1e420c4b1eaabcf06a716e35acf678bc6ba6f5b2415c5e1e4ae68c4ccfa12a"
+  },
+  "cellSize": 0.125,
+  "tiles": 1779,
+  "boxes": 170224,
+  "bytes": 640510,
+  "sha256": "32cddc6485cf789a75bba70558997fb75c7e06bcda09e22a0d9e8aab3a768a68",
+  "sources": [
+    {
+      "url": "https://viewer.locahun3d.com/api/demo-asset/Kabukicho_ForDemo_point_cloud.rad",
+      "httpEtag": "\"cebcfd24e809d56c2df79e71e6454a32-4\"",
+      "size": 219983184
+    },
+    {
+      "url": "https://viewer.locahun3d.com/api/demo-asset/Kabukicho_ForDemo_project.zip",
+      "note": "environment layer embedded in the project ZIP (sha256 identity)",
+      "httpEtag": "\"6d87ee28249a762d3ca07ebf8cfc169f\"",
+      "size": 2436520
+    }
+  ],
+  "bakedBy": "viewer runtime (patched viewer-dist) against byte-identical local copies served with the R2 ETags, 2026-11-11",
+  "completedAt": "2026-11-11"
+}

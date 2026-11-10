@@ -14,8 +14,10 @@ test('static collision assets cannot bypass the worker allowlist and CORS',()=>{
 test('worker public allowlist matches the finalized release manifest',()=>{
  const manifestSource=fs.readFileSync(new URL('../src/js/216a_collision_manifest.js',import.meta.url),'utf8');
  const manifest=JSON.parse(manifestSource.match(/Object\.freeze\((\{[\s\S]*\})\);/)[1]);
- assert.deepEqual(Object.keys(manifest),[key]);assert.equal(manifest[key].bytes,payload.length);
- assert(source.toString().includes(manifest[key].sha256));
+ // 2026-11-11: 歌舞伎町デモの判定を追加（交差点は残す）。どちらも実ファイルと一致し、worker の許可リストに載っていること。
+ const kabuki='bb1e420c4b1eaabcf06a716e35acf678bc6ba6f5b2415c5e1e4ae68c4ccfa12a';
+ assert.deepEqual(Object.keys(manifest),[key,kabuki]);
+ for(const k of [key,kabuki]){assert.equal(manifest[k].bytes,fs.readFileSync(new URL('../collision/'+k+'.lct',import.meta.url)).length);assert(source.toString().includes(manifest[k].sha256));}
 });
 test('public content-addressed collision GET/HEAD has CORS, binary identity and length',async()=>{
  for(const method of ['GET','HEAD']){

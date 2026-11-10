@@ -47,7 +47,7 @@ function showLd(t) {
     if(performance.now()-_ld.realAt>300&&_ld.shown<ceiling){_ld.shown+=Math.max(.02,(ceiling-_ld.shown)*.01);_ldPaint();}
   },120);
   const lp=document.getElementById('lpct'); if(lp) lp.style.display='block';
-  document.getElementById('lm').textContent=(typeof t==='string'&&!/^読み込み中[:：]/.test(t))?t:'';
+  document.getElementById('lm').textContent=(typeof t==='string'&&!/^読み込み中[:：]/.test(t)&&!window.__l3dQuietLoad)?t:'';
   const e=document.getElementById('lerr');e.style.display='none';e.textContent='';
   document.getElementById('lm').style.display='block';
   document.getElementById('ld').classList.remove('hidden');
@@ -62,7 +62,8 @@ function setBar(p) {
   if(mapped > _ld.shown){ _ld.shown = mapped; _ld.realAt = performance.now(); }
   _ldPaint();
 }
-function setMsg(m) { document.getElementById('lm').textContent=m; }
+// デモ（2026-11-11 本人指示「ZIPから復元などの案内も削除してほしい」）は ZIP・解凍などの途中経過を出さず、進み具合だけ見せる。
+function setMsg(m) { document.getElementById('lm').textContent=window.__l3dQuietLoad?'':m; }
 function setErr(m) {
   const e=document.getElementById('lerr');e.textContent=m;e.style.display='block';
   document.getElementById('lm').style.display='none';

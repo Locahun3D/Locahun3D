@@ -12,10 +12,12 @@ const REPORT_FROM = 'ロケハン3D 報告 <noreply@locahun3d.com>';
 
 // デモシーンとして公開配信を許可する R2 キーの固定ホワイトリスト。
 // これ以外は 404（このエンドポイントが汎用オープンプロキシに転用されるのを防ぐ）。
-const DEMO_ALLOWED_KEYS = new Set(['Kousaten_ForDemo_point_cloud.rad']);
+const DEMO_ALLOWED_KEYS = new Set(['Kousaten_ForDemo_point_cloud.rad', 'Kabukicho_ForDemo_project.zip', 'Kabukicho_ForDemo_point_cloud.rad']); // 2026-11-11 デモを歌舞伎町に（旧デモも残す）
 // Release-pinned public demo only; never serve arbitrary files under /collision/.
 const PUBLIC_COLLISION_ASSETS = {
   'f2ba008e5632deb2bd81b8f86de0dac93a4c4b977ec6c24e07e76ec785fb1b49': {bytes:482369,sha256:'eb56281adf11bfdb117231a1ae3b22db497fa59c994731c0a0f08fd02e1ea16c'},
+  // 2026-11-11 デモ（歌舞伎町）: Kabukicho_ForDemo_project.zip ＋ Kabukicho_ForDemo_point_cloud.rad の全体当たり判定
+  'bb1e420c4b1eaabcf06a716e35acf678bc6ba6f5b2415c5e1e4ae68c4ccfa12a': {bytes:640510,sha256:'32cddc6485cf789a75bba70558997fb75c7e06bcda09e22a0d9e8aab3a768a68'},
 };
 
 // デモは公開アセットのみ・Cookie を読まないので Origin * で問題ない。

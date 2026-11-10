@@ -29,11 +29,15 @@
 // URL there instead of the public CDN Worker URL. The standalone/offline
 // download (opened via file://, Dropbox, etc.) has no such backend, so it
 // always needs the absolute URL.
-const DEMO_SCENE_URL = (typeof _protected !== 'undefined' && _protected)
-  ? '/api/demo-asset/Kousaten_ForDemo_point_cloud.rad'
-  : 'https://viewer.locahun3d.com/api/demo-asset/Kousaten_ForDemo_point_cloud.rad';
-const DEMO_SCENE_LABEL = 'デモシーン(交差点)';
-const DEMO_SCENE_SIZE_MB = 357;
+// 2026-11-11 本人指示「デモの交差点、新宿歌舞伎町に変更したい」: デモは歌舞伎町ゲート（劇場通り一番街）。
+// 向き・開始カメラ・背景はプロジェクトZIP（2.4MB）に入っていて、本体の3DGSは DEMO_STREAM_URL を参照して流す
+// （オンライン版の「元のRADを参照する保存」と同じ形。R2 にデモ専用の名前で複製してあり、物件側の編集に引きずられない）。
+// 旧デモ（Kousaten_ForDemo_point_cloud.rad）は配信の許可リストに残してあり、古い ?autoload= リンクでも開ける。
+const _DEMO_BASE = (typeof _protected !== 'undefined' && _protected) ? '' : 'https://viewer.locahun3d.com';
+const DEMO_SCENE_URL = _DEMO_BASE + '/api/demo-asset/Kabukicho_ForDemo_project.zip';
+const DEMO_STREAM_URL = _DEMO_BASE + '/api/demo-asset/Kabukicho_ForDemo_point_cloud.rad';
+const DEMO_SCENE_LABEL = 'デモシーン(歌舞伎町)';
+const DEMO_SCENE_SIZE_MB = 212;
 
 // Fetches a URL as an ArrayBuffer with HTTP Range chunking + retry, instead
 // of a single whole-file fetch. A single fetch of a large file (e.g. an
@@ -261,6 +265,7 @@ async function loadFromURL(url, displayName){
         const given=new URLSearchParams(location.search).get('streamref');
         if(given && (/^https:\/\//.test(given) || given.startsWith('/api/viewer-stream/'))) window.__l3dStreamRefUrl=given;
         else if(url.startsWith('/api/viewer-stream/')) window.__l3dStreamRefUrl=url+(url.includes('?')?'&':'?')+'ref=stream';
+        if(typeof DEMO_SCENE_URL!=='undefined' && url===DEMO_SCENE_URL) window.__l3dStreamRefUrl=DEMO_STREAM_URL;
       }catch(_){}
       // Zipped splat/mesh (e.g. a large .rad zipped for upload-size limits, or
       // an online-SaaS stored property scene). _loadProjectZipFromFile already
@@ -270,7 +275,11 @@ async function loadFromURL(url, displayName){
       // drive to completion. Without this branch, zip bytes were fed straight
       // into loadSplatFile() (no zip-extraction logic) and silently failed to
       // parse — every ?autoload=<zip-url> scene landed on a blank dropzone.
-      await _loadProjectZipFromFile(file);
+      const _isDemoZip = typeof DEMO_SCENE_URL!=='undefined' && url===DEMO_SCENE_URL;
+      if(_isDemoZip) window.__l3dQuietLoad = true;
+      try{ await _loadProjectZipFromFile(file); }finally{ if(_isDemoZip) window.__l3dQuietLoad = false; }
+      // デモ（歌舞伎町）はZIP経路で開くので、保存系を隠す判定（430）をここでも走らせる。
+      if(typeof DEMO_SCENE_URL!=='undefined' && url===DEMO_SCENE_URL && typeof window._syncDemoMode==='function') window._syncDemoMode();
     }
     else if(['obj','gltf','glb','fbx'].includes(ext)) await loadObjFile(file);
     else {

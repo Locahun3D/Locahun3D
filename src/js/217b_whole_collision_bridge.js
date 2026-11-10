@@ -53,10 +53,10 @@ function _wholeContentIdentity(url,etag,length,pageHref){
 function _wholeCanonicalSourceUrl(url){
   try{
     const parsed=new URL(url,globalThis.location?.href);
-    const demoPath='/api/demo-asset/Kousaten_ForDemo_point_cloud.rad';
+    const demoPaths=['/api/demo-asset/Kousaten_ForDemo_point_cloud.rad','/api/demo-asset/Kabukicho_ForDemo_point_cloud.rad'];
     if(['https://locahun3d.com','https://viewer.locahun3d.com'].includes(parsed.origin)&&
-      parsed.pathname===demoPath&&!parsed.href.includes('?')&&!parsed.hash&&!parsed.username&&!parsed.password)
-      return 'https://viewer.locahun3d.com'+demoPath;
+      demoPaths.includes(parsed.pathname)&&!parsed.href.includes('?')&&!parsed.hash&&!parsed.username&&!parsed.password)
+      return 'https://viewer.locahun3d.com'+parsed.pathname;
     return parsed.href;
   }catch(_){return url;}
 }
