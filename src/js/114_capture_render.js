@@ -67,7 +67,7 @@ async function _capLodWarmup(capPR){
       await new Promise(r=>setTimeout(r, 200));
       const n = total();
       const q = (sr.pager.fetchPriority && sr.pager.fetchPriority.length) || 0;
-      const a = (sr.pager.fetchers && sr.pager.fetchers.length) || 0;
+      const a = sr.pager.fetchers ? sr.pager.fetchers.filter(f => f.chunk >= 0).length : 0;   // chunk -1 = 止まって見限った取得（295 watchdog）は数えない
       const now = performance.now();
       // Spark は落ち着いた後も数千スプラット単位で入れ替え続けるので、完全一致は待たない。
       // 「取得中が無く、増減が 0.3% 未満」が 1.2 秒続いたら最高まで読めたとみなす。

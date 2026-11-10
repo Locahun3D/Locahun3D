@@ -561,7 +561,7 @@ window.__diagState = {
     try{ return sparkRenderer.pager ? sparkRenderer.pager.fetchPriority.length : null; }catch(_){ return null; }
   },
   get pagerActive(){
-    try{ return sparkRenderer.pager ? sparkRenderer.pager.fetchers.length : null; }catch(_){ return null; }
+    try{ return sparkRenderer.pager ? sparkRenderer.pager.fetchers.filter(f => f.chunk >= 0).length : null; }catch(_){ return null; }
   },
   get lodSplatCount(){
     try{ return (typeof sparkRenderer!=='undefined' && sparkRenderer) ? sparkRenderer.lodSplatCount : null; }catch(_){ return null; }
