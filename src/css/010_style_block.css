@@ -451,6 +451,8 @@ body.demo-mode #em-save-zip { display:none !important; }
   background:rgba(22,22,24,.98);z-index:200;
 }
 #ld.hidden{display:none;}
+/* 開始位置の 360° 画像（292b）を出している間は読み込み画面を出さない（画像の裏で 3D を読む） */
+body.start-pano #ld,body.start-pano #dropzone{display:none!important;}
 #ld .lt{font-size:1.05em;color:#C0C0C0;letter-spacing:.04em;font-weight:300;}
 #ld .lt.ld-guide{display:grid;gap:7px;width:min(420px,calc(100vw - 48px));font-size:.92em;margin-bottom:6px;}
 #ld .lt.ld-guide>div{display:grid;grid-template-columns:7.5em 1fr;gap:12px;align-items:baseline;text-align:left;}
