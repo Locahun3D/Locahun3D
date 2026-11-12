@@ -321,7 +321,8 @@ if(/[?&]capture=1/.test(location.search)){
           if(gl) gl.finish();
         }
 
-        const vf = new VideoFrame(canvas, { timestamp: f * (1_000_000 / FPS) });
+        // duration を付けないと mp4-muxer が全コマを捨てて最後に落ちる（2026-11-12、Chrome 157 で実測。プレビュー動画が作れなかった）。
+        const vf = new VideoFrame(canvas, { timestamp: f * (1_000_000 / FPS), duration: Math.round(1_000_000 / FPS) });
         encoder.encode(vf, { keyFrame: f % (FPS * 2) === 0 });
         vf.close();
 

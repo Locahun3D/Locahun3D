@@ -356,7 +356,9 @@ async function _camAnimMakeExporter(width, height){
         await new Promise(r => setTimeout(r, 4));
       }
       if(errored) throw errored;
-      const frame = new VideoFrame(source, { timestamp: timestampUs });
+      // フレームの長さ（duration）を必ず付ける（2026-11-12）。付けないと VideoEncoder の出力 chunk.duration が null になり、
+      // mp4-muxer が「duration must be a non-negative real number」で全コマを捨て、最後に colorSpace の null 参照で落ちる（Chrome 157 で実測）。
+      const frame = new VideoFrame(source, { timestamp: timestampUs, duration: Math.round(1_000_000 / CAM_ANIM_REC_FPS) });
       try { encoder.encode(frame, { keyFrame: !!keyFrame }); }
       finally { frame.close(); }
     },
