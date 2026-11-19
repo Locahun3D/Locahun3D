@@ -161,7 +161,10 @@ if(/[?&]capture=1/.test(location.search)){
       // Phase 3: Lock resize handler and force 1280×720 (HD) capture resolution.
       // プレビュー動画は物件ページで複数同時に自動再生されるため、画質より
       // ファイルサイズ（ページの重さ）を優先し 1920×1080 から落としてある。
-      const CAP_W = 1280, CAP_H = 720;
+      // &pano=1 … 動画の代わりに開始位置の 360° 画像（6 方向・各 90°）を撮る（2026-11-19 本人「360画像一枚キャプチャして、それが回っている表示に」）。
+      //            カードは pano-preview.tsx が立方体にして回す。動画より処理も配信も軽い。
+      const PANO = /[?&]pano=1/.test(location.search);
+      const CAP_W = PANO ? 1024 : 1280, CAP_H = PANO ? 1024 : 720;
       const CAP_FOV = 90;   // 固定FOV（90）でキャプチャ
       // 撮影中は LODプリフェッチ(294)とビューポートresize(070)を抑止する。
       // 旧コードは未宣言の _captureLock に代入する no-op だった → 実効フラグへ。
@@ -237,6 +240,47 @@ if(/[?&]capture=1/.test(location.search)){
         }
         // 最終密度でのソートが画面に反映されるまで数フレーム余分に回す
         for(let w=0; w<30; w++) await nextFrame();
+      }
+
+      if(PANO){
+        // 開始位置から 6 方向（各 90°・正方形）を撮り、JPEG のまま返す。形式は scripts/bake-pano.mjs と同じ
+        // （面の向き f/r/b/l/u/d・カメラは pitch, yaw+dy+π）。保存先とキーはサイト側（/api/admin/pano-upload）が決める。
+        const S = CAP_W;
+        const baseYaw = (typeof _yawTarget !== 'undefined') ? _yawTarget : yaw;
+        const basePitch = (typeof _pitchTarget !== 'undefined') ? _pitchTarget : pitch;
+        const pose = { x: camPos.x, y: camPos.y, z: camPos.z, yaw: baseYaw, pitch: basePitch };
+        const FACES = [['f', 0, 0], ['r', -Math.PI / 2, 0], ['b', Math.PI, 0], ['l', Math.PI / 2, 0], ['u', 0, Math.PI / 2], ['d', 0, -Math.PI / 2]];
+        const tmp = document.createElement('canvas'); tmp.width = S; tmp.height = S;
+        const tctx = tmp.getContext('2d');
+        const faces = {};
+        for(let i = 0; i < FACES.length; i++){
+          const [k, dy, pt] = FACES[i];
+          if(typeof _yawTarget !== 'undefined') _yawTarget = baseYaw + dy;
+          yaw = baseYaw + dy;
+          if(typeof _pitchTarget !== 'undefined') _pitchTarget = pt;
+          pitch = pt;
+          // 向きを変えると読み込む細部も変わる。点数が落ち着くまで待つ（最大10秒）。
+          let last = -1, stableAt = -1; const t0 = performance.now();
+          while(performance.now() - t0 < 10000){
+            if(typeof markDirty === 'function') markDirty(30);
+            await settle(250);
+            const c = anySplatCount(), el = performance.now() - t0;
+            if(c > 0 && c === last){ if(stableAt < 0) stableAt = el; if(el - stableAt >= 1200 && el > 1500) break; }
+            else { stableAt = -1; last = c; }
+          }
+          for(let w = 0; w < 10; w++) await nextFrame();
+          if(typeof updateCamera === 'function') updateCamera();
+          camera.updateMatrixWorld(true);
+          renderer.render(scene, camera);
+          const gl = renderer.getContext(); if(gl) gl.finish();
+          tctx.clearRect(0, 0, S, S);
+          tctx.drawImage(canvas, 0, 0, S, S);
+          faces[k] = await new Promise(r => tmp.toBlob(r, 'image/jpeg', 0.82));
+          if(!faces[k]){ msg('capture-error', { error: 'jpeg-encode' }); return; }
+          msg('capture-progress', { phase: 'recording', text: '360°撮影中… ' + (i + 1) + '/6', pct: 40 + i * 9 });
+        }
+        msg('capture-done', { kind: 'pano', faces, pose, size: S, mimeType: 'image/jpeg', ext: 'jpg' });
+        return;
       }
 
       // Phase 4: rAF-driven frame-by-frame capture.
